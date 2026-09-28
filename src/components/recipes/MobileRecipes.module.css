@@ -35,8 +35,8 @@
 .meal[aria-current="true"] { border-color: color-mix(in srgb, var(--tone) 60%, transparent); background: color-mix(in srgb, var(--tone) 12%, var(--bg-page)); }
 .mealIco { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--tone); background: color-mix(in srgb, var(--tone) 16%, transparent); border: 1px solid color-mix(in srgb, var(--tone) 26%, transparent); }
 .mealBody { display: flex; flex-direction: column; }
-.mealType { font-size: .64rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--tone); }
-.mealKcal { font-size: .72rem; font-weight: 700; color: var(--text-muted); }
+.mealType { font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--tone); }
+.mealKcal { font-size: .75rem; font-weight: 700; color: var(--text-muted); }
 
 /* [P1-EATEN-SLOT-RECIPES · 2026-07-28 · reversado parcialmente por
    P1-EATEN-RECIPE-LOCK · 2026-07-28] Slot ya registrado en el diario de HOY —
@@ -45,7 +45,7 @@
    lenguaje visual que RecipesView.module.css (desktop) y que "Tu Menú" del
    Dashboard (P1-TODAY-REMAINING): tokens --success* (P2-7), nunca hex fijo. */
 .meal.eaten { opacity: .55; }
-.eatenBadge { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: .62rem; font-weight: 700; color: var(--success-text); background: var(--success-bg); border: 1px solid var(--success-border); padding: 2px 7px; border-radius: 99px; width: fit-content; }
+.eatenBadge { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: .75rem; font-weight: 700; color: var(--success-text); background: var(--success-bg); border: 1px solid var(--success-border); padding: 2px 7px; border-radius: 99px; width: fit-content; }
 
 /* Detalle */
 .detail { padding: 16px; }
@@ -77,10 +77,15 @@
   background: radial-gradient(120% 130% at 100% -10%, color-mix(in srgb, var(--tone) 24%, transparent), transparent 60%), linear-gradient(135deg, color-mix(in srgb, var(--tone) 13%, var(--bg-page)), var(--bg-page)); }
 .headTop { display: flex; align-items: center; gap: 11px; }
 .emblem { flex: none; width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #05080f; background: linear-gradient(150deg, color-mix(in srgb, var(--tone) 85%, #fff), var(--tone)); box-shadow: 0 8px 20px -10px var(--tone); }
-.badge { display: inline-flex; align-items: center; gap: 6px; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--tone); background: color-mix(in srgb, var(--tone) 18%, transparent); border: 1px solid color-mix(in srgb, var(--tone) 38%, transparent); padding: 4px 10px; border-radius: 99px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--tone); background: color-mix(in srgb, var(--tone) 18%, transparent); border: 1px solid color-mix(in srgb, var(--tone) 38%, transparent); padding: 4px 10px; border-radius: 99px; }
+/* [LEGIBILIDAD] El tipo de comida (lista y chip del detalle) pintaba el tono vivo
+   (#FBBF24/#34D399/#38BDF8/#A78BFA) como texto: 1,7-2,6:1 en claro. En claro la
+   tinta se oscurece hacia --text-main (≥4,6:1 sobre su tinte); oscuro intacto. */
+:global(html:not([data-theme="dark"])) .mealType,
+:global(html:not([data-theme="dark"])) .badge { color: color-mix(in srgb, var(--tone) 50%, var(--text-main)); }
 .title { margin: 0; font-family: var(--font-heading); font-size: 1.35rem; font-weight: 800; line-height: 1.14; letter-spacing: -.02em; color: var(--text-main); text-wrap: balance; word-break: break-word; overflow-wrap: anywhere; }
 .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
-.chip { display: inline-flex; align-items: center; gap: 5px; font-size: .74rem; font-weight: 700; color: var(--text-main); white-space: nowrap; background: var(--bg-card); border: 1px solid var(--border); padding: 5px 11px; border-radius: 99px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: .75rem; font-weight: 700; color: var(--text-main); white-space: nowrap; background: var(--bg-card); border: 1px solid var(--border); padding: 5px 11px; border-radius: 99px; }
 .kcal svg { color: #FB923C; }
 /* [P1-EATEN-SLOT-RECIPES · 2026-07-28] Marcador quieto del detalle — mismos
    tokens --success* que .eatenBadge del riel (arriba). */
@@ -91,13 +96,13 @@
 .donut { width: 116px; height: 116px; border-radius: 50%; display: grid; place-items: center; }
 .donutHole { width: 86px; height: 86px; border-radius: 50%; background: var(--bg-page); display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .donutHole b { font-family: var(--font-heading); font-size: 1.55rem; font-weight: 800; line-height: 1; color: var(--text-main); }
-.donutHole span { font-size: .58rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }
+.donutHole span { font-size: .75rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }
 .macroRow { display: flex; width: 100%; gap: 8px; }
 .mac { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 13px; padding: 10px 6px; }
 .dot { width: 10px; height: 10px; border-radius: 3px; }
-.macLab { font-size: .58rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+.macLab { font-size: .75rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
 .macVal { font-family: var(--font-heading); font-weight: 800; font-size: 1.05rem; color: var(--text-main); line-height: 1; }
-.macVal small { font-size: .64rem; color: var(--text-light); }
+.macVal small { font-size: .75rem; color: var(--text-muted); }
 
 .desc { margin: 16px 2px 0; font-size: .85rem; line-height: 1.55; color: var(--text-muted); font-style: italic; }
 
@@ -141,19 +146,24 @@
 .step:last-child { padding-bottom: 0; }
 .step::before { content: ""; position: absolute; left: 18px; top: 38px; bottom: 0; width: 2px; background: var(--border); }
 .step:last-child::before { display: none; }
-.node { position: relative; z-index: 1; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-heading); font-weight: 800; font-size: .95rem; color: var(--stone); background: color-mix(in srgb, var(--stone) 16%, var(--bg-card)); border: 2px solid color-mix(in srgb, var(--stone) 45%, transparent); }
+.node { position: relative; z-index: 1; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-heading); font-weight: 800; font-size: .95rem; color: var(--stone-ink, var(--stone)); background: color-mix(in srgb, var(--stone) 16%, var(--bg-card)); border: 2px solid color-mix(in srgb, var(--stone) 45%, transparent); }
 .stepCard { background: var(--bg-page); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; min-width: 0; }
-.stepTitle { font-size: .76rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--stone); margin: 0 0 5px; }
+/* [LEGIBILIDAD] --stone es el color vivo del paso (#22D3EE/#FB923C/#A78BFA/#34D399):
+   como TEXTO (número del nodo, título) daba 1,8-2,6:1 en claro. En claro la tinta
+   se oscurece hacia --text-main; en oscuro --stone-ink no existe y se usa --stone.
+   Hecho y «¡Listo!» pasan de --secondary a --ink-good (idéntico en oscuro). */
+:global(html:not([data-theme="dark"])) .step { --stone-ink: color-mix(in srgb, var(--stone) 50%, var(--text-main)); }
+.stepTitle { font-size: .76rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--stone-ink, var(--stone)); margin: 0 0 5px; }
 .stepText { font-size: .82rem; line-height: 1.5; color: var(--text-muted); word-break: break-word; overflow-wrap: anywhere; }
 .stepText strong { color: var(--text-main); font-weight: 700; }
 .step.done .node { background: var(--secondary); border-color: var(--secondary); color: #04221d; }
 .step.done .stepCard { background: color-mix(in srgb, var(--secondary) 8%, var(--bg-page)); border-color: color-mix(in srgb, var(--secondary) 35%, transparent); }
-.step.done .stepTitle { color: var(--secondary); }
+.step.done .stepTitle { color: var(--ink-good); }
 /* [P3-RECIPES-STEPDONE-CARD · 2026-06-24] "¡Listo!" = paso final del timeline:
    nodo verde (check) + tarjeta dark idéntica a los pasos (no un banner aparte). */
 .finish { cursor: default; }
 .finish .node { background: var(--secondary); border-color: var(--secondary); color: #04221d; }
-.finishText { font-family: var(--font-heading); font-size: .92rem; font-weight: 800; letter-spacing: -.01em; color: var(--secondary); }
+.finishText { font-family: var(--font-heading); font-size: .92rem; font-weight: 800; letter-spacing: -.01em; color: var(--ink-good); }
 
 .empty { text-align: center; padding: 2.5rem 1.5rem; background: var(--bg-page); border: 1px dashed var(--border); border-radius: 14px; color: var(--text-muted); font-size: .88rem; }
 

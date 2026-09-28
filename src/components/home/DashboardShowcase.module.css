@@ -1135,7 +1135,7 @@
         transform: rotate(90deg);
         transform-origin: 100% 0;
         font-family: var(--font-mono);
-        font-size: 11px;
+        font-size: 12px;
         letter-spacing: 0.14em;
         color: var(--pa-ink-2);
         white-space: nowrap;

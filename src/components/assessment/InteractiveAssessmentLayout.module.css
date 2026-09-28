@@ -376,7 +376,7 @@
    letterspaced de los badges de sección del landing. */
 .kicker {
     display: inline-block;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 800;
     letter-spacing: 0.14em;
     text-transform: uppercase;

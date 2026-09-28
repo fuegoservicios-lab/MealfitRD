@@ -82,7 +82,7 @@ export const ChipOption = ({ val, label, icon: Icon, isSelected, onToggle, disab
         }}
     >
         {Icon && <Icon size={18} color={isSelected ? 'var(--secondary)' : 'var(--text-muted)'} />}
-        <span style={{ fontSize: '0.9rem', fontWeight: isSelected ? 600 : 400, color: isSelected ? 'var(--secondary)' : 'var(--text-main)' }}>
+        <span style={{ fontSize: '0.9rem', fontWeight: isSelected ? 600 : 400, color: isSelected ? 'var(--ink-good)' : 'var(--text-main)' }}>
             {label}
         </span>
     </div>

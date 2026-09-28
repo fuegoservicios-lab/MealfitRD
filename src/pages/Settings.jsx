@@ -172,7 +172,7 @@ const _UnitToggle = ({ unit, options, onChange }) => (
                     borderRadius: '0.4rem',
                     border: 'none',
                     cursor: 'pointer',
-                    fontSize: '0.7rem',
+                    fontSize: '0.75rem',
                     fontWeight: 700,
                     textTransform: 'uppercase',
                     letterSpacing: '0.03em',
@@ -615,8 +615,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             if (!res.ok) throw new Error('PUT failed');
             toast.success(
                 next === 'auto_proxy'
-                    ? t('Modo auto activado: ya no pausaremos tu plan por falta de logs.')
-                    : t('Modo manual activado: pausaremos tu plan si dejas de loguear comidas.'),
+                    ? t('Modo automático activado: ya no pausaremos tu plan si no anotas comidas.')
+                    : t('Modo manual activado: pausaremos tu plan si dejas de anotar comidas.'),
             );
         } catch (e) {
             console.error('handleToggleLoggingPreference error:', e);
@@ -1642,7 +1642,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         push_unsupported: t('Push no soportado en este navegador.'),
                         vapid_missing: t('No se configuró la llave VAPID.'),
                         brave_blocks_push: t("Brave bloquea Push por defecto. Ve a brave://settings/privacy y activa 'Usar servicios de Google para mensajería push'."),
-                        sw_missing: t('No hay Service Worker registrado en este navegador.'),
+                        sw_missing: t('Este navegador no está listo para recibir notificaciones. Recarga la página e inténtalo de nuevo.'),
                         server_error: t('El servidor rechazó la suscripción (error {codigo}).', { codigo: r?.status ?? '?' }),
                         local_error: t('No se pudieron programar los avisos en este teléfono. Inténtalo de nuevo.'),
                     };
@@ -2192,8 +2192,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         border: 1px solid var(--border); color: var(--text-muted); background: var(--bg-muted);
                     }
                     .sub-pill-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-                    .sub-pill--active { color: #22C55E; background: color-mix(in srgb, #22C55E 12%, transparent); border-color: color-mix(in srgb, #22C55E 32%, transparent); }
-                    .sub-pill--ending { color: #F59E0B; background: color-mix(in srgb, #F59E0B 12%, transparent); border-color: color-mix(in srgb, #F59E0B 32%, transparent); }
+                    .sub-pill--active { color: var(--ink-good); background: color-mix(in srgb, #22C55E 12%, transparent); border-color: color-mix(in srgb, #22C55E 32%, transparent); }
+                    .sub-pill--ending { color: var(--ink-pantry); background: color-mix(in srgb, #F59E0B 12%, transparent); border-color: color-mix(in srgb, #F59E0B 32%, transparent); }
                     .sub-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
                     .sub-fact-label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
                     .sub-fact-value { margin-top: 0.25rem; font-family: var(--font-heading); font-size: 1.2rem; font-weight: 700; color: var(--text-main); font-variant-numeric: tabular-nums; }
@@ -2520,14 +2520,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         }}>
                             <AlertCircle size={22} strokeWidth={2.5} style={{ transform: 'translateY(0.5px)' }} />
                         </div>
-                        <h3 id="discard-confirm-title" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>
+                        <h3 id="discard-confirm-title" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
                             {t('Tienes cambios sin guardar')}
                         </h3>
                     </div>
                     {/* [P1-I18N-DASHBOARD · 2026-08-15] La frase va partida en dos claves
                         porque el motor traduce cadenas, no árboles JSX: el `<strong>` es
                         marcado y no puede viajar dentro de la clave. */}
-                    <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.55, margin: '0 0 1.5rem 0' }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.55, margin: '0 0 1.5rem 0' }}>
                         {enModoContador
                             ? t('Editaste tu peso o altura pero no guardaste los cambios. Si sales ahora, los nuevos valores se')
                             : t('Editaste tu peso o altura pero no actualizaste tu plan. Si sales ahora, los nuevos valores se')}{' '}
@@ -2817,7 +2817,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 <div style={{ width: '100%' }}>
                                     {/* [A11Y-FORMS · 2026-07-09] par htmlFor/id: el label anuncia el input. */}
                                     <label htmlFor="settings-full-name" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                        {t('Nombre Completo')} <span style={{ color: '#EF4444' }}>*</span>
+                                        {t('Nombre Completo')} <span style={{ color: 'var(--danger-text)' }}>*</span>
                                     </label>
                                     <input
                                         id="settings-full-name"
@@ -2852,7 +2852,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         }}
                                     />
                                     {nameError && (
-                                        <div style={{ color: '#EF4444', fontSize: '0.8rem', marginTop: '0.5rem', fontWeight: 500 }}>
+                                        <div style={{ color: 'var(--danger-text)', fontSize: '0.8rem', marginTop: '0.5rem', fontWeight: 500 }}>
                                             {nameError}
                                         </div>
                                     )}
@@ -3933,7 +3933,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     {/* [P1-PLAN-LOTE-162] El candado era por TIER («a partir del plan Básico»); la memoria es
                                         de todos desde P1-TIER-PARITY. Solo el invitado no la tiene, y no por plan: por cuenta. */}
                                     {isGuest ? (
-                                        <div style={{ textAlign: 'center', color: 'var(--text-light)', padding: '2.5rem 1.5rem', background: 'var(--bg-muted)', borderRadius: '1rem', border: '1px dashed var(--border)' }}>
+                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2.5rem 1.5rem', background: 'var(--bg-muted)', borderRadius: '1rem', border: '1px dashed var(--border)' }}>
                                             <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔒</div>
                                             <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-main)' }}>{t('Memoria a Largo Plazo')}</h4>
                                             <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>

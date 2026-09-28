@@ -101,9 +101,9 @@ describe('[P1-HIST-NEW-6] label + tooltip', () => {
         // formas; el ruso tiene tres. Se ancla la PROPIEDAD —que existan las
         // dos formas y que el conteo entre en la frase— y no el cómo.
         expect(block).toMatch(/tn\(_n,/);
-        expect(block).toMatch(/Diferido \{n\} vez/);
-        expect(block).toMatch(/Diferido \{n\} veces/);
-        expect(block).toMatch(/'Diferido \{n\} veces por gates del pipeline\.'/);
+        expect(block).toMatch(/Pospuesto \{n\} vez/);
+        expect(block).toMatch(/Pospuesto \{n\} veces/);
+        expect(block).toMatch(/'Pospuesto \{n\} veces por comprobaciones de la generación\.'/);
     });
 
     it('tooltip incluye reasons o fallback "sin razón"', () => {

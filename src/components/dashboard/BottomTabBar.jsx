@@ -97,7 +97,7 @@ const BottomTabBar = () => {
                         // plegada, las pestañas quedan fuera de pantalla: tampoco deben recibir foco ni toques
                         tabIndex={plegada ? -1 : undefined}
                         aria-hidden={plegada ? true : undefined}
-                        style={locked ? { opacity: 0.55 } : undefined}
+                        style={locked ? { color: 'var(--text-muted)' } : undefined}
                     >
                         <span style={{ position: 'relative', display: 'inline-flex' }}>
                             <Icon

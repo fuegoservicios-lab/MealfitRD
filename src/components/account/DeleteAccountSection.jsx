@@ -29,7 +29,7 @@ const DZ_STYLES = `
     display: inline-flex; align-items: center; gap: 0.5rem;
     margin-bottom: 0.95rem;
     font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
-    color: #f0656a;
+    color: var(--danger-text);
 }
 .mf-dz-eyebrow-dot {
     width: 26px; height: 26px; flex-shrink: 0; display: grid; place-items: center;

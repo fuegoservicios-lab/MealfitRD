@@ -258,7 +258,7 @@ export default function RestockNudge({
                 }
                 .restock-nudge-desc { color: var(--text-muted); font-size: 0.83rem; line-height: 1.45; }
                 .restock-nudge-cta {
-                    background: #10B981;
+                    background: #047857; /* [LEGIBILIDAD] emerald-700: blanco 5,5:1 (#10B981 daba 2,5:1) */
                     color: #fff;
                     border: none;
                     padding: 0.55rem 1.05rem;
@@ -288,14 +288,14 @@ export default function RestockNudge({
                    (#10B981) queda demasiado brilloso sobre la tarjeta oscura. Bajamos a
                    emerald-600 (#059669) — sigue leyéndose como CTA verde sin deslumbrar. */
                 html[data-theme="dark"] .restock-nudge-cta {
-                    background: #059669;
+                    background: #047857;
                     color: rgba(255, 255, 255, 0.95);
                 }
                 /* [P3-RESTOCK-PROMPT-CTA-DARK · 2026-07-10] Mismo ajuste que
                    .restock-nudge-cta arriba, aplicado al botón del modal (#2), que
                    seguía hardcodeado a emerald-500 y se veía brilloso en modo oscuro. */
                 .restock-nudge-prompt-cta {
-                    background: #10B981;
+                    background: #047857; /* [LEGIBILIDAD] emerald-700: blanco 5,5:1 (#10B981 daba 2,5:1) */
                     color: #fff;
                     border: none;
                     padding: 0.8rem 1rem;
@@ -309,7 +309,7 @@ export default function RestockNudge({
                     gap: 0.45rem;
                 }
                 html[data-theme="dark"] .restock-nudge-prompt-cta {
-                    background: #059669;
+                    background: #047857;
                     color: rgba(255, 255, 255, 0.95);
                 }
                 .restock-nudge-x {

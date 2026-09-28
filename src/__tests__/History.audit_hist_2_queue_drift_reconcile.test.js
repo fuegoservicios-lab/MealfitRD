@@ -212,7 +212,7 @@ describe('[P0-AUDIT-HIST-2] banner del modal con copy fallback queue-drift', () 
         expect(src).toMatch(/_queueDriftBody/);
         const dbIdx = src.indexOf('_queueDriftBody');
         const block = src.slice(dbIdx, dbIdx + 800);
-        expect(block).toMatch(/bloqueado/);
+        expect(block).toMatch(/detenido/);
         // Suma de pending + failed.
         expect(block).toMatch(/_queuePuac\s*\+\s*_queueFailed/);
     });

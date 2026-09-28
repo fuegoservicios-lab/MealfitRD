@@ -82,7 +82,7 @@ describe('[P1-AUDIT-HIST-6] mapeo tier → label + clase de color', () => {
         // [P2-I18N-HIST-FORENSE-ROTULOS · 2026-08-22] El rótulo pasa por el motor. La
         // propiedad que este test defiende es el MAPEO tier→rótulo, no que el texto esté
         // tecleado en el mapa: reanclado a `llm: t('Calidad LLM')`.
-        expect(src).toMatch(/llm:\s*t\(['"]Calidad LLM['"]\)/);
+        expect(src).toMatch(/llm:\s*t\(['"]Hecho con IA['"]\)/);
         expect(src).toMatch(/llm:\s*styles\.tierBadgeOk/);
     });
 

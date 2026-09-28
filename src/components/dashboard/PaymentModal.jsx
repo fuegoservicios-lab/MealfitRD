@@ -360,7 +360,7 @@ const PaymentModal = ({
                             {t("Forma de pago")}
                         </h2>
                         <p style={{
-                            fontSize: '0.85rem', color: '#777',
+                            fontSize: '0.85rem', color: '#999',
                             marginBottom: '1.75rem',
                         }}>
                             {t("Elige tu método de pago preferido")}
@@ -378,7 +378,7 @@ const PaymentModal = ({
                                     flex: 1, padding: '0.8rem', borderRadius: '0.75rem',
                                     background: paymentMethod === 'card' ? 'rgba(255,255,255,0.1)' : 'transparent',
                                     border: paymentMethod === 'card' ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
-                                    color: paymentMethod === 'card' ? '#fff' : '#777',
+                                    color: paymentMethod === 'card' ? '#fff' : '#999',
                                     fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                                     transition: 'all 0.2s', fontFamily: "'Outfit', sans-serif"
@@ -392,7 +392,7 @@ const PaymentModal = ({
                                     flex: 1, padding: '0.8rem', borderRadius: '0.75rem',
                                     background: paymentMethod === 'paypal' ? '#FFC439' : 'transparent',
                                     border: paymentMethod === 'paypal' ? '1px solid #F5B82E' : '1px solid transparent',
-                                    color: paymentMethod === 'paypal' ? '#000' : '#777',
+                                    color: paymentMethod === 'paypal' ? '#000' : '#999',
                                     fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                                     transition: 'all 0.2s', fontFamily: "'Outfit', sans-serif"
@@ -663,7 +663,7 @@ const PaymentModal = ({
                             {/* Tax line */}
                             <div style={{
                                 display: 'flex', justifyContent: 'space-between',
-                                fontSize: '0.85rem', color: '#777',
+                                fontSize: '0.85rem', color: '#999',
                                 marginBottom: '0.85rem',
                             }}>
                                 <span>{t('Impuesto estimado')}</span>

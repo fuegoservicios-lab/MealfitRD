@@ -4296,7 +4296,7 @@ const DashboardInner = () => {
                         // [P3-SHOPPING-COST-TOTAL · 2026-06-20] Precio estimado por ítem (RD$, del motor de costeo).
                         const _costVal = item.item_ref && (item.item_ref.estimated_cost_rd ?? item.item_ref.estimated_cost);
                         const costStr = (typeof _costVal === 'number' && _costVal > 0)
-                            ? `<span style="font-weight: 600; color: #9ca3af; font-size: ${qtyFont}; margin-top: 2px; white-space: nowrap;">RD$${formatNumber(Math.round(_costVal))}</span>`
+                            ? `<span style="font-weight: 600; color: #6b7280; font-size: ${qtyFont}; margin-top: 2px; white-space: nowrap;">RD$${formatNumber(Math.round(_costVal))}</span>`
                             : '';
 
                         // [P1-PDF-3] En hyper-dense, ocultamos `_inventoryNote`
@@ -4304,7 +4304,7 @@ const DashboardInner = () => {
                         // pierde — sigue visible en la UI del Dashboard y en el
                         // banner global del PDF.
                         const noteHTML = (showInventoryNotes && item._inventoryNote)
-                            ? `<div style="font-size: ${isUltraDense ? '7.5px' : (isDense ? '8.5px' : '9.5px')}; color: #059669; margin-top: 1px; font-weight: 500; line-height: 1.1;">💡 ${escapeHtml(item._inventoryNote)}</div>`
+                            ? `<div style="font-size: ${isUltraDense ? '7.5px' : (isDense ? '8.5px' : '9.5px')}; color: #047857; margin-top: 1px; font-weight: 500; line-height: 1.1;">💡 ${escapeHtml(item._inventoryNote)}</div>`
                             : '';
 
                         // [P2-SHOPPING-PILLS-OVERFLOW · 2026-08-01] `flex-wrap: wrap` en la
@@ -4435,7 +4435,7 @@ const DashboardInner = () => {
                         <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${formatNumber(Math.round(_shopTotalCostFinal))}</span>
                     </div>
                     ${_showCycleCost ? `<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155;">
-                        <div style="font-size: 11px; font-weight: 600; color: #047857;">${escapeHtml(t('Estimado del ciclo de {duracion}', { duracion: durationText }))} <span style="font-weight: 500; color: #059669;">· ${escapeHtml(_deltaAware ? t('Incluye ≈{monto} de recompras de frescos', { monto: `RD$${formatNumber(Math.round(_futureFreshRdPdf))}` }) : t('Despensa 1× + frescos cada 7 días'))}</span></div>
+                        <div style="font-size: 11px; font-weight: 600; color: #047857;">${escapeHtml(t('Estimado del ciclo de {duracion}', { duracion: durationText }))} <span style="font-weight: 500; color: #047857;">· ${escapeHtml(_deltaAware ? t('Incluye ≈{monto} de recompras de frescos', { monto: `RD$${formatNumber(Math.round(_futureFreshRdPdf))}` }) : t('Despensa 1× + frescos cada 7 días'))}</span></div>
                         <span style="font-size: 13px; font-weight: 700; color: #065f46; white-space: nowrap;">RD$${formatNumber(Math.round(_fullCycleCostFinal))}</span>
                     </div>` : ''}
                     ${!_showCycleCost ? '' : (() => {
@@ -6151,7 +6151,7 @@ const DashboardInner = () => {
                 /* GRATUITO — slate gris sobrio */
                 .plan-tier-badge--free {
                     background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
-                    color: #64748B;
+                    color: #475569;
                     border: 1.5px solid #CBD5E1;
                     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
                 }
@@ -6738,7 +6738,7 @@ const DashboardInner = () => {
                                                 color: isDark ? '#FCD34D' : '#78350F',
                                                 padding: '0.2rem 0.45rem',
                                                 borderRadius: '6px',
-                                                fontSize: '0.65rem',
+                                                fontSize: '0.75rem',
                                                 fontWeight: 800,
                                                 border: isDark ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid #FDE68A',
                                                 display: 'flex', alignItems: 'center', gap: '0.25rem',
@@ -6755,9 +6755,9 @@ const DashboardInner = () => {
                                         // ambos confusos). El CTA de reiniciar vive en el botón primario abajo.
                                         <div style={{
                                             background: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2',
-                                            color: isDark ? '#F87171' : '#DC2626',
+                                            color: isDark ? '#F87171' : '#B91C1C',
                                             padding: '0.2rem 0.5rem', borderRadius: '6px',
-                                            fontSize: '0.65rem', fontWeight: 800,
+                                            fontSize: '0.75rem', fontWeight: 800,
                                             display: 'flex', alignItems: 'center', gap: '0.2rem'
                                         }}>
                                             <div style={{ width: 4, height: 4, borderRadius: '50%', background: isDark ? '#F87171' : '#DC2626' }} />
@@ -6767,9 +6767,9 @@ const DashboardInner = () => {
                                         // [BADGE-HOURS] Último día → horas reales restantes en vez de "1d"/"0d".
                                         <div style={{
                                             background: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2',
-                                            color: isDark ? '#F87171' : '#DC2626',
+                                            color: isDark ? '#F87171' : '#B91C1C',
                                             padding: '0.2rem 0.5rem', borderRadius: '6px',
-                                            fontSize: '0.65rem', fontWeight: 800,
+                                            fontSize: '0.75rem', fontWeight: 800,
                                             display: 'flex', alignItems: 'center', gap: '0.2rem'
                                         }}>
                                             <div style={{ width: 4, height: 4, borderRadius: '50%', background: isDark ? '#F87171' : '#DC2626' }} />
@@ -6782,10 +6782,10 @@ const DashboardInner = () => {
                                                 : (daysLeft <= 2 ? '#FEE2E2' : '#DBEAFE'),
                                             color: isDark
                                                 ? (daysLeft <= 2 ? '#F87171' : '#93C5FD')
-                                                : (daysLeft <= 2 ? '#DC2626' : '#2563EB'),
+                                                : (daysLeft <= 2 ? '#B91C1C' : '#1D4ED8'),
                                             padding: '0.2rem 0.5rem',
                                             borderRadius: '6px',
-                                            fontSize: '0.65rem',
+                                            fontSize: '0.75rem',
                                             fontWeight: 800,
                                             display: 'flex', alignItems: 'center', gap: '0.2rem'
                                         }}>
@@ -6845,7 +6845,7 @@ const DashboardInner = () => {
                                     >
                                         {/* Despensa Section */}
                                         <div style={{ padding: '4px 8px 3px' }}>
-                                            <span style={{ fontSize: '0.66rem', color: isDark ? '#34D399' : '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                            <span style={{ fontSize: '0.75rem', color: isDark ? '#34D399' : '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                                 <Clock size={11} /> {t('Duración del Plan')}
                                             </span>
                                         </div>
@@ -6971,7 +6971,7 @@ const DashboardInner = () => {
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
                                                     <span style={{ fontSize: '0.8rem', fontWeight: 700, color: groceryDuration === opt.value ? (isDark ? '#34D399' : '#047857') : 'var(--text-main)' }}>{opt.label}</span>
-                                                    <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>{opt.sub}</span>
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{opt.sub}</span>
                                                 </div>
                                                 {groceryDuration === opt.value && <CheckCircle size={15} color={isDark ? '#34D399' : '#047857'} strokeWidth={2.5} />}
                                             </div>
@@ -6987,7 +6987,7 @@ const DashboardInner = () => {
                                             recalcula con la duración elegida (mismo SSOT minBudgetFor). */}
                                         <div style={{ height: 1, background: 'var(--border)', margin: '8px 4px' }} />
                                         <div style={{ padding: '2px 8px 5px' }}>
-                                            <span style={{ fontSize: '0.66rem', color: isDark ? '#34D399' : '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                            <span style={{ fontSize: '0.75rem', color: isDark ? '#34D399' : '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                                 <Wallet size={11} /> {t('Presupuesto')}
                                             </span>
                                         </div>
@@ -7043,7 +7043,7 @@ const DashboardInner = () => {
                                                         })}
                                                     </div>
                                                     {_selTierRef && (
-                                                        <span style={{ display: 'block', marginTop: '0.45rem', fontSize: '0.68rem', lineHeight: 1.35, color: 'var(--text-muted)' }}>
+                                                        <span style={{ display: 'block', marginTop: '0.45rem', fontSize: '0.75rem', lineHeight: 1.35, color: 'var(--text-muted)' }}>
                                                             ≈ {t('{monto} por {dias} días (referencia estimada según tus metas).', { monto: `${_sym}${formatNumber(Number(_selTierRef))}`, dias: _cycleDays })}
                                                         </span>
                                                     )}
@@ -7079,13 +7079,13 @@ const DashboardInner = () => {
                                                                         const on = (_cur === c);
                                                                         return (
                                                                             <button key={c} type="button" data-hover="fila" onClick={() => _setBudget('budgetCurrency', c)} aria-pressed={on}
-                                                                                style={{ border: 'none', background: on ? 'var(--bg-card)' : 'transparent', padding: '4px 9px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700, color: on ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}
+                                                                                style={{ border: 'none', background: on ? 'var(--bg-card)' : 'transparent', padding: '4px 9px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, color: on ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}
                                                                             >{budgetCurrencySymbol(c)}</button>
                                                                         );
                                                                     })}
                                                                 </div>
                                                             </div>
-                                                            <span style={{ fontSize: '0.72rem', lineHeight: 1.4, fontWeight: _belowMin ? 700 : 500, color: _belowMin ? 'var(--warning)' : 'var(--text-muted)' }}>
+                                                            <span style={{ fontSize: '0.75rem', lineHeight: 1.4, fontWeight: _belowMin ? 700 : 500, color: _belowMin ? 'var(--warning)' : 'var(--text-muted)' }}>
                                                                 {_belowMin ? '⚠️ ' : ''}{t('Mínimo {monto} para {dias} días{nota}.', {
                                                                     monto: `${_sym}${formatNumber(_min)}`,
                                                                     dias: _cycleDays,
@@ -7367,7 +7367,7 @@ const DashboardInner = () => {
                                 background: isDark ? 'rgba(16,185,129,0.10)' : '#DCFCE7',
                                 border: isDark ? '1px solid rgba(52,211,153,0.30)' : '1px solid #86EFAC',
                                 color: isDark ? '#6EE7B7' : '#047857',
-                                fontSize: '0.74rem', fontWeight: 600, lineHeight: 1.3,
+                                fontSize: '0.75rem', fontWeight: 600, lineHeight: 1.3,
                                 textAlign: 'center',
                             }}>
                                 <Refrigerator size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
@@ -7469,17 +7469,17 @@ const DashboardInner = () => {
                                         el backend marca partial_pricing cuando pocos ítems tienen precio —
                                         el total mostrado subestima, así que bajamos la certeza del verde. */}
                                     {_br.partial_pricing && (
-                                        <p style={{ margin: '0.3rem 0 0', fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                        <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                             {t('Estimado parcial: {cobertura}% de los ítems tienen precio — el total real puede ser mayor.', { cobertura: Math.round((_br.price_coverage || 0) * 100) })}
                                         </p>
                                     )}
                                     {_br.adjusted && _subs.length > 0 && (
-                                        <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                        <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                             {t('Para cuidar tu bolsillo ajustamos: {sustituciones}', { sustituciones: _subs.map((x) => sustitucionDePresupuesto(x)).join(' · ') })}
                                         </p>
                                     )}
                                     {_br.status === 'excedido' && _sugs.length > 0 && (
-                                        <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.1rem', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                        <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.1rem', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                                             {_sugs.map((s, i) => (
                                                 <li key={i}>{sugerenciaDePresupuesto(s, t, _fmtRD)}</li>
                                             ))}
@@ -7495,7 +7495,7 @@ const DashboardInner = () => {
                                         if (_deltaAwareBanner && typeof shoppingDeltaMeta?.deltaTripRd === 'number'
                                             && shoppingDeltaMeta.deltaTripRd > 0) {
                                             return (
-                                                <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                                <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                                     {t('Esta ida al súper:')} <strong style={{ color: _palette.fg }}>{_fmtRD(shoppingDeltaMeta.deltaTripRd)}</strong> {t('· {items} ítems (tu Nevera ya cubre {cubiertos}) — el detalle está en el PDF.', { items: shoppingDeltaMeta.deltaCount, cubiertos: shoppingDeltaMeta.itemsRemoved })}
                                                 </p>
                                             );
@@ -7509,7 +7509,7 @@ const DashboardInner = () => {
                                         });
                                         if (_tripCost <= 0) return null;
                                         return (
-                                            <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                            <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                                 {t('Esta ida al súper:')} <strong style={{ color: _palette.fg }}>{_fmtRD(_tripCost)}</strong> {t('· {items} ítems — el detalle está en el PDF.', { items: _trItems.length })}
                                             </p>
                                         );
@@ -7863,7 +7863,7 @@ const DashboardInner = () => {
                     <Loader2 size={22} className="spin-animation" aria-hidden="true" style={{ color: 'var(--primary)', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                         <span style={{ fontWeight: 700 }}>{t('Tu plan se está generando en segundo plano')}</span>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                             {t('Suele tardar entre 3 y 6 minutos. Si el servidor se reinicia, se retoma solo; no hace falta volver al formulario. Se actualizará aquí en cuanto esté listo.')}
                             {_serverGeneratingOther ? ` ${t('Mientras tanto ves tu plan anterior.')}` : ''}
                         </span>
@@ -8123,7 +8123,7 @@ const DashboardInner = () => {
                             _mark_plan_result_quality_degraded en backend pero antes sin lector
                             (dead-write UI). Ahora el usuario ve POR QUÉ se degradó. */}
                         {planData?._quality_degraded_reason && (
-                            <span style={{ color: isDark ? '#FCD34D' : '#92400E', fontSize: '0.72rem', display: 'block', marginTop: '0.3rem', opacity: isDark ? 0.85 : 0.85 }}>
+                            <span style={{ color: isDark ? '#FCD34D' : '#92400E', fontSize: '0.75rem', display: 'block', marginTop: '0.3rem', opacity: isDark ? 0.85 : 0.85 }}>
                                 {(() => {
                                     // [P3-NOTIF-CENTER · 2026-06-16] Mapa elevado a módulo (Q_DEGRADED_REASON_MAP).
                                     // [P3-BANNER-REASON-COPY · 2026-07-10] prefix-match para low_band_macro:<macros>.
@@ -8140,7 +8140,7 @@ const DashboardInner = () => {
                             Nevera. */}
                         {planData?._quality_degraded_pantry_limited && (
                             <span style={{ display: 'block', marginTop: '0.4rem' }}>
-                                <span style={{ color: isDark ? '#FCD34D' : '#92400E', fontSize: '0.72rem', display: 'block', marginBottom: '0.3rem' }}>
+                                <span style={{ color: isDark ? '#FCD34D' : '#92400E', fontSize: '0.75rem', display: 'block', marginBottom: '0.3rem' }}>
                                     {t('Este ajuste quedó limitado por tu')} <strong>{t('Nevera')}</strong>{t(': cocinamos solo con lo que tienes y no alcanzó para clavar los macros.')}
                                 </span>
                                 <button data-hover="boton"
@@ -8153,7 +8153,7 @@ const DashboardInner = () => {
                                         border: 'none',
                                         borderRadius: '0.5rem',
                                         padding: '0.32rem 0.6rem',
-                                        fontSize: '0.72rem',
+                                        fontSize: '0.75rem',
                                         fontWeight: 700,
                                         cursor: 'pointer',
                                         background: isDark ? 'rgba(251,191,36,0.18)' : '#FDE68A',
@@ -8199,7 +8199,7 @@ const DashboardInner = () => {
                                         border: 'none',
                                         borderRadius: '0.5rem',
                                         padding: '0.32rem 0.6rem',
-                                        fontSize: '0.72rem',
+                                        fontSize: '0.75rem',
                                         fontWeight: 700,
                                         cursor: fixSodiumDayLoading ? 'default' : 'pointer',
                                         opacity: fixSodiumDayLoading ? 0.7 : 1,
@@ -8511,7 +8511,7 @@ const DashboardInner = () => {
                                 style={{
                                     padding: '6px 12px',
                                     background: 'var(--success)',
-                                    color: '#FFFFFF',
+                                    color: '#022C22', // [LEGIBILIDAD] blanco sobre --success daba 2,5:1
                                     border: 'none',
                                     borderRadius: '8px',
                                     fontWeight: 600,
@@ -8676,8 +8676,8 @@ const DashboardInner = () => {
                                                                 ? (isDark ? 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)' : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)')
                                                                 : isPastDay ? 'var(--bg-muted)' : 'var(--bg-card)',
                                                             color: isActive ? 'white'
-                                                                : isPastDay ? 'var(--text-light)'
-                                                                : isDegraded ? '#B45309' : 'var(--text-muted)',
+                                                                : isPastDay ? 'var(--text-muted)'
+                                                                : isDegraded ? 'var(--ink-pantry)' : 'var(--text-muted)',
                                                             boxShadow: isActive ? (isDark ? '0 4px 10px -3px rgba(37, 99, 235, 0.35)' : '0 10px 15px -3px rgba(59, 130, 246, 0.3)') : '0 1px 2px rgba(0,0,0,0.05)',
                                                             textDecoration: isPastDay && !isActive ? 'line-through' : 'none',
                                                             display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
@@ -8732,7 +8732,7 @@ const DashboardInner = () => {
                                                         )}
                                                         {isDegraded && (
                                                             <span style={{
-                                                                fontSize: '0.65rem',
+                                                                fontSize: '0.75rem',
                                                                 fontWeight: 700,
                                                                 padding: '1px 6px',
                                                                 borderRadius: '6px',
@@ -9034,7 +9034,7 @@ const DashboardInner = () => {
                                             <div className="meal-head">
                                                 <div className="meal-head-text">
                                                     <div style={{
-                                                        textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 800,
+                                                        textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 800,
                                                         color: 'var(--primary)', letterSpacing: '0.05em', marginBottom: '0.25rem'
                                                     }}>
                                                         {/* [P1-PLAN-DISPLAY-I18N · fase 1c] `meal.meal` es el slot
@@ -9069,7 +9069,7 @@ const DashboardInner = () => {
                                                     <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
                                                         {meal.cals}
                                                     </div>
-                                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('kcal')}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('kcal')}</div>
                                                 </div>
                                             </div>
 
@@ -9108,7 +9108,7 @@ const DashboardInner = () => {
                                                         2,52:1 sobre el fondo del aviso en tema oscuro (bajo AA,
                                                         se leía apagado). El token sube a 8,61:1 y deja el claro
                                                         igual. */}
-                                                    <div style={{ paddingLeft: '1.2rem', color: 'var(--danger-text)', fontSize: '0.7rem' }}>
+                                                    <div style={{ paddingLeft: '1.2rem', color: 'var(--danger-text)', fontSize: '0.75rem' }}>
                                                         {t('Faltan: {ingredientes}', { ingredientes: _still.join(', ') })}
                                                     </div>
                                                 </div>
@@ -9151,7 +9151,7 @@ const DashboardInner = () => {
                                                                 title={eatenClaim}
                                                                 style={{
                                                                     display: 'inline-flex', alignItems: 'center', gap: '5px',
-                                                                    fontSize: '0.7rem', fontWeight: 700,
+                                                                    fontSize: '0.75rem', fontWeight: 700,
                                                                     color: isDark ? '#6EE7B7' : '#047857',
                                                                     background: isDark ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.1)',
                                                                     padding: '4px 10px', borderRadius: '6px',
@@ -9168,7 +9168,7 @@ const DashboardInner = () => {
                                                                 fontSize: '0.75rem',
                                                                 // [APPEARANCE-THEME · 2026-05-29] En oscuro, el azul claro
                                                                 // (#EFF6FF) se veía brilloso → tinte translúcido + texto claro.
-                                                                color: isDark ? '#93C5FD' : '#2563EB',
+                                                                color: isDark ? '#93C5FD' : '#1D4ED8',
                                                                 background: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF',
                                                                 padding: '4px 10px', borderRadius: '6px', fontWeight: 700,
                                                                 border: isDark ? '1px solid rgba(96, 165, 250, 0.4)' : '1px solid #BFDBFE',
@@ -9180,7 +9180,7 @@ const DashboardInner = () => {
                                                         {_advisories.map((a) => (
                                                             <div key={a.key} title={a.label} style={{
                                                                 display: 'inline-flex', alignItems: 'center', gap: '5px',
-                                                                fontSize: '0.7rem', fontWeight: 600,
+                                                                fontSize: '0.75rem', fontWeight: 600,
                                                                 color: isDark ? '#FCD34D' : '#B45309',
                                                                 background: isDark ? 'rgba(245, 158, 11, 0.14)' : 'rgba(245, 158, 11, 0.1)',
                                                                 padding: '4px 10px', borderRadius: '6px',
@@ -9317,7 +9317,7 @@ const DashboardInner = () => {
                                                         // que grita; en gris neutro se lee como lo que es.
                                                         background: swapLockReason
                                                             ? (isDark ? 'rgba(148, 163, 184, 0.12)' : '#F1F5F9')
-                                                            : (isDark ? 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)' : '#FFF7ED'),
+                                                            : (isDark ? 'linear-gradient(135deg, #C2410C 0%, #9A3412 100%)' : '#FFF7ED'),
                                                         border: swapLockReason
                                                             ? `1px solid ${isDark ? 'rgba(148, 163, 184, 0.22)' : '#E2E8F0'}`
                                                             : (isDark ? '1px solid transparent' : '1px solid #FED7AA'),
@@ -9342,7 +9342,7 @@ const DashboardInner = () => {
                                                         fontSize: '0.8rem',
                                                         color: swapLockReason
                                                             ? (isDark ? '#94A3B8' : '#64748B')
-                                                            : (isDark ? '#FFFFFF' : '#EA580C'),
+                                                            : (isDark ? '#FFFFFF' : '#C2410C'),
                                                         boxShadow: (!swapLockReason && isDark) ? '0 2px 8px -3px rgba(234, 88, 12, 0.3)' : 'none'
                                                     }}
                                                     title={swapLockReason || t('Cambiar con IA')}
@@ -9754,7 +9754,7 @@ const DashboardInner = () => {
                                     onClick={dismissPushOnboarding}
                                     disabled={isPushEnabling}
                                     style={{
-                                        background: 'transparent', color: 'var(--text-light)', border: 'none',
+                                        background: 'transparent', color: 'var(--text-muted)', border: 'none',
                                         padding: '0.75rem', borderRadius: '1rem',
                                         fontWeight: 600, fontSize: '0.9rem',
                                         cursor: 'pointer',
@@ -9860,7 +9860,7 @@ const DashboardInner = () => {
                                                 ))}
                                                 {restockPreview.count > restockPreview.sample.length && (
                                                     <span style={{
-                                                        fontSize: '0.72rem', color: 'var(--text-muted)',
+                                                        fontSize: '0.75rem', color: 'var(--text-muted)',
                                                         padding: '0.2rem 0.4rem', fontWeight: 600,
                                                     }}>{t('+{n} más', { n: restockPreview.count - restockPreview.sample.length })}</span>
                                                 )}
@@ -10255,7 +10255,7 @@ const DashboardInner = () => {
                     swapDislikeConfirm && (
                         <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                             <p style={{ margin: '0 0 0.75rem 0' }}>
-                                {t('Este plato quedará')} <strong style={{ color: 'var(--danger)' }}>{t('bloqueado permanentemente')}</strong> {t('y la IA no volverá a sugerirlo en futuros planes:')}
+                                {t('Este plato quedará')} <strong style={{ color: 'var(--danger-text)' }}>{t('bloqueado permanentemente')}</strong> {t('y la IA no volverá a sugerirlo en futuros planes:')}
                             </p>
                             <div style={{
                                 background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '0.75rem',
@@ -10313,7 +10313,7 @@ const DashboardInner = () => {
                 subtitle={
                     <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                         <p style={{ margin: '0 0 0.5rem 0' }}>
-                            {t('Los siguientes platos quedarán')} <strong style={{ color: '#EF4444' }}>{t('bloqueados permanentemente')}</strong> {t('y no volverán a aparecer en futuros planes:')}
+                            {t('Los siguientes platos quedarán')} <strong style={{ color: 'var(--danger-text)' }}>{t('bloqueados permanentemente')}</strong> {t('y no volverán a aparecer en futuros planes:')}
                         </p>
                         {currentDayMeals.length > 0 && (
                             <ul style={{ margin: '0.35rem 0 0 0', padding: '0 0 0 1.1rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>

@@ -109,7 +109,7 @@
     border-radius: 9px;
     display: grid;
     place-items: center;
-    font-size: 0.66rem;
+    font-size: 0.75rem;
     font-weight: 800;
     line-height: 1;
     color: #1e1b3a;
@@ -239,7 +239,7 @@
     border-radius: 10px;
     display: grid;
     place-items: center;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 800;
     color: #cffafe;
     background: rgba(34, 211, 238, 0.16);
@@ -258,8 +258,8 @@
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 0.6rem;
     background: transparent;
-    color: var(--text-light);
-    font-size: 0.74rem;
+    color: var(--text-muted);
+    font-size: 0.75rem;
     font-weight: 700;
     cursor: pointer;
     transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
@@ -466,7 +466,7 @@
     margin: 0;
     font-size: 0.78rem;
     line-height: 1.4;
-    color: var(--text-light);
+    color: var(--text-muted);
     overflow-wrap: anywhere;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -477,11 +477,11 @@
 .cardTime {
     display: block;
     margin-top: 0.25rem;
-    font-size: 0.66rem;
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.03em;
     text-transform: uppercase;
-    color: color-mix(in srgb, var(--text-light) 75%, transparent);
+    color: var(--text-muted);
 }
 
 /* Chevron de expandir: centrado verticalmente en la fila, como afford. junto al
@@ -534,19 +534,19 @@
     gap: 2px;
     padding: 1px 7px;
     border-radius: 99px;
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     font-weight: 800;
     letter-spacing: 0.03em;
     white-space: nowrap;
 }
 .exGapText {
     margin: 0;
-    font-size: 0.74rem;
+    font-size: 0.75rem;
     line-height: 1.35;
     color: var(--text-muted);
 }
 .exCur {
-    color: var(--text-light);
+    color: var(--text-muted);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
@@ -568,19 +568,19 @@
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    font-size: 0.64rem;
+    font-size: 0.75rem;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: color-mix(in srgb, var(--text-light) 80%, transparent);
+    color: var(--text-muted);
 }
 .exSupp {
     display: flex;
     align-items: flex-start;
     gap: 0.4rem;
-    font-size: 0.74rem;
+    font-size: 0.75rem;
     line-height: 1.35;
-    color: var(--text-light);
+    color: var(--text-muted);
 }
 .exSupp strong { color: var(--text-main); }
 .exHint { opacity: 0.8; }
@@ -591,9 +591,9 @@
     align-items: flex-start;
     gap: 0.3rem;
     margin-top: 0.25rem;
-    font-size: 0.66rem;
+    font-size: 0.75rem;
     line-height: 1.35;
-    color: color-mix(in srgb, var(--text-light) 80%, transparent);
+    color: var(--text-muted);
 }
 .exCaution svg { flex: none; margin-top: 1px; opacity: 0.85; }
 
@@ -602,9 +602,9 @@
     align-items: flex-start;
     gap: 0.35rem;
     margin: 0;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     line-height: 1.4;
-    color: color-mix(in srgb, var(--text-light) 85%, transparent);
+    color: var(--text-muted);
 }
 
 /* quality */
@@ -612,20 +612,20 @@
     margin: 0;
     font-size: 0.78rem;
     line-height: 1.45;
-    color: var(--text-light);
+    color: var(--text-muted);
 }
 .exReason strong { color: var(--text-main); }
 .exGuidance {
     margin: 0;
     font-size: 0.76rem;
     line-height: 1.45;
-    color: var(--text-light);
+    color: var(--text-muted);
 }
 .exFallback {
     margin: 0;
     font-size: 0.78rem;
     line-height: 1.45;
-    color: var(--text-light);
+    color: var(--text-muted);
     overflow-wrap: anywhere;
 }
 
@@ -757,7 +757,7 @@
     max-width: 240px;
     font-size: 0.78rem;
     line-height: 1.45;
-    color: var(--text-light);
+    color: var(--text-muted);
 }
 
 /* ---- footer ---- */
@@ -853,6 +853,9 @@
 :global(html:not([data-theme="dark"])) .exPill.exTone_low { color: var(--ink-fruits); }
 :global(html:not([data-theme="dark"])) .exPill.exTone_far,
 :global(html:not([data-theme="dark"])) .exPill.exTone_over { color: var(--ink-proteins); }
+/* [LEGIBILIDAD] El CTA de la tarjeta expandida aclaraba el tono hacia blanco:
+   en claro quedaba entre 1,5:1 y 3:1. Tinta oscurecida hacia --text-main. */
+:global(html:not([data-theme="dark"])) .exAction { color: color-mix(in srgb, var(--tone) 50%, var(--text-main)); }
 
 
 /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] Los que quedaban del panel: estados de
@@ -1021,7 +1024,7 @@
     min-width: 17px;
     height: 17px;
     padding: 0 4px;
-    font-size: 0.62rem;
+    font-size: 0.75rem;
 }
 
 @keyframes notifRingSpin {

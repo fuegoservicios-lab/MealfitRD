@@ -21,6 +21,7 @@ import { t as _t } from '../i18n';
 // Este mapa se queda EXACTAMENTE como está: lo parsea el test de paridad backend
 // (`test_p2_hist_new_4_chunk_kind_parity*.py`) y es el fallback es-DO. Meterle la llamada
 // de traducción DENTRO lo convertiría en ámbito de módulo, congelado al importar.
+// [I18N-EXEMPT: espejo es-DO para la paridad del backend; se traduce en getChunkKindLabel(code, t)]
 const CHUNK_KIND_LABELS = {
     // Plan creation paths.
     initial_plan: 'Inicial',
@@ -30,7 +31,7 @@ const CHUNK_KIND_LABELS = {
     // significado para el user.
     first_chunk: 'Inicial',
     // Rolling refill: chunks generados rolling tras el inicial.
-    rolling_refill: 'Refill',
+    rolling_refill: 'Continuación',
     // Catchup: chunks re-encolados para alcanzar días remanentes
     // tras un fallo o pausa larga (cron_tasks.py:7823+).
     catchup: 'Recuperación',
@@ -60,7 +61,7 @@ const CHUNK_KIND_LABELS = {
 const _etiquetasTraducidas = (t) => ({
     initial_plan: t('Inicial'),
     first_chunk: t('Inicial'),
-    rolling_refill: t('Refill'),
+    rolling_refill: t('Continuación'),
     catchup: t('Recuperación'),
 });
 

@@ -136,7 +136,7 @@ describe('[P1-HIST-NEW-4] render del notice', () => {
         // tras filtrar chunks fantasma de weeks fuera del plan.
         const idx = src.indexOf('chunkMetricsMeta[selectedPlan.id]');
         const block = src.slice(idx, idx + 3000);
-        expect(block).toMatch(/t\('Mostrando \{n\} de \{total\} chunks[^']*',\s*\{\s*n:\s*_list\.length,\s*total:\s*_adjustedTotal/);
+        expect(block).toMatch(/t\('Mostrando \{n\} de \{total\} bloques[^']*',\s*\{\s*n:\s*_list\.length,\s*total:\s*_adjustedTotal/);
     });
 
     it('tooltip menciona el cap del backend (LIMIT 50)', () => {
@@ -192,7 +192,7 @@ describe('[P0-HIST-FIX-7/FIX-10] filter de chunks fuera del alcance del plan', (
         const idx = src.indexOf('_maxValidWeek');  // [re-anclado al filtro FIX-10; el marker se renombró]
         const block = src.slice(idx, idx + 4500);
         expect(block).toMatch(/_filteredOutCount\s*>\s*0/);
-        expect(block).toMatch(/ninguno corresponde al alcance/);
+        expect(block).toMatch(/ninguno cae dentro de la duración/);
     });
 
     it('truncated notice usa _adjustedTotal (totalCount - filteredOutCount)', () => {

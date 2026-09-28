@@ -196,7 +196,7 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         expect(tabIdx).toBeGreaterThan(-1);
         const block = _bloqueDeMetrics(tabIdx);
         expect(block).toMatch(/['"]loading['"]/);
-        expect(block).toMatch(/Cargando m[eé]tricas/);
+        expect(block).toMatch(/Cargando los datos de cada bloque/);
     });
 
     it('sentinel error muestra mensaje de fallo', () => {

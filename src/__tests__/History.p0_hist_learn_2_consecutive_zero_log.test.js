@@ -113,7 +113,7 @@ describe('[P0-HIST-LEARN-2] chip en header del lifetime block', () => {
         expect(headerIdx).toBeGreaterThan(-1);
         const block = src.slice(headerIdx, headerIdx + 4000);
         expect(block).toMatch(/_zeroLogAlarming\s*&&[\s\S]{0,500}zeroLogBadgeAlarm/);
-        expect(block).toMatch(/Sin feedback:/);
+        expect(block).toMatch(/Sin comidas anotadas:/);
     });
 
     it('JSX del chip info usa zeroLogBadgeInfo', () => {

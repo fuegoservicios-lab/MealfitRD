@@ -799,11 +799,13 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
     const OVER_COLOR = '#DC2626';
     const effectiveGlowColor = isOver ? OVER_COLOR : color;
     const consumedTextColor = isOver
-        ? OVER_COLOR
+        // [LEGIBILIDAD] el número es TEXTO: #DC2626 da 3,7:1 sobre la tarjeta oscura; el relleno sigue en OVER_COLOR.
+        ? 'var(--danger-text)'
         // [APPEARANCE-THEME · 2026-05-29] En oscuro, el "0" vacío en text-light
         // (#64748B) quedaba muy apagado → text-muted (#94A3B8) se lee mejor sin
-        // perder el matiz de "sin progreso". En claro se mantiene text-light.
-        : (isEmpty ? (isDark ? 'var(--text-muted)' : 'var(--text-light)') : 'var(--text-main)');
+        // perder el matiz de "sin progreso". [LEGIBILIDAD] En claro también: el
+        // "0" es un dato, y text-light es solo adorno (3:1).
+        : (isEmpty ? 'var(--text-muted)' : 'var(--text-main)');
 
     // [APPEARANCE-THEME · 2026-05-29] Selección del glifo (extraída a variable
     // por legibilidad y para evitar el falso positivo de jsx-uses-vars con

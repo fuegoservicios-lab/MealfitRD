@@ -1479,7 +1479,7 @@ const Plan = () => {
                             || generatedPlan?._initial_chunk_pantry_degraded
                         ) {
                             toast.info(t("Algunos ingredientes faltan en tu nevera"), {
-                                description: t("Revisa la lista de compras antes de cocinar — algunos meals usan alternativas."),
+                                description: t("Revisa la lista de compras antes de cocinar: algunos platos usan alternativas."),
                                 duration: 6000, id: 'plan-ready',
                             });
                         } else if (generatedPlan?._partial_repair) {
@@ -2368,7 +2368,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                     <button data-hover="boton" 
                         onClick={onAccept}
                         style={{
-                            padding: '1rem', background: '#10B981', color: 'white', borderRadius: '0.75rem',
+                            padding: '1rem', background: '#047857', color: 'white', borderRadius: '0.75rem',
                             border: 'none', fontWeight: 600, fontSize: '1rem', cursor: 'pointer',
                             boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)'
                         }}
@@ -2394,7 +2394,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                     proteger al usuario. Severidad alta — usar tono rojo. */}
                 {showReviewCriticalBanner && (
                     <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.12)', borderRadius: '1rem', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
-                        <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem', color: '#F87171', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <AlertTriangle size={20} /> {t('Plan reemplazado por seguridad')}
                         </h3>
                         <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '1rem', lineHeight: 1.5 }}>
@@ -2404,7 +2404,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                         <button data-hover="boton"
                             onClick={onRegenerate}
                             style={{
-                                width: '100%', padding: '0.75rem 1rem', background: '#EF4444', color: 'white', borderRadius: '0.5rem',
+                                width: '100%', padding: '0.75rem 1rem', background: 'var(--danger-fill)', color: 'white', borderRadius: '0.5rem',
                                 border: 'none', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                             }}
@@ -2436,7 +2436,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                         <button data-hover="boton"
                             onClick={onRegenerate}
                             style={{
-                                width: '100%', padding: '0.75rem 1rem', background: '#F59E0B', color: 'white', borderRadius: '0.5rem',
+                                width: '100%', padding: '0.75rem 1rem', background: '#F59E0B', color: '#1F1300', borderRadius: '0.5rem',
                                 border: 'none', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                             }}
@@ -2485,7 +2485,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                             <button data-hover="boton"
                                 onClick={onRegenerate}
                                 style={{
-                                    flex: '1 1 140px', padding: '0.75rem 1rem', background: '#F59E0B', color: 'white', borderRadius: '0.5rem',
+                                    flex: '1 1 140px', padding: '0.75rem 1rem', background: '#F59E0B', color: '#1F1300', borderRadius: '0.5rem',
                                     border: 'none', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
                                 }}
@@ -2521,7 +2521,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                         style={{
                                             padding: '0.5rem 1rem',
                                             background: '#F59E0B',
-                                            color: 'white',
+                                            color: '#1F1300',
                                             borderRadius: '0.5rem',
                                             border: 'none',
                                             fontWeight: 600,
@@ -2545,7 +2545,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
 
                 {failedChunks.length > 0 && (
                     <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '1rem', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-                        <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#F87171', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Activity size={20} /> {t('Problema al generar más semanas')}
                         </h3>
                         <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', marginBottom: '1rem' }}>
@@ -2558,7 +2558,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                     onClick={() => handleRetry(chunk.id)}
                                     disabled={isRetrying}
                                     style={{
-                                        padding: '0.5rem 1rem', background: '#EF4444', color: 'white', borderRadius: '0.5rem',
+                                        padding: '0.5rem 1rem', background: 'var(--danger-fill)', color: 'white', borderRadius: '0.5rem',
                                         border: 'none', fontWeight: 600, fontSize: '0.9rem', cursor: isRetrying ? 'not-allowed' : 'pointer',
                                         opacity: isRetrying ? 0.7 : 1
                                     }}
@@ -2999,7 +2999,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 {/* === TIEMPO: cronómetro + copy honesto === */}
                 <div aria-live="polite" style={{ margin: '0 auto 1.25rem', maxWidth: 360 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 10 }}>
-                        <span style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+                        <span style={{ fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
                             {t('Transcurrido')}
                         </span>
                         <span style={{
@@ -3036,7 +3036,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                             exit={{ opacity: 0, y: -4 }}
                             transition={{ duration: 0.25 }}
                             style={{
-                                color: 'rgba(255,255,255,0.38)', fontSize: '0.8rem', fontStyle: 'italic',
+                                color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', fontStyle: 'italic',
                                 fontWeight: 400, lineHeight: '1.5', textAlign: 'center', margin: 0,
                             }}
                         >
@@ -3061,7 +3061,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                             style={{
                                 background: 'transparent',
                                 border: 'none',
-                                color: 'rgba(255,255,255,0.35)',
+                                color: 'rgba(255,255,255,0.6)',
                                 padding: '0.5rem 1rem',
                                 fontSize: '0.78rem',
                                 fontWeight: 500,
@@ -3072,10 +3072,10 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                                 borderRadius: '0.6rem',
                             }}
                             onMouseOver={(e) => {
-                                e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                                e.currentTarget.style.color = 'rgba(255,255,255,0.85)';
                             }}
                             onMouseOut={(e) => {
-                                e.currentTarget.style.color = 'rgba(255,255,255,0.35)';
+                                e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
                             }}
                         >
                             {t('Cancelar')}

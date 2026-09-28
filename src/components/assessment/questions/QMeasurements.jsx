@@ -175,7 +175,7 @@ export const QMeasurements = ({ onManualAdvance }) => {
             role={tono === 'error' ? 'alert' : undefined}
             style={{
                 margin: '0.35rem 0 0', fontSize: '0.8rem', lineHeight: 1.4,
-                color: tono === 'error' ? 'var(--danger)' : 'var(--text-muted)',
+                color: tono === 'error' ? 'var(--danger-text)' : 'var(--text-muted)',
             }}
         >
             {texto}
@@ -194,7 +194,7 @@ export const QMeasurements = ({ onManualAdvance }) => {
             <div className="mf-field-grid">
                 <div>
                     <div className="mf-field-head">
-                        <Label htmlFor="age">{t('Edad (años)')}&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
+                        <Label htmlFor="age">{t('Edad (años)')}&nbsp;<span style={{ color: 'var(--danger-text)' }} aria-hidden="true">*</span></Label>
                     </div>
                     <Input
                         id="age" type="number" inputMode="numeric" enterKeyHint="next" placeholder={t('Ej. 28')}
@@ -208,7 +208,7 @@ export const QMeasurements = ({ onManualAdvance }) => {
                 </div>
                 <div>
                     <div className="mf-field-head">
-                        <Label htmlFor="height">{t('Altura')}&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
+                        <Label htmlFor="height">{t('Altura')}&nbsp;<span style={{ color: 'var(--danger-text)' }} aria-hidden="true">*</span></Label>
                         <UnitToggle
                             ariaLabel={t('Unidad de altura')}
                             value={unit}
@@ -250,7 +250,7 @@ export const QMeasurements = ({ onManualAdvance }) => {
             <div className="mf-field-grid">
                 <div>
                     <div className="mf-field-head">
-                        <Label htmlFor="weight">{t('Peso')}&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
+                        <Label htmlFor="weight">{t('Peso')}&nbsp;<span style={{ color: 'var(--danger-text)' }} aria-hidden="true">*</span></Label>
                         {/* [LB-DEFAULT-PRESELECT · 2026-05-31] LB es la unidad de peso
                             por defecto predeterminada (decisión de producto: el mercado
                             es-DO usa libras). Pre-fix (P1-FORM-3) el toggle mostraba un

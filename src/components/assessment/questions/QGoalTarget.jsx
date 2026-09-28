@@ -82,7 +82,7 @@ export const QGoalTarget = ({ onManualAdvance }) => {
                     />
                 </div>
                 {directionBad && !auto && (
-                    <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--warning, #F59E0B)' }}>
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--warning-text)' }}>
                         {goal === 'lose_fat'
                             ? t('Para perder grasa, la meta debería ser menor que tu peso actual ({peso} {unidad}).', { peso: formData.weight, unidad: weightUnit })
                             : t('Para ganar músculo, la meta debería ser mayor que tu peso actual ({peso} {unidad}).', { peso: formData.weight, unidad: weightUnit })}

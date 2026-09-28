@@ -222,7 +222,7 @@ function LockPill({ label }) {
         gap: 5,
         padding: "5px 9px",
         borderRadius: 99,
-        fontSize: ".66rem",
+        fontSize: ".75rem",
         fontWeight: 800,
         whiteSpace: "nowrap",
         color: "var(--text-muted)",
@@ -534,7 +534,7 @@ function ComingBanner({ coming, faded, loading, onPick, isDark = true }) {
           gap: 5,
           padding: "5px 9px",
           borderRadius: 99,
-          fontSize: ".66rem",
+          fontSize: ".75rem",
           fontWeight: 800,
           whiteSpace: "nowrap",
           color: "var(--warning-text)",
@@ -562,7 +562,7 @@ function DislikeRow({ faded, loading, onPick, heading, label = t("No me gustan e
       {heading && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0 12px" }}>
           <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
-          <span style={{ fontSize: ".6rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--text-light)", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: ".75rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
             {heading}
           </span>
           <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
@@ -915,11 +915,11 @@ export default function MotivoActualizarModal({
                       display: "inline-flex",
                       alignItems: "center",
                       gap: 5,
-                      fontSize: ".62rem",
+                      fontSize: ".75rem",
                       fontWeight: 800,
                       letterSpacing: ".07em",
                       textTransform: "uppercase",
-                      color: "#FB923C",
+                      color: "var(--ink-warn)",
                     }}
                   >
                     <Icon name="refresh" size={11} /> {t("Plato a cambiar")}

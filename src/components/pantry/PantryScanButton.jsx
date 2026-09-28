@@ -408,7 +408,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                         {scanning ? t('Analizando…') : t('Escanear')}
                     </span>
                     <span style={{
-                        fontSize: '.58rem', fontWeight: 700, letterSpacing: '.08em',
+                        fontSize: '.75rem', fontWeight: 700, letterSpacing: '.08em',
                         textTransform: 'uppercase', color: 'var(--primary)',
                         border: '1px solid color-mix(in srgb, var(--primary) 45%, transparent)',
                         borderRadius: 99, padding: '1px 5px',
@@ -454,7 +454,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                     </span>
                 </span>
                 <span style={{
-                    flexShrink: 0, fontSize: '0.64rem', fontWeight: 700, letterSpacing: '0.08em',
+                    flexShrink: 0, fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.08em',
                     textTransform: 'uppercase', color: 'var(--primary)',
                     border: '1px solid color-mix(in srgb, var(--primary) 45%, transparent)',
                     borderRadius: '99px', padding: '2px 8px',

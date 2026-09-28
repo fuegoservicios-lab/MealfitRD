@@ -29,7 +29,7 @@
 .search { position: relative; }
 .search > svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-light); pointer-events: none; }
 .search input { width: 100%; height: 44px; border-radius: 13px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text-main); font: inherit; font-size: 16px; padding: 0 14px 0 40px; outline: none; transition: .15s; }
-.search input::placeholder { color: var(--text-light); }
+.search input::placeholder { color: var(--text-muted); } /* [LEGIBILIDAD] era --text-light (3:1, solo adorno) */
 .search input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent); }
 
 .actions { display: flex; gap: 9px; }
@@ -96,10 +96,10 @@
 /* Contenido */
 .body { padding: 4px 16px 8px; }
 .cat { margin-top: 18px; }
-.cathead { display: flex; align-items: center; gap: 9px; margin: 0 0 11px; font-size: .74rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.cathead { display: flex; align-items: center; gap: 9px; margin: 0 0 11px; font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .catico { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--cat-ink); background: color-mix(in srgb, var(--cat) 16%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 28%, transparent); }
 .catname { color: var(--text-main); }
-.catn { font-size: .66rem; font-weight: 800; color: var(--cat-ink); background: color-mix(in srgb, var(--cat) 14%, transparent); padding: 2px 8px; border-radius: 99px; }
+.catn { font-size: .75rem; font-weight: 800; color: var(--cat-ink); background: color-mix(in srgb, var(--cat) 14%, transparent); padding: 2px 8px; border-radius: 99px; }
 
 .grid { display: flex; flex-direction: column; gap: 8px; }
 
@@ -114,9 +114,9 @@
 .imeta { order: 2; flex: 1 1 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
 /* [P3-PANTRY-ADD-UX anchor] capitalize presenta la unidad cruda lowercase de la
    DB ("cartón" → "Cartón"). Test: test_unit_chip_uses_clean_copy. */
-.unit { font-size: .66rem; font-weight: 700; color: var(--cat-ink); background: color-mix(in srgb, var(--cat) 13%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 28%, transparent); padding: 3px 9px; border-radius: 7px; white-space: nowrap; text-transform: capitalize; }
-.shelf { display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-.disabledTag { display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 800; text-transform: uppercase; color: var(--danger-text); }
+.unit { font-size: .75rem; font-weight: 700; color: var(--cat-ink); background: color-mix(in srgb, var(--cat) 13%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 28%, transparent); padding: 3px 9px; border-radius: 7px; white-space: nowrap; text-transform: capitalize; }
+.shelf { display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.disabledTag { display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 800; text-transform: uppercase; color: var(--danger-text); }
 .irow { flex: 1 1 100%; display: flex; align-items: center; gap: 8px; }
 .stepper { display: inline-flex; align-items: center; background: var(--bg-card); border: 1px solid var(--border); border-radius: 11px; overflow: hidden; }
 .stepBtn { appearance: none; border: 0; cursor: pointer; width: 36px; height: 38px; background: transparent; color: var(--text-main); display: grid; place-items: center; transition: .14s; touch-action: manipulation; user-select: none; }
@@ -124,7 +124,7 @@
 .stepBtn:disabled { opacity: .3; cursor: default; }
 .qty { appearance: none; border: 0; cursor: pointer; min-width: 48px; height: 38px; text-align: center; font: inherit; font-weight: 800; font-size: .92rem; font-variant-numeric: tabular-nums; color: var(--text-main); background: transparent; touch-action: manipulation; }
 .qty:hover { background: var(--bg-muted); }
-.agotar { margin-left: auto; appearance: none; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 700; color: var(--text-muted); background: transparent; border: 1px solid var(--border); border-radius: 10px; min-height: 38px; padding: 0 13px; transition: .15s; white-space: nowrap; }
+.agotar { margin-left: auto; appearance: none; cursor: pointer; font: inherit; font-size: .75rem; font-weight: 700; color: var(--text-muted); background: transparent; border: 1px solid var(--border); border-radius: 10px; min-height: 38px; padding: 0 13px; transition: .15s; white-space: nowrap; }
 .agotar:hover { color: var(--danger-text); border-color: var(--danger-border); background: var(--danger-bg); }
 
 /* [P2-DESIGN-CONSISTENCY · 2026-07-07] Empty state = card con borde punteado (igual que desktop/Recetas). */
@@ -139,13 +139,13 @@
 .depleted { margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border); }
 .depHead { display: flex; align-items: center; gap: 8px; font-size: .82rem; font-weight: 800; color: var(--text-muted); }
 .depHead svg { color: var(--text-light); }
-.depCount { font-size: .7rem; font-weight: 800; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border); padding: 1px 8px; border-radius: 99px; }
-.depSub { margin: 5px 0 11px; font-size: .74rem; color: var(--text-light); }
+.depCount { font-size: .75rem; font-weight: 800; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border); padding: 1px 8px; border-radius: 99px; }
+.depSub { margin: 5px 0 11px; font-size: .75rem; color: var(--text-muted); }
 .depItem { background: var(--bg-page); border: 1px solid var(--border); border-radius: 15px; padding: 12px 13px; display: flex; align-items: center; flex-wrap: wrap; gap: 9px; opacity: .85; margin-bottom: 8px; }
 .depName { flex: 1 1 100%; font-size: .9rem; font-weight: 700; color: var(--text-muted); }
-.depMeta { font-size: .72rem; color: var(--text-light); }
-.reponer { margin-left: auto; appearance: none; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; color: var(--secondary); background: color-mix(in srgb, var(--secondary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--secondary) 32%, transparent); border-radius: 10px; min-height: 36px; padding: 0 13px; transition: .15s; }
-.reponer:hover { filter: brightness(1.08); }
+.depMeta { font-size: .75rem; color: var(--text-muted); }
+.reponer { margin-left: auto; appearance: none; cursor: pointer; font: inherit; font-size: .75rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-good); background: color-mix(in srgb, var(--secondary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--secondary) 32%, transparent); border-radius: 10px; min-height: 36px; padding: 0 13px; transition: .15s; }
+.reponer:hover { filter: brightness(1.08); } /* [LEGIBILIDAD] .reponer: tinta --ink-good (era --secondary, 2,3:1 en claro) */
 .dismiss { flex: none; width: 32px; height: 36px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--text-light); cursor: pointer; display: grid; place-items: center; transition: .15s; }
 .dismiss:hover { color: var(--danger-text); background: var(--danger-bg); }
 
@@ -157,5 +157,5 @@
    (índigo + tag) para no clonarse con el chip de unidad (que usa el color de
    zona --cat). "Genérico" va apagado: las marcas reales son las que resaltan. */
 /* [P2-DESIGN-CONSISTENCY · 2026-07-07] índigo por token --primary (antes #7C82F0 hardcoded). */
-.brandChip { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .64rem; font-weight: 700; letter-spacing: .01em; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.brandChip { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 700; letter-spacing: .01em; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
 .brandChipGeneric { composes: brandChip; color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 8%, transparent); border-color: color-mix(in srgb, var(--text-muted) 22%, transparent); }

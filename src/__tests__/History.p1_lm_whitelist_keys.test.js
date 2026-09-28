@@ -80,10 +80,10 @@ describe('[P1-HIST-LM-WHITELIST] anchor + estructura del catálogo', () => {
             expect(block).toMatch(new RegExp(`id:\\s*['"]${id}['"]`));
         }
         // Títulos legibles (mezcla mayúsculas/minúsculas).
-        expect(src).toMatch(/title:\s*t\('Síntesis y escalación'\)/);
+        expect(src).toMatch(/title:\s*t\('Resumen y reintentos'\)/);
         expect(block).toMatch(/title:\s*t\('Repetición'\)/);
         expect(block).toMatch(/title:\s*t\('Violaciones'\)/);
-        expect(block).toMatch(/title:\s*t\('Pantry y señal'\)/);
+        expect(block).toMatch(/title:\s*t\('Nevera y señal'\)/);
     });
 });
 

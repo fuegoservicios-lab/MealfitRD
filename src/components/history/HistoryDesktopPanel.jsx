@@ -159,7 +159,7 @@ function MacroBar({ macros, legend = true }) {
       {legend && hasData && (
         <div style={{ display: "flex", gap: 13 }}>
           {[["#34D399", "P", macros.p], ["#818CF8", "C", macros.c], ["#FB7185", "G", macros.g]].map(([c, l, v]) => (
-            <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: ".7rem", fontWeight: 700, color: "var(--text-muted)" }}>
+            <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: ".75rem", fontWeight: 700, color: "var(--text-muted)" }}>
               <i style={{ width: 8, height: 8, borderRadius: 3, background: c }} /> {l} <b style={{ color: "var(--text-main)" }}>{v}g</b>
             </span>
           ))}
@@ -286,9 +286,9 @@ function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, set
       <div style={{ display: "flex", alignItems: "flex-start", gap: 15 }}>
         <span style={emblem(50)}>{plan.generating ? <Loader2 size={25} strokeWidth={2.25} className="spin-animation" aria-hidden="true" /> : <CalendarDays size={25} strokeWidth={2.25} />}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", fontSize: ".62rem", fontWeight: 800,
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", fontSize: ".75rem", fontWeight: 800,
             letterSpacing: ".07em", textTransform: "uppercase",
-            color: paused ? "#FBBF24" : "var(--secondary)",
+            color: paused ? "var(--ink-pantry)" : "var(--ink-good)",
             background: paused ? "color-mix(in srgb, #FBBF24 14%, transparent)" : "color-mix(in srgb, var(--secondary) 16%, transparent)",
             border: `1px solid ${paused ? "color-mix(in srgb, #FBBF24 34%, transparent)" : "color-mix(in srgb, var(--secondary) 36%, transparent)"}`,
             padding: "4px 10px", borderRadius: 99 }}>
@@ -313,7 +313,7 @@ function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, set
           <RecipeChips meals={plan.meals} max={4} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
-          {plan.kcal > 0 && <span style={kcalBig}><b style={{ fontSize: "1.5rem", color: "#FB923C" }}>{formatNumber(plan.kcal)}</b><span>{t("kcal/día")}</span></span>}
+          {plan.kcal > 0 && <span style={kcalBig}><b style={{ fontSize: "1.5rem", color: "var(--ink-warn)" }}>{formatNumber(plan.kcal)}</b><span>{t("kcal/día")}</span></span>}
           {/* [P1-CTA-HOVER-PARITY · 2026-08-13] La clase aporta LO ÚNICO que un
               estilo inline no puede declarar: las sombras de :hover/:active.
               El resto del botón sigue viniendo de btn("primary"). */}
@@ -350,10 +350,10 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
             <>
               <span style={{ fontFamily: "var(--font-heading)", fontSize: "1rem", fontWeight: 800, letterSpacing: "-.01em", color: "var(--text-main)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{plan.name}</span>
               {plan.generating
-                ? <span data-testid="history-generating-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".68rem", fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 12%, transparent)", whiteSpace: "nowrap" }}><Loader2 size={11} className="spin-animation" aria-hidden="true" />{t("Generando")}</span>
+                ? <span data-testid="history-generating-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".75rem", fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 12%, transparent)", whiteSpace: "nowrap" }}><Loader2 size={11} className="spin-animation" aria-hidden="true" />{t("Generando")}</span>
                 : <PencilButton onEdit={onEdit} size={14} />}
-              {plan.inUse && <span data-testid="history-inuse-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--secondary)", background: "color-mix(in srgb, var(--secondary) 14%, transparent)", border: "1px solid color-mix(in srgb, var(--secondary) 34%, transparent)", whiteSpace: "nowrap" }}>{t("En uso")}</span>}
-              <span style={{ fontSize: ".74rem", color: "var(--text-light)", whiteSpace: "nowrap" }}>· {fmtTime(plan.date)}</span>
+              {plan.inUse && <span data-testid="history-inuse-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".75rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--ink-good)", background: "color-mix(in srgb, var(--secondary) 14%, transparent)", border: "1px solid color-mix(in srgb, var(--secondary) 34%, transparent)", whiteSpace: "nowrap" }}>{t("En uso")}</span>}
+              <span style={{ fontSize: ".75rem", color: "var(--text-muted)", whiteSpace: "nowrap" }}>· {fmtTime(plan.date)}</span>
             </>
           )}
         </div>
@@ -361,7 +361,7 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         {(plan.macros.p || plan.macros.c || plan.macros.g) ? <MacroBar macros={plan.macros} /> : <span />}
-        {plan.kcal > 0 && <span style={{ ...kcalBig, gap: 4 }}><b style={{ fontSize: "1.1rem", color: "#FB923C" }}>{formatNumber(plan.kcal)}</b><span>{t("kcal")}</span></span>}
+        {plan.kcal > 0 && <span style={{ ...kcalBig, gap: 4 }}><b style={{ fontSize: "1.1rem", color: "var(--ink-warn)" }}>{formatNumber(plan.kcal)}</b><span>{t("kcal")}</span></span>}
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           {!plan.generating && <IconButton name="pencil" title={t("Renombrar")} onClick={() => onEdit && onEdit()} />}
           {!plan.generating && <IconButton name="trash" danger title={t("Eliminar")} onClick={() => onDelete && onDelete()} />}
@@ -436,7 +436,7 @@ export default function HistoryDesktopPanel({
           owner (sin sinónimo de reemplazo) — la pastilla de conteo ancla el header. */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
         {/* [P3-HISTORY-COUNT-CORNER · 2026-09-02] etiqueta discreta, no píldora de acento (paridad con móvil) */}
-        <span data-testid="history-count-label" style={{ display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", fontFamily: "var(--font-heading)", fontSize: ".72rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-light)" }}>
+        <span data-testid="history-count-label" style={{ display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", fontFamily: "var(--font-heading)", fontSize: ".75rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-muted)" }}>
           <Icon name="cal" size={13} /> {tn(total, "{n} plan nutricional", "{n} planes nutricionales", { n: total })}
         </span>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 9, background: "var(--bg-page)", border: "1px solid var(--border)", borderRadius: 13, padding: "9px 14px", minWidth: 240, color: "var(--text-light)" }}>
@@ -448,11 +448,11 @@ export default function HistoryDesktopPanel({
 
       {/* Ordenar */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: ".72rem", fontWeight: 600, color: "var(--text-light)" }}>{t("Ordenar:")}</span>
+        <span style={{ fontSize: ".75rem", fontWeight: 600, color: "var(--text-muted)" }}>{t("Ordenar:")}</span>
         <div style={{ display: "inline-flex", gap: 3, padding: 3, borderRadius: 11, background: "var(--bg-muted)", border: "1px solid var(--border)" }}>
           {[["recent", t("Recientes")], ["kcal", t("Calorías")], ["name", t("Nombre")]].map(([k, l]) => (
             <button key={k} type="button" data-hover="fila" onClick={() => setSort(k)} aria-pressed={sort === k}
-              style={{ appearance: "none", border: 0, cursor: "pointer", fontFamily: "var(--font-body)", fontSize: ".74rem", fontWeight: 700, padding: "7px 14px", borderRadius: 8,
+              style={{ appearance: "none", border: 0, cursor: "pointer", fontFamily: "var(--font-body)", fontSize: ".75rem", fontWeight: 700, padding: "7px 14px", borderRadius: 8,
                 color: sort === k ? "var(--text-main)" : "var(--text-muted)", background: sort === k ? "var(--bg-card)" : "transparent", boxShadow: sort === k ? "0 1px 3px rgba(0,0,0,.35)" : "none" }}>{l}</button>
           ))}
         </div>
@@ -473,9 +473,9 @@ export default function HistoryDesktopPanel({
         {BUCKET_ORDER.filter((g) => groups[g]).map((g) => (
           <div key={g} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 2px" }}>
-              <span style={{ fontFamily: "var(--font-heading)", fontSize: ".74rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-light)" }}>{bucketTitle(g)}</span>
+              <span style={{ fontFamily: "var(--font-heading)", fontSize: ".75rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-muted)" }}>{bucketTitle(g)}</span>
               <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
-              <span style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--text-light)" }}>{groups[g].length}</span>
+              <span style={{ fontSize: ".75rem", fontWeight: 700, color: "var(--text-muted)" }}>{groups[g].length}</span>
             </div>
             {groups[g].map((p) => (
               <PlanRow

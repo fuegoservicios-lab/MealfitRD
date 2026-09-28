@@ -87,7 +87,7 @@ describe('[P1-HIST-NEW-2] presentación visual', () => {
     it('label "Dead-letter:" + tiempo relativo', () => {
         const idx = src.indexOf('c.dead_lettered_at');
         const block = src.slice(idx, idx + 1500);
-        expect(block).toMatch(/Dead-letter:\s*\{_dl\.rel\}/);
+        expect(block).toMatch(/t\('Sin más reintentos: \{cuando\}',\s*\{\s*cuando:\s*_dl\.rel/);
     });
 
     it('tooltip incluye ISO completo + semántica terminal', () => {
@@ -95,8 +95,8 @@ describe('[P1-HIST-NEW-2] presentación visual', () => {
         // terminal — no solo mostrar el timestamp crudo.
         const idx = src.indexOf('c.dead_lettered_at');
         const block = src.slice(idx, idx + 1500);
-        expect(block).toMatch(/t\('Dead-letter[^']*\{fecha\}[^']*',\s*\{\s*fecha:\s*_dl\.iso/);
-        expect(block).toMatch(/estado\s+terminal/i);
+        expect(block).toMatch(/t\('[^']*\{fecha\}[^']*',\s*\{\s*fecha:\s*_dl\.iso/);
+        expect(block).toMatch(/dej[oó] de reintentar/i);
     });
 });
 

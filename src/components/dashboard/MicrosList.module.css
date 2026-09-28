@@ -42,7 +42,7 @@
 }
 
 .tag {
-    font-size: .66rem;
+    font-size: .75rem;
     font-weight: 800;
     letter-spacing: .04em;
     text-transform: uppercase;
@@ -92,9 +92,9 @@
    ≤460px), letra pequeña y barra fina — la misma gramática que la fila de macros del cajón. */
 .compact .list { grid-template-columns: 1fr 1fr; gap: 10px 16px; }
 .compact .rowTop { margin-bottom: 4px; gap: 6px; }
-.compact .label { font-size: .72rem; }
-.compact .tag { font-size: .58rem; padding: 0 5px; }
-.compact .value { font-size: .68rem; }
+.compact .label { font-size: .75rem; }
+.compact .tag { font-size: .75rem; padding: 0 5px; }
+.compact .value { font-size: .75rem; }
 .compact .value b { font-size: .78rem; }
 .compact .track { height: 3px; }
-.compact .note { margin-top: 8px; font-size: .72rem; }
+.compact .note { margin-top: 8px; font-size: .75rem; }

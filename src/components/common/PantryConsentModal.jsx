@@ -138,7 +138,7 @@ function IngredientRow({ item }) {
           {priceTxt}
         </span>
       ) : (
-        <span style={{ flex: "none", fontSize: ".76rem", color: "var(--text-light)" }}>{t("precio no disp.")}</span>
+        <span style={{ flex: "none", fontSize: ".76rem", color: "var(--text-muted)" }}>{t("precio no disp.")}</span>
       )}
     </div>
   );

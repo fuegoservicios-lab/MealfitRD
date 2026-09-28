@@ -133,7 +133,7 @@
     padding: 0.25rem;
 }
 .tagInput::placeholder {
-    color: var(--text-light);
+    color: var(--text-muted); /* [LEGIBILIDAD] placeholder = texto: --text-light es 3:1, solo adorno */
 }
 .tagAdd {
     display: grid;
@@ -230,8 +230,8 @@
 }
 .counter {
     align-self: flex-end;
-    font-size: 0.72rem;
-    color: var(--text-light);
+    font-size: 0.75rem;
+    color: var(--text-muted);
     font-variant-numeric: tabular-nums;
 }
 

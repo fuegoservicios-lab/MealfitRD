@@ -113,7 +113,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
 
     const scaleRow = (value, setValue, lowLabel, highLabel) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11, color: '#8b95a8', width: 44 }}>{lowLabel}</span>
+            <span style={{ fontSize: 12, color: '#8b95a8', width: 44 }}>{lowLabel}</span>
             {SCALE.map((n) => (
                 <button
                     key={n}
@@ -126,7 +126,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                     {n}
                 </button>
             ))}
-            <span style={{ fontSize: 11, color: '#8b95a8', width: 44, textAlign: 'right' }}>{highLabel}</span>
+            <span style={{ fontSize: 12, color: '#8b95a8', width: 44, textAlign: 'right' }}>{highLabel}</span>
         </div>
     );
 
@@ -226,7 +226,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                         </button>
                     )}
                 </div>
-                <p style={{ margin: '0 0 16px', fontSize: 11.5, color: '#8b95a8', lineHeight: 1.4 }}>
+                <p style={{ margin: '0 0 16px', fontSize: 12, color: '#8b95a8', lineHeight: 1.4 }}>
                     {weightAnswered
                         ? t('Se guardará como tu peso de hoy.')
                         : t('Edítalo o confírmalo para que cuente como tu peso de hoy.')}
@@ -266,7 +266,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                     disabled={sending}
                     style={{
                         width: '100%', padding: '13px 0', borderRadius: 12, border: 'none',
-                        background: sending ? '#1d4c3c' : '#10b981', color: '#06281d',
+                        background: sending ? '#1d4c3c' : '#10b981', color: sending ? '#a7f3d0' : '#06281d',
                         fontSize: 15, fontWeight: 800, cursor: sending ? 'wait' : 'pointer',
                     }}
                 >

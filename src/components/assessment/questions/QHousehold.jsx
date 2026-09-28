@@ -74,11 +74,11 @@ export const QHousehold = ({ onManualAdvance }) => {
                                 <span style={{
                                     fontWeight: 700,
                                     fontSize: '0.88rem',
-                                    color: isSelected ? '#10B981' : 'var(--text-main)'
+                                    color: isSelected ? 'var(--ink-good)' : 'var(--text-main)'
                                 }}>
                                     {opt.label}
                                 </span>
-                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                                     {opt.sub}
                                 </span>
                                 {isSelected && (

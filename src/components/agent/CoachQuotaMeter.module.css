@@ -3,6 +3,9 @@
    línea sobre el cuadro de texto (móvil, solo cuando queda poco o nada). */
 .meter {
     --q-accent: #22D3EE;
+    /* [LEGIBILIDAD] --q-accent pinta el icono; --q-ink la CIFRA y los avisos
+       (el acento vivo daba 1,8-3,7:1 sobre blanco en claro). */
+    --q-ink: var(--ink-door);
     color: var(--text-muted);
     font-size: 0.75rem;
     line-height: 1;
@@ -10,10 +13,10 @@
 }
 .meter svg { color: var(--q-accent); flex: none; }
 .count { font-variant-numeric: tabular-nums; color: var(--text-main); }
-.count b { color: var(--q-accent); font-weight: 700; }
-.label { letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.6rem; font-weight: 700; }
-.low { --q-accent: #FB923C; }
-.depleted { --q-accent: #F43F5E; }
+.count b { color: var(--q-ink); font-weight: 700; }
+.label { letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.75rem; font-weight: 700; }
+.low { --q-accent: #FB923C; --q-ink: var(--ink-warn); }
+.depleted { --q-accent: #F43F5E; --q-ink: var(--ink-proteins); }
 
 /* píldora de cabecera (escritorio) */
 .pill {
@@ -40,7 +43,7 @@
 }
 .rowText { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
 .row .count { font-size: 0.95rem; }
-.renews { font-size: 0.7rem; color: var(--text-muted); }
+.renews { font-size: 0.75rem; color: var(--text-muted); }
 
 /* línea sobre el cuadro de texto (móvil), solo cuando importa */
 .caption {
@@ -50,9 +53,9 @@
     gap: 0.35rem;
     margin: 0 0 0.4rem;
     padding: 0;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
 }
-.caption.low { color: #FB923C; }
-.caption.low .count, .caption.low b { color: #FB923C; }
-.caption.depleted { color: #F43F5E; }
-.caption.depleted b { color: #F43F5E; }
+.caption.low { color: var(--q-ink); }
+.caption.low .count, .caption.low b { color: var(--q-ink); }
+.caption.depleted { color: var(--q-ink); }
+.caption.depleted b { color: var(--q-ink); }

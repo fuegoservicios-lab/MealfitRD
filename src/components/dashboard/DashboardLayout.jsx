@@ -272,7 +272,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                     key={item.path}
                                     className={styles.navItem}
                                     onClick={closeMenu}
-                                    style={{ opacity: 0.6 }}
+                                    style={{ color: 'var(--text-muted)' }}
                                     title={t('Crea tu cuenta para desbloquear')}
                                 >
                                     <Icon size={20} strokeWidth={item.iconStroke ?? 2} />
@@ -298,11 +298,11 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                     key={item.path}
                                     className={styles.navItem}
                                     onClick={closeMenu}
-                                    style={{ color: '#94A3B8', opacity: 0.8 }}
+                                    style={{ color: 'var(--text-muted)' }}
                                 >
                                     <Icon size={20} strokeWidth={item.iconStroke ?? 2} />
                                     <span style={{ flex: 1 }}>{item.label}</span>
-                                    <span style={{ fontSize: '10px', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>🔒 {t('Básico')}</span>
+                                    <span style={{ fontSize: '12px', color: '#475569', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>🔒 {t('Básico')}</span>
                                 </Link>
                             );
                         }
@@ -504,7 +504,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                     onTouchStart={_prefetch}
                                     role="menuitem"
                                     aria-current={location.pathname === item.path ? 'page' : undefined}
-                                    style={bloqueada ? { opacity: 0.6 } : undefined}
+                                    style={bloqueada ? { color: 'var(--text-muted)' } : undefined}
                                 >
                                     <Icon size={18} strokeWidth={2.5} />
                                     <span style={{ flex: 1 }}>{item.label}</span>

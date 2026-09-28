@@ -141,22 +141,22 @@ describe('[P1-HIST-NEW-5] tooltip + posición', () => {
         const idx = src.indexOf('[P1-HIST-NEW-5');
         const block = src.slice(idx, idx + 5500);
         // Template literal con _lag, _sla, _label, y copy interpretativa.
-        expect(block).toMatch(/t\('Lag \(\{lag\}s\) supera el SLA esperado \(\{sla\}s\)[^']*',\s*\{\s*lag:\s*_lag,\s*sla:\s*_sla/);
+        expect(block).toMatch(/t\('La espera \(\{lag\}s\)[^']*\(\{sla\}s\)[^']*',\s*\{\s*lag:\s*_lag,\s*sla:\s*_sla/);
         // Copy diferenciada por severidad.
-        expect(block).toMatch(/Anomal[ií]a severa/i);
+        expect(block).toMatch(/muy fuera de lo normal/i);
     });
 
     it('chip text muestra "Lag X× SLA"', () => {
         const idx = src.indexOf('[P1-HIST-NEW-5');
         const block = src.slice(idx, idx + 5500);
-        expect(block).toMatch(/Lag \{_label\} SLA/);
+        expect(block).toMatch(/t\('Demora: \{x\} lo esperado',\s*\{\s*x:\s*_label/);
     });
 
     it('render se ubica entre chip SLA y chip reservation_status', () => {
         // Orden semántico: SLA esperado → ratio anómalo → fallback de
         // reserva. El operator lee top-to-bottom y entiende
         // progresivamente la causa.
-        const slaIdx = src.indexOf('SLA: {c.expected_preemption_seconds}s');
+        const slaIdx = src.indexOf("t('Tiempo esperado: {n}s', { n: c.expected_preemption_seconds })");
         const ratioIdx = src.indexOf('[P1-HIST-NEW-5');
         const reserveIdx = src.indexOf("c.reservation_status === 'fallback'");
         expect(slaIdx).toBeGreaterThan(-1);

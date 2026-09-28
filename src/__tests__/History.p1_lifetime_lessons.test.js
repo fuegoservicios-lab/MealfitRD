@@ -231,7 +231,7 @@ describe('[P1-HIST-LIFETIME-LESSONS] render del sub-bloque lifetime', () => {
         const block = src.slice(anchorIdx, anchorIdx + 4000);
         expect(block).toMatch(/_proxyRatio\s*>=\s*0\.5/);
         expect(block).toMatch(/lifetimeProxyBadge/);
-        expect(block).toMatch(/Proxy\s*\{/);
+        expect(block).toMatch(/Estimado\s*\{/);
     });
 
     it('counters render: rechazos + alergias + logs + proxy', () => {
@@ -243,8 +243,8 @@ describe('[P1-HIST-LIFETIME-LESSONS] render del sub-bloque lifetime', () => {
         const block = src.slice(anchorIdx, anchorIdx + 4000);
         expect(block).toMatch(/t\('Rechazos: \{n\}',\s*\{\s*n:\s*_rej/);
         expect(block).toMatch(/t\('Alergias: \{n\}',\s*\{\s*n:\s*_alg/);
-        expect(block).toMatch(/t\('Logs: \{n\}',\s*\{\s*n:\s*_logs/);
-        expect(block).toMatch(/t\('Proxy: \{n\}',\s*\{\s*n:\s*_proxy/);
+        expect(block).toMatch(/t\('Anotadas: \{n\}',\s*\{\s*n:\s*_logs/);
+        expect(block).toMatch(/t\('Estimadas: \{n\}',\s*\{\s*n:\s*_proxy/);
     });
 
     it('listas top: blocklist + rechazos + repetidos + bases', () => {
@@ -257,9 +257,9 @@ describe('[P1-HIST-LIFETIME-LESSONS] render del sub-bloque lifetime', () => {
         expect(block).toMatch(/top_repeated_meal_names/);
         expect(block).toMatch(/top_repeated_bases/);
         // Render label.
-        expect(block).toMatch(/Blocklist permanente/);
-        expect(block).toMatch(/Top rechazos/);
-        expect(block).toMatch(/Meals repetidos/);
+        expect(block).toMatch(/Platos que ya no repetiremos/);
+        expect(block).toMatch(/Rechazos más frecuentes/);
+        expect(block).toMatch(/Platos repetidos/);
         expect(block).toMatch(/Bases repetidas/);
     });
 
@@ -298,7 +298,7 @@ describe('[P1-HIST-LIFETIME-LESSONS] render del sub-bloque lifetime', () => {
         expect(block).toMatch(/entry\.chunk/);
         // Y el header del bloque debe estar en el slice también
         // (el IIFE comment + el cómputo + la JSX que renderiza).
-        expect(block).toMatch(/Historial reciente por chunk/);
+        expect(block).toMatch(/Historial reciente por bloque/);
     });
 
     it('sub-bloque omite render si no hay contenido (_hasContent=false)', () => {
@@ -327,7 +327,7 @@ describe('[P1-HIST-LIFETIME-LESSONS] divider entre lifetime y telemetría', () =
     it('divider "Eventos de telemetría" condicionado a _hasLifetime', () => {
         // Si la lifetime cayó a oculta (sin contenido), el divider
         // sería confuso — solo render cuando AMBAS secciones existen.
-        const dividerIdx = src.indexOf('Eventos de telemetría');
+        const dividerIdx = src.indexOf('Registro de eventos');
         expect(dividerIdx).toBeGreaterThan(-1);
         const block = src.slice(Math.max(0, dividerIdx - 1500), dividerIdx + 200);
         expect(block).toMatch(/_hasLifetime\s*=/);

@@ -30,10 +30,10 @@ const actionReasonLabels = (t) => ({
 
     // Dead-letter reasons (chunks failed con dead_letter_reason).
     recovery_exhausted: t('No recuperable'),
-    unrecoverable_missing_anchor: t('Anchor irresoluble'),
+    unrecoverable_missing_anchor: t('Sin fecha de inicio'),
     unrecoverable_corrupted_date: t('Fecha inválida'),
     missing_prior_lessons_unrecoverable: t('Lecciones perdidas'),
-    restore_overwrite: t('Cancelado por restore'),
+    restore_overwrite: t('Reemplazado por otro plan'),
     restore_source_archived: t('Cancelado al archivar'),
 
     // Stuck reasons (P1-HIST-BLOCKED-STUCK — chunks processing/stale

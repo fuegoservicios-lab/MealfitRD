@@ -334,7 +334,7 @@
 }
 
 .searchInput::placeholder {
-    color: #94A3B8;
+    color: var(--text-muted); /* [LEGIBILIDAD] era #94A3B8 (2,6:1 sobre el input blanco) */
 }
 
 .searchInput:focus {
@@ -634,7 +634,7 @@
     background: transparent;
     border: none;
     cursor: pointer;
-    color: #94A3B8;
+    color: var(--text-light); /* [LEGIBILIDAD] botón solo-icono: #94A3B8 daba 2,6:1 (<3:1) */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -707,9 +707,9 @@
     align-items: center;
     justify-content: center;
     background: #EFF6FF;
-    color: #3B82F6;
+    color: #2563EB; /* [LEGIBILIDAD] era #3B82F6: 3,4:1 sobre #EFF6FF */
     font-weight: 800;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     padding: 0.25rem 0.5rem;
     border-radius: 99px;
     border: 1px solid #DBEAFE;
@@ -738,7 +738,7 @@
     gap: 0.25rem;
     padding: 0.35rem 0.7rem;
     border-radius: 99px;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 800;
     letter-spacing: 0.01em;
     white-space: nowrap;
@@ -845,7 +845,7 @@
     gap: 0.25rem;
     padding: 0.35rem 0.65rem;
     border-radius: 99px;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 800;
     background: color-mix(in srgb, var(--primary) 14%, transparent);
     color: color-mix(in srgb, var(--primary) 55%, var(--text-main));
@@ -870,7 +870,7 @@
     align-items: center;
     padding: 0.35rem 0.7rem;
     border-radius: 99px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 800;
     background: color-mix(in srgb, #06B6D4 14%, transparent);
     color: color-mix(in srgb, #06B6D4 55%, var(--text-main));
@@ -891,7 +891,7 @@
     align-items: center;
     padding: 0.35rem 0.7rem;
     border-radius: 99px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 800;
     background: color-mix(in srgb, #8B5CF6 14%, transparent);
     color: color-mix(in srgb, #8B5CF6 55%, var(--text-main));
@@ -910,7 +910,7 @@
     align-items: center;
     padding: 0.35rem 0.7rem;
     border-radius: 99px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 800;
     background: color-mix(in srgb, var(--text-muted) 14%, transparent);
     color: color-mix(in srgb, var(--text-muted) 80%, var(--text-main));
@@ -933,7 +933,7 @@
     align-items: center;
     padding: 0.35rem 0.7rem;
     border-radius: 99px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 800;
     background: color-mix(in srgb, var(--warning) 14%, transparent);
     color: var(--warning-text);
@@ -958,7 +958,7 @@
     align-items: center;
     padding: 0.35rem 0.7rem;
     border-radius: 99px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 800;
     background: color-mix(in srgb, var(--text-muted) 14%, transparent);
     color: color-mix(in srgb, var(--text-muted) 80%, var(--text-main));
@@ -974,7 +974,7 @@
     align-items: center;
     padding: 0.35rem 0.7rem;
     border-radius: 99px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 800;
     background: color-mix(in srgb, var(--danger) 14%, transparent);
     color: var(--danger-text);
@@ -1050,7 +1050,7 @@
 
 .card:hover .deleteButton {
     opacity: 1;
-    color: #94A3B8;
+    color: var(--text-light); /* [LEGIBILIDAD] botón solo-icono: #94A3B8 daba 2,6:1 */
 }
 
 .deleteButton:hover {
@@ -1088,7 +1088,7 @@
 @media (hover: none) {
     .deleteButton {
         opacity: 1;
-        color: #94A3B8;
+        color: var(--text-light);
     }
 }
 
@@ -1239,7 +1239,7 @@
     padding: 0.1rem 0.35rem;
     border-radius: 0.3rem;
     font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: var(--danger-text);
 }
 
@@ -1333,8 +1333,8 @@
 }
 
 .macroLabelOrange {
-    font-size: 0.7rem;
-    color: #EA580C;
+    font-size: 0.75rem;
+    color: #C2410C; /* [LEGIBILIDAD] era #EA580C: 3,3:1 sobre #FFF7ED (oscuro tiene su override) */
     font-weight: 600;
 }
 
@@ -1345,7 +1345,7 @@
 }
 
 .macroLabelBlue {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: #2563EB;
     font-weight: 600;
 }
@@ -1357,8 +1357,8 @@
 }
 
 .macroLabelGreen {
-    font-size: 0.7rem;
-    color: #059669;
+    font-size: 0.75rem;
+    color: #047857; /* [LEGIBILIDAD] era #059669: 3,6:1 sobre #ECFDF5 */
     font-weight: 600;
 }
 
@@ -1369,8 +1369,8 @@
 }
 
 .macroLabelPink {
-    font-size: 0.7rem;
-    color: #EC4899;
+    font-size: 0.75rem;
+    color: #BE185D; /* [LEGIBILIDAD] era #EC4899: 3,3:1 sobre #FDF2F8 */
     font-weight: 600;
 }
 
@@ -1502,7 +1502,7 @@
 }
 
 .menuMealType {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #64748B;
     text-transform: uppercase;
@@ -1896,7 +1896,7 @@
     }
 
     .tag {
-        font-size: 0.65rem;
+        font-size: 0.75rem;
         padding: 0.2rem 0.45rem;
     }
 
@@ -1927,7 +1927,7 @@
     }
 
     .macroLabelOrange, .macroLabelBlue, .macroLabelGreen, .macroLabelPink {
-        font-size: 0.65rem;
+        font-size: 0.75rem;
     }
 
     /* [P3-HIST-MODAL-BOTTOMSHEET · 2026-06-24] En móvil el modal de detalle es un
@@ -2051,7 +2051,7 @@
 
 .detailItemBadge {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #4338CA;
     background: #EEF2FF;
@@ -2062,7 +2062,7 @@
 }
 
 .detailItemMeta {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: #64748B;
     white-space: nowrap;
 }
@@ -2203,7 +2203,7 @@
    tooltip muestra el string completo. */
 .errorMessageBadge {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     max-width: 28rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2395,7 +2395,7 @@
     justify-content: space-between;
     align-items: baseline;
     padding: 0.3rem 0;
-    font-size: 0.74rem;
+    font-size: 0.75rem;
     color: color-mix(in srgb, var(--info-text) 78%, var(--text-main));
 }
 
@@ -2440,7 +2440,7 @@
     background: color-mix(in srgb, var(--warning) 14%, transparent);
     color: var(--warning-text);
     border: 1px solid color-mix(in srgb, var(--warning) 32%, transparent);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 700;
 }
 
@@ -2460,7 +2460,7 @@
 }
 
 .lifetimeListLabel {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #4338CA;
     margin-right: 0.2rem;
@@ -2476,7 +2476,7 @@
     background: #FFFFFF;
     color: #1E293B;
     border: 1px solid #E0E7FF;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 600;
     max-width: 100%;
 }
@@ -2487,7 +2487,7 @@
     border-radius: 99px;
     background: #C7D2FE;
     color: #3730A3;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 700;
 }
 
@@ -2514,8 +2514,8 @@
 }
 
 .lastChunkLearningMeta {
-    font-size: 0.7rem;
-    color: #6366F1;
+    font-size: 0.75rem;
+    color: var(--primary); /* [LEGIBILIDAD] era #6366F1 (<4,5:1 sobre el tinte) */
     font-weight: 600;
 }
 
@@ -2558,9 +2558,9 @@
 }
 
 .lifetimeCriticalCount {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 700;
-    color: #6366F1;
+    color: var(--primary); /* [LEGIBILIDAD] era #6366F1 (<4,5:1 sobre el tinte) */
 }
 
 /* [P1-HIST-LM-WHITELIST · 2026-05-09] Render del bloque de
@@ -2586,7 +2586,7 @@
 
 .lmGroupTitle {
     display: block;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 800;
     color: #475569;
     text-transform: uppercase;
@@ -2607,7 +2607,7 @@
     margin: 1rem 0 0.55rem 0;
     padding-top: 0.55rem;
     border-top: 1px solid #E2E8F0;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 800;
     color: #64748B;
     text-transform: uppercase;
@@ -2859,6 +2859,10 @@
     color: var(--text-muted);
 }
 
+:global(html[data-theme="dark"]) .searchEmpty p {
+    color: var(--text-muted); /* [LEGIBILIDAD] heredaba #475569: 2,3:1 en oscuro */
+}
+
 :global(html[data-theme="dark"]) .searchEmpty strong {
     color: var(--text-main);
 }
@@ -2866,6 +2870,7 @@
 :global(html[data-theme="dark"]) .searchEmptyClear {
     background: rgba(30, 27, 75, 0.6);
     border-color: rgba(99, 102, 241, 0.3);
+    color: var(--primary-light); /* [LEGIBILIDAD] heredaba #4F46E5: ~2,8:1 sobre este fondo */
 }
 
 /* --- FILAS (card) --- */
@@ -3147,6 +3152,16 @@
 
 :global(html[data-theme="dark"]) .lastChunkLearningHeader {
     color: var(--primary-light);
+}
+
+/* [LEGIBILIDAD] «Ver todos / Ver menos» heredaba #4338CA (2,2:1) y su hover
+   #312E81 (1,6:1) sobre el bloque índigo oscuro. */
+:global(html[data-theme="dark"]) .lifetimeHistoryToggle {
+    color: var(--primary-light);
+}
+
+:global(html[data-theme="dark"]) .lifetimeHistoryToggle:hover {
+    color: var(--text-main);
 }
 
 :global(html[data-theme="dark"]) .lastChunkLearningMeta {

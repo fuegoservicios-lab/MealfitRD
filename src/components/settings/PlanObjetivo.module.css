@@ -76,7 +76,7 @@
 /* ── Objetivo ────────────────────────────────────────────────────────────── */
 .sectionLabel {
     margin-top: 2rem;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -84,11 +84,11 @@
 }
 .metaLabel {
     margin-top: 1.25rem;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 800;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--primary-light);
+    color: var(--primary); /* [LEGIBILIDAD] --primary-light en claro es #818CF8 (2,9:1) */
 }
 .goal {
     margin: 0.4rem 0 0;

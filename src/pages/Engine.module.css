@@ -395,7 +395,7 @@
 
 /* Etiquetas accesorias: contorno de 1px, radio 0. */
 .tagRow { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 1.1rem; }
-.tag { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pa-ink-2); background: transparent; border: 1px solid var(--pa-rule-2); border-radius: 0; padding: 0.3rem 0.6rem; }
+.tag { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pa-ink-2); background: transparent; border: 1px solid var(--pa-rule-2); border-radius: 0; padding: 0.3rem 0.6rem; }
 
 /* Tabla comparativa — misma gramática que la tabla de revisiones de la home
    (`NewsHighlight.module.css`): regla negra arriba, cabeceras mono 12px sobre
@@ -501,7 +501,7 @@
         content: attr(data-label);
         display: block;
         font-family: var(--font-mono);
-        font-size: 11px;
+        font-size: 12px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--pa-ink-3, var(--pa-ink-2));

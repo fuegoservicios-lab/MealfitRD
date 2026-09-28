@@ -182,7 +182,7 @@ export const QBudget = ({ onAutoAdvance }) => {
                         aria-live="polite"
                         style={{
                             fontSize: '0.75rem', lineHeight: 1.4,
-                            color: belowMin ? 'var(--warning)' : 'var(--text-muted)',
+                            color: belowMin ? 'var(--warning-text)' : 'var(--text-muted)',
                             fontWeight: belowMin ? 600 : 400,
                         }}
                     >

@@ -120,7 +120,7 @@ export class RouteErrorBoundary extends React.Component {
               fontSize: '.85rem',
               fontWeight: 600,
               color: '#fff',
-              background: 'var(--primary, #4f46e5)',
+              background: 'var(--primary-fill, #4f46e5)',
               border: 'none',
               borderRadius: '.65rem',
               cursor: 'pointer',

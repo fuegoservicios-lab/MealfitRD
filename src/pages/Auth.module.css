@@ -201,7 +201,7 @@
 }
 
 .requiredAsterisk {
-    color: #ef4444;
+    color: var(--danger-text); /* [LEGIBILIDAD] era #ef4444: 3,8:1 sobre blanco */
     margin-left: 0.125rem;
 }
 
@@ -283,7 +283,7 @@
     transform: translateY(-50%);
     background: transparent;
     border: none;
-    color: #94a3b8;
+    color: var(--text-light); /* [LEGIBILIDAD] botón solo-icono (mostrar contraseña): #94a3b8 daba 2,6:1 */
     cursor: pointer;
     padding: 0.25rem;
     display: flex;

@@ -123,9 +123,9 @@ describe('[P1-HIST-CHUNK-TIMESTAMPS] render learning_persisted_at', () => {
         const renderIdx = src.indexOf('Render de `escalated_at`');
         const block = src.slice(renderIdx, renderIdx + 10000);
         expect(block).toMatch(/_fmtRelTime\(c\.learning_persisted_at\)/);
-        expect(block).toMatch(/Learning:\s*\{_lp\.rel\}/);
+        expect(block).toMatch(/t\('Aprendizaje guardado: \{cuando\}',\s*\{\s*cuando:\s*_lp\.rel/);
         // Tooltip que explica el contexto.
-        expect(block).toMatch(/t\('Learning commiteado el \{fecha\}[^']*',\s*\{\s*fecha:\s*_lp\.iso/);
+        expect(block).toMatch(/t\('Lo aprendido se guardó el \{fecha\}[^']*',\s*\{\s*fecha:\s*_lp\.iso/);
     });
 
     it('edge case: status=completed pero learning_persisted_at=null → chip "Sin aprendizaje guardado" warn', () => {
@@ -166,7 +166,7 @@ describe('[P1-HIST-CHUNK-TIMESTAMPS] tooltip semantics', () => {
     it('tooltip de Escalado explica "no-recoverable"', () => {
         const renderIdx = src.indexOf('Render de `escalated_at`');
         const block = src.slice(renderIdx, renderIdx + 10000);
-        expect(block).toMatch(/Escalado a no-recoverable el/);
+        expect(block).toMatch(/Marcado como no recuperable el/);
     });
 
     it('tooltip de Sin learning explica T2 fail', () => {

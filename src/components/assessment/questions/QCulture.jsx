@@ -80,7 +80,7 @@ export const QCulture = ({ onManualAdvance }) => {
 
             <fieldset style={{ border: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <legend id="q-culture-main" style={legendStyle}>
-                    {t('Tu cocina principal')}&nbsp;<span style={{ color: '#EF4444' }}>*</span>
+                    {t('Tu cocina principal')}&nbsp;<span style={{ color: 'var(--danger-text)' }}>*</span>
                 </legend>
                 <div role="radiogroup" aria-labelledby="q-culture-main" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {CULTURES.map((c) => {
@@ -94,7 +94,7 @@ export const QCulture = ({ onManualAdvance }) => {
                                 label={isSuggested ? (
                                     <>
                                         {t(c.labelKey)}
-                                        <span style={{ marginLeft: '0.5rem', padding: '0.1rem 0.5rem', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 700,
+                                        <span style={{ marginLeft: '0.5rem', padding: '0.1rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700,
                                             background: 'color-mix(in srgb, var(--primary) 16%, transparent)', color: 'var(--primary)', verticalAlign: 'middle' }}>
                                             {t('Sugerida')}
                                         </span>

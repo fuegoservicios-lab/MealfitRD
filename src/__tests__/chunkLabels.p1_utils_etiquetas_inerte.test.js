@@ -58,7 +58,7 @@ describe('[P1-I18N-UTILS-ETIQUETAS-INERTE] los chips del Historial siguen el idi
         await loadLocale('en-US');
         expect(getChunkKindLabel('initial_plan')).toBe('Initial');
         expect(getChunkKindLabel('first_chunk')).toBe('Initial');
-        expect(getChunkKindLabel('rolling_refill')).toBe('Refill');
+        expect(getChunkKindLabel('rolling_refill')).toBe('Continuation');
         expect(getChunkKindLabel('catchup')).toBe('Catch-up');
     });
 

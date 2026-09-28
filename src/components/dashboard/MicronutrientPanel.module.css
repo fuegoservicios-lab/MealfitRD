@@ -24,14 +24,14 @@
 }
 .headText { flex: 1; min-width: 0; }
 .title { margin: 0; font-family: var(--font-heading); font-size: 1rem; font-weight: 800; letter-spacing: -.015em; line-height: 1.2; color: var(--text-main); }
-.sub { font-size: .74rem; font-weight: 600; color: var(--text-muted); }
+.sub { font-size: .75rem; font-weight: 600; color: var(--text-muted); }
 .sub b { color: var(--text-main); font-weight: 800; }
 .close {
   flex: none; width: 30px; height: 30px; border-radius: 9px; border: 1px solid transparent;
   background: transparent; color: var(--text-light); cursor: pointer; display: grid; place-items: center; transition: .18s;
 }
 .close:hover { background: var(--bg-muted); color: var(--text-main); border-color: var(--border); }
-.intro { margin: 12px 0 0; font-size: .74rem; line-height: 1.45; color: var(--text-muted); }
+.intro { margin: 12px 0 0; font-size: .75rem; line-height: 1.45; color: var(--text-muted); }
 
 /* Filas de nutrientes */
 .meters { display: flex; flex-direction: column; gap: 9px; margin-top: 15px; }
@@ -46,19 +46,23 @@
 .clickable:active { transform: scale(.992); }
 .clickable:focus-visible { outline: 2px solid var(--tone); outline-offset: 2px; }
 
-/* Tonos por estado */
-.far { --tone: #FB923C; }
-.low { --tone: #FBBF24; }
-.near { --tone: #2DD4BF; }
-.over { --tone: #FB7185; }
+/* Tonos por estado.
+   [LEGIBILIDAD] --tone es el RELLENO (barra, glow, tintes); --tone-ink es la
+   TINTA del texto (píldora, «faltan», botón): en claro el relleno vivo daba
+   1,7-2,6:1 sobre --bg-page. En oscuro los --ink-* valen lo mismo que el relleno. */
+.meter { --tone-ink: var(--ink-ok); }
+.far { --tone: #FB923C; --tone-ink: var(--ink-fruits); }
+.low { --tone: #FBBF24; --tone-ink: var(--ink-pantry); }
+.near { --tone: #2DD4BF; --tone-ink: var(--ink-ok); }
+.over { --tone: #FB7185; --tone-ink: var(--ink-proteins); }
 
 .mtop { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; }
 .mname { font-size: .95rem; font-weight: 800; letter-spacing: -.01em; color: var(--text-main); white-space: nowrap; }
 .pill {
   margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 3px;
   padding: 3px 9px 3px 7px; border-radius: 99px;
-  font-size: .6rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;
-  color: var(--tone);
+  font-size: .75rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;
+  color: var(--tone-ink);
   background: color-mix(in srgb, var(--tone) 17%, transparent);
   border: 1px solid color-mix(in srgb, var(--tone) 36%, transparent);
 }
@@ -77,15 +81,15 @@
 }
 
 .mfoot { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 10px; }
-.vals { font-size: .76rem; color: var(--text-light); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vals { font-size: .76rem; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vals b { color: var(--text-main); font-weight: 800; font-size: .88rem; }
 .unit { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
-.gap { display: block; font-size: .72rem; color: var(--text-muted); margin-top: 2px; white-space: nowrap; }
-.gap b { color: var(--tone); font-weight: 800; }
+.gap { display: block; font-size: .75rem; color: var(--text-muted); margin-top: 2px; white-space: nowrap; }
+.gap b { color: var(--tone-ink); font-weight: 800; }
 .improve {
   flex: none; align-self: center; display: inline-flex; align-items: center; gap: 5px;
   min-height: 34px; padding: 0 13px; border-radius: 99px; white-space: nowrap;
-  font-size: .76rem; font-weight: 700; color: var(--tone);
+  font-size: .76rem; font-weight: 700; color: var(--tone-ink);
   background: color-mix(in srgb, var(--tone) 13%, transparent);
   border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent);
 }
@@ -93,15 +97,15 @@
 
 /* Sugerencias */
 .supps { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 11px; }
-.suppsLabel { display: inline-flex; align-items: center; gap: 6px; font-size: .62rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-ready); }
+.suppsLabel { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-ready); }
 .suppsLabel svg { width: 12px; height: 12px; }
 .supp { display: flex; gap: 10px; padding: 12px 13px; border-radius: 13px; background: rgba(167, 139, 250, .07); border: 1px solid rgba(167, 139, 250, .18); }
 .suppIco { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: #C4B5FD; background: rgba(167, 139, 250, .16); }
 .suppIco svg { width: 14px; height: 14px; }
 .suppMain { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
 .suppName { font-size: .86rem; font-weight: 800; color: var(--text-main); }
-.suppDose { font-size: .74rem; font-weight: 700; color: #C4B5FD; }
-.suppHint { margin: 5px 0 0; font-size: .74rem; line-height: 1.5; color: var(--text-muted); }
+.suppDose { font-size: .75rem; font-weight: 700; color: var(--ink-ready); } /* [LEGIBILIDAD] era #C4B5FD (1,85:1 en claro) */
+.suppHint { margin: 5px 0 0; font-size: .75rem; line-height: 1.5; color: var(--text-muted); }
 .suppHint b { color: var(--text-main); font-weight: 700; }
 
 @media (prefers-reduced-motion: reduce) {

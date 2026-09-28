@@ -33,14 +33,14 @@ describe('[P2-HIST-AUDIT-B] expected_preemption + reservation_status render', ()
         expect(idx).toBeGreaterThan(-1);
         const block = src.slice(Math.max(0, idx - 200), idx + 800);
         expect(block).toMatch(/c\.expected_preemption_seconds\s*>\s*0/);
-        expect(block).toMatch(/SLA:/);
+        expect(block).toMatch(/Tiempo esperado: \{n\}s/);
     });
 
     it('chip Reserva: fallback con tierBadgeWarn', () => {
         const idx = src.indexOf("c.reservation_status === 'fallback'");
         expect(idx).toBeGreaterThan(-1);
         const block = src.slice(idx, idx + 600);
-        expect(block).toMatch(/Reserva:\s*fallback/);
+        expect(block).toMatch(/Cola de respaldo/);
         expect(block).toMatch(/styles\.tierBadgeWarn/);
     });
 });
@@ -107,7 +107,7 @@ describe('[P2-HIST-AUDIT-E] is_rolling_refill_drift chip', () => {
         const block = src.slice(idx, idx + 800);
         // Triple-equals strict — solo true literal, no truthy random.
         expect(block).toMatch(/c\.is_rolling_refill_drift\s*===\s*true/);
-        expect(block).toMatch(/Kind drift/);
+        expect(block).toMatch(/Tipo desajustado/);
         expect(block).toMatch(/styles\.tierBadgeWarn/);
     });
 });
@@ -127,7 +127,7 @@ describe('[P2-HIST-AUDIT-F] blocking_lock zombi chip', () => {
         // Type guard string + length > 0 (no string vacío).
         expect(block).toMatch(/typeof\s+c\.blocking_lock_chunk_id\s*===\s*['"]string['"]/);
         expect(block).toMatch(/c\.blocking_lock_chunk_id\.length\s*>\s*0/);
-        expect(block).toMatch(/Lock zombi/);
+        expect(block).toMatch(/Esperando turno/);
         expect(block).toMatch(/styles\.tierBadgeWarn/);
     });
 

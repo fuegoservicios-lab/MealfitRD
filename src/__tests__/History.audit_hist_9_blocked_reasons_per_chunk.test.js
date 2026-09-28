@@ -127,7 +127,7 @@ describe('[P2-HIST-AUDIT-9] render dentro del banner', () => {
         expect(renderIdx).toBeGreaterThan(-1);
         const block = src.slice(renderIdx, renderIdx + 2500);
         expect(block).toMatch(/_br\s*===\s*['"]loading['"]/);
-        expect(block).toMatch(/Cargando detalle por chunk/);
+        expect(block).toMatch(/Cargando el detalle de cada bloque/);
     });
 
     it('omite render en sentinel error o array vacío', () => {

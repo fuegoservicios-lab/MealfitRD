@@ -403,7 +403,7 @@
     gap: 0.75rem;
     cursor: pointer;
     padding: 0.875rem 1rem;
-    color: #ef4444;
+    color: #B91C1C; /* [LEGIBILIDAD] era #ef4444: 3,8:1 sobre el menú blanco (oscuro tiene override) */
     font-weight: 500;
     font-size: 0.95rem;
     border-radius: 0.75rem;
@@ -710,7 +710,7 @@
    propio sistema papel. Es un arreglo, pero es un CAMBIO VISUAL: si alguien
    quería ese rosa, esto lo quita. */
 .accountItemDanger {
-    color: var(--danger);
+    color: var(--danger-text); /* [LEGIBILIDAD] --danger (#EF4444) daba 3,8:1 como texto en claro */
 }
 
 .accountItemDanger:hover {
@@ -830,7 +830,7 @@
 
 :global(html[data-theme="paper"]) .editionLabel {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.08em;
     color: var(--pa-ink-3);
     white-space: nowrap;

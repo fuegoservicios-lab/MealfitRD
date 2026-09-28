@@ -183,7 +183,7 @@ export const QTrackingFinish = () => {
                 disabled={saving}
                 style={{
                     display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-                    background: 'var(--primary, #4F46E5)', color: '#fff', border: 0,
+                    background: 'var(--primary-fill, #4F46E5)', color: '#fff', border: 0,
                     borderRadius: '0.8rem', padding: '0.8rem 1.6rem', fontSize: '1rem',
                     fontWeight: 700, cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit',
                 }}

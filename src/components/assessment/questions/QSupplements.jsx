@@ -191,7 +191,7 @@ export const QSupplements = ({ onFinish, isSubmitting, finishLabel, modoContador
                     }}
                 >
                     <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, color: recomendar ? 'var(--supplement-accent)' : 'var(--text-main)' }}>
+                        <div style={{ fontWeight: 600, color: recomendar ? 'var(--supplement-accent-strong)' : 'var(--text-main)' }}>
                             {t('¿Quieres que te recomendemos alguno para tu meta?')}
                         </div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>

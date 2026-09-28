@@ -117,10 +117,12 @@ const _diaSemana = (idx) => {
 // tarjetas del menú del modal (diseño del owner: cuadro de ícono coloreado +
 // label coloreado). Mapea por el texto del tipo; fallback ciclando por índice.
 const _MEAL_TYPE_STYLES = [
-    { tone: '#FBBF24', Icon: Sun },    // Desayuno
-    { tone: '#34D399', Icon: Fish },   // Almuerzo
-    { tone: '#38BDF8', Icon: Coffee }, // Merienda
-    { tone: '#A78BFA', Icon: Moon },   // Cena
+    // [LEGIBILIDAD] `tone` pinta el icono; `ink` escribe el label (tone como texto
+    // sobre claro medía 1,7-2,7:1).
+    { tone: '#FBBF24', ink: 'var(--ink-pantry)',  Icon: Sun },    // Desayuno
+    { tone: '#34D399', ink: 'var(--ink-veggies)', Icon: Fish },   // Almuerzo
+    { tone: '#38BDF8', ink: 'var(--ink-dairy)',   Icon: Coffee }, // Merienda
+    { tone: '#A78BFA', ink: 'var(--ink-ready)',   Icon: Moon },   // Cena
 ];
 function _mealTypeStyle(label, idx) {
     const s = String(label || '').toLowerCase();
@@ -2144,7 +2146,7 @@ const History = () => {
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '0.75rem', padding: '2.2rem 1rem' }}>
                                         <Loader2 size={44} strokeWidth={2} className="spin-animation" aria-hidden="true" style={{ color: 'var(--primary)' }} />
                                         <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 800 }}>{t('Diseñando tu plan')}</div>
-                                        <div style={{ maxWidth: '30rem', fontSize: '0.9rem', color: 'var(--text-light)', lineHeight: 1.45 }}>
+                                        <div style={{ maxWidth: '30rem', fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
                                             {t('Suele tardar entre 3 y 6 minutos. Si el servidor se reinicia, se retoma solo; no hace falta volver al formulario. Se actualizará aquí en cuanto esté listo.')}
                                         </div>
                                     </div>
@@ -2261,7 +2263,7 @@ const History = () => {
                                     // espera (regenerar el plan) sin pretender
                                     // un detalle que plan_data no tiene.
                                     const _queueDriftBody = _hasQueueDrift
-                                        ? t('Detectamos {n} chunk(s) bloqueado(s) en la cola. Reactiva este plan o regéneralo para que el sistema retome la generación.', { n: _queuePuac + _queueFailed })
+                                        ? t('Hay {n} bloque(s) del plan detenido(s). Reactiva este plan o regéneralo para que se sigan generando tus días.', { n: _queuePuac + _queueFailed })
                                         : null;
                                     const _body = (_hasAction && typeof _actionReq.body === 'string'
                                         && _actionReq.body.trim())
@@ -2327,8 +2329,8 @@ const History = () => {
                                                             (en vez de `tn`) porque `History.action_banner`
                                                             ancla `_exhausted.length === 1` en el fuente. */}
                                                         {_exhausted.length === 1
-                                                            ? t('1 chunk no recuperable.')
-                                                            : t('{n} chunks no recuperables.', { n: _exhausted.length })}
+                                                            ? t('1 bloque no se pudo recuperar.')
+                                                            : t('{n} bloques no se pudieron recuperar.', { n: _exhausted.length })}
                                                     </p>
                                                 )}
                                                 {_reason && !_body && (
@@ -2360,7 +2362,7 @@ const History = () => {
                                                     if (_br === 'loading') {
                                                         return (
                                                             <p className={styles.actionBannerMeta}>
-                                                                {t('Cargando detalle por chunk…')}
+                                                                {t('Cargando el detalle de cada bloque…')}
                                                             </p>
                                                         );
                                                     }
@@ -2372,7 +2374,7 @@ const History = () => {
                                                             {_br.map((r) => {
                                                                 const _wk = (typeof r.week_number === 'number')
                                                                     ? t('Semana {n}', { n: r.week_number })
-                                                                    : t('Chunk');
+                                                                    : t('Bloque');
                                                                 // [P1-PLAN-LOTE-225] En el idioma del usuario; sin título,
                                                                 // la etiqueta del código (nunca el código crudo).
                                                                 const _t = (typeof r.title === 'string' && r.title.trim())
@@ -2416,7 +2418,7 @@ const History = () => {
                                                     return (
                                                         <p className={styles.actionBannerCta}>
                                                             {_hideRestore
-                                                                ? (<>{t('Vuelve al')} <strong>Dashboard</strong> {t('para retomar la generación de los chunks bloqueados.')}</>)
+                                                                ? (<>{t('Vuelve al')} <strong>Dashboard</strong> {t('para retomar la generación de los bloques detenidos.')}</>)
                                                                 : (<>{t('Pulsa')} <strong>{t('Reactivar este Plan')}</strong> {t('abajo para retomar la generación desde el Dashboard.')}</>)}
                                                         </p>
                                                     );
@@ -2498,14 +2500,14 @@ const History = () => {
                                                 </strong>
                                                 <p className={styles.stuckBannerBody}>
                                                     {_stuckOnly.length === 1
-                                                        ? t('1 bloque del plan lleva un rato sin completar. El cron lo retomará automáticamente.')
-                                                        : t('{n} bloques del plan llevan un rato sin completar. El cron los retomará automáticamente.', { n: _stuckOnly.length })}
+                                                        ? t('1 bloque del plan lleva un rato sin completarse. El sistema lo retomará solo.')
+                                                        : t('{n} bloques del plan llevan un rato sin completarse. El sistema los retomará solo.', { n: _stuckOnly.length })}
                                                 </p>
                                                 <ul className={styles.stuckBannerList}>
                                                     {_stuckOnly.map((r) => {
                                                         const _wk = (typeof r.week_number === 'number')
                                                             ? t('Semana {n}', { n: r.week_number })
-                                                            : t('Chunk');
+                                                            : t('Bloque');
                                                         const _lag = _fmtLag(r.lag_seconds);
                                                         const _label = r.reason_code === 'stuck_stale'
                                                             ? t('reanudando')
@@ -2584,9 +2586,9 @@ const History = () => {
                                     // emergency/failed/paused/error. Tiers
                                     // desconocidos caen al fallback "Otro".
                                     const _TIER_LABELS = {
-                                        llm: t('Calidad LLM'),
-                                        shuffle: t('Re-mezclado'),
-                                        edge: t('Edge case'),
+                                        llm: t('Hecho con IA'),
+                                        shuffle: t('Recombinado'),
+                                        edge: t('Caso especial'),
                                         emergency: t('Emergencia'),
                                         failed: t('Fallo'),
                                         paused: t('Pausado'),
@@ -2622,7 +2624,7 @@ const History = () => {
                                     return (
                                         <div className={styles.tierBreakdownRow}>
                                             <span className={styles.tierBreakdownLabel}>
-                                                {t('Calidad de chunks:')}
+                                                {t('Cómo se generaron los bloques:')}
                                             </span>
                                             {_entries.map(([tier, count]) => {
                                                 const _label = _TIER_LABELS[tier] || tier;
@@ -2631,7 +2633,7 @@ const History = () => {
                                                     <span
                                                         key={tier}
                                                         className={`${styles.tierBadge} ${_cls}`}
-                                                        title={t('{count} chunk(s) generado(s) en tier "{tier}"', { count, tier })}
+                                                        title={t('{count} bloque(s) generado(s) en modo «{tier}»', { count, tier: _label })}
                                                     >
                                                         {_label}: {count}
                                                     </span>
@@ -2927,27 +2929,27 @@ const History = () => {
                                                 {_proxyDegraded && (
                                                     <span
                                                         className={styles.lifetimeProxyBadge}
-                                                        title={t('Aprendizaje degradado: {pct}% de las lecciones vienen de proxy (sin logs reales del usuario). Threshold ≥ 50%.', { pct: Math.round(_proxyRatio * 100) })}
+                                                        title={t('Aprendizaje menos preciso: el {pct}% de lo aprendido se estimó sin comidas anotadas por ti (este aviso sale desde el 50%).', { pct: Math.round(_proxyRatio * 100) })}
                                                     >
-                                                        {t('Proxy {pct}%', { pct: Math.round(_proxyRatio * 100) })}
+                                                        {t('Estimado {pct}%', { pct: Math.round(_proxyRatio * 100) })}
                                                     </span>
                                                 )}
                                                 {_zeroLogAlarming && (
                                                     <span
                                                         className={styles.zeroLogBadgeAlarm}
-                                                        title={t('{n} bloque(s) consecutivo(s) generado(s) sin tu feedback (sin logs ni interacciones que cuenten). El sistema marcó este plan como "degradado por engagement" (generation_status=\'degraded_pending_engagement\') — los próximos bloques pueden tener menos personalización hasta que loguees comidas.', { n: _czl })}
+                                                        title={t('{n} bloque(s) seguido(s) generado(s) sin saber de ti (no anotaste comidas ni usaste la app). Por eso los próximos bloques pueden ser menos personalizados hasta que vuelvas a anotar lo que comes.', { n: _czl })}
                                                     >
-                                                        {t('Sin feedback: {n}', { n: _czl })}
+                                                        {t('Sin comidas anotadas: {n}', { n: _czl })}
                                                     </span>
                                                 )}
                                                 {_zeroLogInfo && (
                                                     <span
                                                         className={styles.zeroLogBadgeInfo}
                                                         title={_czl === 1
-                                                            ? t('{n} bloque sin feedback. A partir de 3 consecutivos el plan se marca como "degradado por engagement".', { n: _czl })
-                                                            : t('{n} bloques sin feedback. A partir de 3 consecutivos el plan se marca como "degradado por engagement".', { n: _czl })}
+                                                            ? t('{n} bloque sin que anotaras comidas. Si llegan a 3 seguidos, el plan se personaliza menos.', { n: _czl })
+                                                            : t('{n} bloques sin que anotaras comidas. Si llegan a 3 seguidos, el plan se personaliza menos.', { n: _czl })}
                                                     >
-                                                        {t('Sin feedback: {n}', { n: _czl })}
+                                                        {t('Sin comidas anotadas: {n}', { n: _czl })}
                                                     </span>
                                                 )}
                                             </div>
@@ -2970,26 +2972,26 @@ const History = () => {
                                                     <div className={styles.lifetimeCountersRow}>
                                                         {typeof _rej === 'number' && (
                                                             <span className={styles.detailItemCounter}
-                                                                  title={t('Total de violaciones de rechazos detectadas en el lifetime de este plan')}>
+                                                                  title={t('Veces en todo este plan que salió algo que rechazaste')}>
                                                                 {t('Rechazos: {n}', { n: _rej })}
                                                             </span>
                                                         )}
                                                         {typeof _alg === 'number' && _alg > 0 && (
                                                             <span className={`${styles.detailItemCounter} ${styles.tierBadgeBad}`}
-                                                                  title={t('Violaciones de alergias — el sistema las trata como inmortales')}>
+                                                                  title={t('Veces que salió algo a lo que eres alérgico: las alergias nunca se olvidan')}>
                                                                 {t('Alergias: {n}', { n: _alg })}
                                                             </span>
                                                         )}
                                                         {typeof _logs === 'number' && (
                                                             <span className={styles.detailItemCounter}
-                                                                  title={t('Lecciones derivadas de logs reales del usuario')}>
-                                                                {t('Logs: {n}', { n: _logs })}
+                                                                  title={t('Lecciones sacadas de las comidas que anotaste')}>
+                                                                {t('Anotadas: {n}', { n: _logs })}
                                                             </span>
                                                         )}
                                                         {typeof _proxy === 'number' && _proxy > 0 && (
                                                             <span className={styles.detailItemCounter}
-                                                                  title={t('Lecciones generadas via proxy (sin log explícito del usuario)')}>
-                                                                {t('Proxy: {n}', { n: _proxy })}
+                                                                  title={t('Lecciones estimadas sin comidas anotadas por ti')}>
+                                                                {t('Estimadas: {n}', { n: _proxy })}
                                                             </span>
                                                         )}
                                                     </div>
@@ -3130,7 +3132,7 @@ const History = () => {
                                                             {_signalLabel && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${_signalSev}`}
-                                                                    title={t("Fuerza de la señal de aprendizaje que el cron extrajo del chunk anterior. 'Débil' indica baja confianza para el próximo prompt.")}
+                                                                    title={t("Qué tan claro fue lo aprendido del bloque anterior. «Débil» significa que el próximo bloque se apoyará menos en eso.")}
                                                                 >
                                                                     {t('Señal: {valor}', { valor: _signalLabel })}
                                                                 </span>
@@ -3138,7 +3140,7 @@ const History = () => {
                                                             {_lcl.low_confidence === true && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                    title={t('El cron marcó este aprendizaje como baja confianza — los próximos chunks pueden tener menos precisión hasta que llegue señal nueva (logs / interacciones).')}
+                                                                    title={t('Este aprendizaje es poco confiable: los próximos bloques pueden ser menos precisos hasta que anotes comidas o uses la app.')}
                                                                 >
                                                                     {t('Baja confianza')}
                                                                 </span>
@@ -3146,39 +3148,39 @@ const History = () => {
                                                             {_lcl.metrics_unavailable === true && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                    title={t('El chunk shippó días pero learning_metrics quedó NULL (T2 fail). El próximo chunk nace sin la información del anterior — riesgo de repetir comidas.')}
+                                                                    title={t('Este bloque generó sus días, pero no se guardó lo aprendido. El siguiente bloque empieza sin esa información y podría repetir comidas.')}
                                                                 >
-                                                                    {t('Sin métricas T2')}
+                                                                    {t('Sin datos de aprendizaje')}
                                                                 </span>
                                                             )}
                                                             {_lcl.rebuilt_from_pipeline_failure === true && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeBad}`}
-                                                                    title={t('El cron tuvo que reconstruir el aprendizaje tras un crash del pipeline LangGraph. Señal de inestabilidad — revisa logs si recurre.')}
+                                                                    title={t('El sistema tuvo que reconstruir lo aprendido tras un fallo al generar. Si se repite, avísanos.')}
                                                                 >
-                                                                    {t('Reconstruido tras crash')}
+                                                                    {t('Reconstruido tras un fallo')}
                                                                 </span>
                                                             )}
                                                             {_lcl.rebuilt_from_queue === true && (
                                                                 <span
                                                                     className={styles.detailItemCounter}
-                                                                    title={t('Aprendizaje reconstruido desde plan_chunk_queue.learning_metrics — recovery path normal cuando _recent_chunk_lessons se perdió.')}
+                                                                    title={t('Lo aprendido se recuperó de una copia guardada. Es normal y no afecta tu plan.')}
                                                                 >
-                                                                    {t('Reconstruido (queue)')}
+                                                                    {t('Recuperado de una copia')}
                                                                 </span>
                                                             )}
                                                             {_lcl.rebuilt_from_preflight === true && (
                                                                 <span
                                                                     className={styles.detailItemCounter}
-                                                                    title={t('Aprendizaje reconstruido desde un preflight — fallback cuando ni queue ni days tenían señal recuperable.')}
+                                                                    title={t('Lo aprendido se reconstruyó con una revisión previa, porque no había otra copia disponible.')}
                                                                 >
-                                                                    {t('Reconstruido (preflight)')}
+                                                                    {t('Reconstruido (respaldo)')}
                                                                 </span>
                                                             )}
                                                             {typeof _lcl.rebuilt_source_status === 'string' && _lcl.rebuilt_source_status.trim() && (
                                                                 <span
                                                                     className={styles.detailItemCounter}
-                                                                    title={t('Status del origen desde el que el cron reconstruyó: {origen}', { origen: _lcl.rebuilt_source_status })}
+                                                                    title={t('Estado de la copia usada para reconstruir: {origen}', { origen: _lcl.rebuilt_source_status })}
                                                                 >
                                                                     {t('Origen: {valor}', { valor: _trunc(_lcl.rebuilt_source_status, 18) })}
                                                                 </span>
@@ -3186,15 +3188,15 @@ const History = () => {
                                                             {_rep && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${_rep.sev}`}
-                                                                    title={t('% de meals del último chunk que ya habían aparecido antes en el plan. >20% indica fatiga; >60% es señal fuerte de bucle.')}
+                                                                    title={t('% de los platos del último bloque que ya habían salido antes en el plan. Más del 20% empieza a cansar; más del 60% es demasiada repetición.')}
                                                                 >
-                                                                    {t('Repetición meals: {valor}', { valor: _rep.txt })}
+                                                                    {t('Platos repetidos: {valor}', { valor: _rep.txt })}
                                                                 </span>
                                                             )}
                                                             {_baseRep && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${_baseRep.sev}`}
-                                                                    title={t('% de bases (proteína/carbo) repetidas vs chunks previos del plan. Complementa Repetición meals — alto base pct con bajo meal pct = recetas distintas, mismos ingredientes.')}
+                                                                    title={t('% de ingredientes base (proteína/carbohidrato) que ya salían en bloques anteriores del plan. Si es alto y se repiten pocos platos: recetas distintas, mismos ingredientes.')}
                                                                 >
                                                                     {t('Repetición bases: {valor}', { valor: _baseRep.txt })}
                                                                 </span>
@@ -3202,7 +3204,7 @@ const History = () => {
                                                             {typeof _lcl.allergy_violations === 'number' && _lcl.allergy_violations > 0 && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeBad}`}
-                                                                    title={t('Violaciones de alergias detectadas en el último chunk. Las alergias son inmortales — el próximo chunk hereda este conteo.')}
+                                                                    title={t('Veces que salió algo a lo que eres alérgico en el último bloque. Las alergias nunca se olvidan: el próximo bloque las sigue evitando.')}
                                                                 >
                                                                     {t('Alergias: {n}', { n: _lcl.allergy_violations })}
                                                                 </span>
@@ -3210,7 +3212,7 @@ const History = () => {
                                                             {typeof _lcl.rejection_violations === 'number' && _lcl.rejection_violations > 0 && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                    title={t('Meals rechazados que reaparecieron en el último chunk.')}
+                                                                    title={t('Platos que rechazaste y volvieron a salir en el último bloque.')}
                                                                 >
                                                                     {t('Rechazos: {n}', { n: _lcl.rejection_violations })}
                                                                 </span>
@@ -3218,15 +3220,15 @@ const History = () => {
                                                             {typeof _lcl.fatigued_violations === 'number' && _lcl.fatigued_violations > 0 && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                    title={t('Meals con fatiga (presencia frecuente reciente) que volvieron a aparecer.')}
+                                                                    title={t('Platos que ya habían salido mucho últimamente y volvieron a aparecer.')}
                                                                 >
                                                                     {t('Fatiga: {n}', { n: _lcl.fatigued_violations })}
                                                                 </span>
                                                             )}
                                                             {_listChip('reaparecieron', t('Reaparecieron'), _lcl.rejected_meals_that_reappeared, styles.tierBadgeWarn)}
-                                                            {_listChip('meals-repetidos', t('Meals repetidos'), _lcl.repeated_meal_names)}
+                                                            {_listChip('meals-repetidos', t('Platos repetidos'), _lcl.repeated_meal_names)}
                                                             {_listChip('bases-repetidas', t('Bases repetidas'), _lcl.repeated_bases)}
-                                                            {_listChip('alergias-hit', t('Alergias hit'), _lcl.allergy_hits, styles.tierBadgeBad)}
+                                                            {_listChip('alergias-hit', t('Alergias detectadas'), _lcl.allergy_hits, styles.tierBadgeBad)}
                                                         </div>
                                                     </div>
                                                 );
@@ -3265,23 +3267,23 @@ const History = () => {
                                                     <>
                                                         {_renderList(
                                                             _summary.permanent_meal_blocklist,
-                                                            t('Blocklist permanente'),
-                                                            t('Meals que aparecieron en ≥2 chunks del plan — {app} los evita en regeneraciones futuras.', { app: BRAND })
+                                                            t('Platos que ya no repetiremos'),
+                                                            t('Platos que salieron en 2 o más bloques del plan: {app} los evitará cuando vuelva a generar.', { app: BRAND })
                                                         )}
                                                         {_renderList(
                                                             _summary.top_rejection_hits,
-                                                            t('Top rechazos'),
-                                                            t('Meals rechazados por el usuario que reaparecieron en chunks posteriores.')
+                                                            t('Rechazos más frecuentes'),
+                                                            t('Platos que rechazaste y volvieron a salir en bloques posteriores.')
                                                         )}
                                                         {_renderList(
                                                             _summary.top_repeated_meal_names,
-                                                            t('Meals repetidos'),
-                                                            t('Meals que aparecieron en múltiples chunks — señal de fatiga.')
+                                                            t('Platos repetidos'),
+                                                            t('Platos que salieron en varios bloques: pueden cansar.')
                                                         )}
                                                         {_renderList(
                                                             _summary.top_repeated_bases,
                                                             t('Bases repetidas'),
-                                                            t('Ingredientes base repetidos cross-chunks (proteína/carbo).')
+                                                            t('Ingredientes base (proteína/carbohidrato) repetidos entre bloques.')
                                                         )}
                                                     </>
                                                 );
@@ -3371,7 +3373,7 @@ const History = () => {
                                                 return (
                                                 <div className={styles.lifetimeHistoryBlock}>
                                                     <div className={styles.lifetimeCriticalHeader}>
-                                                        <strong>{t('Historial reciente por chunk')}</strong>
+                                                        <strong>{t('Historial reciente por bloque')}</strong>
                                                         <span className={styles.lifetimeCriticalCount}>
                                                             {_shownCount}
                                                             {_totalCount > _shownCount
@@ -3381,7 +3383,7 @@ const History = () => {
                                                     <ul className={styles.detailList}>
                                                         {_visible.map((entry, idx) => {
                                                             const _wk = (entry && typeof entry.chunk === 'number')
-                                                                ? t('Sem. {n}', { n: entry.chunk }) : t('Chunk');
+                                                                ? t('Sem. {n}', { n: entry.chunk }) : t('Bloque');
                                                             const _rej = (entry && typeof entry.rejection_violations === 'number')
                                                                 ? entry.rejection_violations : 0;
                                                             const _alg = (entry && typeof entry.allergy_violations === 'number')
@@ -3466,7 +3468,7 @@ const History = () => {
                                     if (_data === 'error') {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                {t('No se pudo cargar el detalle. Intenta cerrar y reabrir el modal.')}
+                                                {t('No se pudo cargar el detalle. Cierra esta ventana y vuelve a abrirla.')}
                                             </div>
                                         );
                                     }
@@ -3500,7 +3502,7 @@ const History = () => {
                                                 );
                                                 return _hasLifetime ? (
                                                     <div className={styles.lifetimeSectionDivider}>
-                                                        {t('Eventos de telemetría')}
+                                                        {t('Registro de eventos')}
                                                     </div>
                                                 ) : null;
                                             })()}
@@ -3638,7 +3640,7 @@ const History = () => {
                                     if (_data === 'error') {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                {t('No se pudo cargar el detalle. Intenta cerrar y reabrir el modal.')}
+                                                {t('No se pudo cargar el detalle. Cierra esta ventana y vuelve a abrirla.')}
                                             </div>
                                         );
                                     }
@@ -3737,14 +3739,14 @@ const History = () => {
                                     if (_data === 'loading' || _data === undefined) {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                {t('Cargando métricas por chunk…')}
+                                                {t('Cargando los datos de cada bloque…')}
                                             </div>
                                         );
                                     }
                                     if (_data === 'error') {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                {t('No se pudo cargar el detalle. Intenta cerrar y reabrir el modal.')}
+                                                {t('No se pudo cargar el detalle. Cierra esta ventana y vuelve a abrirla.')}
                                             </div>
                                         );
                                     }
@@ -3808,7 +3810,7 @@ const History = () => {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
                                                 {_filteredOutCount > 0
-                                                    ? t('Este plan tiene {n} chunk(s) registrados pero ninguno corresponde al alcance del plan ({semanas}).', {
+                                                    ? t('Este plan tiene {n} bloque(s) guardado(s), pero ninguno cae dentro de la duración del plan ({semanas}).', {
                                                         n: _filteredOutCount,
                                                         semanas: _maxValidWeek === 1
                                                             ? t('{n} semana', { n: _maxValidWeek })
@@ -3889,7 +3891,7 @@ const History = () => {
                                     const _LM_DISPLAY_GROUPS = [
                                         {
                                             id: 'synthesis',
-                                            title: t('Síntesis y escalación'),
+                                            title: t('Resumen y reintentos'),
                                             keys: [
                                                 // [G8-LM-CATALOG-HONESTY · 2026-05-29] Removidas
                                                 // synth_quality_score / synthesized_count / queue_count:
@@ -3902,25 +3904,25 @@ const History = () => {
                                                 // telemetría, NO al catálogo de learning_metrics.
                                                 // recovery_attempts / escalation_reason SÍ tienen productor
                                                 // (merge de _escalate_unrecoverable_chunk) → se quedan.
-                                                ['recovery_attempts', t('Reintentos recovery'), 'int'],
-                                                ['escalation_reason', t('Razón escalación'), 'str'],
-                                                ['shuffle_learning_applied', t('Shuffle aplicado'), 'bool'],
-                                                ['shuffle_source', t('Fuente shuffle'), 'str'],
+                                                ['recovery_attempts', t('Reintentos de recuperación'), 'int'],
+                                                ['escalation_reason', t('Motivo del fallo'), 'str'],
+                                                ['shuffle_learning_applied', t('Recombinación aplicada'), 'bool'],
+                                                ['shuffle_source', t('Origen de la recombinación'), 'str'],
                                                 ['learning_confidence', t('Confianza aprendizaje'), 'str'],
-                                                ['pipeline_failed', t('Pipeline falló'), 'bool'],
+                                                ['pipeline_failed', t('Falló la generación'), 'bool'],
                                             ],
                                         },
                                         {
                                             id: 'repetition',
                                             title: t('Repetición'),
                                             keys: [
-                                                ['learning_repeat_pct', t('Meals repetidos'), 'pct'],
+                                                ['learning_repeat_pct', t('Platos repetidos'), 'pct'],
                                                 ['ingredient_base_repeat_pct', t('Bases repetidas'), 'pct'],
-                                                ['total_new_meals', t('Meals del chunk'), 'int'],
-                                                ['prior_meals_count', t('Meals previos'), 'int'],
+                                                ['total_new_meals', t('Platos del bloque'), 'int'],
+                                                ['prior_meals_count', t('Platos anteriores'), 'int'],
                                                 ['prior_meal_bases_count', t('Bases previas'), 'int'],
                                                 ['rejected_count', t('Rechazos previos'), 'int'],
-                                                ['allergy_keywords_count', t('Keywords alergia'), 'int'],
+                                                ['allergy_keywords_count', t('Palabras de alergia'), 'int'],
                                                 ['sample_repeats', t('Ejemplos repetidos'), 'preview'],
                                                 ['sample_repeated_bases', t('Ejemplos bases'), 'preview'],
                                             ],
@@ -3932,7 +3934,7 @@ const History = () => {
                                                 ['rejection_violations', t('Rechazos'), 'severity'],
                                                 ['allergy_violations', t('Alergias'), 'severity_high'],
                                                 ['fatigued_violations', t('Fatiga'), 'severity'],
-                                                ['pantry_quantity_violations', t('Cantidades pantry'), 'severity'],
+                                                ['pantry_quantity_violations', t('Cantidades de la Nevera'), 'severity'],
                                                 ['sample_rejection_hits', t('Ej. rechazos'), 'preview'],
                                                 ['sample_allergy_hits', t('Ej. alergias'), 'preview'],
                                                 ['sample_pantry_quantity_violations', t('Ej. cantidades'), 'str'],
@@ -3940,14 +3942,14 @@ const History = () => {
                                         },
                                         {
                                             id: 'pantry',
-                                            title: t('Pantry y señal'),
+                                            title: t('Nevera y señal'),
                                             keys: [
-                                                ['inventory_activity_proxy_used', t('Proxy inventario'), 'bool'],
-                                                ['inventory_activity_mutations', t('Mutaciones inv.'), 'int'],
-                                                ['sparse_logging_proxy_used', t('Proxy logging'), 'bool'],
+                                                ['inventory_activity_proxy_used', t('Estimado con la Nevera'), 'bool'],
+                                                ['inventory_activity_mutations', t('Cambios en la Nevera'), 'int'],
+                                                ['sparse_logging_proxy_used', t('Estimado sin registros'), 'bool'],
                                                 ['learning_signal_strength', t('Fuerza señal'), 'str'],
-                                                ['pantry_degraded_reason', t('Pantry degradada'), 'str'],
-                                                ['pantry_snapshot_age_hours_at_pickup', t('Edad snapshot'), 'hours'],
+                                                ['pantry_degraded_reason', t('Nevera incompleta'), 'str'],
+                                                ['pantry_snapshot_age_hours_at_pickup', t('Antigüedad de la copia de la Nevera'), 'hours'],
                                             ],
                                         },
                                     ];
@@ -4075,21 +4077,21 @@ const History = () => {
                                                     className={`${styles.modalDetailEmpty} ${styles.metricsTruncatedNotice}`}
                                                     role="status"
                                                     title={
-                                                        t('El plan tiene {total} chunks dentro de su alcance', { total: _adjustedTotal })
+                                                        t('El plan tiene {total} bloques dentro de su duración', { total: _adjustedTotal })
                                                         + (_filteredOutCount > 0
-                                                            ? ' ' + t('(más {n} chunk(s) fuera del alcance que se omitieron)', { n: _filteredOutCount })
+                                                            ? ' ' + t('(y {n} bloque(s) fuera de esa duración que no se muestran)', { n: _filteredOutCount })
                                                             : '')
-                                                        + '; ' + t('el endpoint cap a {limite} para evitar payloads grandes.', { limite: _meta.limit ?? 50 })
+                                                        + '; ' + t('se muestran como máximo {limite} para que cargue rápido.', { limite: _meta.limit ?? 50 })
                                                     }
                                                 >
-                                                    {t('Mostrando {n} de {total} chunks. Los más antiguos no aparecen — usa el panel admin si necesitas el detalle completo.', { n: _list.length, total: _adjustedTotal })}
+                                                    {t('Mostrando {n} de {total} bloques. Los más antiguos no aparecen aquí.', { n: _list.length, total: _adjustedTotal })}
                                                 </div>
                                             )}
                                         <ul className={styles.detailList}>
                                             {_list.map((c) => {
                                                 const _wkLabel = (typeof c.week_number === 'number')
                                                     ? t('Semana {n}', { n: c.week_number })
-                                                    : t('Chunk');
+                                                    : t('Bloque');
                                                 // [P2-HIST-NEW-4 · 2026-05-09]
                                                 // Humanización del chunk_kind. Antes
                                                 // el badge mostraba el snake_case
@@ -4224,8 +4226,21 @@ const History = () => {
                                                 const _hasTier = c.quality_tier
                                                     && typeof c.quality_tier === 'string'
                                                     && c.quality_tier.trim();
+                                                // [LEGIBILIDAD] Era `quality_tier.toUpperCase()`:
+                                                // el usuario leía «LLM» / «SHUFFLE». Mismos
+                                                // rótulos que el desglose por modo de arriba;
+                                                // un código desconocido cae al crudo.
+                                                const _tierNombres = {
+                                                    llm: t('Hecho con IA'),
+                                                    shuffle: t('Recombinado'),
+                                                    edge: t('Caso especial'),
+                                                    emergency: t('Emergencia'),
+                                                    failed: t('Fallo'),
+                                                    paused: t('Pausado'),
+                                                    error: t('Error'),
+                                                };
                                                 const _tierLabel = _hasTier
-                                                    ? c.quality_tier.toUpperCase()
+                                                    ? (_tierNombres[c.quality_tier.trim().toLowerCase()] || c.quality_tier)
                                                     : null;
                                                 return (
                                                     <li key={c.chunk_id} className={styles.detailItem}>
@@ -4245,21 +4260,21 @@ const History = () => {
                                                                 mide cada métrica sin abrir docs. */}
                                                             {_duration && (
                                                                 <span className={styles.detailItemCounter}
-                                                                      title={t('Tiempo total que tardó el LLM en generar los días de este chunk.')}>
+                                                                      title={t('Tiempo que tardó la IA en generar los días de este bloque.')}>
                                                                     {t('Duración: {d}', { d: _duration })}
                                                                 </span>
                                                             )}
                                                             {typeof _lag === 'number' && (
                                                                 <span className={styles.detailItemCounter}
-                                                                      title={t('Demora entre que el chunk se programó y el worker lo agarró. >0s típico en horas pico; >SLA indica saturación.')}>
+                                                                      title={t('Tiempo que el bloque esperó antes de empezar a procesarse. En horas de mucho uso es normal que espere un poco.')}>
                                                                     {t('Espera: {n}s', { n: _lag })}
                                                                 </span>
                                                             )}
                                                             {typeof c.attempts === 'number' && c.attempts > 0 && (
                                                                 <span className={styles.detailItemCounter}
                                                                       title={c.attempts === 1
-                                                                          ? t('El chunk fue procesado {n} vez (intentos de reintento si falló).', { n: c.attempts })
-                                                                          : t('El chunk fue procesado {n} veces (intentos de reintento si falló).', { n: c.attempts })}>
+                                                                          ? t('El bloque se procesó {n} vez (se reintenta si algo falla).', { n: c.attempts })
+                                                                          : t('El bloque se procesó {n} veces (se reintenta si algo falla).', { n: c.attempts })}>
                                                                     {t('Intentos: {n}', { n: c.attempts })}
                                                                 </span>
                                                             )}
@@ -4271,13 +4286,13 @@ const History = () => {
                                                                 el LLM falló o pantry tenía señal débil). */}
                                                             {c.metrics && c.metrics.was_degraded === true && (
                                                                 <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                      title={t('Días generados en modo simplificado tras un fallo del LLM o señal débil de pantry. La calidad nutricional puede ser menor.')}>
+                                                                      title={t('Días generados en modo de respaldo porque la IA falló o faltaban datos de tu Nevera. La calidad nutricional puede ser menor.')}>
                                                                     {t('Calidad reducida')}
                                                                 </span>
                                                             )}
                                                             {c.metrics && typeof c.metrics.learning_repeat_pct === 'number' && (
                                                                 <span className={styles.detailItemCounter}
-                                                                      title={t('% de meals en este chunk que repiten meals de chunks previos. >50% indica falta de variedad.')}>
+                                                                      title={t('% de platos de este bloque que ya salieron en bloques anteriores. Más del 50% indica poca variedad.')}>
                                                                     {t('Repetición: {pct}%', { pct: Math.round(c.metrics.learning_repeat_pct * 100) })}
                                                                 </span>
                                                             )}
@@ -4287,7 +4302,7 @@ const History = () => {
                                                                 return (
                                                                     <span className={`${styles.detailItemCounter} ${_chip.tono === 'malo' ? styles.tierBadgeBad : ''}`}
                                                                           title={_chip.tono === 'malo'
-                                                                              ? t('Razón por la que el chunk no se pudo recuperar automáticamente: {razon}', { razon: c.dead_letter_reason })
+                                                                              ? t('Motivo por el que el bloque no se pudo recuperar solo: {razon}', { razon: c.dead_letter_reason })
                                                                               : t('Este día se canceló al pausar la generación. Al reanudar tu plan se vuelve a encolar automáticamente.')}>
                                                                         {_chip.texto}
                                                                     </span>
@@ -4391,7 +4406,7 @@ const History = () => {
                                                                 if (!_esc) return null;
                                                                 return (
                                                                     <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                          title={t('Escalado a no-recoverable el {fecha}', { fecha: _esc.iso })}>
+                                                                          title={t('Marcado como no recuperable el {fecha}', { fecha: _esc.iso })}>
                                                                         {t('Escalado: {cuando}', { cuando: _esc.rel })}
                                                                     </span>
                                                                 );
@@ -4425,8 +4440,8 @@ const History = () => {
                                                                 if (!_dl) return null;
                                                                 return (
                                                                     <span className={`${styles.detailItemCounter} ${styles.tierBadgeBad}`}
-                                                                          title={t('Dead-letter (estado terminal) desde {fecha}. El sistema dejó de reintentar este chunk.', { fecha: _dl.iso })}>
-                                                                        Dead-letter: {_dl.rel}
+                                                                          title={t('Desde el {fecha} el sistema dejó de reintentar este bloque.', { fecha: _dl.iso })}>
+                                                                        {t('Sin más reintentos: {cuando}', { cuando: _dl.rel })}
                                                                     </span>
                                                                 );
                                                             })()}
@@ -4435,8 +4450,8 @@ const History = () => {
                                                                 if (_lp) {
                                                                     return (
                                                                         <span className={styles.detailItemCounter}
-                                                                              title={t('Learning commiteado el {fecha} — disponible para chunks posteriores.', { fecha: _lp.iso })}>
-                                                                            Learning: {_lp.rel}
+                                                                              title={t('Lo aprendido se guardó el {fecha} y ya lo usan los bloques siguientes.', { fecha: _lp.iso })}>
+                                                                            {t('Aprendizaje guardado: {cuando}', { cuando: _lp.rel })}
                                                                         </span>
                                                                     );
                                                                 }
@@ -4453,7 +4468,7 @@ const History = () => {
                                                                     // posteriores pueden repetir comidas.
                                                                     return (
                                                                         <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                              title={t('El chunk generó los días pero el aprendizaje (qué meals propusimos, qué evitar) no se guardó. Los próximos chunks pueden repetir comidas que este ya propuso.')}>
+                                                                              title={t('Este bloque generó sus días, pero no se guardó lo aprendido (qué platos propusimos y qué evitar). Los próximos bloques podrían repetir comidas que este ya propuso.')}>
                                                                             {t('Sin aprendizaje guardado')}
                                                                         </span>
                                                                     );
@@ -4468,8 +4483,8 @@ const History = () => {
                                                             {typeof c.expected_preemption_seconds === 'number'
                                                                 && c.expected_preemption_seconds > 0 && (
                                                                 <span className={styles.detailItemCounter}
-                                                                      title={t('SLA esperado: tiempo predicho hasta el pickup del chunk. Útil para comparar con lag real.')}>
-                                                                    SLA: {c.expected_preemption_seconds}s
+                                                                      title={t('Tiempo esperado: cuánto se calculaba que el bloque esperaría antes de empezar a procesarse.')}>
+                                                                    {t('Tiempo esperado: {n}s', { n: c.expected_preemption_seconds })}
                                                                 </span>
                                                             )}
                                                             {/* [P1-HIST-NEW-5 · 2026-05-09] Ratio
@@ -4503,14 +4518,14 @@ const History = () => {
                                                                 return (
                                                                     <span className={`${styles.detailItemCounter} ${_cls}`}
                                                                           title={
-                                                                              t('Lag ({lag}s) supera el SLA esperado ({sla}s) por {exceso}.',
+                                                                              t('La espera ({lag}s) fue {exceso} más larga de lo esperado ({sla}s).',
                                                                                 { lag: _lag, sla: _sla, exceso: _label })
                                                                               + ' '
                                                                               + (_severe
-                                                                                  ? t('Anomalía severa: revisar worker pool / lock heredado.')
-                                                                                  : t('Worker pool bajo presión o cron lag.'))
+                                                                                  ? t('Una demora muy fuera de lo normal en el servidor.')
+                                                                                  : t('El servidor estaba muy ocupado.'))
                                                                           }>
-                                                                        Lag {_label} SLA
+                                                                        {t('Demora: {x} lo esperado', { x: _label })}
                                                                     </span>
                                                                 );
                                                             })()}
@@ -4521,8 +4536,8 @@ const History = () => {
                                                                 queue). 'ok' es no-render (happy path). */}
                                                             {c.reservation_status === 'fallback' && (
                                                                 <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                      title={t('Worker pool saturado al pickup — el chunk cayó al fallback queue.')}>
-                                                                    {t('Reserva: fallback')}
+                                                                      title={t('El servidor estaba lleno cuando le tocaba a este bloque, así que pasó a la cola de respaldo.')}>
+                                                                    {t('Cola de respaldo')}
                                                                 </span>
                                                             )}
                                                             {/* [P1-HIST-NEW-6 · 2026-05-09] Chip
@@ -4560,8 +4575,8 @@ const History = () => {
                                                                     <span className={`${styles.detailItemCounter} ${_cls}`}
                                                                           title={
                                                                               tn(_n,
-                                                                                  'Diferido {n} vez por gates del pipeline.',
-                                                                                  'Diferido {n} veces por gates del pipeline.',
+                                                                                  'Pospuesto {n} vez por comprobaciones de la generación.',
+                                                                                  'Pospuesto {n} veces por comprobaciones de la generación.',
                                                                                   { n: _n })
                                                                               + ' ' + t('Razones: {razones}.', { razones: _reasonsTxt })
                                                                           }>
@@ -4578,8 +4593,8 @@ const History = () => {
                                                                 snapshot O recovery que cambió kind. */}
                                                             {c.is_rolling_refill_drift === true && (
                                                                 <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                      title={t('Drift entre chunk_kind y is_rolling_refill del snapshot — chunk transicionó de kind durante recovery O bug del writer.')}>
-                                                                    {t('Kind drift')}
+                                                                      title={t('El tipo de este bloque no coincide con su copia guardada (cambió durante una recuperación).')}>
+                                                                    {t('Tipo desajustado')}
                                                                 </span>
                                                             )}
                                                             {/* [P2-HIST-AUDIT-F · 2026-05-09]
@@ -4593,8 +4608,8 @@ const History = () => {
                                                             {typeof c.blocking_lock_chunk_id === 'string'
                                                                 && c.blocking_lock_chunk_id.length > 0 && (
                                                                 <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                      title={t('Lock del usuario activo en otro chunk ({id}…). Lleva {seg}s. Este chunk espera turno.', { id: c.blocking_lock_chunk_id.slice(0, 8), seg: c.blocking_lock_age_seconds || '?' })}>
-                                                                    {t('Lock zombi')}
+                                                                      title={t('Otro bloque tuyo ({id}…) se está procesando desde hace {seg}s. Este espera su turno.', { id: c.blocking_lock_chunk_id.slice(0, 8), seg: c.blocking_lock_age_seconds || '?' })}>
+                                                                    {t('Esperando turno')}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -4789,7 +4804,7 @@ const History = () => {
                                                         onClick={_goPrevChunk}
                                                         disabled={!_hasPrev}
                                                         className={styles.chunkNavBtn}
-                                                        aria-label={t('Chunk anterior')}
+                                                        aria-label={t('Bloque anterior')}
                                                     >
                                                         <ChevronLeft size={16} />
                                                     </button>
@@ -4801,7 +4816,7 @@ const History = () => {
                                                         onClick={_goNextChunk}
                                                         disabled={!_hasNext}
                                                         className={styles.chunkNavBtn}
-                                                        aria-label={t('Chunk siguiente')}
+                                                        aria-label={t('Bloque siguiente')}
                                                     >
                                                         <ChevronRight size={16} />
                                                     </button>
@@ -4892,7 +4907,7 @@ const History = () => {
                                                 <MealIcon size={21} />
                                             </span>
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: _ms.tone }}>{mealSlotLabel(meal.meal, t)}</div>
+                                                <div style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: _ms.ink }}>{mealSlotLabel(meal.meal, t)}</div>
                                                 <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.3, marginTop: 2 }}>{_modalMealDisp.name}</div>
                                             </div>
                                             {meal.cals && (
@@ -4901,7 +4916,7 @@ const History = () => {
                                                 <span style={{
                                                     flex: 'none',
                                                     fontSize: '0.78rem', fontWeight: 800,
-                                                    color: '#FB923C',
+                                                    color: 'var(--ink-fruits)',
                                                     background: 'color-mix(in srgb, #FB923C 15%, transparent)',
                                                     padding: '0.25rem 0.6rem', borderRadius: '99px',
                                                     border: '1px solid color-mix(in srgb, #FB923C 32%, transparent)', whiteSpace: 'nowrap'
@@ -5181,7 +5196,7 @@ const History = () => {
                                         if (_scheduled > 0) {
                                             _reason = tn(_scheduled, '{app} está generando algunos ahora en segundo plano. El resto ({n} bloque) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.', '{app} está generando algunos ahora en segundo plano. El resto ({n} bloques) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.', { app: BRAND, n: _scheduled });
                                         } else {
-                                            _reason = t('{app} los está generando ahora en segundo plano. Cierra el modal y vuelve a abrirlo en 2 a 5 minutos para verlos listos.', { app: BRAND });
+                                            _reason = t('{app} los está generando ahora en segundo plano. Cierra esta ventana y vuelve a abrirla en 2 a 5 minutos para verlos listos.', { app: BRAND });
                                         }
                                         _tone = 'info';
                                         _icon = '🔄';

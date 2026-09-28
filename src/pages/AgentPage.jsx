@@ -4821,7 +4821,7 @@ const AgentPage = () => {
                                 borderRadius: '30px',
                                 border: '1px solid var(--border)',
                                 background: 'var(--bg-card)',
-                                color: '#ef4444',
+                                color: 'var(--danger-text)',
                                 fontSize: '0.9rem',
                                 fontWeight: '600',
                                 cursor: 'pointer',

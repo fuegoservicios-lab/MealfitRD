@@ -79,16 +79,17 @@ const DIAS_ATRAS_REGISTRO = 7;
 // El orden es el del DÍA, no el del enum del backend: así la pantalla se lee
 // de la mañana a la noche aunque no haya ni una hora fiable.
 const getFranjas = (t) => [
-    { key: 'desayuno', label: t('Desayuno'), color: '#FBBF24' },
-    { key: 'almuerzo', label: t('Almuerzo'), color: '#34D399' },
-    { key: 'merienda', label: t('Merienda'), color: '#F472B6' },
-    { key: 'cena', label: t('Cena'), color: '#818CF8' },
+    // `color` pinta la regla (relleno); `ink` es la etiqueta (TEXTO): los -400 no llegan a 3:1 sobre blanco.
+    { key: 'desayuno', label: t('Desayuno'), color: '#FBBF24', ink: 'var(--ink-pantry)' },
+    { key: 'almuerzo', label: t('Almuerzo'), color: '#34D399', ink: 'var(--ink-veggies)' },
+    { key: 'merienda', label: t('Merienda'), color: '#F472B6', ink: 'color-mix(in srgb, #F472B6, var(--text-main) 45%)' },
+    { key: 'cena', label: t('Cena'), color: '#818CF8', ink: 'var(--primary)' },
 ];
 // `snack` y `extra` (el default del componedor) no tienen fila propia: no son una franja del día sino algo
 // suelto entre medias. Se agrupan al final —junto con cualquier valor que no sea una franja— y solo aparecen si
 // existen. [P1-PLAN-LOTE-105] antes solo `snack`: lo registrado como «extra» no salía en ninguna fila.
 const OTROS = 'otros';
-const getOtros = (t) => ({ key: OTROS, label: t('Extras y snacks'), color: '#94A3B8' });
+const getOtros = (t) => ({ key: OTROS, label: t('Extras y snacks'), color: '#94A3B8', ink: 'var(--text-muted)' });
 
 const getMacros = (t) => [
     { key: 'protein', label: t('Proteína'), color: '#60A5FA', goal: 'protein' },
@@ -627,7 +628,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                 <span className={styles.slotRule} />
                                 <div>
                                     <div className={styles.slotHead}>
-                                        <span className={styles.slotLabel} style={lleno ? { color: f.color } : undefined}>
+                                        <span className={styles.slotLabel} style={lleno ? { color: f.ink } : undefined}>
                                             {f.label}
                                         </span>
                                         {lleno && items.length === 1 && horaFiable(items[0]) && (
@@ -647,7 +648,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                             <span className={styles.slotRule} />
                             <div>
                                 <div className={styles.slotHead}>
-                                    <span className={styles.slotLabel} style={{ color: getOtros(t).color }}>
+                                    <span className={styles.slotLabel} style={{ color: getOtros(t).ink }}>
                                         {getOtros(t).label}
                                     </span>
                                 </div>

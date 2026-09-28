@@ -1081,14 +1081,20 @@ h5,
 h6 {
   font-family: var(--font-heading);
   font-weight: 700;
-  line-height: 1.1;
+  /* [LEGIBILIDAD] Era 1.1: bien para un titular de una línea, apretado en los
+     títulos largos en español que parten en dos o tres (modales, tarjetas del
+     plan). `balance` reparte las líneas en vez de dejar una palabra sola. */
+  line-height: 1.2;
   letter-spacing: -0.02em;
   /* Tighter headings = Modern */
   color: var(--text-main);
+  text-wrap: balance;
 }
 
 p {
   margin-bottom: 1rem;
+  /* [LEGIBILIDAD] Evita la palabra huérfana al final del párrafo. */
+  text-wrap: pretty;
 }
 
 button {
@@ -1536,8 +1542,10 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
 .plan-week-pill.is-active .plan-week-pill__title { color: var(--ink-ready); }
 
 .plan-week-pill__range {
-  font-size: 0.66rem;
-  opacity: 0.62;
+  font-size: 0.75rem;
+  /* [LEGIBILIDAD] Era `opacity: 0.62` sobre el gris del rótulo: la fecha quedaba
+     por debajo de 3:1. El tono secundario se declara como color. */
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1569,9 +1577,8 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
 
 .plan-week-nav__lote {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
-  opacity: 0.8;
   letter-spacing: 0.01em;
 }
 
@@ -1616,20 +1623,20 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
 .plan-week-cell__box { display: contents; }
 
 .plan-week-cell__dow {
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-weight: 600;
   /* [P1-LIGHT-INK-CONTRACT] misma razón: 0,75 x 0,28 del hueco = 0,21 efectivo. */
-  color: var(--text-light);
+  color: var(--text-muted);
 }
 .plan-week-cell__num { font-size: 1.05rem; font-weight: 700; line-height: 1.15; }
 
 /* El estado, cuando se escribe, va en voz baja. */
 .plan-week-cell__state {
-  font-size: 0.56rem;
+  font-size: 0.75rem;
   /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] Sin `opacity`: se multiplicaba con la
      del estado de la celda (0,5 en pausado) y dejaba «en cola» en 1,58:1. La
      opacidad no es un mecanismo de color; el tono bajo se declara una vez. */
-  color: var(--text-light);
+  color: var(--text-muted);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1640,17 +1647,20 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
 .plan-week-cell[data-state="hoy"] { background: rgba(139, 92, 246, 0.16); }
 .plan-week-cell[data-state="hoy"] .plan-week-cell__num { color: var(--ink-ready); }
 
-/* Ya vivido: presente pero en segundo plano. */
-.plan-week-cell[data-state="pasado"] { opacity: 0.45; }
-.plan-week-cell[data-state="pasado"] .plan-week-cell__num { font-weight: 500; }
+/* Ya vivido: presente pero en segundo plano.
+   [LEGIBILIDAD] Era `opacity: 0.45` en toda la celda: el día y el estado caían a
+   ~2:1. El segundo plano lo dan ahora el peso y el tono del número; la opacidad
+   que queda (0.85) deja el texto secundario cerca de AA. */
+.plan-week-cell[data-state="pasado"] { opacity: 0.85; }
+.plan-week-cell[data-state="pasado"] .plan-week-cell__num { font-weight: 500; color: var(--text-muted); }
 
 /* Aún sin generar: se ve que el sitio existe, no que haya algo dentro. */
 .plan-week-cell[data-state="sin_plan"],
 .plan-week-cell[data-state="en_proceso"],
-.plan-week-cell[data-state="pausado"] { opacity: 0.5; }
+.plan-week-cell[data-state="pausado"] { opacity: 0.85; }
 .plan-week-cell[data-state="sin_plan"] .plan-week-cell__num,
 .plan-week-cell[data-state="en_proceso"] .plan-week-cell__num,
-.plan-week-cell[data-state="pausado"] .plan-week-cell__num { font-weight: 500; }
+.plan-week-cell[data-state="pausado"] .plan-week-cell__num { font-weight: 500; color: var(--text-muted); }
 
 .plan-week-cell[data-state="atrasado"] .plan-week-cell__num { color: var(--warning); }
 .plan-week-cell[data-state="atrasado"] { opacity: 0.85; }
@@ -1723,7 +1733,7 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
   }
 
   .plan-week-pill__range {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     text-overflow: clip;
   }
 
@@ -1793,9 +1803,9 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
   }
 
   .plan-week-cell__num { font-size: 1.1rem; line-height: 1.1; }
-  .plan-week-cell__dow { font-size: 0.58rem; line-height: 1.2; }
+  .plan-week-cell__dow { font-size: 0.75rem; line-height: 1.2; }
   /* Fuera del cuadrado ya no hay que apretarlo: puede leerse. */
-  .plan-week-cell__state { font-size: 0.55rem; line-height: 1.2; }
+  .plan-week-cell__state { font-size: 0.75rem; line-height: 1.2; }
 }
 
 /* [P1-WEEKNAV-STATE-BELOW · 2026-08-11] Aquí vivía una regla que OCULTABA el estado por

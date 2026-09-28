@@ -315,7 +315,7 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
             {/* [P2-RECIPE-HOUSEHOLD-NOTE · 2026-07-01] La receta es POR PERSONA; solo la lista de compras
                 multiplica por el hogar (calc_household_multiplier). Sin esta nota, un hogar de 4 cocinaba
                 porción de 1 con despensa ×4 y nadie le decía por qué. */}
-            <p style={{ fontSize: '0.78rem', opacity: 0.65, margin: '0 0 8px' }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 8px' }}>
               {t('Porciones para 1 persona — si cocinas para tu hogar, multiplica cada cantidad (tu lista de compras ya lo tiene en cuenta).')}
             </p>
             <div className={styles.ing}>

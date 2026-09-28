@@ -68,7 +68,7 @@
 :global(html[data-theme="dark"]) .shareHead svg { color: #A5B4FC; }
 
 .eyebrow {
-    font-size: 0.66rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -87,7 +87,7 @@
 .dateRelative {
     margin-top: 0.12rem;
     font-size: 0.8rem;
-    color: var(--text-light);
+    color: var(--text-muted);
 }
 
 .closeBtn {
@@ -155,15 +155,19 @@
 .dayBtnActive { background: rgba(129, 140, 248, 0.14); }
 
 .dayLetter {
-    font-size: 0.6rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
 }
 
+/* [LEGIBILIDAD] #C7D2FE solo en oscuro: sobre el cajón blanco daba 1,5:1 y el
+   día elegido quedaba ilegible justo donde el usuario mira. */
 .dayBtnActive .dayLetter,
-.dayBtnActive .dayNum { color: #C7D2FE; }
+.dayBtnActive .dayNum { color: var(--primary); }
+:global(html[data-theme="dark"]) .dayBtnActive .dayLetter,
+:global(html[data-theme="dark"]) .dayBtnActive .dayNum { color: #C7D2FE; }
 
 /* El riel es la ESCALA: sin él, dos barras cortas parecerían iguales aunque
    una sea 200 kcal y otra 900. */
@@ -191,10 +195,10 @@
 }
 
 .dayNum {
-    font-size: 0.74rem;
+    font-size: 0.75rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    color: var(--text-light);
+    color: var(--text-muted);
 }
 
 .todayDot {
@@ -305,7 +309,7 @@
     align-items: baseline;
     justify-content: space-between;
     gap: 0.3rem;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
 }
 
@@ -313,13 +317,13 @@
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    font-size: 0.6rem;
+    font-size: 0.75rem;
 }
 
 .macroVal {
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    color: var(--text-light);
+    color: var(--text-muted);
 }
 
 .macroBar {
@@ -367,7 +371,7 @@
 }
 
 .slotLabel {
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     font-weight: 800;
     letter-spacing: 0.13em;
     text-transform: uppercase;
@@ -376,7 +380,7 @@
 .slotEmpty .slotLabel { color: var(--text-muted); }
 
 .slotNote {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -393,8 +397,8 @@
 
 .mealMacros {
     margin-top: 0.28rem;
-    font-size: 0.73rem;
-    color: var(--text-light);
+    font-size: 0.75rem;
+    color: var(--text-muted);
     font-variant-numeric: tabular-nums;
 }
 
@@ -403,14 +407,14 @@
 .slotEmptyText {
     margin-top: 0.16rem;
     font-size: 0.78rem;
-    color: rgba(100, 116, 139, 0.85);
+    color: var(--text-muted); /* [LEGIBILIDAD] era rgba(100,116,139,.85): ~3,9:1 en claro y ~3,3:1 en oscuro */
 }
 
 /* Nota de retrodatado: la hora del registro no es la hora de la comida, así
    que en vez de una hora falsa se dice la verdad — cuándo se anotó. */
 .loggedOn {
     margin-top: 0.28rem;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
 }
 
@@ -448,7 +452,7 @@
     background: rgba(248, 113, 113, 0.07);
     font-size: 0.81rem;
     line-height: 1.45;
-    color: #FCA5A5;
+    color: var(--danger-text); /* [LEGIBILIDAD] era #FCA5A5: 1,9:1 sobre el cajón blanco en claro */
 }
 
 /* ------------------------------------------------------------ disparador */
@@ -524,7 +528,7 @@
     border-radius: 9px;
     background: transparent;
     color: var(--text-muted);
-    font-size: 0.66rem;
+    font-size: 0.75rem;
     font-weight: 800;
     letter-spacing: 0.04em;
     cursor: pointer;
@@ -536,7 +540,7 @@
 /* La semana en una línea, bajo la tira y antes de la cuota del día. */
 .weekLine {
     padding: 0 1.15rem 0.7rem;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
@@ -595,7 +599,7 @@
 
 .addHint {
     margin: 0.9rem 0 0;
-    font-size: 0.74rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
 }
 
@@ -618,7 +622,7 @@
 .microsHead svg { align-self: center; }
 
 .microsTitle {
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     font-weight: 800;
     letter-spacing: 0.13em;
     text-transform: uppercase;
@@ -626,7 +630,7 @@
 
 .microsSub {
     margin-left: auto;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     text-align: right;
 }

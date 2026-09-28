@@ -207,7 +207,7 @@ export function MobileRecipes({
           <>
             <h3 className={styles.secHead} style={{ '--accent': 'var(--secondary)' }}>{t('Ingredientes')}</h3>
             {/* [P2-RECIPE-HOUSEHOLD-NOTE · 2026-07-01] receta por persona; la lista de compras ya multiplica. */}
-            <p style={{ fontSize: '0.75rem', opacity: 0.65, margin: '0 0 8px' }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 8px' }}>
               {t('Porciones para 1 persona — si cocinas para tu hogar, multiplica cada cantidad (tu lista de compras ya lo tiene en cuenta).')}
             </p>
             <div className={styles.ing}>

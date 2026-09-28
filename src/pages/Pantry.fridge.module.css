@@ -25,7 +25,7 @@
    etiqueta uppercase — dato útil que ancla el tope del sidebar. */
 .brand { display: flex; align-items: baseline; gap: 8px; padding: 4px 8px 0; }
 .brand b { font-family: var(--font-heading); font-size: 1.65rem; font-weight: 800; letter-spacing: -.03em; line-height: 1; color: var(--text-main); font-variant-numeric: tabular-nums; }
-.brand small { font-size: .68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .09em; }
+.brand small { font-size: .75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .09em; }
 
 .zones { display: inline-flex; gap: 4px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: 11px; padding: 4px; }
 .zone { flex: 1; appearance: none; border: 0; cursor: pointer; font: inherit; font-size: .76rem; font-weight: 700; padding: 8px; border-radius: 8px; color: var(--text-muted); background: transparent; transition: .16s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -52,7 +52,7 @@
 .navitem[aria-current="true"] { background: color-mix(in srgb, var(--cat) 13%, transparent); color: var(--text-main); }
 .navico { flex: none; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--cat-ink); background: color-mix(in srgb, var(--cat) 16%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 26%, transparent); }
 .navlabel { flex: 1; font-size: .85rem; font-weight: 700; }
-.navn { font-size: .72rem; font-weight: 800; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); padding: 1px 8px; border-radius: 99px; }
+.navn { font-size: .75rem; font-weight: 800; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); padding: 1px 8px; border-radius: 99px; }
 .navitem[aria-current="true"] .navn { color: var(--cat-ink); background: color-mix(in srgb, var(--cat) 16%, transparent); border-color: transparent; }
 
 .lowbox { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 13px; background: color-mix(in srgb, #FBBF24 10%, transparent); border: 1px solid color-mix(in srgb, #FBBF24 28%, transparent); }
@@ -68,7 +68,7 @@
 .search { position: relative; flex: 1; min-width: 160px; }
 .search > svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-light); pointer-events: none; }
 .search input { width: 100%; height: 44px; border-radius: 13px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text-main); font: inherit; font-size: .88rem; padding: 0 14px 0 40px; outline: none; transition: .15s; }
-.search input::placeholder { color: var(--text-light); }
+.search input::placeholder { color: var(--text-muted); } /* [LEGIBILIDAD] era --text-light (3:1, solo adorno) */
 .search input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent); }
 /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] El dueño señaló este chip. El texto era
    cyan-300 sobre su propio tinte: 1,34:1, el segundo peor del dashboard. El
@@ -79,7 +79,7 @@
    mueble seleccionado— y se lee como tal: una línea de metadato bajo el
    interruptor Nevera/Alacena, sin caja que invite a pulsarla. El copo conserva
    el cian del mueble; sin él la línea perdería su identidad. */
-.temp { display: flex; align-items: center; gap: 7px; margin: 9px 2px 0; font-size: .72rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.temp { display: flex; align-items: center; gap: 7px; margin: 9px 2px 0; font-size: .75rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
 .temp svg { flex: none; color: var(--ink-door); }
 /* El punto verde se queda (adorno redundante: el chip ya dice «Frío Max»). Se
    retira su halo: un box-shadow de color solo se lee sobre fondo oscuro; sobre
@@ -119,7 +119,7 @@
 /* [P3-PANTRY-FRIDGE-POLISH · 2026-07-12] Headers de grupo STICKY: al scrollear
    la lista larga siempre sabes en qué categoría estás. Fondo casi-opaco + blur
    para que las filas no se transparenten debajo. */
-.gh { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 8px; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--cat-ink); background: color-mix(in srgb, var(--bg-card) 90%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-radius: 8px; }
+.gh { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 8px; font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--cat-ink); background: color-mix(in srgb, var(--bg-card) 90%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-radius: 8px; }
 .gh .ln { flex: 1; height: 1px; background: color-mix(in srgb, var(--cat) 22%, var(--border)); }
 
 /* Fila densa */
@@ -138,9 +138,9 @@
 /* [P3-PANTRY-ADD-UX anchor] text-transform: capitalize presenta la unidad cruda
    lowercase de la DB ("cartón" → "Cartón") sin tocar el string. Test:
    test_p3_pantry_add_ux.py::test_unit_chip_uses_clean_copy. */
-.unit { flex: none; font-size: .66rem; font-weight: 700; color: var(--cat-ink); background: color-mix(in srgb, var(--cat) 13%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 28%, transparent); padding: 3px 9px; border-radius: 7px; white-space: nowrap; text-transform: capitalize; }
-.shelf { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-.disabledTag { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 800; text-transform: uppercase; color: var(--danger-text); }
+.unit { flex: none; font-size: .75rem; font-weight: 700; color: var(--cat-ink); background: color-mix(in srgb, var(--cat) 13%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 28%, transparent); padding: 3px 9px; border-radius: 7px; white-space: nowrap; text-transform: capitalize; }
+.shelf { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.disabledTag { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 800; text-transform: uppercase; color: var(--danger-text); }
 .sp { flex: 1; }
 /* [P3-PANTRY-FRIDGE-POLISH · 2026-07-12] Stepper sobre bg-page (antes bg-card
    sobre bg-card: el control se fundía con la tarjeta). */
@@ -150,7 +150,7 @@
 .stepBtn:disabled { opacity: .3; cursor: default; }
 .qty { appearance: none; border: 0; cursor: pointer; min-width: 46px; height: 36px; text-align: center; font: inherit; font-weight: 800; font-size: .9rem; color: var(--text-main); font-variant-numeric: tabular-nums; background: transparent; touch-action: manipulation; }
 .qty:hover { background: var(--bg-muted); }
-.agotar { flex: none; appearance: none; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 700; color: var(--text-muted); background: transparent; border: 1px solid var(--border); border-radius: 10px; min-height: 36px; padding: 0 12px; transition: .15s; white-space: nowrap; }
+.agotar { flex: none; appearance: none; cursor: pointer; font: inherit; font-size: .75rem; font-weight: 700; color: var(--text-muted); background: transparent; border: 1px solid var(--border); border-radius: 10px; min-height: 36px; padding: 0 12px; transition: .15s; white-space: nowrap; }
 .agotar:hover { color: var(--danger-text); border-color: var(--danger-border); background: var(--danger-bg); }
 .del { flex: none; width: 32px; height: 36px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--text-light); cursor: pointer; display: grid; place-items: center; transition: .15s; }
 .del:hover { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
@@ -163,21 +163,21 @@
 .depleted { margin: 22px 4px 4px; padding-top: 16px; border-top: 1px dashed var(--border); }
 .depHead { display: flex; align-items: center; gap: 8px; padding: 0 8px; font-size: .82rem; font-weight: 800; color: var(--text-muted); }
 .depHead svg { color: var(--text-light); }
-.depCount { font-size: .7rem; font-weight: 800; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border); padding: 1px 8px; border-radius: 99px; }
-.depSub { margin: 4px 8px 8px; font-size: .74rem; color: var(--text-light); }
+.depCount { font-size: .75rem; font-weight: 800; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border); padding: 1px 8px; border-radius: 99px; }
+.depSub { margin: 4px 8px 8px; font-size: .75rem; color: var(--text-muted); }
 .depRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 9px 12px; border-radius: 12px; opacity: .85; }
 .depRow:hover { background: var(--bg-muted); }
 .depName { font-size: .9rem; font-weight: 700; color: var(--text-muted); }
-.depMeta { font-size: .72rem; color: var(--text-light); }
-.reponer { flex: none; appearance: none; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; color: var(--secondary); background: color-mix(in srgb, var(--secondary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--secondary) 32%, transparent); border-radius: 10px; min-height: 34px; padding: 0 13px; transition: .15s; }
-.reponer:hover { filter: brightness(1.08); }
+.depMeta { font-size: .75rem; color: var(--text-muted); }
+.reponer { flex: none; appearance: none; cursor: pointer; font: inherit; font-size: .75rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-good); background: color-mix(in srgb, var(--secondary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--secondary) 32%, transparent); border-radius: 10px; min-height: 34px; padding: 0 13px; transition: .15s; }
+.reponer:hover { filter: brightness(1.08); } /* [LEGIBILIDAD] .reponer: tinta --ink-good (era --secondary, 2,3:1 en claro) */
 .dismiss { flex: none; width: 30px; height: 34px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--text-light); cursor: pointer; display: grid; place-items: center; transition: .15s; }
 .dismiss:hover { color: var(--danger-text); background: var(--danger-bg); }
 
 /* Título móvil (oculto en escritorio) */
 .mobtitle { display: none; align-items: center; gap: 9px; font-family: var(--font-heading); font-weight: 800; font-size: 1.1rem; width: 100%; margin-bottom: 2px; color: var(--text-main); }
 .mobtitle svg { color: var(--primary); }
-.mobtitle .c { margin-left: auto; font-size: .72rem; font-weight: 700; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border); padding: 3px 10px; border-radius: 99px; }
+.mobtitle .c { margin-left: auto; font-size: .75rem; font-weight: 700; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border); padding: 3px 10px; border-radius: 99px; }
 
 /* ===== Móvil (container query) ===== */
 @container (max-width: 760px) {
@@ -221,7 +221,7 @@
    zona --cat). "Genérico" va apagado: las marcas reales son las que resaltan. */
 /* [P2-DESIGN-CONSISTENCY · 2026-07-07] índigo por token --primary (antes #7C82F0
    hardcoded), para que coincida con el acento del resto de la app y respete el tema. */
-.brandChip { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .64rem; font-weight: 700; letter-spacing: .01em; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.brandChip { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 700; letter-spacing: .01em; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
 .brandChipGeneric { composes: brandChip; color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 8%, transparent); border-color: color-mix(in srgb, var(--text-muted) 22%, transparent); }
 
 /* ── [P3-PANTRY-CONFIRM-POLISH · 2026-07-12] Confirmación "Vaciar la Nevera" ──
@@ -376,7 +376,7 @@
 }
 
 .reconcileName { font-weight: 500; }
-.reconcileName em { opacity: 0.65; font-style: normal; font-size: 0.8em; }
+.reconcileName em { color: var(--text-muted); font-style: normal; font-size: 0.8em; } /* [LEGIBILIDAD] token en vez de opacity 0,65 */
 
 .reconcileActions { display: flex; gap: 0.35rem; }
 

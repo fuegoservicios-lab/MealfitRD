@@ -110,7 +110,7 @@ function Chips({ meals, max }) {
       {meals.slice(0, max).map((m, i) => (
         <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 6, flex: "none", maxWidth: 170, fontSize: ".76rem", fontWeight: 600,
           color: "var(--text-main)", background: "var(--bg-page)", border: "1px solid var(--border)", padding: "5px 10px 5px 6px", borderRadius: 99 }}>
-          <span style={{ width: 18, height: 18, borderRadius: 6, flex: "none", display: "grid", placeItems: "center", fontSize: 11, background: "var(--bg-muted)" }}>{m.emoji}</span>
+          <span style={{ width: 18, height: 18, borderRadius: 6, flex: "none", display: "grid", placeItems: "center", fontSize: 12, background: "var(--bg-muted)" }}>{m.emoji}</span>
           <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.name}</span>
         </span>
       ))}
@@ -163,18 +163,18 @@ function PlanCard({ plan, paused = false, onOpen, onEdit, onDelete, editing, tem
         <span style={emblem}>{plan.generating ? <Loader2 size={22} strokeWidth={2.25} className="spin-animation" aria-hidden="true" /> : <CalendarDays size={22} strokeWidth={2.25} />}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           {plan.active && <div style={{ marginBottom: 5 }}>{activeBadge(paused, plan.generating)}</div>}
-          {plan.inUse && <div style={{ marginBottom: 5 }}><span data-testid="history-inuse-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--secondary)", background: "color-mix(in srgb, var(--secondary) 14%, transparent)", border: "1px solid color-mix(in srgb, var(--secondary) 34%, transparent)", whiteSpace: "nowrap" }}>{t("En uso")}</span></div>}
+          {plan.inUse && <div style={{ marginBottom: 5 }}><span data-testid="history-inuse-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".75rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--ink-good)", background: "color-mix(in srgb, var(--secondary) 14%, transparent)", border: "1px solid color-mix(in srgb, var(--secondary) 34%, transparent)", whiteSpace: "nowrap" }}>{t("En uso")}</span></div>}
           {editing ? (
             <NameEditor tempName={tempName} setTempName={setTempName} onSave={onEditSave} onCancel={onEditCancel} />
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
               <span style={{ fontFamily: "var(--font-heading)", fontSize: "1.02rem", fontWeight: 800, letterSpacing: "-.01em", color: "var(--text-main)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{plan.name}</span>
               {plan.generating
-                ? <span data-testid="history-generating-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".68rem", fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 12%, transparent)", whiteSpace: "nowrap" }}><Loader2 size={11} className="spin-animation" aria-hidden="true" />{t("Generando")}</span>
+                ? <span data-testid="history-generating-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".75rem", fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 12%, transparent)", whiteSpace: "nowrap" }}><Loader2 size={11} className="spin-animation" aria-hidden="true" />{t("Generando")}</span>
                 : <button data-hover="fila" type="button" title={t("Renombrar")} onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} style={{ ...cardIconBtn, width: 26, height: 26 }}><Pencil size={14} /></button>}
             </div>
           )}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: ".75rem", color: "var(--text-light)", marginTop: 3 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: ".75rem", color: "var(--text-muted)", marginTop: 3 }}>
             <Clock size={12} style={{ flexShrink: 0 }} /> <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmtDate(plan.date)} · {fmtTime(plan.date)}</span>
           </div>
         </div>
@@ -186,7 +186,7 @@ function PlanCard({ plan, paused = false, onOpen, onEdit, onDelete, editing, tem
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 13 }}>
         <MacroBar macros={plan.macros} />
         {plan.kcal > 0 && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flex: "none", fontWeight: 800, fontFamily: "var(--font-heading)", fontSize: ".86rem", color: "#FB923C" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flex: "none", fontWeight: 800, fontFamily: "var(--font-heading)", fontSize: ".86rem", color: "var(--ink-warn)" }}>
             <Flame size={13} /> {formatNumber(plan.kcal)}
           </span>
         )}
@@ -289,7 +289,7 @@ export default function HistoryMobilePanel({
       ))}
 
       {noResults && (
-        <div style={{ padding: "40px 16px", textAlign: "center", color: "var(--text-light)" }}>
+        <div style={{ padding: "40px 16px", textAlign: "center", color: "var(--text-muted)" }}>
           <Search size={28} strokeWidth={1.75} />
           <p style={{ marginTop: 10 }}>{t("Sin resultados para")} <strong style={{ color: "var(--text-muted)" }}>“{searchQuery.trim()}”</strong></p>
           <button type="button" onClick={() => setSearchQuery("")} style={clearBtn}>{t("Limpiar búsqueda")}</button>
@@ -307,9 +307,9 @@ const emblem = { flex: "none", width: 44, height: 44, borderRadius: 12, display:
    Misma correccion que el hero de escritorio — la insignia derivaba «activo» de
    la mera existencia del plan, que la pausa conserva a proposito. */
 const activeBadge = (paused = false, generating = false) => (
-  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", fontSize: ".58rem", fontWeight: 800, letterSpacing: ".07em",
+  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", fontSize: ".75rem", fontWeight: 800, letterSpacing: ".07em",
     textTransform: "uppercase",
-    color: paused ? "#FBBF24" : "var(--secondary)",
+    color: paused ? "var(--ink-pantry)" : "var(--ink-good)",
     background: paused ? "color-mix(in srgb, #FBBF24 14%, transparent)" : "color-mix(in srgb, var(--secondary) 16%, transparent)",
     border: `1px solid ${paused ? "color-mix(in srgb, #FBBF24 34%, transparent)" : "color-mix(in srgb, var(--secondary) 36%, transparent)"}`,
     padding: "3px 9px", borderRadius: 99 }}>
@@ -323,6 +323,6 @@ const miniBtn = { flex: "none", width: 32, height: 32, borderRadius: 9, display:
 const countLabelRow = { display: "flex", alignItems: "center", gap: 8, padding: "2px 2px 0" };
 const searchWrap = { display: "flex", alignItems: "center", gap: 9, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "11px 14px", color: "var(--text-light)" };
 const searchInput = { appearance: "none", border: 0, background: "transparent", font: "inherit", fontSize: ".88rem", color: "var(--text-main)", width: "100%", outline: "none" };
-const bucketLabel = { fontFamily: "var(--font-heading)", fontSize: ".72rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-light)" };
-const bucketCount = { fontSize: ".7rem", fontWeight: 700, color: "var(--text-light)" };
+const bucketLabel = { fontFamily: "var(--font-heading)", fontSize: ".75rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-muted)" };
+const bucketCount = { fontSize: ".75rem", fontWeight: 700, color: "var(--text-muted)" };
 const clearBtn = { marginTop: 8, appearance: "none", cursor: "pointer", font: "inherit", fontWeight: 700, fontSize: ".84rem", color: "var(--text-main)", background: "var(--bg-muted)", border: "1px solid var(--border)", borderRadius: 11, padding: "8px 16px" };

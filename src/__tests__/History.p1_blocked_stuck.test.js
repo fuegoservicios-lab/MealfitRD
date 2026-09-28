@@ -132,7 +132,7 @@ describe('[P1-HIST-BLOCKED-STUCK] render del mini-bloque stuckBanner', () => {
         const block = src.slice(titleIdx, titleIdx + 1500);
         // Copy esperada: tono informativo.
         expect(block).toMatch(/tardando m[aá]s de lo habitual/i);
-        expect(block).toMatch(/cron lo[s]? retomar[aá]/i);
+        expect(block).toMatch(/sistema lo[s]? retomar[aá]/i);
         // role="status" (no "alert" — no requiere acción).
         const stuckBlock = src.slice(
             src.indexOf('className={styles.stuckBanner}'),

@@ -200,9 +200,9 @@
 }
 
 .userContextLabel {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    color: #94A3B8;
+    color: var(--text-muted); /* [LEGIBILIDAD] era #94A3B8 (2,6:1 en claro) */
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -274,7 +274,7 @@
 }
 
 .toggleDiscountBadge {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     font-weight: 800;
     padding: 0.15rem 0.4rem;
     background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
@@ -392,7 +392,7 @@
     left: 50%;
     transform: translateX(-50%);
     padding: 0.35rem 1rem;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 800;
     letter-spacing: 0.07em;
     text-transform: uppercase;
@@ -429,13 +429,13 @@
 .launchOfferOld {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #94A3B8;
+    color: var(--text-muted); /* [LEGIBILIDAD] era #94A3B8 (2,6:1 en claro) */
     text-decoration: line-through;
     text-decoration-thickness: 1.5px;
 }
 
 .launchOfferPill {
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.02em;
     text-transform: uppercase;
@@ -480,7 +480,7 @@
 }
 
 .creditLabel {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
     line-height: 1.15;
     letter-spacing: 0.04em;
@@ -531,13 +531,13 @@
 
 .planPricePeriod {
     font-size: 0.85rem;
-    color: #94A3B8;
+    color: var(--text-muted); /* [LEGIBILIDAD] era #94A3B8 (2,6:1 en claro) */
     margin-left: 0.25rem;
 }
 
 .planPriceEquivalent {
     font-size: 0.75rem;
-    color: #10B981;
+    color: var(--ink-good); /* [LEGIBILIDAD] era #10B981: 2,5:1 sobre blanco */
     font-weight: 600;
     margin-top: 0.25rem;
 }
@@ -717,7 +717,7 @@
     text-align: left;
     color: #64748B;
     font-weight: 700;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     padding-left: 1.5rem;
@@ -728,14 +728,14 @@
    destacada se lea como "featured" (antes casi invisible, sobre todo en oscuro). */
 .compTable thead th.compTableCellHighlight {
     background: linear-gradient(180deg, rgba(139, 92, 246, 0.13) 0%, rgba(99, 102, 241, 0.05) 100%);
-    color: #6366F1;
+    color: var(--primary); /* [LEGIBILIDAD] #6366F1 sobre el tinte violeta quedaba <4,5:1 */
     border-bottom-color: #8B5CF6;
 }
 
 /* Badge "Popular" sobre la columna Plus */
 .compTablePopularBadge {
     display: block;
-    font-size: 0.6rem;
+    font-size: 0.75rem;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -791,7 +791,7 @@
 .compTableCellHighlight {
     background: linear-gradient(180deg, rgba(139, 92, 246, 0.07) 0%, rgba(139, 92, 246, 0.035) 100%);
     font-weight: 800;
-    color: #6366F1;
+    color: var(--primary);
     border-left: 1.5px solid rgba(139, 92, 246, 0.22);
     border-right: 1.5px solid rgba(139, 92, 246, 0.22);
     position: relative;
@@ -839,7 +839,7 @@
 
 /* Iconos check / X */
 .compTableIconYes {
-    color: #10B981;
+    color: var(--ink-good); /* [LEGIBILIDAD] era #10B981: 2,5:1 en claro (icono con significado: «Incluido») */
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -851,7 +851,7 @@
 }
 
 .compTableIconNo {
-    color: #CBD5E1;
+    color: var(--text-light); /* [LEGIBILIDAD] era #CBD5E1: 1,5:1 y el icono dice «No incluido» (≥3:1) */
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -878,7 +878,7 @@
 
 .compTableFeatureDesc {
     font-size: 0.78rem;
-    color: #94A3B8;
+    color: var(--text-muted); /* [LEGIBILIDAD] era #94A3B8 (2,6:1 en claro) */
     font-weight: 400;
     line-height: 1.45;
 }
@@ -888,8 +888,8 @@
 .compTableCategoryRow td {
     background: linear-gradient(90deg, #F1F5F9 0%, rgba(241, 245, 249, 0.5) 100%);
     font-weight: 800;
-    color: #6366F1;
-    font-size: 0.7rem;
+    color: var(--primary); /* [LEGIBILIDAD] #6366F1 sobre #F1F5F9 ≈ 4,1:1 */
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     padding: 1.1rem 1.5rem 0.95rem;
@@ -957,11 +957,11 @@
 }
 
 .faqQuestion:hover {
-    color: #6366F1;
+    color: var(--primary);
 }
 
 .faqItemOpen .faqQuestion {
-    color: #6366F1;
+    color: var(--primary);
     padding-bottom: 0.85rem;
 }
 
@@ -1222,10 +1222,10 @@
     }
 
     .userContextLabel {
-        font-size: 0.56rem;
+        font-size: 0.75rem;
         font-weight: 700;
         letter-spacing: 0.08em;
-        color: #94A3B8;
+        color: var(--text-muted);
     }
 
     .userContextValue {
@@ -1252,7 +1252,7 @@
     }
 
     .userContextCreditsLabel {
-        font-size: 0.62rem;
+        font-size: 0.75rem;
         color: #64748B;
         margin-top: 0.25rem;
         line-height: 1.2;
@@ -1359,7 +1359,7 @@
     }
 
     .userContextCreditsLabel {
-        font-size: 0.58rem;
+        font-size: 0.75rem;
     }
 
     .heroTitle {

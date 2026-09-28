@@ -21,7 +21,7 @@ const estilos = {
     input: { width: '4.5rem', padding: '0.3rem 0.45rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--bg-page)', color: 'var(--text-main)', fontSize: '0.82rem' },
     boton: { padding: '0.3rem 0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-main)', fontSize: '0.78rem', cursor: 'pointer' },
     quitar: { padding: '0.3rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex' },
-    chip: { marginLeft: '0.4rem', fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: '999px', border: '1px solid var(--border)', color: 'var(--text-muted)' },
+    chip: { marginLeft: '0.4rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: '999px', border: '1px solid var(--border)', color: 'var(--text-muted)' },
 };
 
 export default function GrupoSuplementos({ potes = [], soloDelPlan = [], onCambiarPorciones = null, onBorrar = null }) {

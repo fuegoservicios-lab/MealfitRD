@@ -926,7 +926,7 @@
 .emailBadge {
     margin-left: auto;
     font-size: 0.8rem;
-    color: #94A3B8;
+    color: var(--text-muted); /* [LEGIBILIDAD] era #94A3B8: 2,6:1 en claro */
     background: transparent;
     padding: 0;
     border-radius: 0;
@@ -1406,7 +1406,7 @@
         width: 2.4rem;
         height: 2.4rem;
         border-radius: 0.75rem;
-        font-size: 0.7rem;
+        font-size: 0.75rem;
     }
     .langNative {
         font-size: 0.92rem;

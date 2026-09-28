@@ -103,7 +103,7 @@ function Tag({ tag }) {
         gap: 5,
         padding: "4px 9px",
         borderRadius: 999,
-        fontSize: ".62rem",
+        fontSize: ".75rem",
         fontWeight: 800,
         letterSpacing: ".05em",
         textTransform: "uppercase",

@@ -58,7 +58,7 @@
 
 .cartridgeCell {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.14em;
     color: var(--pa-ink-3);
     white-space: nowrap;
@@ -421,7 +421,7 @@
        carácter sobre una calibración que dos medidas independientes
        confirman a 0,04px; el siguiente que toque el literal, que mida. */
     .cartridgeCell {
-        font-size: 11px;
+        font-size: 12px;
         letter-spacing: 0.08em;
         padding: 0 0.875rem;
     }

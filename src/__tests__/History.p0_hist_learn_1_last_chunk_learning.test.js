@@ -111,22 +111,22 @@ describe('[P0-HIST-LEARN-1] render del bloque', () => {
         const block = src.slice(anchorIdx, anchorIdx + 30000);
         expect(block).toMatch(/t\('Señal: \{valor\}',\s*\{\s*valor:\s*_signalLabel/);
         expect(block).toMatch(/Baja confianza/);
-        expect(block).toMatch(/Sin métricas T2/);
-        expect(block).toMatch(/Reconstruido tras crash/);
+        expect(block).toMatch(/Sin datos de aprendizaje/);
+        expect(block).toMatch(/Reconstruido tras un fallo/);
     });
 
     it('rebuild paths (queue / preflight / source_status)', () => {
         const anchorIdx = src.indexOf('Snapshot del último chunk aprendido');
         const block = src.slice(anchorIdx, anchorIdx + 30000);
-        expect(block).toMatch(/Reconstruido \(queue\)/);
-        expect(block).toMatch(/Reconstruido \(preflight\)/);
+        expect(block).toMatch(/Recuperado de una copia/);
+        expect(block).toMatch(/Reconstruido \(respaldo\)/);
         expect(block).toMatch(/Origen:\s*\{/);
     });
 
     it('chips numéricos: repetición meals + bases con severity tiered', () => {
         const anchorIdx = src.indexOf('Snapshot del último chunk aprendido');
         const block = src.slice(anchorIdx, anchorIdx + 30000);
-        expect(block).toMatch(/Repetición meals/);
+        expect(block).toMatch(/Platos repetidos: \{valor\}/);
         expect(block).toMatch(/Repetición bases/);
         // El _fmtRepPct helper aplica thresholds 60 (bad) / 20 (warn).
         expect(block).toMatch(/_pct\s*>\s*60/);
@@ -153,9 +153,9 @@ describe('[P0-HIST-LEARN-1] render del bloque', () => {
         // cambia con el idioma. Lo que este test defiende —que el chip se invoque para
         // esa lista— sigue igual.
         expect(block).toMatch(/_listChip\(\s*['"]reaparecieron['"]\s*,\s*t\(['"]Reaparecieron['"]\)/);
-        expect(block).toMatch(/_listChip\(\s*['"]meals-repetidos['"]\s*,\s*t\(['"]Meals repetidos['"]\)/);
+        expect(block).toMatch(/_listChip\(\s*['"]meals-repetidos['"]\s*,\s*t\(['"]Platos repetidos['"]\)/);
         expect(block).toMatch(/_listChip\(\s*['"]bases-repetidas['"]\s*,\s*t\(['"]Bases repetidas['"]\)/);
-        expect(block).toMatch(/_listChip\(\s*['"]alergias-hit['"]\s*,\s*t\(['"]Alergias hit['"]\)/);
+        expect(block).toMatch(/_listChip\(\s*['"]alergias-hit['"]\s*,\s*t\(['"]Alergias detectadas['"]\)/);
     });
 
     it('lista cap visual top 5 + "+N más" en title=', () => {

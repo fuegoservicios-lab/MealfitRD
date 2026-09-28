@@ -61,7 +61,7 @@
   font-size: 14.5px;
   color: var(--text-main);
 }
-.headerSub { font-size: 11px; color: var(--text-muted); }
+.headerSub { font-size: 12px; color: var(--text-muted); }
 .closeBtn {
   display: flex;
   align-items: center;
@@ -176,7 +176,7 @@
   transition: border-color 0.14s;
 }
 .input:focus { border-color: color-mix(in srgb, var(--primary) 55%, var(--border)); }
-.input::placeholder { color: var(--text-light); }
+.input::placeholder { color: var(--text-muted); } /* [LEGIBILIDAD] placeholder = texto: --text-light es 3:1, solo adorno */
 .sendBtn {
   display: flex;
   align-items: center;
@@ -203,7 +203,7 @@
   justify-content: center;
   gap: 6px;
   padding: 7px 12px 9px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 .footerLink { color: var(--primary); text-decoration: none; font-weight: 600; }

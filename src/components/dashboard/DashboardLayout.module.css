@@ -164,7 +164,7 @@
     align-self: flex-start;
     margin-left: 0.5rem; /* alinea el borde izq del chip bajo el wordmark (logo tiene padding-left 0.5rem) */
     font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
-    font-size: 0.66rem;
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.05em;
     line-height: 1;

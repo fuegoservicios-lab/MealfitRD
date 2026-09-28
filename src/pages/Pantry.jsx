@@ -3356,11 +3356,11 @@ const PantryPage = () => {
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>{nombreDeFila(item)}</h4>
                                                 {existing ? (
-                                                    <span style={{ fontSize: '0.8rem', color: 'var(--secondary)', marginTop: '0.2rem', display: 'block', fontWeight: 600 }}>
+                                                    <span style={{ fontSize: '0.8rem', color: 'var(--success-text)', marginTop: '0.2rem', display: 'block', fontWeight: 600 }}>
                                                         {t('Ya tienes {cantidad} {unidad} · sumará a tu existente', { cantidad: existing.quantity, unidad: glossUnitWord(existing.unit, t) })}
                                                     </span>
                                                 ) : (
-                                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '0.2rem', display: 'block' }}>
+                                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
                                                         {t('Alias incl.:')} {item.aliases?.slice(0, 3).join(', ')}{item.aliases?.length > 3 ? '...' : ''}
                                                     </span>
                                                 )}
@@ -3472,7 +3472,7 @@ const PantryPage = () => {
                                                                                     borderRadius: '99px',
                                                                                     border: isActive ? '2px solid #0EA5E9' : '1px solid var(--border)',
                                                                                     background: isActive ? 'rgba(14, 165, 233, 0.08)' : 'var(--bg-card)',
-                                                                                    color: isActive ? '#0369A1' : 'var(--text-main)',
+                                                                                    color: isActive ? 'var(--ink-dairy)' : 'var(--text-main)',
                                                                                     fontWeight: isActive ? 700 : 500,
                                                                                     fontSize: '0.85rem',
                                                                                     cursor: 'pointer',
@@ -3494,14 +3494,14 @@ const PantryPage = () => {
                                                                     (variantes reales del Supermercado RD). Solo alimentos con
                                                                     variantes en el catálogo; fail-soft si no hay ninguna. */}
                                                                 {brandInfo && brandInfo.loading && (
-                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-light)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1rem' }}>
+                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1rem' }}>
                                                                         <Loader2 size={14} className="spin-fast" /> {t('Buscando marcas…')}
                                                                     </div>
                                                                 )}
                                                                 {brandInfo && !brandInfo.loading && brandInfo.brands.length > 0 && (
                                                                     <>
                                                                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '0.5rem' }}>
-                                                                            {t('Marca')} <span style={{ fontWeight: 500, color: 'var(--text-light)' }}>{t('(opcional)')}</span>
+                                                                            {t('Marca')} <span style={{ fontWeight: 500, color: 'var(--text-muted)' }}>{t('(opcional)')}</span>
                                                                         </div>
                                                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1rem' }}>
                                                                             <button
@@ -3565,12 +3565,12 @@ const PantryPage = () => {
                                     dice «No encontramos»: en PC salía durante segundos con el
                                     catálogo aún en vuelo y parecía que el alimento no existía. */}
                                 {addItemSearch.trim() && suggestedMasterItems.length === 0 && (catalogLoading || masterList.length === 0) && (
-                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-light)' }} role="status" aria-live="polite">
+                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }} role="status" aria-live="polite">
                                         <div style={{ fontWeight: 600 }}>{t('Cargando catálogo…')}</div>
                                     </div>
                                 )}
                                 {addItemSearch.trim() && suggestedMasterItems.length === 0 && !catalogLoading && masterList.length > 0 && (
-                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-light)' }}>
+                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                                         <Package size={32} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
                                         <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{t('No encontramos "{consulta}"', { consulta: addItemSearch.trim() })}</div>
                                         <div style={{ fontSize: '0.85rem' }}>{t('Prueba con otro nombre o un sinónimo más común.')}</div>
@@ -3582,7 +3582,7 @@ const PantryPage = () => {
                                     "Sugerencias rápidas" (1-toque añade si resuelve único, si no
                                     siembra la búsqueda). Rellena el vacío y acelera el caso común. */}
                                 {!addItemSearch.trim() && (
-                                    <div style={{ padding: '0.6rem 0.15rem 0.5rem', color: 'var(--text-light)' }}>
+                                    <div style={{ padding: '0.6rem 0.15rem 0.5rem', color: 'var(--text-muted)' }}>
                                         {recentAdds.length > 0 && (
                                             <div style={{ marginBottom: '1.25rem' }}>
                                                 <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
@@ -3621,7 +3621,7 @@ const PantryPage = () => {
                                                 </button>
                                             ))}
                                         </div>
-                                        <p style={{ fontSize: '0.83rem', color: 'var(--text-light)', margin: '1.15rem 0 0', lineHeight: 1.45 }}>
+                                        <p style={{ fontSize: '0.83rem', color: 'var(--text-muted)', margin: '1.15rem 0 0', lineHeight: 1.45 }}>
                                             {t('Toca un chip para añadirlo al instante, o escribe cualquier alimento arriba.')}
                                         </p>
                                     </div>
@@ -3763,7 +3763,7 @@ const PantryPage = () => {
                                             borderRadius: '99px',
                                             border: qtyEditValue === preset ? '2px solid #0EA5E9' : '1px solid var(--border)',
                                             background: qtyEditValue === preset ? 'rgba(14, 165, 233, 0.08)' : 'var(--bg-card)',
-                                            color: qtyEditValue === preset ? '#0369A1' : 'var(--text-muted)',
+                                            color: qtyEditValue === preset ? 'var(--ink-dairy)' : 'var(--text-muted)',
                                             fontWeight: qtyEditValue === preset ? 700 : 500,
                                             fontSize: '0.85rem', cursor: 'pointer',
                                             touchAction: 'manipulation',

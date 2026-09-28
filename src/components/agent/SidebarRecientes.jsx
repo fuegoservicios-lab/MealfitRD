@@ -132,7 +132,7 @@ export const SidebarRecientes = ({
                             <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                                 {t('Sin conversaciones aún')}
                             </span>
-                            <span style={{ fontSize: '0.8rem', lineHeight: 1.5, color: 'var(--text-light)' }}>
+                            <span style={{ fontSize: '0.8rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>
                                 {t('Inicia un chat y aparecerá aquí.')}
                             </span>
                         </div>
@@ -143,9 +143,9 @@ export const SidebarRecientes = ({
                             {group.label && (
                                 <div style={{ 
                                     padding: '0.5rem 1rem 0.25rem', 
-                                    fontSize: '0.7rem', 
+                                    fontSize: '0.75rem', 
                                     fontWeight: 600,
-                                    color: 'var(--text-light)',
+                                    color: 'var(--text-muted)',
                                     textTransform: 'uppercase',
                                     letterSpacing: '0.06em',
                                     marginTop: '0.5rem'
@@ -281,8 +281,8 @@ export const SidebarRecientes = ({
                                                         </span>
                                                         {formattedDate && (
                                                             <span style={{
-                                                                fontSize: '0.70rem',
-                                                                color: currentSessionId === s.id ? 'color-mix(in srgb, var(--primary) 65%, transparent)' : 'var(--text-light)',
+                                                                fontSize: '0.75rem',
+                                                                color: currentSessionId === s.id ? 'var(--primary)' : 'var(--text-muted)',
                                                                 fontWeight: 400
                                                             }}>
                                                                 {formattedDate}
