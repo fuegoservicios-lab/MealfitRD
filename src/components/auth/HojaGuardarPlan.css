@@ -65,9 +65,11 @@
 }
 .mf-hoja-guardar .mf-divider { display: flex; }
 
+/* El borde de hover va en --text-muted, no en --text-light: ese gris de adorno tiene
+   trinquete de usos (legibilidad.contract.test.js, lote 710). */
 .mf-hoja-guardar .mf-btn--google:hover:not(:disabled) {
   background: var(--bg-muted);
-  border-color: var(--text-light);
+  border-color: var(--text-muted);
 }
 
 .mf-hoja-guardar .mf-input {
