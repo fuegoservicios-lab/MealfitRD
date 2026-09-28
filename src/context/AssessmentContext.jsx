@@ -154,7 +154,7 @@ import { clearDisabledIngredientsStore } from '../hooks/useDisabledIngredients';
 // corre dentro de `fetchProfile`, que no es un componente.
 // [P1-I18N-DASHBOARD] `t` de MODULO, no el hook: los avisos de abajo salen desde
 // dentro de callbacks (handlers, polling, catch), no en render.
-import { claimLocaleForUser, getLocale, localeParaEstampar, syncLocaleFromProfile, t, useI18n } from '../i18n';
+import { claimLocaleForUser, getLocale, i18nKey, localeParaEstampar, syncLocaleFromProfile, t, useI18n } from '../i18n';
 import { CLAVE_COMPLETAR } from '../utils/completarFormulario';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes 2 effects manuales).
 import { useLatestRef } from '../hooks/useLatestRef';
@@ -174,7 +174,14 @@ import {
 } from '../config/secureFormStorage';
 // [P1-I18N-SERVER-COPY-GANA · 2026-08-22] El `error_message` del servidor viene
 // SIEMPRE en español; el `||` hacía que ganara sobre el fallback traducido.
-import { mensajeDeError } from '../utils/errorCopy';
+import { mensajeDeError, mensajeDelServidor } from '../utils/errorCopy';
+
+// [P1-PLAN-LOTE-646] Las frases fijas con que `/api/subscription/verify` (routers/billing.py) explica un rechazo.
+const MENSAJES_VERIFICAR_PAGO = [
+    i18nKey('Error de autenticación con proveedor de pagos.'),
+    i18nKey('La suscripción no fue reconocida por PayPal.'),
+    i18nKey('Plan no reconocido. Contacta soporte.'),
+];
 
 const AssessmentContext = createContext();
 
@@ -4465,7 +4472,10 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
 
                 if (!response.ok) {
                     const errData = await response.json();
-                    throw new Error(errData.detail || t('Fallo en la verificación del pago en el servidor.'));
+                    // [P1-PLAN-LOTE-646] (T15) el `detail` del servidor es español: en otro idioma, su traducción si es una de
+                    // las frases fijas de `/api/subscription/verify`; si no, el copy traducido (nunca la prosa española).
+                    throw new Error(mensajeDelServidor(errData.detail, MENSAJES_VERIFICAR_PAGO,
+                        t('Fallo en la verificación del pago en el servidor.'), t));
                 }
                 
                 toast.success(t('Pago verificado exitosamente.'), { id: 'payment-verify' });

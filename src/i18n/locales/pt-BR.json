@@ -3707,5 +3707,8 @@
   "Días {a}–{b}": "Dias {a}–{b}",
   "Error: {x}": "Erro: {x}",
   "Diferido {n}×": "Adiado {n}×",
-  "Días {a}–{b} de {n}": "Dias {a}–{b} de {n}"
+  "Días {a}–{b} de {n}": "Dias {a}–{b} de {n}",
+  "Error de autenticación con proveedor de pagos.": "Erro de autenticação com o provedor de pagamentos.",
+  "La suscripción no fue reconocida por PayPal.": "O PayPal não reconheceu a assinatura.",
+  "Plan no reconocido. Contacta soporte.": "Plano não reconhecido. Fale com o suporte."
 }
