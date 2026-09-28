@@ -485,8 +485,11 @@ if (typeof window !== 'undefined') {
 
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 // [P1-KB-SONDA] Sólo DEV y sólo con ?kbprobe=1: números del teclado en el dispositivo real.
-import { iniciarSondaTeclado } from './utils/keyboardProbe';
-iniciarSondaTeclado(); // gateada por dentro: DEV libre, produccion solo con ?kbprobe=1
+// [P1-PLAN-LOTE-681] Se CARGA diferida: el módulo (con keyboardViewport, ~5,7 KB minificados)
+// viajaba en el arranque de TODOS para una sonda que casi nadie enciende. La condición sigue
+// siendo una sola y dentro del módulo (sin gate propio aquí); sólo llega unos ms después, antes
+// de que nadie abra un teclado.
+import('./utils/keyboardProbe').then((m) => m.iniciarSondaTeclado()).catch(() => { /* sonda de diagnóstico: best-effort */ });
 
 // [P2-STRICT-MODE-ENABLE · 2026-05-12] StrictMode re-habilitado tras audit
 // 2026-05-12. Pre-fix estaba comentado por bugs antiguos de double-invoke
@@ -499,7 +502,11 @@ iniciarSondaTeclado(); // gateada por dentro: DEV libre, produccion solo con ?kb
 // P2-STRICT-MODE-ENABLE.
 // [P1-PLAN-LOTE-108] ANTES del render: el listener de `mealfit:app-ready` tiene que
 // existir cuando la app lo emita. Confirma el paquete y busca uno nuevo (solo nativo).
-iniciarOtaNativa()
+// [P1-PLAN-LOTE-681] Gate de BUILD, no de ejecución: los dos binarios nativos (`build:native`
+// y `build:ota`) compilan con `--mode native`, así que ahí esta línea queda idéntica —misma
+// llamada, mismo momento, antes del render—; en la web `iniciarOtaNativa()` ya no hacía nada
+// (`__OTA_BUNDLE_ID__` vale '' fuera de native) y ahora ni siquiera viaja en el arranque.
+if (import.meta.env.MODE === 'native') iniciarOtaNativa()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
