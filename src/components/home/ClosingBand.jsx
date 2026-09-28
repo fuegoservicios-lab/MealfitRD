@@ -35,9 +35,11 @@ const ClosingBand = () => {
     return (
         <section className={styles.closing}>
             <div className={styles.container}>
-                {/* [P1-PLAN-LOTE-795 · 2026-09-28] Sin número: lo medido es bloque 1 p50 ~4 min y
-                    hasta ~10 (ver /generation-eta, P2-LOADING-ETA-HONEST). «Cinco minutos» era
-                    falso para la mitad de los planes. Ancla: test_p1_plan_lote_795.py */}
+                {/* [P1-PLAN-LOTE-795 · 2026-09-28] Sin número: P2-LOADING-ETA-HONEST midió el
+                    bloque 1 con mediana ~10 min y p90 ~15 (34 bloques, sep.; /generation-eta sirve
+                    el p50/p90 vivo) y la matriz clínica de agosto, p50 ~6 min
+                    (`CLINICAL.latencyP50Min`). «Cinco minutos» era falso para casi todos los
+                    planes. Ancla: test_p1_plan_lote_795.py */}
                 <h2 className={styles.title}>
                     Tu primer plan, calculado, en minutos.
                 </h2>
