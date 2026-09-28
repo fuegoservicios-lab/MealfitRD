@@ -102,6 +102,12 @@ const KNOWN_PREFIXES = ['/novedades/', '/dashboard'];
 // P1-PANTRY-ROUTE-ALIAS, P1-SETTINGS-ONE-SURFACE, P2-LANDING-MANIFEST-SHORTCUT).
 const KNOWN_REDIRECTS = ['/cookies', '/pantry', '/mi-nevera', '/configuracion', '/register'];
 
+// [P1-PLAN-LOTE-639 · 2026-09-28] Rutas internas: existen (App.jsx) pero no son de marketing ni de la app del usuario,
+// así que no estaban en ninguna lista y la pestaña de /admin decía «Página no encontrada». Solo el dueño las abre: ni
+// canonical ni indexación, y título fijo en español como la propia página.
+// [I18N-EXEMPT: panel interno del dueño, solo español]
+const RUTAS_INTERNAS = { '/admin': 'Panel de administración' };
+
 function isKnownPath(path) {
     return KNOWN_PATHS.has(path)
         || KNOWN_REDIRECTS.includes(path)
@@ -151,6 +157,13 @@ export default function RouteTitle() {
         // son dinámicas y auto-gestionan su título/description/canonical por artículo →
         // no las tocamos aquí (evita pisar el título del artículo con uno genérico).
         if (path.startsWith('/novedades/')) return;
+
+        if (Object.hasOwn(RUTAS_INTERNAS, path)) {
+            document.title = `${RUTAS_INTERNAS[path]} · ${BRAND}`;
+            removeCanonical();
+            setMetaByName('robots', 'noindex, nofollow');
+            return;
+        }
 
         // [P2-LANDING-HEAD-CLIENT · 2026-08-14] Ruta inexistente: ni canonical ni
         // señales de indexación. `NotFound.jsx` ya dice «esta página no existe» en un

@@ -6,6 +6,11 @@
 // [P1-PLAN-LOTE-621 · 2026-09-27] Se lee de un vistazo: las filas `destacado` van en grande arriba del bloque, las de
 // `nivel` 1 (o con la marca vieja «· ») sangradas, un cero se apaga, las tablas ocupan el ancho con los números a la
 // derecha y la proporción de `barras`, la `nota` del bloque va debajo y la cabecera dice cuándo se cargó.
+// [P1-PLAN-LOTE-638 · 2026-09-28] El dueño: «se ve feo y poco entendible». Los bloques llegan con `seccion` (Resumen →
+// Requiere atención → Usuarios → Producto → Costes → Calidad) y el pintor abre un título por sección; tipos nuevos:
+// `resumen` (la franja de arriba: cifra, cambio frente al periodo anterior con su tono y qué significa), `avisos`
+// (alertas por tipo con su gravedad), `serie` (barras por día o semana) y `embudo`. Las filas pueden traer `ayuda`.
+// Los títulos dejan las MAYÚSCULAS espaciadas y las cifras destacadas dejan de ser cajas dentro de cajas.
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { fetchWithAuth } from '../config/api';
@@ -25,6 +30,7 @@ const TEXTOS = {
     actualizar: 'Actualizar',
     actualizado: (hora) => `Actualizado a las ${hora}`,
     principales: 'Cifras principales',
+    nivel: { critico: 'Crítico', aviso: 'Revisar', info: 'Informativo' },
 };
 
 const MARCA_SUBFILA = /^·\s*/;
@@ -36,10 +42,16 @@ const TEXTO_LARGO = 30;
 
 // Con más filas visibles que esto, el bloque ocupa el ancho y reparte su lista en columnas.
 const FILAS_PARA_ANCHO = 8;
+// Una serie con más barras que esto rotula una de cada N (las demás llevan su cifra en el tooltip).
+const ROTULOS_MAX = 8;
+const TONOS = new Set(['bueno', 'malo', 'aviso', 'neutro']);
+const NIVELES = new Set(['critico', 'aviso', 'info']);
 
 const esCero = (v) => CERO.test(String(v ?? '').trim());
 const celdaNumerica = (v) => NUMERICA.test(String(v ?? '').trim());
 const esSubfila = (f) => f.nivel === 1 || MARCA_SUBFILA.test(String(f.etiqueta));
+const tonoDe = (t) => (TONOS.has(t) ? t : 'neutro');
+const nivelDe = (n) => (NIVELES.has(n) ? n : 'info');
 
 /** Filas no destacadas en grupos «total + subfilas». Bajo un total en cero sus subfilas no informan nada: fuera. */
 function gruposDe(filas) {
@@ -54,9 +66,24 @@ function gruposDe(filas) {
 }
 
 const filasVisibles = (bloque) => gruposDe(bloque.filas).reduce((n, g) => n + (g.padre ? 1 : 0) + g.hijas.length, 0);
-// Ancho: las tablas, lo que el servidor pida (`ancho`) y un bloque de muchas filas.
-const esAncho = (bloque) => bloque.tipo === 'tabla' || bloque.ancho === true
-    || (bloque.tipo === 'kpis' && filasVisibles(bloque) > FILAS_PARA_ANCHO);
+// Ancho: las tablas, las series, lo que el servidor pida (`ancho`) y un bloque de muchas filas.
+const esAncho = (bloque) => bloque.tipo === 'tabla' || bloque.tipo === 'serie' || bloque.tipo === 'avisos'
+    || bloque.ancho === true || (bloque.tipo === 'kpis' && filasVisibles(bloque) > FILAS_PARA_ANCHO);
+
+/** Bloques consecutivos con la misma `seccion` van juntos; sin `seccion`, un grupo sin título. */
+function seccionesDe(bloques) {
+    const secciones = [];
+    for (const b of bloques) {
+        const nombre = b.seccion || null;
+        const ultima = secciones[secciones.length - 1];
+        if (ultima && ultima.nombre === nombre) ultima.bloques.push(b);
+        else secciones.push({ nombre, bloques: [b] });
+    }
+    // Un bloque de cifras que se ensancha solo por tener muchas filas pasa al final de su sección: en medio, dejaba
+    // sola en su fila a la tarjeta de antes (Coach a todo el ancho con cuatro filas). Las gráficas y tablas no se mueven.
+    const alFinal = (b) => b.tipo === 'kpis' && esAncho(b);
+    return secciones.map((s) => ({ ...s, bloques: [...s.bloques.filter((b) => !alFinal(b)), ...s.bloques.filter(alFinal)] }));
+}
 
 function Fila({ fila }) {
     const subfila = esSubfila(fila);
@@ -64,7 +91,10 @@ function Fila({ fila }) {
     const cero = esCero(fila.valor);
     return (
         <div className={subfila ? `${styles.kpi} ${styles.subfila}` : styles.kpi} data-nivel={subfila ? '1' : '0'}>
-            <span className={styles.etiqueta}>{etiqueta}</span>
+            <span className={styles.etiqueta}>
+                {etiqueta}
+                {fila.ayuda && <span className={styles.ayuda}>{fila.ayuda}</span>}
+            </span>
             <span className={cero ? `${styles.valor} ${styles.valorCero}` : styles.valor} data-cero={cero ? 'true' : undefined}>
                 {fila.valor}
             </span>
@@ -139,14 +169,100 @@ function BloqueTabla({ bloque }) {
     );
 }
 
+/** La franja de arriba: cuatro cifras en una banda, cada una con su cambio y qué significa. */
+function BloqueResumen({ bloque }) {
+    return (
+        <ul className={styles.resumen} aria-label={bloque.titulo}>
+            {(bloque.tarjetas || []).map((t, i) => (
+                <li key={i} className={styles.resumenCelda} data-tono={tonoDe(t.tono)}>
+                    <span className={styles.resumenEtiqueta}>{t.etiqueta}</span>
+                    <span className={styles.resumenValor}>
+                        {t.tono && t.tono !== 'neutro' && !t.cambio && <span className={styles.punto} aria-hidden="true" />}
+                        {t.valor}
+                    </span>
+                    {t.cambio && <span className={styles.resumenCambio}>{t.cambio}</span>}
+                    {t.ayuda && <span className={styles.resumenAyuda}>{t.ayuda}</span>}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+function BloqueAvisos({ bloque }) {
+    const items = bloque.items || [];
+    if (items.length === 0) return <p className={styles.vacio}>{bloque.vacio}</p>;
+    return (
+        <ul className={styles.avisos}>
+            {items.map((a, i) => {
+                const nivel = nivelDe(a.nivel);
+                return (
+                    <li key={i} className={styles.aviso} data-nivel-aviso={nivel}>
+                        <span className={styles.avisoNivel}>{TEXTOS.nivel[nivel]}</span>
+                        <span className={styles.avisoTexto}>
+                            <span className={styles.avisoTitulo}>{a.titulo}</span>
+                            {a.detalle && <span className={styles.avisoDetalle}>{a.detalle}</span>}
+                        </span>
+                        <span className={styles.avisoValor}>{a.valor}</span>
+                    </li>
+                );
+            })}
+        </ul>
+    );
+}
+
+function BloqueSerie({ bloque }) {
+    const puntos = bloque.puntos || [];
+    const max = Math.max(0, ...puntos.map((p) => Number(p.valor) || 0));
+    const paso = Math.ceil(puntos.length / ROTULOS_MAX) || 1;
+    const conCifra = puntos.length <= 14;
+    return (
+        <div className={styles.serie} role="list" style={{ '--barras': puntos.length }}>
+            {puntos.map((p, i) => {
+                const v = Number(p.valor) || 0;
+                const alto = max > 0 ? Math.round((v / max) * 100) : 0;
+                const rotulo = i % paso === 0 || i === puntos.length - 1;
+                return (
+                    <div key={i} className={styles.serieCol} role="listitem" aria-label={`${p.etiqueta}: ${p.texto}`} title={`${p.etiqueta}: ${p.texto}`}>
+                        <span className={styles.serieCifra} data-cero={v === 0 ? 'true' : undefined}>{conCifra ? p.texto : ''}</span>
+                        <span className={styles.serieCarril}>
+                            <span className={v === 0 ? `${styles.serieBarra} ${styles.serieBarraCero}` : styles.serieBarra} data-serie-barra="" style={{ height: `${alto}%` }} />
+                        </span>
+                        <span className={styles.serieRotulo}>{rotulo ? p.etiqueta : ''}</span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function BloqueEmbudo({ bloque }) {
+    return (
+        <ol className={styles.embudo}>
+            {(bloque.pasos || []).map((p, i) => (
+                <li key={i} className={styles.paso}>
+                    <span className={styles.pasoEtiqueta}>{p.etiqueta}</span>
+                    <span className={styles.pasoCifras}><strong>{p.valor}</strong> <span className={styles.pasoPct}>{p.texto}</span></span>
+                    <span className={styles.pasoCarril} aria-hidden="true">
+                        <span className={styles.pasoBarra} data-paso-barra="" style={{ width: `${Math.max(0, Math.min(100, Math.round((Number(p.pct) || 0) * 100)))}%` }} />
+                    </span>
+                </li>
+            ))}
+        </ol>
+    );
+}
+
 function Bloque({ bloque }) {
+    if (bloque.tipo === 'resumen') return <BloqueResumen bloque={bloque} />;
     const ancho = esAncho(bloque);
     return (
         <section className={ancho ? `${styles.bloque} ${styles.bloqueAncho}` : styles.bloque} data-ancho={ancho ? 'completo' : undefined}>
-            <h2 className={styles.titulo}>{bloque.titulo}</h2>
+            <h3 className={styles.titulo}>{bloque.titulo}</h3>
             {bloque.tipo === 'error' && <p className={styles.error}>{bloque.error}</p>}
             {bloque.tipo === 'tabla' && <BloqueTabla bloque={bloque} />}
             {bloque.tipo === 'kpis' && <BloqueKpis bloque={bloque} ancho={ancho} />}
+            {bloque.tipo === 'avisos' && <BloqueAvisos bloque={bloque} />}
+            {bloque.tipo === 'serie' && <BloqueSerie bloque={bloque} />}
+            {bloque.tipo === 'embudo' && <BloqueEmbudo bloque={bloque} />}
             {bloque.nota && <p className={styles.nota}>{bloque.nota}</p>}
         </section>
     );
@@ -203,25 +319,34 @@ export default function AdminPage() {
             <div className={styles.barraHerramientas}>
                 <div className={styles.rangos} role="group" aria-label={TEXTOS.periodo}>
                     {RANGOS.map((d) => (
-                        <button key={d} type="button" className={d === dias ? styles.rangoActivo : styles.rango} onClick={() => elegir(d)}>
+                        <button
+                            key={d}
+                            type="button"
+                            className={d === dias ? styles.rangoActivo : styles.rango}
+                            aria-pressed={d === dias}
+                            onClick={() => elegir(d)}
+                        >
                             {TEXTOS.dias(d)}
                         </button>
                     ))}
                 </div>
-                <button type="button" className={styles.rango} onClick={recargar} disabled={estado === 'cargando'}>{TEXTOS.actualizar}</button>
+                <button type="button" className={styles.boton} onClick={recargar} disabled={estado === 'cargando'}>{TEXTOS.actualizar}</button>
             </div>
             {estado === 'cargando' && <p className={styles.estado}>{TEXTOS.cargando}</p>}
             {estado === 'error' && (
                 <div className={styles.estado}>
                     <p>{TEXTOS.errorCarga}</p>
-                    <button type="button" className={styles.rango} onClick={recargar}>{TEXTOS.reintentar}</button>
+                    <button type="button" className={styles.boton} onClick={recargar}>{TEXTOS.reintentar}</button>
                 </div>
             )}
-            {estado === 'listo' && datos && (
-                <div className={styles.rejilla}>
-                    {datos.bloques.map((b) => <Bloque key={b.id} bloque={b} />)}
+            {estado === 'listo' && datos && seccionesDe(datos.bloques).map((s, i) => (
+                <div key={`${s.nombre}-${i}`} className={styles.seccion} data-seccion={s.nombre || undefined}>
+                    {s.nombre && <h2 className={styles.seccionTitulo}>{s.nombre}</h2>}
+                    <div className={styles.rejilla}>
+                        {s.bloques.map((b) => <Bloque key={b.id} bloque={b} />)}
+                    </div>
                 </div>
-            )}
+            ))}
         </main>
     );
 }
