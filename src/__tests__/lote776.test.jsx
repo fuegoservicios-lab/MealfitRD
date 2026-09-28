@@ -140,4 +140,11 @@ describe('[776] traducciones', () => {
         for (const k of claves) expect(typeof cat[k], k).toBe('string');
         for (const k of plurales) expect(cat[k] && cat[k].one && cat[k].other, k).toBeTruthy();
     });
+
+    // [Revisión final · 2026-09-28] «Dont {n} offerts» no concuerda con n=1 (la clave no es plural): forma invariable.
+    it('fr-FR: el «de regalo» del medidor vale para cualquier n', () => {
+        const cat = JSON.parse(fuente('src/i18n/locales/fr-FR.json'));
+        expect(cat['Incluye {n} de regalo']).toBe('Dont {n} en cadeau');
+        expect(cat['(incluye {n} de regalo)']).toBe('(dont {n} en cadeau)');
+    });
 });

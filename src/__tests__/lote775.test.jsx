@@ -182,4 +182,29 @@ describe('[775] /admin · Cuentas', () => {
         fireEvent.keyDown(document, { key: 'Escape' });
         await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     });
+
+    // [Revisión final · 2026-09-28] El último día de un regalo se fija a la hora de RD (`ultimoDiaDeRegalo`), no a la
+    // del dispositivo: visto desde Madrid, una cortesía que acaba el 1-oct 00:00 de RD y unos créditos que acaban el
+    // 1-oct 00:00 UTC decían «1 oct». Se simula un dispositivo en Madrid (el huso por defecto de Intl), así el test
+    // no depende del huso de la máquina que lo corre.
+    it('el último día de un regalo sale en hora de RD, esté donde esté quien mira', async () => {
+        const Original = Intl.DateTimeFormat;
+        Intl.DateTimeFormat = function DateTimeFormat(loc, opts) {
+            return new Original(loc, { timeZone: 'Europe/Madrid', ...(opts || {}) });
+        };
+        try {
+            servidor([['/api/admin/cuentas/buscar', async () => respuesta({ cuenta: ficha({
+                plan_efectivo: 'plus', cortesia: { plan: 'plus', hasta: '2026-10-01T04:00:00+00:00' },
+                regalos: [{ id: 'g1', tipo: 'creditos_generacion', detalle: '+20 créditos de planes', desde: null,
+                    hasta: '2026-10-01T00:00:00+00:00', motivo: 'compensación', estado: 'vigente', motivo_reversion: null }],
+            }) })]]);
+            await buscar();
+            const dia = new Original('es-DO', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Santo_Domingo' })
+                .format(new Date('2026-09-30T12:00:00Z'));
+            expect(await screen.findByText(`Cortesía hasta el ${dia} · paga Básico`)).toBeInTheDocument();
+            expect(screen.getByText(`Vigente · hasta el ${dia} · «compensación»`)).toBeInTheDocument();
+        } finally {
+            Intl.DateTimeFormat = Original;
+        }
+    });
 });

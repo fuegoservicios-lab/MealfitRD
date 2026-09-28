@@ -7,6 +7,7 @@ import { useId, useState } from 'react';
 import { fetchWithAuth } from '../config/api';
 import { formatDate } from '../i18n';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import { ultimoDiaDeRegalo } from '../utils/regalosCuenta';
 import styles from './AdminCuentas.module.css';
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
@@ -76,8 +77,10 @@ const CABECERA = { 'Content-Type': 'application/json', 'X-Admin-Accion': '1' };
 const FORMATO = { day: 'numeric', month: 'short', year: 'numeric' };
 
 const dia = (iso) => (iso ? formatDate(new Date(iso), FORMATO) : '—');
-// El fin de un regalo es EXCLUSIVO (1-oct 00:00 ⇒ vale hasta el 30-sep): se enseña el último día que vale.
-const ultimoDia = (iso) => (iso ? formatDate(new Date(Date.parse(iso) - 1), FORMATO) : '—');
+// El fin de un regalo es EXCLUSIVO (1-oct 00:00 ⇒ vale hasta el 30-sep): se enseña el último día que vale, en la hora
+// de RD que fija `ultimoDiaDeRegalo` (la de la propia validez) y con el formato del panel — en el huso del dispositivo
+// salía un día tarde visto desde Europa.
+const ultimoDia = (iso) => (iso ? ultimoDiaDeRegalo(iso, (d, o) => formatDate(d, { ...FORMATO, timeZone: o.timeZone })) : '—');
 const fechaLocal = (dias) => {
     const d = new Date();
     d.setDate(d.getDate() + dias);

@@ -3788,8 +3788,8 @@
   "Ahora tienes {nombre} de cortesía.": "Vous bénéficiez désormais de {nombre} offert.",
   "Cortesía": "Offert",
   "Cortesía hasta": "Offert jusqu’au",
-  "Incluye {n} de regalo": "Dont {n} offerts",
-  "(incluye {n} de regalo)": "(dont {n} offerts)",
+  "Incluye {n} de regalo": "Dont {n} en cadeau",
+  "(incluye {n} de regalo)": "(dont {n} en cadeau)",
   "Tienes {nombre} de cortesía. Si te suscribes, lo conservas cuando termine.": "Vous bénéficiez de {nombre} offert. Abonnez-vous pour le garder ensuite.",
   "Te regalamos {n} créditos para crear planes, válidos hasta el {fecha}.": {
     "one": "Nous vous offrons {n} crédit pour créer des plans, valable jusqu’au {fecha}.",

@@ -198,7 +198,7 @@
 }
 
 /* [P1-PLAN-LOTE-776 · 2026-09-28] Marca de cuánto del tope es regalo. */
-.regalo { margin-left: 0.35rem; font-size: 0.7rem; font-weight: 700; color: var(--primary); }
+.regalo { margin-left: 0.35rem; font-size: 0.75rem; font-weight: 700; color: var(--primary); }
 
 /* ---- estados (gradiente del número + ritmo del bloom) ---- */
 .healthy .num   { background-image: linear-gradient(135deg, #818CF8, #22D3EE 55%, #34D399); }
