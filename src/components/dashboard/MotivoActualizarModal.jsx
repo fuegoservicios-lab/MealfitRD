@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useMotionValue, animate } from "framer-motion";
+import { X } from "lucide-react";
 import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 // [P2-14 · 2026-07-09] Hook SSOT de media queries (antes copia local del mismo hook).
 import { useMediaQuery } from "../../hooks/useMediaQuery";
@@ -882,6 +883,19 @@ export default function MotivoActualizarModal({
                   )}
                 </span>
               </span>
+              {/* [P1-PLAN-LOTE-723 · 2026-09-28] La X de siempre (el dueño: «esto debería tener una x, ¿no?»). Cerraba
+                  solo el fondo, Escape o deslizar; en el escritorio no había ninguna salida a la vista. Mismo
+                  `handleClose`: mientras se regenera un plato no cierra. */}
+              <button
+                type="button"
+                className="ui-close"
+                onClick={handleClose}
+                disabled={busy}
+                aria-label={t("Cerrar")}
+                style={{ flex: "none", margin: "-4px -6px 0 0" }}
+              >
+                <X size={20} strokeWidth={2.25} aria-hidden="true" />
+              </button>
             </div>
 
             <p style={{ margin: "5px 0 0", fontSize: ".86rem", lineHeight: 1.45, color: "var(--text-muted)", fontWeight: 500 }}>

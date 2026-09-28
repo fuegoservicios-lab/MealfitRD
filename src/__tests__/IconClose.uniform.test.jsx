@@ -12,6 +12,7 @@ const SITIOS = [
     'src/components/dashboard/DiaryHistory.jsx',
     'src/components/dashboard/HelpChatWidget.jsx',
     'src/components/dashboard/LogMealModal.jsx',
+    'src/components/dashboard/MotivoActualizarModal.jsx',   // [P1-PLAN-LOTE-723] ¿Por qué quieres cambiar?
     'src/components/dashboard/NotificationCenter.jsx',
     'src/components/dashboard/PaymentModal.jsx',
     'src/components/dashboard/RestockNudge.jsx',
