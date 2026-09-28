@@ -79,8 +79,11 @@ describe('acciones rápidas con el hilo corto', () => {
         // atajos ocupaban una fila entera sobre la caja sin ahorrar nada (el teclado ya está delante). Las
         // cinco condiciones que este test vigila —hilo corto, sin turno activo, caja vacía— siguen intactas.
         // [P1-PLAN-LOTE-411] la guarda vive en `atajosVisibles` (la usa también la lectura de los números del día)
-        expect(AGENT).toContain('const atajosVisibles = isMobile && messages.length > 0 && messages.length <= 4 && !isTurnActive');
-        expect(AGENT).toContain('&& !isLoadingHistory && !input.trim();');
+        // [P1-PLAN-LOTE-691] las ACCIONES ya no dependen de ≤4 mensajes: con el hilo largo quedan solo ellas (soloAcciones)
+        expect(AGENT).toContain('const atajosVisibles = isMobile && messages.length > 0 && !isTurnActive');
+        expect(AGENT).toContain('soloAcciones: messages.length > 4');
+        expect(AGENT).toContain('&& !isLoadingHistory && !input.trim() && !_dudasDeEsteChat;');
+        expect(AGENT).toContain('const _dudasDeEsteChat = dudasDeLaFoto.length > 0 && dudasDeLaFotoSesionRef.current === currentSessionId;');
         expect(AGENT).toContain('{!isCentered && atajosVisibles && (');
         // dentro del wrapper sticky de la caja (fuera, la caja los tapaba en escritorio)
         expect(AGENT.indexOf('className="chat-quick-chips"')).toBeGreaterThan(AGENT.indexOf('const renderInputArea = (isCentered = false) => ('));

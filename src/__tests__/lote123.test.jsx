@@ -89,7 +89,8 @@ describe('los contratos', () => {
 
     it('la clave de la foto no cambia entre la versión local y la del servidor, y el visor conserva la completa', () => {
         const chat = leer('pages/AgentPage.jsx');
-        expect((chat.match(/clientKey: item\.id,/g) || []).length).toBe(2);
+        // [P1-PLAN-LOTE-695] la tercera: la burbuja GUARDADA de la foto que espera sus respuestas conserva la misma clave
+        expect((chat.match(/clientKey: item\.id,/g) || []).length).toBe(3);
         expect(chat).toContain('fullUrl: item.image_url || item.url || item.thumbDataUrl,');
         expect(leer('components/agent/MessageBubble.jsx'))
             .toContain('const key = attachment.clientKey || attachment.id || attachment.attachment_id ||');

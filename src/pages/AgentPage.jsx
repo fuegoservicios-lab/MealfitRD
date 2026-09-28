@@ -105,7 +105,12 @@ import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency, precalentarWorkerDeImagen, workerDeImagenDisponible } from '../utils/chatImageProcessing';
 import { vistaPreviaDelAdjunto, esIOS } from '../utils/vistaPreviaDelAdjunto';
-import { dudasDeLasFotos } from '../utils/dudasDeLaFoto';
+import { dudasDeLasFotos, mensajeDeRespuestas } from '../utils/dudasDeLaFoto';
+// [P1-PLAN-LOTE-690] las dudas de la foto se contestan ANTES de que hable el coach
+import {
+    borrarFotoPendiente, conFotoPendiente, guardarFotoPendiente, hayQueEsperarRespuestas, leerFotoPendiente,
+    respuestaEscrita, textoDelTurno,
+} from '../utils/fotoAntesDelCoach';
 import RespuestasDeLaFoto from '../components/agent/RespuestasDeLaFoto';
 import { isNativeApp } from '../config/platform';
 import {
@@ -295,6 +300,7 @@ const _buildAgentErrorMessage = ({
     userMessage,
     regenerateMessageId,
     regenerateResponseContent,
+    respuestasDeLaFoto,
 }) => {
     let entry = _agentErrorCopy()[status];
     if (!entry) {
@@ -329,6 +335,8 @@ const _buildAgentErrorMessage = ({
         // guardaba una respuesta nueva junto a la vieja.
         retryRegenerateMessageId: canRetry ? (regenerateMessageId || undefined) : undefined,
         retryRegenerateResponseContent: canRetry ? (regenerateResponseContent || undefined) : undefined,
+        // [P1-PLAN-LOTE-695] el reintento del turno de la foto contestada lleva también las respuestas y su ajuste
+        retryRespuestasDeLaFoto: canRetry ? (respuestasDeLaFoto || undefined) : undefined,
         retryPrompt: canRetry ? retryPrompt : null,
         retryImageUrl: canRetry ? retryImageUrl : null,
         retryAttachments: canRetry ? retryAttachments : null,
@@ -336,6 +344,27 @@ const _buildAgentErrorMessage = ({
         retryTruncateIndex: canRetry ? retryTruncateIndex : undefined,
         clientMessageId: canRetry ? clientMessageId : undefined,
         _isErrorBubble: true,
+    };
+};
+
+// [P1-PLAN-LOTE-690] Con `VITE_CHAT_DUDAS_ANTES=false` vuelve la conducta del 322 (las dudas bajo la respuesta del coach).
+const _DUDAS_ANTES_DEL_COACH = String(import.meta.env?.VITE_CHAT_DUDAS_ANTES ?? 'true') !== 'false';
+
+// [P1-PLAN-LOTE-695] La burbuja de la foto pendiente tal como se GUARDA: con las URL del servidor (los `blob:` mueren con
+// la página, y la foto tiene que volver al chat si se sale y se entra).
+const _burbujaDeFotoPendiente = (texto, items) => {
+    const attachments = (items || []).map((item) => {
+        const url = [item.image_url, item.url, item.thumbDataUrl]
+            .find((u) => typeof u === 'string' && u && !u.startsWith('blob:'));
+        return url ? {
+            id: item.attachment_id || item.id, clientKey: item.id, url, fullUrl: item.image_url || url,
+            name: item.name || item.file?.name || item.sourceFile?.name, description: item.description, kind: item.kind,
+            image_url: item.image_url,
+        } : null;
+    }).filter(Boolean);
+    return {
+        role: 'user', content: texto || '', isImage: attachments.length > 0, imageUrl: attachments[0]?.url || null,
+        attachments, created_at: new Date().toISOString(),
     };
 };
 
@@ -1615,6 +1644,21 @@ const AgentPage = () => {
     // [P1-PLAN-LOTE-322] Dudas de la foto con respuestas de un toque (y el chat al que pertenecen).
     const [dudasDeLaFoto, setDudasDeLaFoto] = useState([]);
     const dudasDeLaFotoSesionRef = useRef(null);
+    // [P1-PLAN-LOTE-690] El turno de una foto con dudas ESPERA a las respuestas: aquí queda lo necesario para reanudarlo
+    // (chat, id del mensaje, su texto y las fotos ya subidas). El state espejo repinta la tarjeta.
+    const fotoPendienteRef = useRef(null);
+    const [fotoPendiente, _setFotoPendienteState] = useState(null);
+    // [P1-PLAN-LOTE-695] En memoria (repinta la tarjeta)…
+    const _setFotoPendienteMem = useCallback((v) => { fotoPendienteRef.current = v; _setFotoPendienteState(v); }, []);
+    // …y guardada por chat: sobrevive a ir a la Nevera y volver, o a cerrar la app (`utils/fotoAntesDelCoach`).
+    const _setFotoPendiente = useCallback((v) => {
+        const antes = fotoPendienteRef.current;
+        if (v) guardarFotoPendiente(v);
+        else if (antes?.sessionId) borrarFotoPendiente(antes.sessionId);
+        _setFotoPendienteMem(v);
+    }, [_setFotoPendienteMem]);
+    // [P1-PLAN-LOTE-695] Lo ya tocado en la tarjeta, para juntarlo con lo que se escriba después («Otra…»).
+    const respuestasParcialesRef = useRef(null);
     // [P1-PLAN-LOTE-347] «Otra…»: la pregunta de la duda como pista en la caja, hasta el siguiente envío.
     const [pistaDeRespuesta, setPistaDeRespuesta] = useState('');
     const isTurnActiveRef = useRef(false);
@@ -2925,8 +2969,26 @@ const AgentPage = () => {
                             _lastMapped,
                         ));
                     }
-                    setMessages(_mappedMsgs);
+                    // [P1-PLAN-LOTE-695] La foto que espera sus respuestas vuelve al final: el servidor aún no la tiene
+                    // (su turno no se ha mandado). Si ya la tiene, dejó de estar pendiente.
+                    const _pend = leerFotoPendiente(sessionId);
+                    const _conPend = conFotoPendiente(_mappedMsgs, _pend);
+                    if (_pend && _conPend.enviada) {
+                        borrarFotoPendiente(sessionId);
+                        if (fotoPendienteRef.current?.clientMessageId === _pend.clientMessageId) _setFotoPendienteMem(null);
+                    }
+                    setMessages(_conPend.mensajes);
                 } else {
+                    // [P1-PLAN-LOTE-695] Chat nuevo cuyo primer mensaje es la foto pendiente: el servidor aún no
+                    // tiene nada, y la foto no puede caer por el saludo.
+                    const _pendVacio = leerFotoPendiente(sessionId);
+                    if (_pendVacio) {
+                        setMessages((prev) => {
+                            const reales = (Array.isArray(prev) ? prev : []).filter((m) => !m.isWelcome);
+                            return conFotoPendiente(reales, _pendVacio).mensajes;
+                        });
+                        return;
+                    }
                     // [P1-AGENT-WELCOME-STABLE · 2026-05-20] Preservar welcome
                     // existente — evita regenerar la hora visible.
                     _setWelcomeIfAbsent();
@@ -2985,7 +3047,7 @@ const AgentPage = () => {
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setMessages, setIsLoadingHistory, _setWelcomeIfAbsent]);
+    }, [setMessages, setIsLoadingHistory, _setWelcomeIfAbsent, _setFotoPendienteMem]);
 
     // [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Borrar un chat era UN toque sin vuelta atrás, y en el
     // teléfono la papelera vive a 1 cm del título en cada fila. Ahora el toque abre una hoja de
@@ -3328,6 +3390,21 @@ const AgentPage = () => {
             ? options.overrideAttachments
             : (options.overrideImageUrl ? [{ id: `legacy-${Date.now()}`, url: options.overrideImageUrl, status: 'ready' }] : []);
         if ((!textToSend.trim() && attachments.length === 0 && overrideAttachments.length === 0) || isTurnActiveRef.current) return;
+        // [P1-PLAN-LOTE-690 → 695] Va DESPUÉS del guard de entrada (test_p1_chat_stop_power lo exige en los primeros
+        // 1.800 caracteres de handleSend) y ANTES de abrir el turno: la reanudación vuelve a entrar por aquí.
+        // [P1-PLAN-LOTE-690] Con una foto esperando sus respuestas, lo que se escriba (también tras «Otra…») ES la
+        // respuesta: se reanuda ese turno. Un envío con fotos nuevas la descarta (su turno nunca llegó al coach).
+        const _pendiente = fotoPendienteRef.current;
+        if (_pendiente && !options.fotoPendiente && !isTurnActiveRef.current) {
+            if (_pendiente.sessionId === currentSessionId && textToSend.trim() && attachments.length === 0
+                && !options.overrideAttachments && !options.overrideImageUrl) {
+                // [P1-PLAN-LOTE-695] con lo ya tocado en la tarjeta: «2 huevos» tocado + «maduro» escrito
+                const _parcial = respuestasParcialesRef.current?.clientMessageId === _pendiente.clientMessageId
+                    ? respuestasParcialesRef.current.texto : '';
+                return _reanudarFoto(respuestaEscrita(_parcial, textToSend.trim()), null);
+            }
+            _descartarFotoPendiente();
+        }
 
         // [P1-PLAN-LOTE-131 → 139] `/fluido` enciende/apaga la coreografía del teclado solo con `transform` (modo de PRUEBA;
         // el 138 la encendió por defecto y el 139 la apagó: en el iPhone iOS panea la página durante la apertura). No es
@@ -3475,7 +3552,7 @@ const AgentPage = () => {
             : [...sourceMessages]
         ).filter(m => !m.isWelcome);
 
-        const originalUserMessageIndex = newMessages.length;
+        let originalUserMessageIndex = newMessages.length;
         const bubbleAttachments = currentAttachments.map((item) => ({
             id: item.attachment_id || item.id,
             // [P1-PLAN-LOTE-123] La clave de React de la foto. Al terminar la subida el `id` pasa del local al del
@@ -3487,7 +3564,18 @@ const AgentPage = () => {
             name: item.name || item.file?.name || item.sourceFile?.name,
             status: item.status || 'ready',
         })).filter((item) => item.url);
-        if (bubbleAttachments.length) {
+        // [P1-PLAN-LOTE-690] La reanudación no pinta otra burbuja: la de la foto ya está y recibe las respuestas debajo
+        // de su texto (así se guarda también: un solo mensaje del usuario con la foto).
+        const _iFoto = options.fotoPendiente
+            ? newMessages.findIndex((m) => m.clientMessageId === options.fotoPendiente.clientMessageId)
+            : -1;
+        if (_iFoto >= 0) {
+            newMessages[_iFoto] = { ...newMessages[_iFoto], content: userMsg, _esperaDudas: false };
+            originalUserMessageIndex = _iFoto;
+            sentAnchorRef.current = null;
+            _setSpacer(0);
+            _setMode('bottom');
+        } else if (bubbleAttachments.length) {
             newMessages.push({
                 role: 'user',
                 content: userMsg || '',
@@ -3549,6 +3637,7 @@ const AgentPage = () => {
                 ...args,
                 regenerateMessageId: options.regenerateMessageId,
                 regenerateResponseContent: options.regenerateResponseContent,
+                respuestasDeLaFoto: options.respuestasDeLaFoto,   // [P1-PLAN-LOTE-695]
             })]);
         };
         // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Cada efecto del `done` en su propio try: antes un
@@ -3704,9 +3793,35 @@ const AgentPage = () => {
                 const visionPayload = visionItems.length
                     ? { kind: 'multi', items: visionItems, has_text: !!userMsg }
                     : null;
+                // [P1-PLAN-LOTE-690] Las respuestas a las dudas viajan con la foto: el servidor quita las dudas de la
+                // descripción y aplica el ajuste de las opciones a la estimación (backend/respuestas_de_la_foto.py).
+                if (visionPayload && options.respuestasDeLaFoto) {
+                    if (options.respuestasDeLaFoto.texto) visionPayload.respuestas = options.respuestasDeLaFoto.texto;
+                    if (options.respuestasDeLaFoto.ajuste) visionPayload.ajuste = options.respuestasDeLaFoto.ajuste;
+                }
                 // [P1-PLAN-LOTE-322] Las dudas de las fotos del turno, atadas a ESTE chat (no salen en otro).
-                setDudasDeLaFoto(dudasDeLasFotos(uploadedAttachments));
+                const _dudasDelTurno = dudasDeLasFotos(uploadedAttachments);
+                setDudasDeLaFoto(_dudasDelTurno);
                 dudasDeLaFotoSesionRef.current = currentSessionId;
+                // [P1-PLAN-LOTE-690] …y si las hay, el coach ESPERA. Contestando antes de tenerlas, respondía otra cosa
+                // («Mi cena» + foto → le propuso OTRA cena) y la respuesta gastaba un segundo mensaje del cupo sin la
+                // foto. El turno termina aquí (el `finally` suelta el candado); lo reanuda `_reanudarFoto`.
+                if (hayQueEsperarRespuestas({
+                    dudas: _dudasDelTurno, reanudando: !!options.fotoPendiente, activo: _DUDAS_ANTES_DEL_COACH,
+                })) {
+                    _setFotoPendiente({
+                        sessionId: currentSessionId,
+                        clientMessageId,
+                        pie: userMsg,
+                        attachments: _durableRetryAttachments(uploadedAttachments),
+                        dudas: _dudasDelTurno,   // [P1-PLAN-LOTE-695] para volver a pintar la tarjeta
+                        burbuja: _burbujaDeFotoPendiente(userMsg, uploadedAttachments),
+                    });
+                    setMessages((prev) => prev.map((m) => (
+                        m.clientMessageId === clientMessageId ? { ...m, _esperaDudas: true } : m
+                    )));
+                    return;
+                }
                 const enrichedPrompt = promptToSend;
 
                 setStreamingStatus(t('Conectando...'));
@@ -4284,6 +4399,47 @@ const AgentPage = () => {
         handleSendRef.current = handleSend;
     }); // cada commit conserva la clausura más reciente sin una lista manual incompleta
 
+    // [P1-PLAN-LOTE-690] Reanuda el turno de la foto con las respuestas: UN mensaje (foto + texto + respuestas).
+    const _reanudarFoto = (respuestas, ajuste) => {
+        const p = fotoPendienteRef.current;
+        if (!p || p.sessionId !== currentSessionId) return undefined;
+        _setFotoPendiente(null);
+        respuestasParcialesRef.current = null;
+        // [P1-PLAN-LOTE-695] Al volver al chat, el historial puede no haber repuesto aún la burbuja: sale de la guardada.
+        let fuente = messagesRef.current || [];
+        if (!fuente.some((m) => m.clientMessageId === p.clientMessageId)) {
+            if (!p.burbuja) return undefined;
+            fuente = [...fuente.filter((m) => !m.isWelcome), { ...p.burbuja, clientMessageId: p.clientMessageId }];
+        }
+        const texto = String(respuestas || '').trim();
+        return handleSendRef.current(textoDelTurno(p.pie, texto), {
+            overrideAttachments: p.attachments,
+            clientMessageId: p.clientMessageId,
+            fotoPendiente: p,
+            sourceMessages: fuente,
+            respuestasDeLaFoto: { texto, ajuste: ajuste || null },
+        });
+    };
+    const _descartarFotoPendiente = () => {
+        const p = fotoPendienteRef.current;
+        if (!p) return;
+        _setFotoPendiente(null);
+        setDudasDeLaFoto([]);
+        setMessages((prev) => prev.map((m) => (
+            m.clientMessageId === p.clientMessageId && m._esperaDudas ? { ...m, _esperaDudas: false } : m
+        )));
+    };
+    // [P1-PLAN-LOTE-690 → 695] Al abrir un chat (también al volver a él), SU foto pendiente; la del anterior se queda
+    // guardada para cuando se vuelva.
+    useEffect(() => {
+        const p = leerFotoPendiente(currentSessionId);
+        _setFotoPendienteMem(p);
+        if (p) {
+            setDudasDeLaFoto(p.dudas);
+            dudasDeLaFotoSesionRef.current = currentSessionId;
+        }
+    }, [currentSessionId, _setFotoPendienteMem]);
+
     const handleStopGeneration = () => {
         // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Detener aborta el controller VIGENTE (el ref, no
         // el state, que puede ir un render por detrás) e invalida el turno: su `finally` ya no
@@ -4373,6 +4529,7 @@ const AgentPage = () => {
             // regeneración (sustituye la respuesta vieja en el servidor, no añade otra).
             regenerateMessageId: message.retryRegenerateMessageId,
             regenerateResponseContent: message.retryRegenerateResponseContent,
+            respuestasDeLaFoto: message.retryRespuestasDeLaFoto,   // [P1-PLAN-LOTE-695]
         });
     });
 
@@ -4625,7 +4782,16 @@ const AgentPage = () => {
             )}
             {/* [P1-PLAN-LOTE-322] Las dudas de la foto, respondibles con un toque, cuando el coach ya contestó. */}
             {dudasDeLaFoto.length > 0 && !isTurnActive && !chatDeOtroDia && dudasDeLaFotoSesionRef.current === currentSessionId && (
-                <RespuestasDeLaFoto dudas={dudasDeLaFoto} onEnviar={(texto) => handleSend(texto)}
+                <RespuestasDeLaFoto key={fotoPendiente?.clientMessageId || 'tras-el-coach'} dudas={dudasDeLaFoto}
+                    titulo={fotoPendiente ? t('Antes de anotarlo, dime:') : null}
+                    onEnviar={(texto, ajuste) => (fotoPendienteRef.current ? _reanudarFoto(texto, ajuste) : handleSend(texto))}
+                    onOmitir={fotoPendiente ? (texto, ajuste) => _reanudarFoto(texto, ajuste) : null}
+                    onParcial={(elegidas) => {   // [P1-PLAN-LOTE-695]
+                        respuestasParcialesRef.current = {
+                            clientMessageId: fotoPendienteRef.current?.clientMessageId,
+                            texto: mensajeDeRespuestas(dudasDeLaFoto, elegidas),
+                        };
+                    }}
                     onOtra={(pregunta) => { setPistaDeRespuesta(pregunta); chatInputRef.current?.focus(); }} />
             )}
             {/* [P1-PLAN-LOTE-226] Leyendo un chat de otro día: la salida al de hoy, a la vista (en el teléfono la
@@ -5090,10 +5256,16 @@ const AgentPage = () => {
     const gruposConEtiqueta = groupedSessions.map(
         (g) => ({ ...g, label: ETIQUETA_GRUPO[g.id] ?? '' })
     );
-    // [P1-PLAN-LOTE-411] los atajos: se ven con el hilo recién empezado (≤4 mensajes), en el teléfono y sin escribir;
-    // los números del día se piden solo mientras se ven
-    const atajosVisibles = isMobile && messages.length > 0 && messages.length <= 4 && !isTurnActive
-        && !isLoadingHistory && !input.trim();
+    // [P1-PLAN-LOTE-411] los atajos: en el teléfono y sin escribir.
+    // [P1-PLAN-LOTE-691 · 2026-09-28] Antes solo con el hilo recién empezado (≤4 mensajes): el chat del día nace con
+    // los avisos del coach (desayuno, almuerzo, merienda, cena), así que a media tarde ya pasaba de 4 y «Escanear mi
+    // plato» desaparecía — el dueño: «las preguntas predeterminadas que aparecían antes ya no están». Las dos ACCIONES
+    // se quedan siempre; las preguntas del momento, solo con el hilo corto (en una conversación larga son ruido). Con
+    // las dudas de una foto en pantalla no se ven: esa tarjeta es lo que toca contestar.
+    // [P1-PLAN-LOTE-695] …las de ESTE chat: al abrir otro, las del anterior siguen en el estado y ocultaban los atajos
+    const _dudasDeEsteChat = dudasDeLaFoto.length > 0 && dudasDeLaFotoSesionRef.current === currentSessionId;
+    const atajosVisibles = isMobile && messages.length > 0 && !isTurnActive
+        && !isLoadingHistory && !input.trim() && !_dudasDeEsteChat;
     const chatUserId = session?.user?.id || userProfile?.id || 'guest';
     // [P1-PLAN-LOTE-412] con el chat abierto (no solo con los atajos): el saludo también los usa
     const resumenHoy = useResumenDeHoy(chatUserId, true);
@@ -5115,6 +5287,7 @@ const AgentPage = () => {
         metas: metasEnNumeros(!enModoContador && planData?.calories ? planData : resumenHoy.metas),
         totales: resumenHoy.totales,
         comidas: resumenHoy.comidas,
+        soloAcciones: messages.length > 4,   // [P1-PLAN-LOTE-691]
         t,
     });
     return (
@@ -5185,6 +5358,12 @@ const AgentPage = () => {
                     box-sizing: border-box;
                 }
                 .chat-respuestas-foto-titulo { font-size: 0.8rem; font-weight: 700; color: var(--text-muted, inherit); }
+                /* [P1-PLAN-LOTE-690] Omitir preguntas: discreto, bajo las opciones */
+                .chat-respuestas-foto-omitir {
+                    margin-top: 0.55rem; padding: 0.35rem 0; border: 0; background: none; cursor: pointer;
+                    font: inherit; font-size: 0.8rem; font-weight: 600; color: var(--text-muted, inherit);
+                    text-decoration: underline; text-underline-offset: 3px;
+                }
                 .chat-quick-chips {
                     display: flex;
                     gap: 0.45rem;

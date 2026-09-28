@@ -40,6 +40,9 @@ export function hayTurnoQueRescatar({ mensajes, ocupado, cargandoHistorial, enLi
     const reales = lista.filter((m) => m && !m.isWelcome && !m._isErrorBubble && !m._stoppedByUser);
     const ultimoReal = reales[reales.length - 1];
     if (!ultimoReal || ultimoReal.role !== 'user') return false;
+    // [P1-PLAN-LOTE-690] La foto que espera las respuestas a sus dudas no llegó al coach a propósito: no hay respuesta
+    // que rescatar (sondear acabaría pintando «no llegó la respuesta» bajo una tarjeta que el usuario está contestando).
+    if (ultimoReal._esperaDudas) return false;
 
     // El caso de siempre: el mensaje del usuario es lo último que hay (refresh a media
     // respuesta). Se compara por IDENTIDAD, no por rol: si detrás hay una burbuja de STOP, el

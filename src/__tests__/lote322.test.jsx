@@ -108,7 +108,9 @@ describe('[322] en el chat, las mismas opciones son respuestas rápidas', () => 
         const { resolve } = await import('node:path');
         const ap = readFileSync(resolve(__dirname, '..', 'pages', 'AgentPage.jsx'), 'utf8');
         expect(ap).toContain('dudas: Array.isArray(data.dudas) ? data.dudas : []');
-        expect(ap).toContain('setDudasDeLaFoto(dudasDeLasFotos(uploadedAttachments))');
+        // [P1-PLAN-LOTE-690] ahora en dos pasos: se calculan, se guardan y, si las hay, el coach espera
+        expect(ap).toContain('const _dudasDelTurno = dudasDeLasFotos(uploadedAttachments);');
+        expect(ap).toContain('setDudasDeLaFoto(_dudasDelTurno);');
         expect(ap).toContain('<RespuestasDeLaFoto');
     });
 });

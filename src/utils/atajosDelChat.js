@@ -29,13 +29,15 @@ export function metasEnNumeros(m) {
  * @param {object} [p.metas]         { calories, protein, carbs, fats } en números
  * @param {object} [p.totales]       lo registrado hoy { calories, protein, carbs, fats }
  * @param {string[]} [p.comidas]     los meal_type registrados hoy
+ * @param {boolean} [p.soloAcciones] [P1-PLAN-LOTE-691] conversación ya larga: solo «Escanear» y «Anotar»
  * @returns {{id:string, tipo:'accion'|'mensaje', accion?:string, mensaje?:string, texto:string}[]}
  */
-export function atajosDelChat({ hora, modoContador, metas = null, totales = null, comidas = null, t }) {
+export function atajosDelChat({ hora, modoContador, metas = null, totales = null, comidas = null, soloAcciones = false, t }) {
     const acciones = [
         { id: 'escanear', tipo: 'accion', accion: 'escanear', texto: t('Escanear mi plato') },
         { id: 'anotar', tipo: 'accion', accion: 'anotar', texto: t('Anotar comida') },
     ];
+    if (soloAcciones) return acciones;
     const msg = (id, texto) => ({ id, tipo: 'mensaje', mensaje: texto, texto });
     const candidatos = [];
     const noche = hora >= 18;
