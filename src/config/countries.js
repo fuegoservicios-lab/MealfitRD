@@ -42,23 +42,23 @@ export function defaultCurrencyForCountry(raw) {
     return _COUNTRY_BY_CODE.get(coerceCountry(raw))?.currency || 'DOP';
 }
 
-// [P1-COUNTRY-BUDGET-FLOOR-FX · 2026-08-23] ¿El piso de presupuesto de esta moneda es un
-// numero SIN procedencia (una conversion FX de la cesta dominicana) en vez de una cesta real?
-// Espejo EXACTO de `_piso_sin_procedencia` en backend/nutrition_calculator.py, y con el mismo
-// porque: un colombiano que declara 200.000 COP/semana no podia pasar del paso del
-// presupuesto, contra un piso de 350.000 COP que no sale de ninguna cesta colombiana.
-// Un numero sin procedencia puede orientar; no puede impedir una compra.
+// [P1-PLAN-LOTE-792 · 2026-09-28] ¿El piso de presupuesto sólo ORIENTA (aviso) en vez de
+// BLOQUEAR el paso? Sí cuando el país de MERCADO no tiene precios propios (beta): su lista sale
+// sin precios, así que un piso que bloquea impediría una compra con una cifra que luego nadie
+// usa. Espejo EXACTO de `_piso_solo_orienta` en backend/nutrition_calculator.py.
 //
-// La condicion es `hasNativePrices` de la tabla, no una lista a mano: el dia que Espana tenga
-// precios curados su piso vuelve a bloquear SOLO. DOP y USD quedan fuera a proposito (ver la
-// nota del helper del backend: USD arrastra el mismo defecto, pero ensancharle la puerta es
-// una decision de producto aparte, no un efecto lateral de arreglar el de Colombia).
-export function pisoSinProcedencia(currency) {
-    const cur = String(currency || '').toUpperCase();
-    if (cur === 'DOP' || cur === 'USD') return false;
-    const filas = COUNTRIES.filter((c) => c.currency === cur);
-    if (!filas.length) return false;
-    return !filas.some((c) => c.hasNativePrices);
+// Antes (P1-COUNTRY-BUDGET-FLOOR-FX · 2026-08-23) lo decidía la MONEDA y USD quedaba fuera a
+// mano: un usuario de Estados Unidos o Puerto Rico con US$70 no pasaba de este paso. Ahora
+// decide el país; el visitante de EE. UU. en RD (mercado DO, paga en USD) sigue bloqueado.
+//
+// La condicion es `hasNativePrices` de la tabla, no una lista a mano: el dia que un pais tenga
+// precios curados su piso vuelve a bloquear SOLO. Con la bandera del sistema de paises apagada
+// el mercado es DO (igual que `country_for_form_data` del backend con su knob apagado).
+// tooltip-anchor: pisoSoloOrienta (backend/tests/test_p1_plan_lote_792.py)
+export function pisoSoloOrienta(country, countrySystemUI = COUNTRY_SYSTEM_UI) {
+    if (!countrySystemUI) return false;
+    const fila = _COUNTRY_BY_CODE.get(coerceCountry(country));
+    return Boolean(fila) && !fila.hasNativePrices;
 }
 
 export const COUNTRY_SYSTEM_UI = ['1', 'true'].includes(

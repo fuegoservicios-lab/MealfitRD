@@ -15,7 +15,7 @@ import { Banknote, Infinity as InfinityIcon, Landmark, SlidersHorizontal, Wallet
 import { useT, formatCurrency } from '../../../i18n';
 // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16] Bandera dark del frontend (mismo SSOT que
 // QCountry.jsx/Settings.jsx).
-import { COUNTRY_SYSTEM_UI, defaultCurrencyForCountry } from '../../../config/countries';
+import { COUNTRY_SYSTEM_UI, defaultCurrencyForCountry, pisoSoloOrienta } from '../../../config/countries';
 
 // [P1-BUDGET-INPUT-HARDEN · 2026-07-09] Sanea el monto custom a ENTERO de dígitos (un presupuesto total
 // es un número redondo, sin centavos/exponentes/negativos): descarta todo lo no-dígito, quita ceros a la
@@ -91,6 +91,14 @@ export const QBudget = ({ onAutoAdvance }) => {
     const _amountNum = Number(formData.budgetAmount);
     const belowMin = isCustom && formData.budgetAmount !== '' && formData.budgetAmount != null
         && _amountNum > 0 && _amountNum < minBudget;
+    // [P1-PLAN-LOTE-792 · 2026-09-28] (ronda 1 de revisión) En un mercado beta (lista sin precios) el piso
+    // ORIENTA: el paso deja seguir (`isCustomBudgetValid`) y el backend genera el plan con un aviso. Decir
+    // «Súbelo para poder crear un plan viable» con role="alert" y aria-invalid era falso en ES/MX/CO desde el
+    // 23-ago y, con este lote, también en US y PR. Mismo SSOT que el gate del paso: `pisoSoloOrienta`.
+    // tooltip-anchor: pisoSoloOrienta en QBudget (frontend/src/__tests__/lote792.qbudget.test.jsx)
+    const soloOrienta = pisoSoloOrienta(formData.country, COUNTRY_SYSTEM_UI);
+    const bajoPisoDuro = belowMin && !soloOrienta;
+    const bajoPisoOrienta = belowMin && soloOrienta;
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -168,22 +176,22 @@ export const QBudget = ({ onAutoAdvance }) => {
                                                 : t('Presupuesto total en pesos dominicanos')
                             }
                             aria-required="true"
-                            aria-invalid={belowMin || undefined}
+                            aria-invalid={bajoPisoDuro || undefined}
                             aria-describedby="budgetAmountHelp"
                             autoComplete="off"
-                            style={{ paddingLeft: '3.25rem', ...(belowMin ? { borderColor: 'var(--warning)' } : {}) }}
+                            style={{ paddingLeft: '3.25rem', ...(bajoPisoDuro ? { borderColor: 'var(--warning)' } : {}) }}
                         />
                     </div>
                     {/* [P1-BUDGET-A11Y · 2026-07-09] Mensaje ÚNICO con id estable (aria-describedby del input) +
                         aria-live: el lector de pantalla anuncia el cambio below-min/válido sin re-enfocar. */}
                     <span
                         id="budgetAmountHelp"
-                        role={belowMin ? 'alert' : undefined}
+                        role={bajoPisoDuro ? 'alert' : undefined}
                         aria-live="polite"
                         style={{
                             fontSize: '0.75rem', lineHeight: 1.4,
-                            color: belowMin ? 'var(--warning-text)' : 'var(--text-muted)',
-                            fontWeight: belowMin ? 600 : 400,
+                            color: bajoPisoDuro ? 'var(--warning-text)' : 'var(--text-muted)',
+                            fontWeight: bajoPisoDuro ? 600 : 400,
                         }}
                     >
                         {/* [P1-BUDGET-BANDS-RECALIBRATE · 2026-08-09] El mensaje da el
@@ -207,8 +215,10 @@ export const QBudget = ({ onAutoAdvance }) => {
                             paréntesis no se puede traducir sin ver la oración. El formato
                             del número sigue en `en-US` a propósito — cambiarlo aquí sería
                             un cambio de comportamiento, no una traducción. */}
-                        {belowMin
+                        {bajoPisoDuro
                             ? `${t('⚠️ El mínimo para {dias} días es {importe}.', { dias: cycleDays, importe: money(minBudget) })}${typicalCost ? ` ${t('Un plan típico ronda {importe}.', { importe: money(typicalCost) })}` : ''} ${t('Súbelo para poder crear un plan viable.')}`
+                            : bajoPisoOrienta
+                            ? `${t('Como referencia, el mínimo para {dias} días es {importe}.', { dias: cycleDays, importe: money(minBudget) })}${typicalCost ? ` ${t('Un plan típico ronda {importe}.', { importe: money(typicalCost) })}` : ''} ${t('Puedes seguir y crear tu plan con este monto.')}`
                             : `${t('La IA ajustará los ingredientes para acercarse a este monto.')} ${budgetIsPersonalized
                                 ? t('Mínimo {importe} para {dias} días (según tus calorías y metas).', { importe: money(minBudget), dias: cycleDays })
                                 : t('Mínimo {importe} para {dias} días.', { importe: money(minBudget), dias: cycleDays })
