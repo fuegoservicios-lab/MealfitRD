@@ -2,8 +2,10 @@
 //
 // El dueño pidió ver «las imágenes de los platos» del contador. El servidor no las tiene, y no por olvido: la
 // Política de Privacidad publicada dice «No retenemos la imagen una vez procesada» y la de IA «La foto no se conserva
-// una vez analizada». Guardarlas allí exige cambiar la política (decisión del dueño). Aquí se guardan en el teléfono
-// del usuario (IndexedDB), la ficha lo dice («Solo en este dispositivo»), y el servidor sigue sin retener nada.
+// una vez analizada». Guardarlas allí exige cambiar la política (decisión del dueño). [FUSIÓN legal ronda 2 · 2026-09-28]
+// Ya no lo dicen así: la foto del ESCÁNER no se guarda en el servidor, las del CHAT sí (chat_attachments) y esta copia
+// del dispositivo figura en Privacidad §13. Guardar en el servidor la del escáner sigue exigiendo cambiar la política.
+// Aquí se guardan en el teléfono del usuario (IndexedDB), la ficha lo dice («Solo en este dispositivo»), y el servidor sigue sin retener nada.
 //
 // Reglas:
 //  · La clave lleva el usuario (`<userId>:<mealId>`) y toda lectura lo comprueba: la app jamás pinta la foto de una

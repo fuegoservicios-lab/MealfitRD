@@ -160,6 +160,31 @@ const REFUTADAS = [
         frase: 'Sirven para escalar las cantidades',
         porque: 'restos de la frase del hogar: el presupuesto acota la lista, nada escala las cantidades a cuántos comen',
     },
+    // [FUSIÓN 0f + 6d · ronda 2 · 2026-09-28] Las prohibidas nuevas del landing (verdad-publica.json), en esta copia.
+    {
+        frase: 'No retenemos la imagen una vez procesada',
+        porque: 'las fotos del chat del coach se guardan en chat_attachments junto a la conversación (routers/diary.py → db_chat.create_chat_attachment); sólo la del escáner se analiza en memoria',
+    },
+    {
+        frase: 'La foto no se conserva una vez analizada',
+        porque: 'la misma afirmación en la Política de IA §1',
+    },
+    {
+        frase: 'se usa la voz de su dispositivo.',
+        porque: 'el respaldo del modo voz es speechSynthesis, que prefiere las voces «google» sin filtrar localService: en Chrome de escritorio son de red y el texto llega a Google',
+    },
+    {
+        frase: 'se usa la voz de tu dispositivo.',
+        porque: 'lo mismo, tuteado, en la Política de IA §1',
+    },
+    {
+        frase: 'Google trata las fotos bajo los',
+        porque: 'Google recibe también el texto del modo voz (P1-PLAN-LOTE-685); las condiciones cubren los dos',
+    },
+    {
+        frase: 'Ese acceso no incluye sus conversaciones',
+        porque: 'absoluta y falsa: hay acceso técnico directo a la base de datos; lo que se puede prometer es lo que el PANEL de soporte no muestra',
+    },
 ];
 
 // [P1-PLAN-LOTE-794 · ronda 2] Lo que la copia TIENE que decir, igual que las `exigidas` del landing. Sin
@@ -184,9 +209,24 @@ const EXIGIDAS = [
     { frase: 'en cuatro papeles distintos', porque: 'Google: fotos, avisos de Android, voz del modo voz (P1-PLAN-LOTE-685) e identidad (Privacidad §8)' },
     { frase: 'enviamos el texto de esa respuesta a Google (API de Gemini', porque: 'desde el 685 la voz del modo voz la genera Google a partir del texto de la respuesta (Privacidad §2)' },
     { frase: 'a Bioboros sólo llega el texto transcrito', porque: 'el dictado convierte la voz en texto en el dispositivo (Privacidad §2)' },
-    { frase: 'se usa la voz de su dispositivo', porque: 'el respaldo del modo voz es la voz del dispositivo, no un tercer proveedor' },
+    { frase: 'se usa la voz de su dispositivo', porque: 'el respaldo del modo voz es la voz del dispositivo o del navegador (Privacidad §2)' },
     { frase: 'Cada cambio queda registrado con quién lo hizo, cuándo y por qué, y cada consulta, con quién la hizo y cuándo.', porque: 'acceso del equipo de Bioboros (P1-PLAN-LOTE-771, Privacidad §5): cada acción del panel queda en admin_access_log' },
-    { frase: 'Ese acceso no incluye sus conversaciones con el asistente, sus fotos ni su perfil de salud.', porque: 'lo que el panel de soporte NO ve (Privacidad §5)' },
+    { frase: 'Desde ese panel no se ven sus conversaciones con el asistente, sus fotos ni su perfil de salud.', porque: 'lo que el panel de soporte NO ve (Privacidad §5), acotado al panel' },
+    // [FUSIÓN 0f + 6d · ronda 2 · 2026-09-28] Las exigidas nuevas del landing, en esta copia.
+    { frase: 'puede generarse en servidores de su fabricante (por ejemplo, Google en Chrome)', porque: 'el respaldo de la voz puede ser de red (Privacidad §2 y Uso de IA §1)' },
+    { frase: 'las lee la voz de su navegador o dispositivo', porque: 'lo mismo en Protección de Datos §5' },
+    { frase: '<strong>lee en voz alta las respuestas del coach</strong>. Para las fotos', porque: 'Google en su papel de voz, en la lista de proveedores de Privacidad §4' },
+    { frase: 'si usa el modo voz (sólo a Google)', porque: 'el texto que se lee en voz alta, en la lista de lo que se envía (Privacidad §4)' },
+    { frase: 'Google trata las fotos y el texto del modo voz', porque: 'las condiciones de Google cubren fotos y voz (Privacidad §4)' },
+    { frase: 'en el modo voz, <strong>lee en voz alta las respuestas del coach</strong>', porque: 'Google y la voz en la Política de IA §2' },
+    { frase: 'si usas el modo voz (sólo a Google)', porque: 'la lista de lo que se envía en la Política de IA §2' },
+    { frase: 'que en el modo voz también convierte en voz el texto de las respuestas del coach', porque: 'Google por la voz en las transferencias (Protección de Datos §6)' },
+    { frase: 'Las fotos que usted envía al chat del coach sí se guardan', porque: 'chat_attachments (Privacidad §2)' },
+    { frase: 'Las fotos que envías al chat del coach sí se guardan', porque: 'lo mismo en la Política de IA §1' },
+    { frase: '<strong>Fotos de sus comidas (<code>IndexedDB</code>):</strong>', porque: 'la copia de la foto en el dispositivo (fotosDeComidas.js, P1-PLAN-LOTE-721), en Privacidad §13' },
+    { frase: 'y los regalos que ha recibido, con su motivo', porque: 'lo que el panel de soporte muestra (admin_cuentas.ficha, Privacidad §5)' },
+    { frase: 'se conserva aunque usted elimine su cuenta', porque: 'admin_access_log no tiene FK: el registro del equipo sobrevive al borrado (Privacidad §9)' },
+    { frase: 'lo que se conserva después, y por qué, está en la Política de Privacidad (Sección 9)', porque: 'Protección de Datos §4 remite a lo que sobrevive al borrado' },
     { frase: 'aparece en la exportación de sus datos', porque: 'los regalos de cuenta (account_grants) salen en la exportación (Privacidad §2)' },
     { frase: 'genera días de su plan', porque: 'OpenAI genera días del plan en todos los planes, no sólo revisa los de pago (Privacidad §4)' },
     { frase: 'genera días de tu plan', porque: 'lo mismo en la Política de IA §2' },
