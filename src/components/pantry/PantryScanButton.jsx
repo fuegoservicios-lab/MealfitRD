@@ -42,6 +42,8 @@
 // ahora selecciona COMPORTAMIENTO en vez de ocultar el componente.
 import { useState, useRef, useCallback } from 'react';
 import { fetchWithAuth } from '../../config/api';
+// [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes de mandar la foto.
+import { asegurarConsentimientoIA, faltaPermisoIA } from '../../consent/consentimientoIA';
 import { Plus, Camera, ImageUp, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { invalidateInventoryCache } from '../../utils/pantryCache';
@@ -153,6 +155,9 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
         setScanning(true);
         setScanResults(null);
         try {
+            // [P1-PLAN-LOTE-844 · 2026-09-29] La foto de la nevera va a la IA de terceros (Google Gemini): primero el
+            // permiso. Con «Ahora no» no sale nada y el aviso lo dice.
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return null;
             const b64 = await _downscaleToB64(file);
             const resp = await fetchWithAuth('/api/inventory/photo-scan', {
                 method: 'POST',

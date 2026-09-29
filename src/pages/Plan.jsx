@@ -12,6 +12,8 @@ import { TIER_CREDITS } from '../config/plans';
 import { isTrackingMode } from '../config/dashboardNav';
 import { marcarModoPlanTrasGenerar } from '../utils/planModeMirror';
 import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
+// [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes de generar o reintentar.
+import { asegurarConsentimientoIA, faltaPermisoIA } from '../consent/consentimientoIA';
 // [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] Gate único de comercio (config/platform.js).
 import { nativeHidesCommerce } from '../config/platform';
 import { initialViaQueueEnabled, idempotencyKeyFor, clearIdempotencyKey } from '../config/generation';
@@ -135,6 +137,15 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
             // [P2-I18N-PLAN-TOASTS-ERROR-MESSAGE] ver la rama 429.
             const err = new Error(mensajeDeError(body402, t('Has alcanzado el límite de créditos de tu plan.'), t));
             err.code = 'quota_exceeded';
+            throw err;
+        }
+        // [P1-PLAN-LOTE-844 · 2026-09-29] 428 = sin permiso para la IA de terceros. `fetchWithAuth` ya abrió la hoja y
+        // repitió la petición si se aceptó; si el 428 llega hasta aquí es que se dijo «Ahora no». Terminal: ni
+        // reintento ni el endpoint síncrono (daría el mismo 428 y volvería a abrir la hoja).
+        if (response.status === 428) {
+            const err = new Error(t('Activa la IA para usar esto'));
+            err.code = 'ai_consent_required';
+            err.terminal = true;
             throw err;
         }
         // [P1-BUDGET-422-CODE-LOST · 2026-06-22] 422 = validación/gate pre-gen del backend
@@ -1239,6 +1250,16 @@ const Plan = () => {
                     return;
                 }
 
+                // [P1-PLAN-LOTE-844 · 2026-09-29] El permiso para la IA de terceros, antes de mandar el perfil. El
+                // formulario y «Regenerar» ya lo piden antes de llegar aquí; esto cubre los demás caminos a /plan (el
+                // rescate de una generación, un aviso). Con «Ahora no» no sale nada: fuera la bandera y al panel.
+                if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) {
+                    if (ignore) return;
+                    safeLocalStorageRemove('mealfit_plan_in_progress');
+                    navigate('/dashboard', { replace: true });
+                    return;
+                }
+
                 // FASE 1: UI de "Analizando"
                 setStatus('analyzing');
                 await new Promise(r => setTimeout(r, 1500));
@@ -1565,6 +1586,14 @@ const Plan = () => {
                                 duration: 6000,
                             });
                         });
+                        navigate('/dashboard', { replace: true });
+                        return;
+                    }
+                    // [P1-PLAN-LOTE-844 · 2026-09-29] El servidor pidió el permiso para la IA (428) y se dijo «Ahora
+                    // no»: no se generó nada y el aviso «Activa la IA para usar esto» ya salió. Va ANTES de la rama
+                    // `terminal` (que diría «Revisa tus datos», y aquí los datos están bien).
+                    if (error.code === 'ai_consent_required') {
+                        safeLocalStorageRemove('mealfit_plan_in_progress');
                         navigate('/dashboard', { replace: true });
                         return;
                     }
@@ -2265,6 +2294,8 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
     const handleSimplifyChunk = async (chunkId) => {
         setSimplifyingChunkId(chunkId);
         try {
+            // [P1-PLAN-LOTE-844] Regenerar el bloque vuelve a mandar el perfil a la IA: primero el permiso.
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;
             const { regenerateChunkSimplified } = await import('../config/api');
             const res = await regenerateChunkSimplified(newPlan.id, chunkId);
             if (res.ok) {
@@ -2294,6 +2325,8 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
     const handleRetry = async (chunkId) => {
         setIsRetrying(true);
         try {
+            // [P1-PLAN-LOTE-844] Reintentar el bloque vuelve a mandar el perfil a la IA: primero el permiso.
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;
             const res = await retryPlanChunk(newPlan.id, chunkId);
             if (res.ok) {
                 import('sonner').then(({ toast }) => {

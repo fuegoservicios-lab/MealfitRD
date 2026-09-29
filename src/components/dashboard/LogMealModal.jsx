@@ -41,6 +41,8 @@ import { createPortal } from 'react-dom';
 import { X, Search, Plus, Trash2, Loader2, Refrigerator, Camera, MessageSquareText, Calculator, History, PenLine, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
+// [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes de estimar por texto.
+import { asegurarConsentimientoIA, faltaPermisoIA } from '../../consent/consentimientoIA';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -301,6 +303,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
         if (!customDraft || estimating) return;
         setEstimating(true);
         try {
+            // [P1-PLAN-LOTE-844] Lo escrito va a la IA de terceros: primero el permiso («Ahora no» = se teclean a mano).
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;
             const res = await fetchWithAuth('/api/diary/consumed/estimate-macros', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -339,6 +343,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
         if (texto.length < 3 || calculando) return;
         setCalculando(true);
         try {
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;   // [P1-PLAN-LOTE-844]
             const res = await fetchWithAuth('/api/diary/consumed/estimate-plate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

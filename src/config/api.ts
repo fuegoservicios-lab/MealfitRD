@@ -1,6 +1,12 @@
 import { getBackendToken } from '../authClient';
 import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 
+// [P1-PLAN-LOTE-844] El permiso para la IA de terceros se importa al hacer falta, nunca en el arranque (techo de
+// `scripts/presupuestos.mjs`): la cabecera del invitado, solo en peticiones sin sesión; el resto, ante un 428 o una
+// adopción del plan del invitado.
+const _cabeceraIA = () => import('../consent/cabecera');
+const _permisoIA = () => import('../consent/consentimientoIA');
+
 // Central API configuration
 // En desarrollo, apuntamos directamente al servidor Python local.
 // En producción, `VITE_API_BASE_URL` define dónde vive el backend.
@@ -152,7 +158,7 @@ const _signalIfSessionExpired = (res: Response, url: string): Response => {
 };
 
 // Custom fetch wrapper that includes Neon Auth JWT
-export const fetchWithAuth = async (url: string, options: ApiRequestOptions = {}) => {
+const _fetchWithAuthUnaVez = async (url: string, options: ApiRequestOptions = {}) => {
     const token = await _getTokenWithTimeout();
 
     const headers = new Headers(options.headers || {});
@@ -177,6 +183,14 @@ export const fetchWithAuth = async (url: string, options: ApiRequestOptions = {}
     const _mfSession = safeLocalStorageGet('mealfit_mf_session', null);
     if (_mfSession) {
         headers.set('X-MF-Session', _mfSession);
+    }
+    // [P1-PLAN-LOTE-844 · 2026-09-29] El permiso para la IA de terceros del INVITADO (sin él, su llamada a la IA da 428).
+    // Una petición CON sesión (Bearer o X-MF-Session) nunca lo lleva: el permiso de una cuenta manda en el servidor, y
+    // el backend trata un token inválido o caducado como invitado, así que una cabecera sacada del dispositivo podría
+    // colar una llamada a la IA de alguien que lo retiró en otro dispositivo. Solo hacia nuestra API.
+    if (!token && !_mfSession && (!url.startsWith('http') || (API_BASE && url.startsWith(API_BASE)))) {
+        const cabecera = (await _cabeceraIA()).cabeceraDelInvitado();
+        if (cabecera) headers.set(cabecera[0], cabecera[1]);
     }
 
     // Envolvemos cualquier ruta relativa (ej. "/api/analyze") con API_BASE
@@ -220,6 +234,27 @@ export const fetchWithAuth = async (url: string, options: ApiRequestOptions = {}
     } finally {
         clearTimeout(timer);
     }
+};
+
+// [P1-PLAN-LOTE-844 · 2026-09-29] Permiso para la IA de terceros (auditoría App Store, fila 4), en EL cliente y no en
+// cada pantalla:
+//   · CUALQUIER 428 `ai_consent_required` abre la hoja del permiso y, aceptada, repite la petición UNA vez. Vale también
+//     para los SSE (`/analyze/stream`, `/chat/stream`): el 428 llega con las cabeceras, antes de que haya stream. El
+//     503 `ai_consent_unavailable` («no pudimos leer tu permiso») NO la abre: pasa tal cual al llamador.
+//   · La adopción del plan del invitado lleva su `session_id`, para que su permiso pase a la cuenta con su fecha
+//     original (los dos llamadores viven en AssessmentContext, que tiene tope de líneas).
+export const fetchWithAuth = async (url: string, options: ApiRequestOptions = {}) => {
+    const adopcion = typeof url === 'string' && url.includes('/adopt-guest-plan');
+    const opts = adopcion ? (await _permisoIA()).conSesionDelPermisoInvitado(options) : options;
+    const res = await _fetchWithAuthUnaVez(url, opts);
+    if (res && res.status === 428) {
+        return (await _permisoIA()).resolverPermisoRequerido(res, () => _fetchWithAuthUnaVez(url, opts));
+    }
+    if (adopcion && res) {
+        const adoptado = !!res.ok;
+        _permisoIA().then((m) => m.trasAdoptarPlanInvitado(adoptado)).catch(() => {});
+    }
+    return res;
 };
 
 // [P1-DASHBOARD-POLLING-ABORT · 2026-05-23] options se forwardea a fetchWithAuth

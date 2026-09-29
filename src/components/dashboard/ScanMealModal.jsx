@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
+// [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes de mandar la foto o un texto a la IA.
+import { asegurarConsentimientoIA, faltaPermisoIA } from '../../consent/consentimientoIA';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 // [P1-PLAN-LOTE-106] la misma hoja inferior que el componedor: deslizar para cerrar, el toque no pasa al fondo,
 // el scroll del fondo vuelve a su sitio; y los mismos chips para «¿Qué comida es?» y «¿Cuándo?».
@@ -380,6 +382,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
         if (!d || calculando !== null) return;
         setCalculando(i);
         try {
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;   // [P1-PLAN-LOTE-844]
             const res = await fetchWithAuth('/api/diary/scan/ajuste-duda', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -421,6 +424,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
         setCalculandoCorreccion(c.key);
         const cantidadCalculada = Number(c.qty) > 0 ? Number(c.qty) : c.q0;   // [P1-PLAN-LOTE-380]
         try {
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;   // [P1-PLAN-LOTE-844]
             const res = await fetchWithAuth('/api/diary/scan/ingrediente', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -442,6 +446,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
         setCorrigiendo(null);
         setCalculandoCorreccion('*');
         try {
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;   // [P1-PLAN-LOTE-844]
             const res = await fetchWithAuth('/api/diary/consumed/estimate-plate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -761,6 +766,12 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
         _ponerPlato(id, { estado: 'analizando', fallo: null });
         const fallar = (mensaje, reintentable) => _ponerPlato(id, { estado: 'error', fallo: { mensaje, reintentable } });
         try {
+            // [P1-PLAN-LOTE-844 · 2026-09-29] La foto va a la IA de terceros (Google Gemini): primero el permiso. Con
+            // «Ahora no» el plato queda con ese motivo y «Reintentar», que vuelve a preguntar.
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) {
+                fallar(t('Activa la IA para usar esto'), true);
+                return;
+            }
             // [P1-MEAL-SCAN-GEMMA] Reescala a ≤1024px JPEG; si el browser no
             // decodifica el formato (HEIC/desktop), sube el original tal cual.
             let uploadFile = file;

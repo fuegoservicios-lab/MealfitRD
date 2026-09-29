@@ -78,6 +78,9 @@ import RecordatoriosPorComida from '../components/settings/RecordatoriosPorComid
 import { acusePrioritario } from '../hooks/useAutoguardado';
 // [P1-ACCOUNT-DELETE-1 · 2026-06-22] Misma sección "Eliminar cuenta" que /configuracion.
 import DeleteAccountSection from '../components/account/DeleteAccountSection';
+// [P1-PLAN-LOTE-844] Privacidad → «IA de terceros», y la analítica de «Ayuda a mejorar» también en la cuenta.
+import BloqueIADeTerceros from '../consent/BloqueIADeTerceros';
+import { guardarAnaliticaEnServidor } from '../consent/apiConsentimiento';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
 import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAvatars';
 import { getAvatarId, persistAvatar } from '../utils/avatarStore';
@@ -1460,6 +1463,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // ven los dos hosts. No vuelvas a escribir la clave a pelo.
     const [analyticsEnabled, setAnalyticsEnabled] = useState(() => !isAnalyticsOptedOut());
     const handleToggleAnalytics = () => {
+        // [P1-PLAN-LOTE-844 · 2026-09-29] Este interruptor y la casilla de analítica de la hoja del permiso para la IA
+        // son el MISMO dato: queda también en la cuenta (user_consents, con fecha). Fuera del updater de estado (en
+        // StrictMode se ejecuta dos veces) y sin esperar: aquí manda el dispositivo, y un fallo no revierte nada.
+        if (userProfile?.id) guardarAnaliticaEnServidor(!analyticsEnabled).catch(() => {});
         setAnalyticsEnabled((prev) => {
             const next = !prev;
             persistAnalyticsOptOut(!next);
@@ -4416,6 +4423,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     <ExternalLink size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} aria-hidden="true" />
                                 </a>
                             ))}
+
+                            {/* [P1-PLAN-LOTE-844] «IA de terceros»: el permiso aceptado (versión y fecha) y «Retirar mi permiso». */}
+                            <BloqueIADeTerceros />
 
                             <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.75rem' }}>{t('Preferencias')}</h3>
 

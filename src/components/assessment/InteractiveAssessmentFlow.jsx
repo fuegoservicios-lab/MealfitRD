@@ -59,6 +59,8 @@ import { useT, useTn } from '../../i18n';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 // [P1-PLAN-LOTE-164] «Completar lo que falta»: quien viene del contador solo contesta lo que la rama corta se saltó.
 import { leerCompletarFormulario, fijarPasosCompletar, terminarCompletarFormulario } from '../../utils/completarFormulario';
+// [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes del envío.
+import { asegurarConsentimientoIA, faltaPermisoIA } from '../../consent/consentimientoIA';
 
 // [P1-PLAN-LOTE-164 · 2026-09-22] Campos que el backend puede rechazar (422) y que NO viven en el `fields` de ningún
 // paso: se buscan por el campo hermano que sí está en su paso, o por el `id` del paso (prefijo #).
@@ -329,6 +331,14 @@ const InteractiveAssessmentFlow = () => {
                 duration: 4500,
             });
             _irAlCampo('medicalConditions');
+            return;
+        }
+
+        // [P1-PLAN-LOTE-844 · 2026-09-29] El permiso para la IA de terceros ANTES de navegar a /plan: allí sale el
+        // perfil de salud hacia la IA. También en modo invitado (el camino del revisor de Apple en una instalación
+        // limpia). Con «Ahora no» se queda en el formulario, con sus respuestas, y el aviso lo dice.
+        if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) {
+            submittingRef.current = false;
             return;
         }
 

@@ -115,6 +115,9 @@ import PantryConsentModal from '../components/common/PantryConsentModal';
 // al entrar al Dashboard, 100% de usuarios pagan el costo aunque jamás
 // descarguen PDF. Tooltip-anchor: P2-LAZY-PDF.
 import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
+// [P1-PLAN-LOTE-844] El permiso para la IA de terceros: antes de cambiar plato, regenerar o arreglar un día.
+import { asegurarConsentimientoIA, faltaPermisoIA } from '../consent/consentimientoIA';
+import { useConsentimientoIA } from '../consent/useConsentimientoIA';
 import { reanudarPlanes } from '../utils/planModeResume';
 // [P1-DASH-BUDGET-EDIT · 2026-06-23] Ciclo de compras (días) para el editor de presupuesto.
 // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] effectiveBudgetCurrency — la moneda REALMENTE
@@ -912,6 +915,9 @@ const DashboardInner = () => {
     // cada comida (Ver receta / Cambiar Plato / Like): en oscuro sus fondos
     // pastel claros se ven lavados, así que usamos variantes vívidas/notorias.
     const isDark = isDarkActive();
+    // [P1-PLAN-LOTE-844] ¿Se SABE que falta el permiso para la IA? Entonces la cola del plan no avanza (el backend la
+    // frena) y los días vacíos no pueden prometer «se llenará solo».
+    const sinPermisoIA = useConsentimientoIA().vigente === false;
     // 1. Obtenemos estado y funciones del Contexto Global
     const {
         planData,
@@ -1309,6 +1315,8 @@ const DashboardInner = () => {
         if (!planData?.id || fixSodiumDayLoading) return;
         setFixSodiumDayLoading(true);
         try {
+            // [P1-PLAN-LOTE-844] Arreglar el día lo rehace la IA de terceros: primero el permiso.
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;
             const resp = await fetchWithAuth(`${API_BASE}/api/plans/${planData.id}/fix-sodium-day`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1421,6 +1429,12 @@ const DashboardInner = () => {
     }) => {
         if (swapInFlightLock.current) return;
         swapInFlightLock.current = true;
+        // [P1-PLAN-LOTE-844] Cambiar el plato lo decide la IA de terceros: primero el permiso (con el candado puesto,
+        // para que un segundo toque no abra otra petición mientras la hoja está abierta).
+        if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) {
+            swapInFlightLock.current = false;
+            return;
+        }
         setRegeneratingId(mealIndex);
         const toastId = toast.loading(loadingTitle, { duration: 20000, description: t('Buscando una alternativa deliciosa...') });
         try {
@@ -7859,7 +7873,8 @@ const DashboardInner = () => {
             {/* [P1-ARQ25-F1-CLOSE · 2026-09-02] Señal visible de «tu plan se está generando»
                 mientras el placeholder de la cola no tiene días. Sin esto el panel parecía
                 un plan vacío y el cliente podía confundirlo con un error. */}
-            {_isPlaceholderGenerating && (
+            {/* [P1-PLAN-LOTE-844] Sin permiso para la IA el bloque NO se está generando: lo dice el día vacío de abajo. */}
+            {_isPlaceholderGenerating && (sinPermisoIA ? null : (
                 <div
                     role="status"
                     aria-live="polite"
@@ -7879,7 +7894,7 @@ const DashboardInner = () => {
                         </span>
                     </div>
                 </div>
-            )}
+            ))}
             <RestockNudge
                 planData={planData}
                 // [P1-DAILY-NOT-CYCLE · 2026-07-28] Mismo fallback que WaterTracker
@@ -8853,6 +8868,23 @@ const DashboardInner = () => {
                                 // original queda solo para cola confirmada muerta / sin poll.
                                 const _emptyDayPaused = Number(chunkStatusInfo?.pending_user_action_count || 0) > 0;
                                 const _emptyDayInFlight = Number(chunkStatusInfo?.in_flight_count || 0) > 0;
+                                // [P1-PLAN-LOTE-844 · 2026-09-29] Sin permiso para la IA la cola NO avanza: el backend
+                                // frena la recogida de bloques (843). «Se llenará solo» sería mentira, y actualizar la
+                                // Nevera tampoco lo destraba: lo que falta es el permiso. Va antes que la pausa por Nevera.
+                                if (sinPermisoIA && (_isPlaceholderGenerating || _emptyDayPaused || _emptyDayInFlight
+                                    || Number(chunkStatusInfo?.scheduled_count || 0) > 0)) {
+                                    return (
+                                        <EmptyState
+                                            icon={Lock}
+                                            title={t('Activa la IA para completar tu plan')}
+                                            description={t('Tus próximos días se preparan con IA y necesitamos tu permiso para enviarle tus datos. Mientras tanto, el diario manual y el agua siguen funcionando.')}
+                                            cta={{
+                                                label: t('Activar la IA'),
+                                                onClick: () => { void asegurarConsentimientoIA(); },
+                                            }}
+                                        />
+                                    );
+                                }
                                 if (_emptyDayPaused) {
                                     return (
                                         <EmptyState
@@ -10148,6 +10180,7 @@ const DashboardInner = () => {
                             // [P1-DASH-WEEK-NAV] `writableIdx`, no `activeDayIndex`: el derivado
                             // cae a 0 y regeneraria el dia equivocado.
                             if (writableIdx === null) return;
+                            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;   // [P1-PLAN-LOTE-844]
                             const _rd = await regenerateDay(writableIdx, optionId);
                             if (_rd?.status === 402) _noCreditsToast(); // [P3-NO-CREDITS-402-SWAP]
                         } finally {
@@ -10243,6 +10276,7 @@ const DashboardInner = () => {
                             // [P1-DASH-WEEK-NAV] `writableIdx`, no `activeDayIndex`: el derivado
                             // cae a 0 y regeneraria el dia equivocado.
                             if (writableIdx === null) return;
+                            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;   // [P1-PLAN-LOTE-844]
                             const _rd = await regenerateDay(writableIdx, optionId);
                             if (_rd?.status === 402) _noCreditsToast(); // [P3-NO-CREDITS-402-SWAP]
                         } else {
@@ -10361,6 +10395,7 @@ const DashboardInner = () => {
                             // [P1-DASH-WEEK-NAV] `writableIdx`, no `activeDayIndex`: el derivado
                             // cae a 0 y regeneraria el dia equivocado.
                             if (writableIdx === null) return;
+                            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;   // [P1-PLAN-LOTE-844]
                             await regenerateDay(writableIdx, 'dislike');
                         } finally {
                             setIsDayUpdating(false);

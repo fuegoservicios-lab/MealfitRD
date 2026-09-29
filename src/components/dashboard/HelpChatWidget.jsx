@@ -12,6 +12,8 @@ import { medirTecladoDeVentana } from '../../utils/keyboardViewport';
 import { safeJSONParse } from '../../utils/safeJSONParse';
 import { useT, getLocale } from '../../i18n';
 import styles from './HelpChatWidget.module.css';
+// [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes de cada pregunta.
+import { asegurarConsentimientoIA, faltaPermisoIA } from '../../consent/consentimientoIA';
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../../data/routeMeta';
@@ -132,6 +134,12 @@ export default function HelpChatWidget({ onClose }) {
         const clean = (text ?? '').trim().slice(0, MAX_INPUT);
         if (!clean || sendingRef.current) return;
         sendingRef.current = true;
+        // [P1-PLAN-LOTE-844 · 2026-09-29] La pregunta va a la IA de terceros: primero el permiso. Con «Ahora no» la
+        // pregunta se queda escrita y el correo de soporte (abajo) sigue a mano.
+        if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) {
+            sendingRef.current = false;
+            return;
+        }
         const controller = new AbortController();
         abortRef.current = controller;
         setInput('');

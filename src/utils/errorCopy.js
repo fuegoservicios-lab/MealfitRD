@@ -68,6 +68,11 @@ const COPY_POR_CODIGO = {
         'Para garantizar la calidad clínica del plan, selecciona máximo {max} condiciones prioritarias.',
         { max: (d && Number.isFinite(Number(d.max))) ? Number(d.max) : 3 },
     ),
+    // [P1-PLAN-LOTE-844 · 2026-09-29] El permiso para la IA de terceros (backend 843, cuerpo plano con `error_code`).
+    // 428: sin permiso — `fetchWithAuth` ya abrió la hoja; si se dijo «Ahora no», esto es lo que queda escrito.
+    // 503: el servidor no pudo LEER el permiso; no es «no lo tienes», así que no se pide activarlo.
+    ai_consent_required: (t) => t('Activa la IA para usar esto'),
+    ai_consent_unavailable: (t) => t('No pudimos comprobar tu permiso para usar la IA. Inténtalo en unos minutos.'),
 };
 
 /** El código que trae una respuesta de error, mire donde mire el backend. */

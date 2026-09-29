@@ -18,6 +18,8 @@ import { getFreshPlanCount } from '../utils/quotaCache';
 // de `regeneratePlan`, o sea al pulsar el botón — con el catálogo ya cargado.
 import { t } from '../i18n';
 import { safeLocalStorageGet } from '../utils/safeLocalStorage';
+// [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes de regenerar.
+import { asegurarConsentimientoIA, faltaPermisoIA } from '../consent/consentimientoIA';
 
 
 export const useRegeneratePlan = () => {
@@ -35,7 +37,8 @@ export const useRegeneratePlan = () => {
         entry_point = null
     } = {}) => {
         // [P1-PLAN-LOTE-715 · 2026-09-28] Devuelve CÓMO terminó: 'navegado' (fue a /plan), 'formulario' (faltaba un
-        // dato y fue al cuestionario), 'sin_creditos', 'ocupado', 'cargando' o 'error'. Antes no devolvía nada y nunca
+        // dato y fue al cuestionario), 'sin_creditos', 'sin_permiso_ia' (P1-PLAN-LOTE-844: dijo «Ahora no» al permiso
+        // para la IA), 'ocupado', 'cargando' o 'error'. Antes no devolvía nada y nunca
         // lanzaba: Configuración anunciaba «Datos guardados. Regenerando plan…» aunque el plan no se regenerara.
         // Los callers que ignoran el valor siguen igual.
         // Protección contra doble disparo (auto-rotación + clic manual simultáneo)
@@ -110,6 +113,14 @@ export const useRegeneratePlan = () => {
                     description: t('Has usado todos tus créditos de regeneración este mes.')
                 });
                 return 'sin_creditos';
+            }
+
+            // [P1-PLAN-LOTE-844 · 2026-09-29] Regenerar manda el perfil a la IA de terceros: primero el permiso, y
+            // ANTES de tocar la Nevera (vaciar consumidos) o navegar. Con «Ahora no» no cambia nada.
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) {
+                isNavigatingRef.current = false;
+                if (toastId) toast.dismiss(toastId);
+                return 'sin_permiso_ia';
             }
 
             let previousMeals = [];

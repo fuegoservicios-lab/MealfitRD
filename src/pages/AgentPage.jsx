@@ -143,6 +143,8 @@ import { useDictado } from '../hooks/useDictado';
 // [P1-PLAN-LOTE-682] Modo voz del coach: hablarle y oírle con la voz del propio dispositivo (cero coste de API).
 import { useConversacionPorVoz } from '../hooks/useConversacionPorVoz';
 import { siguienteTrozoParaVoz } from '../utils/vozDelCoach';
+// [P1-PLAN-LOTE-844] El permiso para la IA de terceros: antes de cada mensaje al coach y del modo voz.
+import { asegurarConsentimientoIA, faltaPermisoIA } from '../consent/consentimientoIA';
 import { trackEvent } from '../utils/analytics';
 // La pantalla del modo voz se pide al abrirlo: quien nunca lo usa no la descarga.
 const ModoVoz = lazy(() => import('../components/agent/ModoVoz'));
@@ -275,6 +277,13 @@ const _agentErrorCopy = () => ({
         text: t('Esa respuesta cambió mientras tanto. Recarga la conversación para ver la versión actual.'),
         retryable: false,
         reloadHistory: true,
+    },
+    // [P1-PLAN-LOTE-844 · 2026-09-29] 428 = sin permiso para la IA de terceros. `fetchWithAuth` ya abrió la hoja; si
+    // llega aquí es que se dijo «Ahora no». Reintentable: reintentar vuelve a pasar por el permiso (la hoja).
+    428: {
+        icon: '🔒',
+        text: t('Activa la IA para usar esto'),
+        retryable: true,
     },
     401: {
         icon: '🔐',
@@ -2096,6 +2105,15 @@ const AgentPage = () => {
     const [pistaDeLaBurbuja, setPistaDeLaBurbuja] = useState(false);
     const abrirModoVoz = () => {
         if (isTurnActiveRef.current) return;
+        // [P1-PLAN-LOTE-844 · 2026-09-29] Lo que se dice en el modo voz va a la IA (el texto al coach, sus respuestas a
+        // la voz de Gemini): sin permiso, primero la hoja. Aceptar no abre el modo voz solo: necesita el TOQUE (iOS no
+        // deja hablar ni escuchar sin un gesto, y la respuesta de la hoja ya no lo es), así que se vuelve a tocar.
+        if (faltaPermisoIA()) {
+            asegurarConsentimientoIA().then((ok) => {
+                if (ok) toast.info(t('Listo. Vuelve a tocar el modo voz para empezar.'));
+            });
+            return;
+        }
         if (dictado.escuchando) dictado.cancelar();
         try { chatInputRef.current?.blur(); } catch (_e) { /* sin foco que soltar */ }
         trackEvent('coach_voz_abierto');
@@ -3441,6 +3459,9 @@ const AgentPage = () => {
         // [P1-PLAN-LOTE-688] Con el modo voz activo (también minimizado) lo ESCRITO no sale: lo que dice va por su turno
         // de voz (llega como texto, `overrideInput`). Dos turnos a la vez chocarían en la misma burbuja y en el servidor.
         if (typeof overrideInput !== 'string' && callModeRef.current) return;
+        // [P1-PLAN-LOTE-844 · 2026-09-29] El permiso para la IA de terceros ANTES de abrir el turno: el mensaje y sus
+        // fotos van a la IA. Con «Ahora no» no pasa nada —el borrador sigue en la caja— y el aviso lo dice.
+        if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;
         // [P1-PLAN-LOTE-690 → 695] Va DESPUÉS del guard de entrada (test_p1_chat_stop_power lo exige en los primeros
         // 1.800 caracteres de handleSend) y ANTES de abrir el turno: la reanudación vuelve a entrar por aquí.
         // [P1-PLAN-LOTE-690] Con una foto esperando sus respuestas, lo que se escriba (también tras «Otra…») ES la
