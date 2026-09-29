@@ -54,7 +54,18 @@ describe('P1-PLAN-LOTE-842 · los chips de salud no llegan a PostHog (SDK y comp
         vi.stubEnv('VITE_POSTHOG_KEY', TOKEN);
         const cliente = await import('../utils/posthogClient');
         await cliente.initPostHog();
-        window.posthog.on('eventCaptured', (ev) => {
+        // [842, ronda 3] La app ya arranca con el autocapture APAGADO (lote840.test.js). Aquí se prueba la SEGUNDA
+        // capa: si alguien lo vuelve a encender, `ph-no-capture` sigue descartando estos clics. Por eso los eventos
+        // se escuchan en una instancia aparte con la misma configuración y el autocapture encendido.
+        const { posthogCaptureOptions } = await import('../utils/observabilityScope');
+        const segundaCapa = window.posthog.init(TOKEN, {
+            ...posthogCaptureOptions(),
+            autocapture: true,
+            cookieless_mode: 'always',
+            disable_persistence: true,
+            advanced_disable_flags: true,
+        }, 'segundaCapa842');
+        segundaCapa.on('eventCaptured', (ev) => {
             if (ev.event === '$autocapture') autocapturas.push(ev);
         });
     });

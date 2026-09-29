@@ -72,8 +72,10 @@ describe('[P1-LANDING-OBS-PAPER] alcance de la observabilidad por host', () => {
         expect(posthogCaptureOptions(APEX).autocapture).toBe(false);
     });
 
-    it('conserva el autocapture dentro de la app', () => {
-        expect(posthogCaptureOptions(APP).autocapture).toBe(true);
+    // [P1-PLAN-LOTE-842 · 2026-09-29] También apagado dentro de la app: la posición del control pulsado delataba datos
+    // de salud aunque el texto fuera enmascarado (lote842.test.jsx).
+    it('apaga el autocapture también dentro de la app', () => {
+        expect(posthogCaptureOptions(APP).autocapture).toBe(false);
     });
 
     it('PRESERVA el embudo: pageview y pageleave siguen vivos en el landing', () => {

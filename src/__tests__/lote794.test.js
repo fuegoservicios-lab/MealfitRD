@@ -204,10 +204,11 @@ describe('P1-PLAN-LOTE-794 · PostHog sin cookies ni almacenamiento (SDK real)',
         expect(window.posthog.config.advanced_disable_flags).toBe(true);
     });
 
-    // Sin remote config, el autocapture lo decide la config local (autocapture.js `isEnabled`): sigue vivo
-    // dentro de la app, que es lo que la Política de Privacidad §7 declara («el texto visible» de lo que se pulsa).
-    it('el autocapture sigue encendido sin remote config', () => {
-        expect(window.posthog.autocapture.isEnabled).toBe(true);
+    // Sin remote config, el autocapture lo decide la config local (autocapture.js `isEnabled`).
+    // [P1-PLAN-LOTE-842 · 2026-09-29] Y la config local lo APAGA en la app (observabilityScope.js): la posición del
+    // control pulsado delataba datos de salud aunque el texto fuera enmascarado.
+    it('el autocapture está apagado y sin remote config nada lo enciende', () => {
+        expect(window.posthog.autocapture.isEnabled).toBe(false);
     });
 
     it('apagada desde OTRA pestaña, el refresco periódico de flags no manda el id de la cuenta', async () => {

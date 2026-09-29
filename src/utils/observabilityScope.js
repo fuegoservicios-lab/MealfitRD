@@ -48,10 +48,17 @@ export const isMarketingVisit = (hostname) => isApexHost(hostname);
 export const shouldAttachSentryReplay = (hostname) => !isMarketingVisit(hostname);
 
 /** Opciones de captura de PostHog según el alcance de la visita. */
-export const posthogCaptureOptions = (hostname) => ({
+// El host ya no cambia el autocapture (842: apagado en todas partes); el parámetro se conserva por los callers.
+export const posthogCaptureOptions = (_hostname) => ({
     capture_pageview: true,
     capture_pageleave: true,
-    autocapture: !isMarketingVisit(hostname),
+    // [P1-PLAN-LOTE-842 · 2026-09-29] Autocapture APAGADO también dentro de la app. Enmascarar el texto (716) no
+    // bastaba, porque la POSICIÓN del control pulsado (`nth_child` en `$elements`) delataba la opción (la condición
+    // médica marcada, el nivel de energía, los vasos de agua). Marcar pantalla a pantalla con `ph-no-capture` iba
+    // siempre por detrás. PostHog recibe las pantallas (`$pageview`/`$pageleave`) y los eventos propios de
+    // `trackEvent`, cuya lista cerrada con sus claves fija `lote842.eventos.test.js`. Las máscaras se quedan como
+    // segunda capa por si alguien lo vuelve a encender.
+    autocapture: false,
     // [P1-PLAN-LOTE-716 · 2026-09-28] El autocapture manda el TEXTO del elemento pulsado. En la app eso incluye los
     // chips de condiciones médicas y medicamentos, las alergias, los alimentos… — datos de salud, asociados al
     // usuario tras `identify`. Configuración promete «nunca incluye tus datos de salud»: se enmascara el texto y los

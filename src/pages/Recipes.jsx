@@ -619,9 +619,10 @@ const Recipes = () => {
             // `ingredients_count` ayudan a discriminar bursts de recetas
             // hyper-densas que se acercan al timeout límite.
             try {
+                // [P1-PLAN-LOTE-842] Sin `meal_name`: el nombre de un plato puede delatar una dieta médica («pan sin
+                // gluten» → celiaquía), y PostHog no debe recibir datos de salud.
                 trackEvent('recipe_pdf_download_success', {
                     plan_id: planData?.id,
-                    meal_name: String(meal?.name || '').slice(0, 64),
                     meal_type: meal?.meal,
                     recipe_steps: Array.isArray(meal?.recipe) ? meal.recipe.length : 0,
                     ingredients_count: Array.isArray(meal?.ingredients) ? meal.ingredients.length : 0,
@@ -648,7 +649,6 @@ const Recipes = () => {
                 const _errMsg = (error && error.message) ? String(error.message).slice(0, 200) : '';
                 trackEvent('recipe_pdf_download_failed', {
                     plan_id: planData?.id,
-                    meal_name: String(meal?.name || '').slice(0, 64),
                     meal_type: meal?.meal,
                     error_name: _errName,
                     error_message: _errMsg,
