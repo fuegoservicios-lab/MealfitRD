@@ -253,15 +253,15 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // [P1-PLAN-LOTE-166] el campo que se escribe (nombre, peso, edad…) no se queda debajo del teclado
     useCampoVisibleConTeclado();
     // Obtenemos userProfile y updateUserProfile del contexto global
-    // [P1-FORM-9] `session` necesario para el guard de hidratación cifrada en
-    // `buildHealthProfilePayload`.
+    // [P1-PLAN-LOTE-715] Sin `session`: servía al guard de hidratación de `buildHealthProfilePayload`, y Configuración
+    // ya no manda el formulario entero (solo las claves que toca), así que ese payload no se construye aquí.
     // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] `refreshProfileAndPlan` añadido: el
     // selector de país necesita rehidratar `userProfile` desde el servidor
     // tras el PATCH (mismo patrón que QTrackingFinish) sin arriesgar el
     // merge superficial de `updateUserProfile` — ese pisaría TODO
     // `health_profile` local con `{ country }` porque el PATCH manda solo la
     // clave cambiada (I6: jsonb_set quirúrgico, no full-overwrite).
-    const { planData, formData, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, creditosRegalo, checkPlanLimit, session, isGuest, updateData, refreshProfileAndPlan } = useAssessment();
+    const { planData, formData, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, creditosRegalo, checkPlanLimit, isGuest, updateData, refreshProfileAndPlan } = useAssessment();
 
     const navigate = useNavigate();
     const { regeneratePlan } = useRegeneratePlan();
