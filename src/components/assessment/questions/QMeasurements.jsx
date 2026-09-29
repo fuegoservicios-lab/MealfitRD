@@ -7,7 +7,7 @@ import { Input, Label } from '../../common/FormUI';
 // `backend/routers/plans.py`). Backend es source of truth; este import es
 // solo para gating UX inmediato — bloquea "Siguiente" y aplica `min`/`max`
 // nativo a los inputs.
-import { BIO_RANGES, isBiometricInRange, esMenorDeEdad } from '../../../config/formValidation';
+import { BIO_RANGES, isBiometricInRange, esMenorDeEdad, edadDeclarada } from '../../../config/formValidation';
 import { NextButton } from './NextButton';
 import { formatNumber, useT } from '../../../i18n';
 
@@ -111,7 +111,9 @@ export const QMeasurements = ({ onManualAdvance, onMenorDeEdad }) => {
     // `handleFtChange`), así que validamos contra `heightCm` aunque el usuario
     // esté tipeando en ft/in. El peso se valida en su unidad seleccionada.
     const weightRange = weightUnit === 'kg' ? BIO_RANGES.weightKg : BIO_RANGES.weightLb;
-    const ageOK = isBiometricInRange(formData.age, BIO_RANGES.age);
+    // [P1-PLAN-LOTE-846 · ronda 1] La edad se lee como el backend (`edadDeclarada`, número limpio): «25 años» no pasa.
+    const _edad = edadDeclarada(formData.age);
+    const ageOK = _edad !== null && _edad >= BIO_RANGES.age.min && _edad <= BIO_RANGES.age.max;
     const heightOK = isBiometricInRange(formData.height, BIO_RANGES.heightCm);
     const weightOK = isBiometricInRange(formData.weight, weightRange);
     // bodyFat es opcional — si está vacío, OK; si está, debe estar en rango.
@@ -131,9 +133,8 @@ export const QMeasurements = ({ onManualAdvance, onMenorDeEdad }) => {
     // un chico qué número poner): el campo calla, «Siguiente» se enciende y corta el formulario. El aviso de rango
     // queda para lo que sí es una errata (0, 250, texto).
     const menor = esMenorDeEdad(formData.age);
-    const avisoEdad = _escrito(formData.age) && !ageOK && !menor
-        ? t('Escribe una edad entre {min} y {max} años.', { min: BIO_RANGES.age.min, max: BIO_RANGES.age.max })
-        : null;
+    // [ronda 1] …y tampoco dice el rango: «entre 18 y 100» es el mismo número dicho de otra forma. Neutral.
+    const avisoEdad = _escrito(formData.age) && !ageOK && !menor ? t('Revisa la edad.') : null;
     const cortarSiMenor = () => {
         if (!esMenorDeEdad(formData.age) || typeof onMenorDeEdad !== 'function') return false;
         onMenorDeEdad();
@@ -214,7 +215,7 @@ export const QMeasurements = ({ onManualAdvance, onMenorDeEdad }) => {
                     </div>
                     <Input
                         id="age" type="number" inputMode="numeric" enterKeyHint="next" placeholder={t('Ej. 28')}
-                        min={BIO_RANGES.age.min} max={BIO_RANGES.age.max} step={BIO_RANGES.age.step}
+                        min={1} max={BIO_RANGES.age.max} step={BIO_RANGES.age.step}
                         value={formData.age} onChange={e => updateData('age', e.target.value)}
                         onBlur={cortarSiMenor}
                         aria-required="true"

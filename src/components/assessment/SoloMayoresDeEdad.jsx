@@ -9,7 +9,8 @@
 //   · «Entendido, salir» — sale del formulario como la salida de la cabecera (el invitado pierde lo que llevaba; la
 //     cuenta cierra sesión), sin el diálogo de confirmación: aquí no hay nada que perder.
 //   · «Me equivoqué al escribir mi edad» — vuelve al campo, vacío. Un 8 en vez de un 28 no puede dejar a un adulto
-//     fuera; y quien quiera mentir podía hacerlo desde el principio (la edad es declarada, como en toda la tienda).
+//     fuera. UNA vez por visita al formulario (ronda 1): tras corregir, un segundo corte ya no la ofrece —la guía
+//     COPPA de la FTC pide que un menor no pueda «volver atrás» a cambiar la edad—, sin guardar nada.
 import PropTypes from 'prop-types';
 import { LogOut } from 'lucide-react';
 import { useT } from '../../i18n';
@@ -23,16 +24,19 @@ const SoloMayoresDeEdad = ({ onSalir, onCorregir }) => {
                 <LogOut size={18} aria-hidden="true" />
                 {t('Entendido, salir')}
             </button>
-            <button type="button" className="mf-ghost-btn" onClick={onCorregir}>
-                {t('Me equivoqué al escribir mi edad')}
-            </button>
+            {typeof onCorregir === 'function' && (
+                <button type="button" className="mf-ghost-btn" onClick={onCorregir}>
+                    {t('Me equivoqué al escribir mi edad')}
+                </button>
+            )}
         </div>
     );
 };
 
 SoloMayoresDeEdad.propTypes = {
     onSalir: PropTypes.func.isRequired,
-    onCorregir: PropTypes.func.isRequired,
+    // [ronda 1] null tras una corrección en la misma visita: queda solo la salida.
+    onCorregir: PropTypes.func,
 };
 
 export default SoloMayoresDeEdad;

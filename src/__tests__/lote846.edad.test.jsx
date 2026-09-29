@@ -78,15 +78,18 @@ describe('[P1-PLAN-LOTE-846] 18 y «menor» en un solo sitio', () => {
         expect(BIO_RANGES.age.max).toBe(100);
     });
 
-    it.each([17, '17', '1', '15', '17,9', '17.99', 12, ' 16 '])('%s es menor', (v) => expect(esMenorDeEdad(v)).toBe(true));
-    it.each([18, '18', 30, '100', 0, '0', -3, '0.5', '', null, undefined, 'abc', true])('%s no es menor', (v) => {
+    it.each([17, '17', '1', '15', '17,9', '17.99', 12, ' 16 ', 5.5])('%s es menor', (v) => expect(esMenorDeEdad(v)).toBe(true));
+    // [ronda 1] Solo un número LIMPIO, como `edad_minima._EDAD_LIMPIA`: «15 años» no es una edad en ningún lado.
+    it.each([18, '18', 30, '100', 0, '0', -3, '0.5', '', null, undefined, 'abc', true, '15 años', '1e1', '15abc', NaN, Infinity])('%s no es menor', (v) => {
         expect(esMenorDeEdad(v)).toBe(false);
     });
 
-    it('Configuración: el menor recibe la frase del corte y la errata el rango de 18-100', () => {
+    it('Configuración: el menor recibe la frase del corte y la errata un aviso neutro (sin el rango)', () => {
         const t = (k, v = {}) => k.replace(/\{(\w+)\}/g, (_, n) => String(v[n]));
         expect(motivoEdadNoValida('15', t)).toBe(TITULO_CORTE);
-        expect(motivoEdadNoValida('250', t)).toBe('Edad fuera de rango (18–100 años).');
+        expect(motivoEdadNoValida('250', t)).toBe('Revisa la edad.');
+        expect(motivoEdadNoValida('0', t)).toBe('Revisa la edad.');
+        expect(motivoEdadNoValida('15 años', t)).toBe('Revisa la edad.');
         expect(motivoEdadNoValida('30', t)).toBeNull();
         expect(motivoEdadNoValida('', t)).toBeNull();
     });
@@ -95,7 +98,7 @@ describe('[P1-PLAN-LOTE-846] 18 y «menor» en un solo sitio', () => {
         const src = leer('pages/Settings.jsx');
         expect((src.match(/motivoEdadNoValida\(ageInput, t\)/g) || []).length).toBe(3);
         expect(src).not.toMatch(/ageNum < 12/);
-        expect(src).toMatch(/min=\{BIO_RANGES\.age\.min\}/);
+        expect(src).not.toMatch(/min=\{BIO_RANGES\.age\.min\}/);   // [ronda 1] el campo no revela el umbral
     });
 
     it('el 422 `underage` del servidor se pinta traducido', () => {
@@ -132,7 +135,7 @@ describe('[P1-PLAN-LOTE-846] el paso de medidas', () => {
         expect(await screen.findByRole('heading', { name: TITULO_CORTE })).toBeInTheDocument();
     });
 
-    it('un adulto sigue como siempre, y la errata (250) se avisa junto al campo', () => {
+    it('un adulto sigue como siempre, y la errata (250) se avisa junto al campo sin decir el rango', () => {
         const { indice } = pasoDeMedidas();
         const ok = contexto({ currentStep: indice, maxReachedStep: indice,
             formData: { ...FORM_COMPLETO, age: '30', height: '170', weight: '150', weightUnit: 'lb' } });
@@ -143,7 +146,8 @@ describe('[P1-PLAN-LOTE-846] el paso de medidas', () => {
         r.unmount();
         const errata = contexto({ currentStep: indice, maxReachedStep: indice, formData: { ...FORM_COMPLETO, age: '250' } });
         render(<InteractiveAssessmentFlow />, { customContext: errata });
-        expect(screen.getByText('Escribe una edad entre 18 y 100 años.')).toBeInTheDocument();
+        expect(screen.getByText('Revisa la edad.')).toBeInTheDocument();
+        expect(screen.getByLabelText(/Edad \(años\)/i).getAttribute('min')).toBe('1');   // tampoco en el `min` del campo
     });
 
     it('la pantalla del corte: «Me equivoqué…» vuelve al campo y «Entendido, salir» sale del modo invitado', async () => {
@@ -160,6 +164,23 @@ describe('[P1-PLAN-LOTE-846] el paso de medidas', () => {
         await waitFor(() => expect(navegar).toHaveBeenCalledWith('/login', { replace: true }));
         expect(ctx.exitGuestSession).toHaveBeenCalled();
         expect(salidas()).toEqual([]);
+    });
+    it('[ronda 1] tras UNA corrección, un segundo corte ya no ofrece «Me equivoqué…» (solo en memoria)', async () => {
+        const { indice } = pasoDeMedidas();
+        const ctx = contexto({ currentStep: indice, maxReachedStep: indice, formData: { ...FORM_COMPLETO, age: '16' } });
+        render(<InteractiveAssessmentFlow />, { customContext: ctx });
+        fireEvent.click(screen.getByRole('button', { name: /^Siguiente/ }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Me equivoqué al escribir mi edad' }));
+        fireEvent.click(screen.getByRole('button', { name: /^Siguiente/ }));
+        expect(await screen.findByRole('heading', { name: TITULO_CORTE })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Me equivoqué al escribir mi edad' })).toBeNull();
+        expect(screen.getByRole('button', { name: /Entendido, salir/ })).toBeInTheDocument();
+        expect(Object.keys(localStorage).filter((k) => /edad|age|menor/i.test(k))).toEqual([]);
+        cleanup();
+        // Salir del formulario (desmontar) y volver: la corrección se ofrece otra vez.
+        render(<InteractiveAssessmentFlow />, { customContext: ctx });
+        fireEvent.click(screen.getByRole('button', { name: /^Siguiente/ }));
+        expect(await screen.findByRole('button', { name: 'Me equivoqué al escribir mi edad' })).toBeInTheDocument();
     });
 });
 

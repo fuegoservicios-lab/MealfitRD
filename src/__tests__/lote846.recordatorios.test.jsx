@@ -11,9 +11,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen, cleanup } from './utils/test-utils';
+import { render, screen, cleanup, fireEvent } from './utils/test-utils';
 import InteractiveAssessmentFlow from '../components/assessment/InteractiveAssessmentFlow';
 import NotaAvisoMedico from '../components/common/NotaAvisoMedico';
+import AvisoRevisionCompacto from '../components/dashboard/AvisoRevisionCompacto';
 import { REQUIRED_FORM_FIELDS } from '../config/formValidation';
 import { apexUrl } from '../config/site';
 import { fetchWithAuth } from '../config/api';
@@ -122,19 +123,26 @@ describe('[P1-PLAN-LOTE-846] 3 · nota fija en el plan y en el contador', () => 
 describe('[P1-PLAN-LOTE-846] 4 · el banner de revisión profesional no desaparece', () => {
     const src = leer('pages/Dashboard.jsx');
 
-    it('cerrado deja la versión compacta, sin X, con «Ver aviso» que lo vuelve a desplegar', () => {
-        const i = src.indexOf('data-testid="pro-review-compacto"');
-        expect(i).toBeGreaterThan(-1);
-        const antes = src.slice(src.lastIndexOf('{planData?.requires_professional_review?.flag', i), i);
-        expect(antes).toMatch(/&& proReviewHidden && \(/);
-        const bloque = src.slice(i, src.indexOf('</div>\n            )}', i));
-        expect(bloque).not.toMatch(/ui-close|<X /);
-        expect(bloque).toMatch(/onClick=\{showProReview\}/);
-        expect(bloque).toMatch(/t\('Ver aviso'\)/);
+    it('cerrado, el Dashboard monta la versión compacta con «Ver aviso» → showProReview', () => {
+        expect(src).toMatch(/&& proReviewHidden && \(\s*<AvisoRevisionCompacto renal=\{!!planData\.requires_professional_review\.renal_gate\} onVerAviso=\{showProReview\} \/>/);
     });
 
     it('desplegarlo borra la marca de «cerrado» del plan', () => {
         const k = src.indexOf('const showProReview = useCallback(');
         expect(src.slice(k, k + 400)).toMatch(/setProReviewHidden\(false\)[\s\S]*safeLocalStorageRemove\(key\)/);
+    });
+
+    it('[ronda 1] render: la línea compacta no tiene X, dice qué hacer y «Ver aviso» la vuelve a abrir', () => {
+        const onVerAviso = vi.fn();
+        render(<AvisoRevisionCompacto onVerAviso={onVerAviso} />);
+        const nota = screen.getByTestId('pro-review-compacto');
+        expect(nota.textContent).toContain('Consulta a tu profesional de salud antes de seguir este plan.');
+        expect(screen.getAllByRole('button')).toHaveLength(1);   // solo «Ver aviso»: nada que la cierre
+        fireEvent.click(screen.getByRole('button', { name: 'Ver aviso' }));
+        expect(onVerAviso).toHaveBeenCalledTimes(1);
+        cleanup();
+        render(<AvisoRevisionCompacto renal onVerAviso={onVerAviso} />);
+        expect(screen.getByTestId('pro-review-compacto').textContent)
+            .toContain('Condición renal — este plan requiere supervisión de tu nefrólogo');
     });
 });

@@ -3306,7 +3306,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                 <label htmlFor="settings-age" style={_lbl}>{t('Edad')}</label>
                                                 <input
                                                     id="settings-age"
-                                                    type="number" inputMode="numeric" min={BIO_RANGES.age.min} max={BIO_RANGES.age.max} step="1"
+                                                    type="number" inputMode="numeric" min="1" max={BIO_RANGES.age.max} step="1"
                                                     value={ageInput}
                                                     onChange={(e) => setAgeInput(e.target.value)}
                                                     placeholder="30"

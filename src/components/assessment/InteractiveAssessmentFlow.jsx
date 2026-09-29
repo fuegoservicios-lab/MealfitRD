@@ -143,6 +143,10 @@ const InteractiveAssessmentFlow = () => {
     // de medidas o se llega al final: el propio paso (al salir del campo y en «Siguiente»), el salto a la última
     // pregunta, el envío del plan y el cierre del contador. Vive en memoria a propósito: guardarlo sería guardar algo.
     const [menorDeEdad, setMenorDeEdad] = useState(false);
+    // [ronda 1] Cuántas veces se ha usado «Me equivoqué al escribir mi edad» en ESTA visita al formulario. Tras una, un
+    // segundo corte ya no la ofrece: queda la salida y nada más, hasta que la persona sale del formulario (el contador
+    // muere con el componente). Solo un número en memoria: ni la edad ni nada en almacenamiento.
+    const [correccionesDeEdad, setCorreccionesDeEdad] = useState(0);
     const bloquearPorEdad = () => {
         updateData('age', '');
         setMenorDeEdad(true);
@@ -1191,6 +1195,7 @@ const InteractiveAssessmentFlow = () => {
             navigate('/login', { replace: true });
         };
         const corregir = () => {
+            setCorreccionesDeEdad((n) => n + 1);
             setMenorDeEdad(false);
             _irAlCampo('age');
         };
@@ -1202,7 +1207,7 @@ const InteractiveAssessmentFlow = () => {
                 title={t('{app} es solo para mayores de {edad} años', { app: BRAND, edad: BIO_RANGES.age.min })}
                 subtitle={t('No guardamos la edad que escribiste.')}
             >
-                <SoloMayoresDeEdad onSalir={salir} onCorregir={corregir} />
+                <SoloMayoresDeEdad onSalir={salir} onCorregir={correccionesDeEdad < 1 ? corregir : null} />
             </InteractiveAssessmentLayout>
         );
     }

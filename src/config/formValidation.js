@@ -741,12 +741,18 @@ export const isBiometricInRange = (rawValue, range, { optional = false } = {}) =
  * y lo avisa el campo. Quién la consume: el paso de medidas (al salir del campo y en «Siguiente»), el salto, el envío,
  * el cierre del contador y Configuración.
  */
+// [P1-PLAN-LOTE-846 · ronda 1] Una edad «limpia»: un número y nada más (coma o punto decimal, espacios alrededor).
+// La MISMA expresión que `_EDAD_LIMPIA` de `edad_minima.py`: antes `parseFloat('15 años')` daba 15 aquí y el backend
+// la leía ilegible; ahora «15 años», «1e1» o «15abc» no son edades en ninguno de los dos lados.
+const EDAD_LIMPIA = /^\s*[+-]?\d+(?:[.,]\d+)?\s*$/;
+export const edadDeclarada = (rawValue) => {
+    if (typeof rawValue === 'number') return Number.isFinite(rawValue) ? Math.trunc(rawValue) : null;
+    if (typeof rawValue !== 'string' || !EDAD_LIMPIA.test(rawValue)) return null;
+    return Math.trunc(parseFloat(rawValue.trim().replace(',', '.')));
+};
 export const esMenorDeEdad = (rawValue) => {
-    if (rawValue === null || rawValue === undefined || rawValue === '' || typeof rawValue === 'boolean') return false;
-    const n = typeof rawValue === 'number' ? rawValue : parseFloat(String(rawValue).trim().replace(',', '.'));
-    if (!Number.isFinite(n)) return false;
-    const edad = Math.trunc(n);
-    return edad > 0 && edad < BIO_RANGES.age.min;
+    const edad = edadDeclarada(rawValue);
+    return edad !== null && edad > 0 && edad < BIO_RANGES.age.min;
 };
 
 /**
@@ -756,9 +762,9 @@ export const esMenorDeEdad = (rawValue) => {
 export const motivoEdadNoValida = (rawValue, t) => {
     if (rawValue === null || rawValue === undefined || String(rawValue).trim() === '') return null;
     if (esMenorDeEdad(rawValue)) return t('{app} es solo para mayores de {edad} años', { app: BRAND, edad: BIO_RANGES.age.min });
-    if (!isBiometricInRange(rawValue, BIO_RANGES.age)) {
-        return t('Edad fuera de rango ({min}–{max} años).', { min: BIO_RANGES.age.min, max: BIO_RANGES.age.max });
-    }
+    // [ronda 1] La errata no dice el rango: «entre 18 y 100» le diría a un menor qué número escribir.
+    const edad = edadDeclarada(rawValue);
+    if (edad === null || edad < BIO_RANGES.age.min || edad > BIO_RANGES.age.max) return t('Revisa la edad.');
     return null;
 };
 

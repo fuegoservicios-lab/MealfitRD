@@ -176,9 +176,9 @@ describe('lote 164 · «Tus Medidas» dice qué está mal', () => {
 
     it('una edad fuera de rango lo dice; un campo vacío no es un error', () => {
         // [P1-PLAN-LOTE-846] Era «11 → entre 12 y 100». Desde el 846 la edad de un menor NO se corrige junto al campo
-        // (corta el formulario, ver lote846.edad.test.jsx); el aviso de rango queda para la errata.
+        // (corta el formulario, ver lote846.edad.test.jsx) y la errata tampoco dice el rango (le diría el número).
         montarM({ age: '250', weight: '' });
-        expect(screen.getByRole('alert').textContent).toBe('Escribe una edad entre 18 y 100 años.');
+        expect(screen.getByRole('alert').textContent).toBe('Revisa la edad.');
     });
 
     it('«170» en la casilla de pies: casi seguro son centímetros', () => {
