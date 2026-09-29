@@ -13,6 +13,7 @@ import {
     VOZ_FIN_DE_FRASE_MS,
     VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS,
     VOZ_SIN_VOZ_MS,
+    silencioParaTerminar,
 } from '../hooks/useConversacionPorVoz';
 import ModoVoz from '../components/agent/ModoVoz';
 
@@ -160,7 +161,7 @@ describe('useConversacionPorVoz', () => {
         await avanzar(10);
         expect(result.current.estado).toBe('escuchando');
         act(() => ReconocimientoFalso.ultimo.decir('hola', true));
-        await avanzar(VOZ_FIN_DE_FRASE_MS + 10);
+        await avanzar(silencioParaTerminar('hola') + 10);   // [P1-PLAN-LOTE-686] una palabra espera más
         await avanzar(10);
         expect(enviar).toHaveBeenCalledWith('hola');
         expect(result.current.estado).toBe('pausa');
@@ -189,7 +190,7 @@ describe('useConversacionPorVoz', () => {
         act(() => result.current.abrir());
         await avanzar(20 + VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS + 10);
         act(() => ReconocimientoFalso.ultimo.decir('¿qué ceno?', true));
-        await avanzar(VOZ_FIN_DE_FRASE_MS + 10);
+        await avanzar(silencioParaTerminar('¿qué ceno?') + 10);
         act(() => result.current.hablar('Te propongo algo ligero. Por ejemplo una ensalada con atún.'));
         await avanzar(1);
         expect(result.current.estado).toBe('hablando');

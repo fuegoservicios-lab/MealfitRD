@@ -27,8 +27,17 @@ import { triggerMobileHaptic } from '../utils/mobileHaptics';
 import { i18nKey } from '../i18n';
 
 /** Silencio tras la última palabra que se toma como «terminó de hablar». */
-// [P1-PLAN-LOTE-684] 1,5 s → 1,1 s: medio segundo menos en CADA turno (lo habitual en asistentes de voz: 0,8-1,2 s).
-export const VOZ_FIN_DE_FRASE_MS = 1100;
+// [P1-PLAN-LOTE-686] El dueño, probándolo: «me corta rápido cuando dejo de hablar; quiero que me deje hablar y que se
+// corte de manera muy natural». El reconocedor le entregó «Yo me comí un plátano maduro con dos» (seguía con
+// «huevos revueltos»): 1,1 s fijo (684) cortaba cada pausa para pensar. Ahora el silencio depende de CÓMO queda la
+// frase: `silencioParaTerminar`.
+export const VOZ_FIN_DE_FRASE_MS = 1800;
+/** La frase quedó colgando («con dos», «y…», «eh…»): se espera más. */
+export const VOZ_FIN_A_MEDIAS_MS = 3000;
+/** Una o dos palabras («Hoy…», «Comí…»): suele venir más detrás. */
+export const VOZ_FIN_CORTA_MS = 2400;
+/** Reaperturas del micrófono por turno cuando el reconocedor se corta solo (Android lo hace en cada pausa). */
+export const VOZ_MAX_REAPERTURAS = 8;
 /** Micrófono abierto sin una sola palabra: se pausa. */
 export const VOZ_SIN_VOZ_MS = 8000;
 /** Tope de un turno hablado (un monólogo no se queda escuchando para siempre). */
@@ -37,6 +46,35 @@ export const VOZ_TOPE_ESCUCHA_MS = 45000;
 export const VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS = 350;
 
 /** Estados: 'cerrado' | 'escuchando' | 'pensando' | 'hablando' | 'pausa' | 'error'. */
+// Palabras tras las que una frase NO puede haber terminado: conectores, artículos, muletillas y cantidades («con dos»).
+// Las de los cinco idiomas de la app; con acentos quitados (se comparan normalizadas).
+const PALABRAS_A_MEDIAS = new Set([
+    // es
+    'y', 'e', 'o', 'u', 'ni', 'con', 'sin', 'de', 'del', 'a', 'al', 'en', 'para', 'por', 'que', 'pero', 'como', 'porque',
+    'pues', 'tambien', 'mas', 'muy', 'un', 'una', 'uno', 'unos', 'unas', 'el', 'la', 'los', 'las', 'lo', 'mi', 'mis',
+    'tu', 'tus', 'su', 'sus', 'me', 'se', 'le', 'les', 'este', 'esta', 'eh', 'em', 'mmm', 'ehh', 'bueno', 'entonces',
+    'cuando', 'medio', 'media', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez',
+    // en
+    'and', 'with', 'of', 'the', 'an', 'to', 'for', 'but', 'um', 'uh', 'my', 'some', 'two', 'three', 'four',
+    // pt
+    'com', 'do', 'da', 'um', 'uma', 'os', 'as', 'mas', 'meu', 'minha', 'dois', 'tres', 'quatro',
+    // fr
+    'et', 'avec', 'du', 'des', 'le', 'les', 'une', 'mais', 'pour', 'euh', 'deux', 'trois', 'quatre',
+    // it
+    'di', 'della', 'il', 'ma', 'per', 'ehm', 'due', 'tre', 'quattro',
+]);
+
+/** Cuánto silencio da la frase por terminada, según cómo queda: colgando, corta o completa. */
+export function silencioParaTerminar(texto) {
+    const palabras = String(texto || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
+        .replace(/[^\p{L}\p{N}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+    if (!palabras.length) return VOZ_FIN_A_MEDIAS_MS;
+    const ultima = palabras[palabras.length - 1];
+    if (PALABRAS_A_MEDIAS.has(ultima) || /^\d+$/.test(ultima)) return VOZ_FIN_A_MEDIAS_MS;
+    if (palabras.length <= 2) return VOZ_FIN_CORTA_MS;
+    return VOZ_FIN_DE_FRASE_MS;
+}
+
 export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo } = {}) {
     const [disponible] = useState(() => dictadoDisponible({ esNativa }) && sintesisDisponible());
     const [estado, setEstadoVisible] = useState('cerrado');
@@ -72,6 +110,12 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
     // Safari puede exigir un toque para cada arranque del micrófono. Si un arranque AUTOMÁTICO se niega, el resto de la
     // sesión sigue por toques («Toca el círculo para hablar») en vez de enseñar un error de permisos que no es tal.
     const soloConToqueRef = useRef(false);
+    // [P1-PLAN-LOTE-686] Un turno hablado puede durar varias sesiones del reconocedor (se corta solo en las pausas).
+    const acumuladoRef = useRef('');   // lo oído en las sesiones anteriores de ESTE turno
+    const reaperturasRef = useRef(0);
+    const ultimaVozRef = useRef(0);    // cuándo llegó la última palabra
+    const inicioTurnoRef = useRef(0);
+    const terminarRef = useRef(null);  // el `terminar` de la sesión viva
 
     const soltarTemporizadores = () => {
         for (const r of [finFraseRef, sinVozRef, topeRef, reanudarRef]) {
@@ -144,7 +188,7 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         if (!vozRef.current?.ocupada) programarEscucha();
     };
 
-    const escuchar = useCallback((desdeToque = true) => {
+    const escuchar = useCallback((desdeToque = true, continuar = false) => {
         if (estadoRef.current === 'cerrado') return;
         const Motor = motorDeDictado();
         if (!Motor) {
@@ -153,12 +197,18 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
             return;
         }
         soltarTemporizadores();
-        vozRef.current?.cancelar();
+        // [P1-PLAN-LOTE-686] `continuar`: el reconocedor se cortó SOLO a media frase y se reabre sin perder lo dicho.
+        if (!continuar) {
+            vozRef.current?.cancelar();
+            acumuladoRef.current = '';
+            reaperturasRef.current = 0;
+            inicioTurnoRef.current = Date.now();
+            setError(null);
+            setOido('');
+            setDicho('');
+            oidoRef.current = '';
+        }
         cortarEscucha();
-        setError(null);
-        setOido('');
-        setDicho('');
-        oidoRef.current = '';
         rutaDeAudio(typeof window !== 'undefined' ? window : undefined, 'auto');
 
         const idiomas = idiomasDeDictado(localeRef.current);
@@ -170,27 +220,44 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         rec.maxAlternatives = 1;
         let reintentar = false;
         let fallo = null;
+        let pedido = false;   // el fin lo pidió la app (silencio, toque, tope), no el reconocedor
         const terminar = () => {
             if (id !== sesionRef.current) return;
+            pedido = true;
             soltarTemporizadores();
             try { rec.stop(); } catch { /* ya paraba */ }
+        };
+        terminarRef.current = terminar;   // el toque del círculo también es un fin PEDIDO (no reabre)
+        const armarFinDeFrase = (esperaMs) => {
+            if (finFraseRef.current) clearTimeout(finFraseRef.current);
+            finFraseRef.current = setTimeout(terminar, Math.max(0, esperaMs));
+        };
+        // Reabrir no es un turno nuevo: si falla, lo ya dicho se manda (Safari puede negar un arranque sin toque).
+        const mandarLoAcumulado = () => {
+            if (!continuar || !oidoRef.current) return false;
+            enviarTexto(oidoRef.current);
+            return true;
         };
 
         rec.onstart = () => {
             if (id !== sesionRef.current) return;
             setEstado('escuchando');
-            triggerMobileHaptic('light');
+            if (!continuar) triggerMobileHaptic('light');
             sinVozRef.current = setTimeout(() => { if (!oidoRef.current) terminar(); }, VOZ_SIN_VOZ_MS);
-            topeRef.current = setTimeout(terminar, VOZ_TOPE_ESCUCHA_MS);
+            topeRef.current = setTimeout(terminar, Math.max(1000, VOZ_TOPE_ESCUCHA_MS - (Date.now() - inicioTurnoRef.current)));
+            // Reabierto: el silencio que ya llevaba cuenta.
+            if (continuar && oidoRef.current) {
+                armarFinDeFrase(silencioParaTerminar(oidoRef.current) - (Date.now() - ultimaVozRef.current));
+            }
         };
         rec.onresult = (evento) => {
             if (id !== sesionRef.current) return;
             const { finales, provisional } = leerResultados(evento.results);
-            oidoRef.current = `${finales} ${provisional}`.replace(/\s+/g, ' ').trim();
+            oidoRef.current = `${acumuladoRef.current} ${finales} ${provisional}`.replace(/\s+/g, ' ').trim();
             setOido(oidoRef.current);
+            ultimaVozRef.current = Date.now();
             if (sinVozRef.current) { clearTimeout(sinVozRef.current); sinVozRef.current = null; }
-            if (finFraseRef.current) clearTimeout(finFraseRef.current);
-            finFraseRef.current = setTimeout(terminar, VOZ_FIN_DE_FRASE_MS);
+            armarFinDeFrase(silencioParaTerminar(oidoRef.current));
         };
         rec.onerror = (evento) => {
             if (id !== sesionRef.current) return;
@@ -208,6 +275,7 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
             recRef.current = null;
             soltarTemporizadores();
             if (reintentar) { escucharRef.current?.(desdeToque); return; }
+            if (fallo && mandarLoAcumulado()) return;
             if (fallo && !desdeToque && (fallo === 'not-allowed' || fallo === 'service-not-allowed')) {
                 soloConToqueRef.current = true;
                 setEstado('pausa');
@@ -219,6 +287,16 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
                 return;
             }
             const texto = oidoRef.current;
+            // [P1-PLAN-LOTE-686] Cortado por el reconocedor antes de que el silencio diera la frase por terminada:
+            // se reabre y se sigue sumando, en vez de mandar un «con dos» a medias.
+            if (!pedido && texto && Date.now() - ultimaVozRef.current < silencioParaTerminar(texto)
+                && reaperturasRef.current < VOZ_MAX_REAPERTURAS
+                && Date.now() - inicioTurnoRef.current < VOZ_TOPE_ESCUCHA_MS) {
+                reaperturasRef.current += 1;
+                acumuladoRef.current = texto;
+                escucharRef.current?.(false, true);
+                return;
+            }
             if (texto) enviarTexto(texto);
             else setEstado('pausa');
         };
@@ -228,6 +306,7 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
             rec.start();
         } catch {
             recRef.current = null;
+            if (mandarLoAcumulado()) return;
             if (!desdeToque) {
                 soloConToqueRef.current = true;
                 setEstado('pausa');
@@ -281,7 +360,8 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         const e = estadoRef.current;
         if (e === 'escuchando') {
             if (finFraseRef.current) clearTimeout(finFraseRef.current);
-            try { recRef.current?.stop(); } catch { /* ya paraba */ }
+            if (terminarRef.current) terminarRef.current();
+            else { try { recRef.current?.stop(); } catch { /* ya paraba */ } }
             return;
         }
         if (e === 'hablando' || (e === 'pensando' && turnoRef.current)) {
