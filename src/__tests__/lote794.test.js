@@ -285,7 +285,8 @@ describe('P1-PLAN-LOTE-794 · la Política de Privacidad dice lo que hace el có
     });
 
     it('la fecha de la política se movió con el cambio', () => {
-        expect(privacidad).toContain('lastUpdated="28 de Septiembre, 2026"');
+        // [Delta legal n.º 1 · 2026-09-29] La del landing (content/privacy.html) también es la del 29.
+        expect(privacidad).toContain('lastUpdated="29 de Septiembre, 2026"');
     });
 
     // [P1-PLAN-LOTE-794 · ronda 1] (revisión, defecto 7) La copia React y la del landing (rama
@@ -308,21 +309,27 @@ describe('P1-PLAN-LOTE-794 · la Política de Privacidad dice lo que hace el có
     });
 
     // [P1-PLAN-LOTE-794 · ronda 2] (re-verificación, defecto 1) §7 decía menos que el landing (2ab05b9):
-    // faltaban el código seudónimo diario que PostHog calcula en su servidor y que el autocapture manda el
-    // texto visible de lo que se pulsa —chips de salud incluidos—. Y §8 afirmaba «Sin datos de salud».
-    it('§7 cuenta el código diario del servidor y que se captura el texto de lo que se pulsa', () => {
+    // faltaba el código seudónimo diario que PostHog calcula en su servidor.
+    // [Delta legal n.º 1 · 2026-09-29] Y el autocapture ya NO manda el texto de lo que se pulsa: desde el lote
+    // 716 (4ffc8391) observabilityScope.js pasa a posthog.init mask_all_text + mask_all_element_attributes
+    // (prueba con el SDK real: rama lote-840 de la sesión 0f, lote840.test.js). §7 deja de decir «con el texto
+    // visible de cada uno» y el ejemplo «Diabetes tipo 2»; §8 vuelve a decir que PostHog no recibe datos de
+    // salud, con el mecanismo. Mismo texto que el landing (rama ia6d-integ-landing).
+    it('§7 cuenta el código diario del servidor y que el autocapture NO manda el texto de lo que se pulsa', () => {
         const s7 = seccion('7. Monitoreo de Errores y Telemetría');
         expect(s7).toMatch(/código seudónimo a partir de su dirección IP, su navegador y una clave que cambia cada día/);
-        expect(s7).toMatch(/con el texto visible de cada uno/);
-        expect(s7).toMatch(/Diabetes tipo 2/);
+        expect(s7).not.toMatch(/texto visible/);
+        expect(s7).not.toMatch(/Diabetes tipo 2/);
+        expect(s7).toMatch(/qué pantallas visita y qué controles pulsa en la aplicación, sin su texto ni sus atributos/);
+        expect(s7).toMatch(/PostHog no sabe qué opción eligió/);
         expect(s7).toMatch(/No registra lo que usted escribe en los campos de texto/);
     });
 
-    it('§8 ya no promete que PostHog no recibe datos de salud', () => {
+    it('§8 dice que PostHog no recibe datos de salud, ni lo que se pulsa ni lo que se escribe', () => {
         const s8 = seccion('8. Proveedores Subcontratados (Encargados de Tratamiento)');
         const posthog = s8.slice(s8.indexOf('<strong>PostHog, Inc.</strong>'));
-        expect(posthog.slice(0, 400)).not.toMatch(/Sin datos de salud/);
-        expect(posthog.slice(0, 400)).toMatch(/texto visible de las opciones que usted pulsa/);
+        expect(posthog.slice(0, 400)).not.toMatch(/texto visible/);
+        expect(posthog.slice(0, 400)).toMatch(/No recibe datos de salud: ni el texto de lo que usted pulsa ni lo que escribe/);
     });
 
     it('§13 no dice «ni fingerprinting» y remite al código diario', () => {

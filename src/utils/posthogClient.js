@@ -47,14 +47,15 @@
 // privacy benefit of this mode»). Aquí se identifica en cada carga con sesión (analítica por
 // cuenta, bajo el interés legítimo de §7/§13); la alternativa es `person_profiles: 'never'`
 // y no identificar. Sin banner se cumple ePrivacy (nada en el dispositivo); lo otro es RGPD.
-// DECISIÓN ABIERTA DEL DUEÑO [ronda 2]: el autocapture (encendido en la app,
-// observabilityScope.js) manda el TEXTO VISIBLE de lo que se pulsa, y los chips del formulario
-// (`ChipOption`, div role="button" con cursor: pointer) lo cumplen: pulsar «Diabetes T2» llega a
-// PostHog, unido a la cuenta tras `identify` — un dato de salud (art. 9 RGPD) bajo interés
-// legítimo y sin banner. Hoy la Política de Privacidad §7/§8 y Protección de Datos §5 lo DECLARAN,
-// igual que el landing (rama ia6d-legal). La alternativa es no mandarlo: `ph-no-capture` en los
-// chips de salud, alergias y medicamentos (o `mask_all_text: true`), y entonces las dos copias de
-// la política retiran el aviso a la vez.
+// RESUELTO [ronda 2 → lote 716 + delta legal n.º 1 · 2026-09-29]: el autocapture (encendido en la
+// app, observabilityScope.js) mandaba el TEXTO VISIBLE de lo que se pulsa, y los chips del formulario
+// (`ChipOption`, div role="button" con cursor: pointer) lo cumplían: pulsar «Diabetes T2» llegaba a
+// PostHog, unido a la cuenta tras `identify` — un dato de salud (art. 9 RGPD). Se resolvió con
+// `mask_all_text: true` + `mask_all_element_attributes: true` en `posthogCaptureOptions` (P1-PLAN-LOTE-716,
+// 4ffc8391): PostHog sabe qué pantalla y qué control, no qué decía (siguen la etiqueta, las clases CSS y
+// el `href` de un enlace). Y la política lo RETIRA: Privacidad §7/§8 y Protección de Datos §5 ya no
+// declaran que la analítica recibe datos de salud, en las dos copias a la vez (LegalPages.jsx y el
+// landing, rama ia6d-integ-landing). Si alguien quita la máscara, la política vuelve a ser falsa.
 // Ancla: src/__tests__/lote794.test.js (con el SDK real, no con un mock de `init`).
 import { isAnalyticsOptedOut } from './analytics';
 import { posthogCaptureOptions } from './observabilityScope';

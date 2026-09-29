@@ -87,7 +87,19 @@ const REFUTADAS = [
     // bioboros.com volvían a publicar dos contratos distintos.
     {
         frase: 'Sin datos de salud, correo ni nombre',
-        porque: 'el autocapture de PostHog está encendido en la app (observabilityScope.js) y manda el texto visible de lo que se pulsa: el chip «Diabetes T2» del formulario es un div role="button" con cursor: pointer, y con identify queda unido a la cuenta',
+        porque: 'la fórmula corta calla de qué depende: desde el lote 716 (4ffc8391) es cierta sólo porque observabilityScope.js enmascara el texto y los atributos (mask_all_text + mask_all_element_attributes); la copia lo dice nombrando el mecanismo («sin su texto») y, si alguien quita la máscara, las dos frases vuelven a ser falsas a la vez',
+    },
+    // [Delta legal n.º 1 · 2026-09-29] PostHog YA NO recibe el texto de lo que se pulsa: desde el lote 716
+    // (4ffc8391, en producción desde el 29-sep ~02:00 UTC) observabilityScope.js:55-60 pasa a posthog.init
+    // mask_all_text + mask_all_element_attributes. Prueba con el SDK real: rama lote-840 de la sesión 0f
+    // (lote840.test.js). Las mismas filas del landing (verdad-publica.json, rama ia6d-integ-landing).
+    {
+        frase: 'texto visible',
+        porque: 'el autocapture enmascara el texto de lo que se pulsa desde el lote 716: decir que PostHog recibe el texto visible (y con él una opción de salud) describe una fuga que ya no existe',
+    },
+    {
+        frase: 'puede recibir el texto de una opción de salud',
+        porque: 'la misma afirmación en Protección de Datos §5: la analítica ya no está entre los que reciben datos de salud',
     },
     {
         frase: 'su nombre completo, correo',
@@ -225,7 +237,7 @@ const REFUTADAS = [
 const EXIGIDAS = [
     { frase: 'sin cookies ni almacenamiento local', porque: 'PostHog en cookieless_mode (§7/§13)' },
     { frase: 'una clave que cambia cada día', porque: 'el código seudónimo diario que PostHog calcula en su servidor (§7)' },
-    { frase: 'texto visible', porque: 'el autocapture manda el texto de lo que se pulsa, chips de salud incluidos (§7/§8)' },
+    { frase: 'sin su texto', porque: 'el autocapture registra qué control se pulsa, sin su texto ni sus atributos (§7, delta legal n.º 1)' },
     { frase: 'el nombre de su cuenta', porque: 'el coach recibe el nombre (Privacidad §4)' },
     { frase: 'el nombre de tu cuenta', porque: 'el coach recibe el nombre (Política de IA §2)' },
     { frase: 'Hoy son <strong>cuatro</strong>', porque: 'DeepSeek, OpenAI, Google/Gemini y Cohere (Privacidad §4)' },
