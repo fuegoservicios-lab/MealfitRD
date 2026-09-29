@@ -1,9 +1,11 @@
 /* [P1-I18N-IOS-PERMISOS-SISTEMA-SOLO-ES · 2026-08-23] Cadenas de permiso del SISTEMA.
    iOS las pinta en un modal que la capa web no puede traducir. El Info.plist conserva
    el español como fallback. Registrado en project.pbxproj como PBXVariantGroup. */
+/* [P1-PLAN-LOTE-848 · 2026-09-29] Textos de la auditoría App Store (§A.3, guía 5.1.1(ii)), sin
+   nombres de proveedor: el binario no se corrige por OTA. */
 
-"NSCameraUsageDescription" = "O Bioboros usa a câmera para escanear suas refeições e registrá-las no seu diário.";
-"NSPhotoLibraryUsageDescription" = "O Bioboros acessa suas fotos para que você possa registrar uma refeição a partir de uma imagem.";
-"NSPhotoLibraryAddUsageDescription" = "O Bioboros salva na sua galeria as fotos de refeições que você tira no app.";
-"NSMicrophoneUsageDescription" = "O Bioboros usa o microfone para você ditar ao coach em vez de digitar.";
-"NSSpeechRecognitionUsageDescription" = "O Bioboros transforma sua voz em texto para escrever sua mensagem no chat.";
+"NSCameraUsageDescription" = "O Bioboros usa a câmera para você fotografar suas refeições ou sua geladeira para análise por IA e enviar fotos ao coach no chat.";
+"NSPhotoLibraryUsageDescription" = "O Bioboros abre suas fotos só para você escolher imagens de refeições ou da sua geladeira para análise por IA, ou enviá-las ao coach.";
+"NSPhotoLibraryAddUsageDescription" = "O Bioboros salva em Fotos só as imagens que você escolher salvar, como o cartão do seu dia.";
+"NSMicrophoneUsageDescription" = "O Bioboros usa o microfone para você ditar mensagens ou falar com o coach no modo voz.";
+"NSSpeechRecognitionUsageDescription" = "O Bioboros converte sua voz em texto com o reconhecimento de fala da Apple para escrever suas mensagens ao coach.";

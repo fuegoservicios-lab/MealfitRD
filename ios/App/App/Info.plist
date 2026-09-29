@@ -59,16 +59,20 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<!-- [P1-PLAN-LOTE-848 · 2026-09-29] Cadenas de permiso de la auditoría App Store (§A.3, guía 5.1.1(ii)):
+	     dicen para qué se usa cada permiso, también el chat, la nevera y el modo voz. Sin nombres de
+	     proveedor: el binario no se corrige por OTA y los proveedores los nombra la hoja de
+	     consentimiento de la app. Español aquí y en es.lproj; los otros cuatro idiomas, en su .lproj. -->
 	<key>NSCameraUsageDescription</key>
-	<string>Bioboros usa la cámara para escanear tus comidas y registrarlas en tu diario.</string>
+	<string>Bioboros usa la cámara para que fotografíes tus comidas o tu nevera y la IA las analice, y para enviar fotos al coach en el chat.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Bioboros accede a tus fotos para que puedas registrar una comida desde una imagen.</string>
+	<string>Bioboros abre tus fotos solo para que elijas imágenes de comidas o de tu nevera para que la IA las analice, o para enviarlas al coach.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Bioboros guarda en tu galería las fotos de comidas que tomas desde la app.</string>
+	<string>Bioboros guarda en tus Fotos solo las imágenes que tú decides guardar, como la tarjeta de tu día.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Bioboros usa el micrófono para que puedas dictarle al coach en vez de escribir.</string>
+	<string>Bioboros usa el micrófono para que dictes tus mensajes o hables con el coach en el modo voz.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Bioboros convierte tu voz en texto para escribir tu mensaje en el chat.</string>
+	<string>Bioboros convierte tu voz en texto con el reconocimiento de voz de Apple para escribir tus mensajes al coach.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIRequiredDeviceCapabilities</key>
