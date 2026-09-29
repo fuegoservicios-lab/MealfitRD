@@ -80,6 +80,8 @@ import { acusePrioritario } from '../hooks/useAutoguardado';
 import DeleteAccountSection from '../components/account/DeleteAccountSection';
 // [P1-PLAN-LOTE-844] Privacidad → «IA de terceros», y la analítica de «Ayuda a mejorar» también en la cuenta.
 import BloqueIADeTerceros from '../consent/BloqueIADeTerceros';
+// [P1-PLAN-LOTE-835 · 2026-09-29] Privacidad → «Cuenta de prueba»: la explicación y «Salir del modo de prueba» (solo con la marca).
+import BloqueCuentaPrueba from '../components/settings/BloqueCuentaPrueba';
 import { guardarAnaliticaEnServidor } from '../consent/apiConsentimiento';
 import { useConsentimientoIA } from '../consent/consentimientoIA';
 // [P1-PLAN-LOTE-847] «Ayuda a mejorar» se anota en el estado del permiso (línea aparte: lote844.ronda1 fija la de arriba).
@@ -4448,6 +4450,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
                             {/* [P1-PLAN-LOTE-844] «IA de terceros»: el permiso aceptado (versión y fecha) y «Retirar mi permiso». */}
                             <BloqueIADeTerceros />
+
+                            {/* [P1-PLAN-LOTE-835] «Cuenta de prueba»: solo si el equipo marcó esta cuenta; explicación + salida con confirmación. */}
+                            <BloqueCuentaPrueba />
 
                             <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.75rem' }}>{t('Preferencias')}</h3>
 

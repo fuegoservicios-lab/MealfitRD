@@ -51,6 +51,10 @@ import NotificationCenter from './NotificationCenter';
 import NotificationSlot from './NotificationSlot';
 // [P1-PLAN-LOTE-776 · 2026-09-28] Anuncia (toast + centro) cada regalo de la cuenta, una vez por dispositivo.
 import AvisoRegalos from './AvisoRegalos';
+// [P1-PLAN-LOTE-835 · 2026-09-29] El aviso de «cuenta de prueba» (una vez) y, sin pantalla, el informe de los ajustes del
+// dispositivo (P1-PLAN-LOTE-837): los dos junto a AvisoRegalos, solo con cuenta.
+import AvisoCuentaPrueba from './AvisoCuentaPrueba';
+import ReporteAjustesDispositivo from './ReporteAjustesDispositivo';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al hover/touch
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del listado del Historial
@@ -482,6 +486,10 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
             {/* [P1-PLAN-LOTE-776] Global al dashboard autenticado (no depende de showNotifCenter: un
                 regalo puede llegar en cualquier página). El invitado no tiene cuenta que reciba regalos. */}
             {!isGuest && <AvisoRegalos />}
+            {/* [P1-PLAN-LOTE-835] El aviso «Esta es una cuenta de prueba» (hoja, portal a <body>; solo si el perfil trae la marca
+                sin ver) y [P1-PLAN-LOTE-837] el informe, sin pantalla, de los ajustes del dispositivo. El invitado no tiene cuenta. */}
+            {!isGuest && <AvisoCuentaPrueba />}
+            {!isGuest && <ReporteAjustesDispositivo />}
 
 
             {/* Mobile More Menu (Configuración + Cerrar Sesión) — rendered at container root to escape stacking contexts */}

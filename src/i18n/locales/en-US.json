@@ -3878,5 +3878,15 @@
   "Tu lista de compras se guardó como imagen": "Your shopping list was saved as an image",
   "Lista de compras": "Shopping list",
   "Así el coach entiende las comidas y los alimentos de tu país.": "This helps the coach understand the meals and foods from your country.",
-  "Las dos opciones son con IA: empieza de cero o usa lo que ya tienes en tu Nevera.": "Both options use AI: start from scratch or use what's already in your Fridge."
+  "Las dos opciones son con IA: empieza de cero o usa lo que ya tienes en tu Nevera.": "Both options use AI: start from scratch or use what's already in your Fridge.",
+  "Esta es una cuenta de prueba": "This is a test account",
+  "El equipo de {app} puede ver lo que haces en la app —tu formulario, tus comidas, tus planes y tus conversaciones con el coach, también las anteriores— para probarla y mejorarla. Puedes salir cuando quieras en Configuración → Privacidad": "The {app} team can see what you do in the app — your form, your meals, your plans and your conversations with the coach, including past ones — to test and improve it. You can leave whenever you want in Settings → Privacy",
+  "Entendido": "Got it",
+  "Salir del modo de prueba": "Leave test mode",
+  "Saliendo…": "Leaving…",
+  "Cuenta de prueba": "Test account",
+  "Ya no es una cuenta de prueba: el equipo ya no ve tu actividad": "This is no longer a test account: the team can no longer see your activity",
+  "¿Salir del modo de prueba?": "Leave test mode?",
+  "El equipo de {app} dejará de ver tu formulario, tus comidas, tus planes y tus conversaciones con el coach.": "The {app} team will no longer see your form, your meals, your plans or your conversations with the coach.",
+  "No pudimos sacar tu cuenta del modo de prueba. Revisa tu conexión e inténtalo de nuevo.": "We couldn't take your account out of test mode. Check your connection and try again."
 }
