@@ -175,8 +175,10 @@ describe('lote 164 · «Tus Medidas» dice qué está mal', () => {
     });
 
     it('una edad fuera de rango lo dice; un campo vacío no es un error', () => {
-        montarM({ age: '11', weight: '' });
-        expect(screen.getByRole('alert').textContent).toBe('Escribe una edad entre 12 y 100 años.');
+        // [P1-PLAN-LOTE-846] Era «11 → entre 12 y 100». Desde el 846 la edad de un menor NO se corrige junto al campo
+        // (corta el formulario, ver lote846.edad.test.jsx); el aviso de rango queda para la errata.
+        montarM({ age: '250', weight: '' });
+        expect(screen.getByRole('alert').textContent).toBe('Escribe una edad entre 18 y 100 años.');
     });
 
     it('«170» en la casilla de pies: casi seguro son centímetros', () => {
@@ -229,7 +231,8 @@ describe('lote 164 · encender el generador sin plan abre el formulario, sin di�
     it('en el teléfono se puede volver al panel desde CUALQUIER paso, no solo desde el primero', () => {
         const l = leer('src/components/assessment/InteractiveAssessmentLayout.jsx');
         const css = leer('src/components/assessment/InteractiveAssessmentLayout.module.css');
-        expect(l).toMatch(/currentStep > 0 \? \([\s\S]{0,900}onClick=\{volverAlPanel\}[\s\S]{0,120}styles\.panelMovil/);
+        // [P1-PLAN-LOTE-846] `&& !bloqueo`: la pantalla del corte por edad no lleva «paso anterior».
+        expect(l).toMatch(/currentStep > 0(?: && !bloqueo)? \? \([\s\S]{0,900}onClick=\{volverAlPanel\}[\s\S]{0,120}styles\.panelMovil/);
         expect(css).toMatch(/@media \(min-width: 769px\) \{\s*\.panelMovil \{\s*display: none;/);
         expect(l).toContain('terminarCompletarFormulario();');
     });

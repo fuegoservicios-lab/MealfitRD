@@ -53,7 +53,9 @@ import { toast } from 'sonner';
 // el array `steps` (más abajo) declara su propia propiedad `fields: [...]`
 // y el mapping se construye en runtime → reordenar/insertar steps no rompe
 // la navegación a campo faltante.
-import { buildFieldToStepIndex, getFieldLabel, findFirstIncompleteField, findFirstIncompleteFieldFor, TRACKING_REQUIRED_FIELDS, minBudgetFor, effectiveBudgetCurrency, missingPlanFields } from '../../config/formValidation';
+import { buildFieldToStepIndex, getFieldLabel, findFirstIncompleteField, findFirstIncompleteFieldFor, TRACKING_REQUIRED_FIELDS, minBudgetFor, effectiveBudgetCurrency, missingPlanFields, esMenorDeEdad, BIO_RANGES } from '../../config/formValidation';
+// [P1-PLAN-LOTE-846] La pantalla que corta el formulario si la edad es de un menor.
+import SoloMayoresDeEdad from './SoloMayoresDeEdad';
 import { pisoSoloOrienta } from '../../config/countries';
 import { useT, useTn } from '../../i18n';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
@@ -129,12 +131,22 @@ const isCustomBudgetValid = (fd) => {
 };
 
 const InteractiveAssessmentFlow = () => {
-    const { currentStep, setCurrentStep, nextStep, formData, updateData, maxReachedStep, setMaxReachedStep, planData, loadingSensitive, isGuest } = useAssessment();  // isGuest: [P1-PANTRY-BUILDER-GATE]
+    const { currentStep, setCurrentStep, nextStep, formData, updateData, maxReachedStep, setMaxReachedStep, planData, loadingSensitive, isGuest, exitGuestSession, resetApp } = useAssessment();  // isGuest: [P1-PANTRY-BUILDER-GATE]
     const navigate = useNavigate();
     const location = useLocation();
     const t = useT();
     const tn = useTn();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // [P1-PLAN-LOTE-846 · 2026-09-29] SOLO MAYORES DE 18 (Términos §2). Una edad de menor corta el formulario: se borra
+    // la edad escrita (no se guarda) y se pinta `SoloMayoresDeEdad` en lugar del paso (no se envía nada: ni el
+    // permiso de la IA ni la generación llegan a pedirse). Lo disparan las CUATRO puertas por las que se sale del paso
+    // de medidas o se llega al final: el propio paso (al salir del campo y en «Siguiente»), el salto a la última
+    // pregunta, el envío del plan y el cierre del contador. Vive en memoria a propósito: guardarlo sería guardar algo.
+    const [menorDeEdad, setMenorDeEdad] = useState(false);
+    const bloquearPorEdad = () => {
+        updateData('age', '');
+        setMenorDeEdad(true);
+    };
     // [P1-PLAN-LOTE-164] La marca de «completar lo que falta» (la ponen el interruptor y la tarjeta del contador).
     const [completar, setCompletar] = useState(() => leerCompletarFormulario());
     // Un salto a un campo concreto pendiente de que exista su paso: lo pide Plan.jsx tras un 422 del servidor
@@ -273,6 +285,12 @@ const InteractiveAssessmentFlow = () => {
             return;
         }
 
+        // [P1-PLAN-LOTE-846] Un menor no llega a la hoja del permiso ni a /plan: el corte va antes que todo lo demás.
+        if (esMenorDeEdad(formData.age)) {
+            bloquearPorEdad();
+            return;
+        }
+
         // CRITICAL: setear el ref ANTES de cualquier validación o async. Si el
         // segundo click llega después de este punto pero antes de setIsSubmitting
         // (varios ms de gap por React batching), el ref ya está true y returna.
@@ -400,7 +418,7 @@ const InteractiveAssessmentFlow = () => {
             subtitle: t('Ingresa tu edad, altura y peso para calcular tus macros con precisión.'),
             hasInternalNext: true,
             fields: ['age', 'height', 'weight', 'weightUnit'],
-            component: <QMeasurements onManualAdvance={nextStep} />
+            component: <QMeasurements onManualAdvance={nextStep} onMenorDeEdad={bloquearPorEdad} />
         },
         {
             title: <>{t('¿Cuál es tu nivel de actividad física?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
@@ -757,7 +775,7 @@ const InteractiveAssessmentFlow = () => {
             subtitle: t('Sin plan generado, sin gastar créditos. Lo enciendes cuando quieras.'),
             hasInternalNext: true,
             id: 'trackingFinish',
-            component: <QTrackingFinish />
+            component: <QTrackingFinish onMenorDeEdad={bloquearPorEdad} />
         },
     ].filter(Boolean);
 
@@ -1102,6 +1120,11 @@ const InteractiveAssessmentFlow = () => {
             });
             return;
         }
+        // [P1-PLAN-LOTE-846] Saltar es no pasar por el paso de medidas: la edad se mira aquí también.
+        if (esMenorDeEdad(formData.age)) {
+            bloquearPorEdad();
+            return;
+        }
         // [P1-TRACKING-SKIP-CONTRACT · 2026-08-12] El salto valida contra el contrato
         // DE LA RAMA ACTUAL. Con el del plan (22 campos), en modo contador exigía
         // «Tu horario cotidiano» — un campo cuyo paso NO existe en esta rama, así
@@ -1158,6 +1181,32 @@ const InteractiveAssessmentFlow = () => {
         return <div className="page-loader" role="status" aria-label={t('Cargando')} />;
     }
 
+    // [P1-PLAN-LOTE-846] El corte por edad, en el marco del formulario pero sin paso, progreso ni «atrás».
+    if (menorDeEdad) {
+        const salir = async () => {
+            try {
+                if (isGuest) exitGuestSession();
+                else await resetApp();
+            } catch { /* teardown best-effort: salir igual */ }
+            navigate('/login', { replace: true });
+        };
+        const corregir = () => {
+            setMenorDeEdad(false);
+            _irAlCampo('age');
+        };
+        return (
+            <InteractiveAssessmentLayout
+                bloqueo
+                totalSteps={steps.length}
+                stepKey="solo-mayores-de-edad"
+                title={t('{app} es solo para mayores de {edad} años', { app: BRAND, edad: BIO_RANGES.age.min })}
+                subtitle={t('No guardamos la edad que escribiste.')}
+            >
+                <SoloMayoresDeEdad onSalir={salir} onCorregir={corregir} />
+            </InteractiveAssessmentLayout>
+        );
+    }
+
     return (
         <InteractiveAssessmentLayout
             totalSteps={steps.length}
@@ -1207,7 +1256,22 @@ const InteractiveAssessmentFlow = () => {
                 <div style={{ flex: 1 }}>
                     {currentStepConfig.component}
                 </div>
-                
+                {/* [P1-PLAN-LOTE-846 · 2026-09-29] Apple 1.4.1: el recordatorio de consultar al médico, al final del
+                    formulario en las dos ramas (el último paso del plan —suplementos o Nevera— y el cierre del contador).
+                    Es la MISMA línea de la hoja del permiso (§A.4.1), con su clave y sus traducciones. */}
+                {currentStep === steps.length - 1 && (
+                    <p
+                        role="note"
+                        data-testid="wizard-aviso-medico"
+                        style={{
+                            margin: '1.5rem 0 0', fontSize: '0.8rem', lineHeight: 1.5,
+                            color: 'var(--text-muted)', maxWidth: '60ch',
+                        }}
+                    >
+                        {t('{app} no sustituye a tu médico ni a tu nutricionista. Consúltales antes de cambiar tu alimentación, sobre todo si tienes una condición médica, tomas medicamentos, estás embarazada o en lactancia, o te operaron de cirugía bariátrica.', { app: BRAND })}
+                    </p>
+                )}
+
                 {(canSkip || stepFieldsFilled) && stepExtraValid && !isAutoAdvancing && (
                     <div style={{
                         /* [P2-WIZARD-NAV-GAP-UNIFORM · 2026-09-04] Con `hasInternalNext` el

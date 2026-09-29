@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
 import { nativeHidesCommerce, nativePlatform, isNativeApp } from '../config/platform';
-import { BIO_RANGES } from '../config/formValidation';
+import { BIO_RANGES, motivoEdadNoValida } from '../config/formValidation';
 import { useCampoVisibleConTeclado } from '../hooks/useCampoVisibleConTeclado';
 import { isTrackingMode } from '../config/dashboardNav';
 import { reanudarPlanes } from '../utils/planModeResume';
@@ -960,7 +960,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // Completan las 4 entradas del BMR/TDEE (con peso/altura). A diferencia de
     // peso/altura (que regeneran el plan), estos usan GUARDADO LIBRE: se
     // persisten en health_profile con el botón "Guardar" (merge jsonb, sin costo)
-    // y aplican al PRÓXIMO plan — el plan vigente no se toca. Rango edad 12-100
+    // y aplican al PRÓXIMO plan — el plan vigente no se toca. Rango edad 18-100
     // (espejo de formValidation); gender 'male'|'female' (espejo del onboarding).
     const _initialAge = formData?.age ?? userProfile?.health_profile?.age ?? '';
     const _initialGender = formData?.gender ?? userProfile?.health_profile?.gender ?? '';
@@ -1843,14 +1843,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         setNameError('');
 
         // [P3-PROFILE-AGE-SEX · 2026-06-20] Edad + sexo: GUARDADO LIBRE (sin
-        // regenerar). Validar edad si se ingresó (rango onboarding 12-100).
+        // regenerar). Validar edad si se ingresó (rango del formulario 18-100).
         let ageNum = null;
         if (ageInput !== '' && ageInput != null) {
-            ageNum = parseInt(ageInput, 10);
-            if (isNaN(ageNum) || ageNum < 12 || ageNum > 100) {
-                toast.error(t("Edad fuera de rango (12–100 años)."));
+            // [P1-PLAN-LOTE-846] 18 como en el formulario; un menor recibe la frase del corte, no «fuera de rango».
+            const _motivoEdad = motivoEdadNoValida(ageInput, t);
+            if (_motivoEdad) {
+                toast.error(_motivoEdad);
                 return;
             }
+            ageNum = parseInt(ageInput, 10);
         }
 
         setIsSaving(true);
@@ -1942,11 +1944,13 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         }
         let ageNum = null;
         if (ageInput !== '' && ageInput != null) {
-            ageNum = parseInt(ageInput, 10);
-            if (isNaN(ageNum) || ageNum < 12 || ageNum > 100) {
-                toast.error(t("Edad fuera de rango (12–100 años)."));
+            // [P1-PLAN-LOTE-846] 18 como en el formulario; un menor recibe la frase del corte, no «fuera de rango».
+            const _motivoEdad = motivoEdadNoValida(ageInput, t);
+            if (_motivoEdad) {
+                toast.error(_motivoEdad);
                 return;
             }
+            ageNum = parseInt(ageInput, 10);
         }
 
         setIsSaving(true);
@@ -2074,11 +2078,13 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         setNameError('');
         let ageNum = null;
         if (ageInput !== '' && ageInput != null) {
-            ageNum = parseInt(ageInput, 10);
-            if (isNaN(ageNum) || ageNum < 12 || ageNum > 100) {
-                toast.error(t("Edad fuera de rango (12–100 años)."));
+            // [P1-PLAN-LOTE-846] 18 como en el formulario; un menor recibe la frase del corte, no «fuera de rango».
+            const _motivoEdad = motivoEdadNoValida(ageInput, t);
+            if (_motivoEdad) {
+                toast.error(_motivoEdad);
                 return;
             }
+            ageNum = parseInt(ageInput, 10);
         }
 
         setIsRegeneratingFromMetrics(true);
@@ -3275,7 +3281,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 {/* [P3-PROFILE-AGE-SEX · 2026-06-20] Edad + Sexo biológico —
                                     completan las 4 entradas del BMR. Guardado libre con el botón
                                     "Guardar" → aplican al PRÓXIMO plan (no regeneran el vigente).
-                                    gender 'male'/'female'; edad 12-100 (espejo formValidation). */}
+                                    gender 'male'/'female'; edad 18-100 (espejo formValidation, P1-PLAN-LOTE-846). */}
                                 {(() => {
                                     const _is = {
                                         width: '100%', padding: '0.875rem 1.25rem', borderRadius: '0.75rem',
@@ -3300,7 +3306,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                 <label htmlFor="settings-age" style={_lbl}>{t('Edad')}</label>
                                                 <input
                                                     id="settings-age"
-                                                    type="number" inputMode="numeric" min="12" max="100" step="1"
+                                                    type="number" inputMode="numeric" min={BIO_RANGES.age.min} max={BIO_RANGES.age.max} step="1"
                                                     value={ageInput}
                                                     onChange={(e) => setAgeInput(e.target.value)}
                                                     placeholder="30"

@@ -7,11 +7,14 @@ import { Input, Label } from '../../common/FormUI';
 // `backend/routers/plans.py`). Backend es source of truth; este import es
 // solo para gating UX inmediato — bloquea "Siguiente" y aplica `min`/`max`
 // nativo a los inputs.
-import { BIO_RANGES, isBiometricInRange } from '../../../config/formValidation';
+import { BIO_RANGES, isBiometricInRange, esMenorDeEdad } from '../../../config/formValidation';
 import { NextButton } from './NextButton';
 import { formatNumber, useT } from '../../../i18n';
 
-export const QMeasurements = ({ onManualAdvance }) => {
+// [P1-PLAN-LOTE-846 · 2026-09-29] `onMenorDeEdad`: el formulario corta aquí si la edad es de un menor (pantalla
+// «solo para mayores de 18», InteractiveAssessmentFlow). Se dispara al SALIR del campo y en «Siguiente», nunca
+// mientras se escribe: «25» pasa por «2».
+export const QMeasurements = ({ onManualAdvance, onMenorDeEdad }) => {
     const { formData, updateData } = useAssessment();
     const t = useT();
     // [P1-13] `unit` derivado de formData (no `useState` local) para que
@@ -124,9 +127,22 @@ export const QMeasurements = ({ onManualAdvance }) => {
     const _escrito = (v) => v !== undefined && v !== null && String(v).trim() !== '';
     const _num = (v) => parseFloat(String(v).replace(',', '.'));
     const _enRango = (v, r) => Number.isFinite(v) && v >= r.min && v <= r.max;
-    const avisoEdad = _escrito(formData.age) && !ageOK
+    // [P1-PLAN-LOTE-846] La edad de un menor no se corrige junto al campo («escribe una edad entre 18 y 100» le diría a
+    // un chico qué número poner): el campo calla, «Siguiente» se enciende y corta el formulario. El aviso de rango
+    // queda para lo que sí es una errata (0, 250, texto).
+    const menor = esMenorDeEdad(formData.age);
+    const avisoEdad = _escrito(formData.age) && !ageOK && !menor
         ? t('Escribe una edad entre {min} y {max} años.', { min: BIO_RANGES.age.min, max: BIO_RANGES.age.max })
         : null;
+    const cortarSiMenor = () => {
+        if (!esMenorDeEdad(formData.age) || typeof onMenorDeEdad !== 'function') return false;
+        onMenorDeEdad();
+        return true;
+    };
+    const siguiente = () => {
+        if (cortarSiMenor()) return;
+        onManualAdvance();
+    };
     const avisoAltura = (() => {
         if (unit === 'ft') {
             const f = _num(feet);
@@ -200,6 +216,7 @@ export const QMeasurements = ({ onManualAdvance }) => {
                         id="age" type="number" inputMode="numeric" enterKeyHint="next" placeholder={t('Ej. 28')}
                         min={BIO_RANGES.age.min} max={BIO_RANGES.age.max} step={BIO_RANGES.age.step}
                         value={formData.age} onChange={e => updateData('age', e.target.value)}
+                        onBlur={cortarSiMenor}
                         aria-required="true"
                         aria-invalid={avisoEdad ? 'true' : undefined}
                         aria-describedby={avisoEdad ? 'age-aviso' : undefined}
@@ -312,7 +329,9 @@ export const QMeasurements = ({ onManualAdvance }) => {
                 </div>
             </div>
 
-            <NextButton onClick={onManualAdvance} disabled={!isFormValid} />
+            {/* [P1-PLAN-LOTE-846] Con la edad de un menor se enciende aunque falten la altura o el peso: no hace falta
+                pedirle más datos para decirle que la app no es para él. */}
+            <NextButton onClick={siguiente} disabled={!isFormValid && !(menor && onMenorDeEdad)} />
         </div>
     );
 };

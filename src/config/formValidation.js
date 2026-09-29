@@ -681,9 +681,12 @@ export const missingPlanQuestionsCount = (formData) =>
 //
 // Filosofía: PERMISIVOS — solo blindamos contra typos y bogus, no gate-keep
 // médico. Cubrimos extremos humanos reales.
+//
+// [P1-PLAN-LOTE-846 · 2026-09-29] Salvo la EDAD, que no es un rango permisivo: 18 es la edad mínima de los Términos
+// (§2). Una edad de menor no es una errata que se corrige junto al campo: corta el formulario (`esMenorDeEdad`, abajo).
 // ============================================================
 export const BIO_RANGES = {
-    age:      { min: 12,  max: 100, step: 1,   unit: 'años' },
+    age:      { min: 18,  max: 100, step: 1,   unit: 'años' },
     heightCm: { min: 100, max: 250, step: 1,   unit: 'cm' },
     heightFt: { min: 3,   max: 8,   step: 1,   unit: 'pies' },   // ~3'3" a 8'2"
     heightIn: { min: 0,   max: 11,  step: 1,   unit: 'pulg' },
@@ -727,6 +730,36 @@ export const isBiometricInRange = (rawValue, range, { optional = false } = {}) =
         : parseFloat(String(rawValue).replace(',', '.'));
     if (!Number.isFinite(normalized)) return false;
     return normalized >= range.min && normalized <= range.max;
+};
+
+/**
+ * [P1-PLAN-LOTE-846 · 2026-09-29] ¿Es la edad de un menor? Los Términos (§2) y la Privacidad (§11) dicen «solo mayores
+ * de 18»; hasta este lote el formulario aceptaba de 12 a 100 y mandaba los datos de salud de un menor a la IA.
+ *
+ * Espejo de `edad_minima.es_menor_de_edad` (backend): una edad LEGIBLE cuya parte entera va de 1 a 17 (la misma cuenta
+ * que `int(float(...))` del router). Lo ilegible (vacío, 0, negativo, texto) no es «menor»: eso es un rango mal escrito
+ * y lo avisa el campo. Quién la consume: el paso de medidas (al salir del campo y en «Siguiente»), el salto, el envío,
+ * el cierre del contador y Configuración.
+ */
+export const esMenorDeEdad = (rawValue) => {
+    if (rawValue === null || rawValue === undefined || rawValue === '' || typeof rawValue === 'boolean') return false;
+    const n = typeof rawValue === 'number' ? rawValue : parseFloat(String(rawValue).trim().replace(',', '.'));
+    if (!Number.isFinite(n)) return false;
+    const edad = Math.trunc(n);
+    return edad > 0 && edad < BIO_RANGES.age.min;
+};
+
+/**
+ * [P1-PLAN-LOTE-846] Por qué una edad escrita a mano (Configuración) no se puede guardar, ya traducido; `null` si se
+ * puede (o si está vacía: no tocarla es válido). Un menor recibe la frase del corte, no «fuera de rango».
+ */
+export const motivoEdadNoValida = (rawValue, t) => {
+    if (rawValue === null || rawValue === undefined || String(rawValue).trim() === '') return null;
+    if (esMenorDeEdad(rawValue)) return t('{app} es solo para mayores de {edad} años', { app: BRAND, edad: BIO_RANGES.age.min });
+    if (!isBiometricInRange(rawValue, BIO_RANGES.age)) {
+        return t('Edad fuera de rango ({min}–{max} años).', { min: BIO_RANGES.age.min, max: BIO_RANGES.age.max });
+    }
+    return null;
 };
 
 // ============================================================

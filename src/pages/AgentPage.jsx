@@ -5280,6 +5280,14 @@ const AgentPage = () => {
                         )}
                     </div>
                 </div>
+                {/* [P1-PLAN-LOTE-846 · 2026-09-29] Apple 1.4.1: bajo el cuadro del coach, fija, que es una IA y no
+                    sustituye el consejo médico. 12 px y --text-muted (AA en los dos temas). */}
+                <p className="chat-aviso-ia" data-testid="chat-aviso-ia" style={{
+                    margin: '0.45rem 0 0', textAlign: 'center', fontSize: '0.75rem', lineHeight: 1.4,
+                    color: 'var(--text-muted)',
+                }}>
+                    {t('El coach es una IA: puede equivocarse y no sustituye el consejo médico.')}
+                </p>
             </div>
             {/* Reproductor Nativo Montado en el DOM para Evitar Bloqueos de iOS Safari */}
             <audio ref={audioPlayerRef} playsInline style={{ display: 'none' }} id="tts-audio-player" />

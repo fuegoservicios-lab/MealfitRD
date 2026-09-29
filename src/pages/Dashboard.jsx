@@ -65,6 +65,7 @@ import { useTodaysConsumedMeals } from '../hooks/useTodaysConsumedMeals';
 // el badge plano icono+número del header). Recibe la misma data del badge.
 import CreditsMeter from '../components/dashboard/CreditsMeter';
 import DashboardTracking from '../components/dashboard/DashboardTracking';
+import NotaAvisoMedico from '../components/common/NotaAvisoMedico';   // [P1-PLAN-LOTE-846]
 // [P3-MICRONUTRIENT-PANEL · 2026-06-15] Panel de micros como medidores + dismissible.
 // [P3-NOTIF-CENTER · 2026-06-16] buildMicrosNotification = SSOT del resumen archivado;
 // microsContentSig = firma estable por contenido (clave de dismissal/backfill).
@@ -1096,6 +1097,13 @@ const DashboardInner = () => {
         setProReviewHidden(true);
         const key = _planMicroSig ? `mealfit_proreview_dismissed_${_planMicroSig}` : null;
         if (key) safeLocalStorageSet(key, '1');
+    }, [_planMicroSig]);
+    // [P1-PLAN-LOTE-846 · 2026-09-29] Apple 1.4.1 (auditoría §A.4.4): cerrar el aviso ya no lo hace DESAPARECER — queda
+    // una versión compacta y fija («Consulta a tu profesional antes de seguir este plan»). Esto la vuelve a desplegar.
+    const showProReview = useCallback(() => {
+        setProReviewHidden(false);
+        const key = _planMicroSig ? `mealfit_proreview_dismissed_${_planMicroSig}` : null;
+        if (key) safeLocalStorageRemove(key);
     }, [_planMicroSig]);
     // [P3-NOTIF-CENTER · 2026-06-16] SSOT del payload de notificación del banner
     // "plan no óptimo" (título + motivo, mismo copy que el banner). Compartido
@@ -8054,6 +8062,43 @@ const DashboardInner = () => {
                     </button>
                 </motion.div>
             )}
+            {/* [P1-PLAN-LOTE-846 · 2026-09-29] La versión compacta que queda al cerrarlo: una línea fija con el mismo acento
+                (rojo renal, azul el resto) y «Ver aviso» para volver a desplegarlo. Sin X: el recordatorio de consultar a
+                un profesional no puede desaparecer mientras el plan lo pida (Apple 1.4.1). */}
+            {planData?.requires_professional_review?.flag && planData?.requires_professional_review?.note && proReviewHidden && (
+                <div
+                    role="note"
+                    data-testid="pro-review-compacto"
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap',
+                        padding: '0.6rem 0.9rem', marginBottom: '1.5rem', borderRadius: '0.85rem',
+                        background: planData.requires_professional_review.renal_gate ? 'rgba(239, 68, 68, 0.08)' : 'rgba(59, 130, 246, 0.08)',
+                        border: planData.requires_professional_review.renal_gate ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(59, 130, 246, 0.35)',
+                    }}
+                >
+                    <AlertCircle
+                        size={18}
+                        color={planData.requires_professional_review.renal_gate ? '#EF4444' : '#3B82F6'}
+                        style={{ flexShrink: 0 }}
+                        aria-hidden="true"
+                    />
+                    <span style={{ flex: '1 1 14rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                        {planData.requires_professional_review.renal_gate
+                            ? t('Condición renal — este plan requiere supervisión de tu nefrólogo')
+                            : t('Consulta a tu profesional de salud antes de seguir este plan.')}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={showProReview}
+                        style={{
+                            background: 'transparent', border: 0, padding: '0.35rem 0.25rem', cursor: 'pointer',
+                            fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)', fontFamily: 'inherit',
+                        }}
+                    >
+                        {t('Ver aviso')}
+                    </button>
+                </div>
+            )}
 
             {/* [P2-MICRONUTRIENT-SURFACE · 2026-06-15] Panel de micronutrientes a vigilar + suplementación.
                 El backend YA computa `micronutrient_report` (FS4: vit D/hierro/calcio/B12/potasio/Mg +
@@ -9713,6 +9758,10 @@ const DashboardInner = () => {
 
                 </div>
             </div>
+
+            {/* [P1-PLAN-LOTE-846 · 2026-09-29] Apple 1.4.1: la nota médica fija al pie del plan, con el Aviso Médico.
+                Sin X a propósito: es el recordatorio que no depende de que el usuario haya declarado nada. */}
+            <NotaAvisoMedico />
 
             {/* MODAL DE ONBOARDING WEB PUSH (Alertas Inteligentes) */}
             <AnimatePresence>

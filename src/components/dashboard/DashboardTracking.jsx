@@ -27,6 +27,7 @@ import { useT, useTn } from '../../i18n';
 import TrackingProgress from './TrackingProgress';
 import WaterTracker from './WaterTracker';
 import styles from './DashboardTracking.module.css';
+import NotaAvisoMedico from '../common/NotaAvisoMedico';   // [P1-PLAN-LOTE-846]
 
 // Cuántas preguntas del contrato de PLAN le faltan — un hecho, no un adjetivo.
 const _DISMISS_KEY = 'mealfit_turnon_card_dismissed';
@@ -270,6 +271,9 @@ const DashboardTracking = ({ modo = 'contador' }) => {
                     // los dos modos: en modo plan el plan trae las macros, no las metas DRI de los micros).
                     <TrackingProgress planData={metasMacros} userId={userProfile?.id} flatOnMobile microTargets={targets?.micros || null} />
                 )}
+                {/* [P1-PLAN-LOTE-846 · 2026-09-29] Apple 1.4.1: la nota médica fija, también en el contador (y en la
+                    pestaña «Progreso» del modo plan, que es este mismo componente). */}
+                <NotaAvisoMedico />
             </div>
 
             <div className={styles.sideCol}>

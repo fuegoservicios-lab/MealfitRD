@@ -27,6 +27,8 @@
 // nadie ha medido. Quedan documentados en el guard como deuda con nombre.
 
 import { getLocale } from '../i18n';
+// [P1-PLAN-LOTE-846] la marca entra como variable (P3-I18N-MARCA-HORNEADA-EN-26-CLAVES).
+import { BRAND } from '../data/routeMeta';
 
 /**
  * Los códigos que el backend emite hoy, con su copy traducible.
@@ -71,6 +73,10 @@ const COPY_POR_CODIGO = {
     // [P1-PLAN-LOTE-844 · ronda 1] Sin entradas para `ai_consent_required` / `ai_consent_unavailable`, a propósito: este
     // fichero viaja en el arranque (techo de `scripts/presupuestos.mjs`). Al 428 ya le contestó la hoja del permiso (y
     // «Ahora no» deja el aviso «Activa la IA para usar esto»); el 503 cae al texto de fallo de cada llamador.
+    // [P1-PLAN-LOTE-846 · 2026-09-29] 422 `underage` (edad_minima.py): la misma frase del corte del formulario.
+    underage: (t, d) => t('{app} es solo para mayores de {edad} años', {
+        app: BRAND, edad: (d && Number.isFinite(Number(d.min_age))) ? Number(d.min_age) : 18,
+    }),
 };
 
 /** El código que trae una respuesta de error, mire donde mire el backend. */

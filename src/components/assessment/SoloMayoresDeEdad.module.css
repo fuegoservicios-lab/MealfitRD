@@ -1,0 +1,33 @@
+/* [P1-PLAN-LOTE-846 · 2026-09-29] La pantalla que corta el formulario (edad de un menor). Dos botones apilados: la
+   salida, con la tinta sólida (la acción esperada), y la corrección, fantasma (`mf-ghost-btn`, la misma de «Saltar a
+   la última pregunta»). Ancho de toque completo en el teléfono y tope en escritorio para no estirarse. */
+.corte {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 26rem;
+    width: 100%;
+}
+
+.salir {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 48px;
+    padding: 0.85rem 1.4rem;
+    border: 0;
+    border-radius: 1rem;
+    background: var(--primary-fill, #4F46E5);
+    color: #fff;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.salir:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.55);
+}

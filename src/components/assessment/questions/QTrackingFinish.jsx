@@ -15,12 +15,14 @@ import { toast } from 'sonner';
 import { fetchWithAuth } from '../../../config/api';
 import { guardarSuplementosEnAlacena } from '../../../utils/normalizarSuplementos';
 import { useAssessment } from '../../../context/AssessmentContext';
-import { TRACKING_REQUIRED_FIELDS } from '../../../config/formValidation';
+import { TRACKING_REQUIRED_FIELDS, esMenorDeEdad } from '../../../config/formValidation';
 import { useT } from '../../../i18n';
 import { safeLocalStorageSet } from '../../../utils/safeLocalStorage';
 import { confirmToast } from '../../../utils/confirmToast';
 
-export const QTrackingFinish = () => {
+// [P1-PLAN-LOTE-846 · 2026-09-29] `onMenorDeEdad`: el cierre del contador también corta si la edad es de un menor (antes
+// de guardar nada), y si el servidor responde 422 `underage` se pinta el mismo corte.
+export const QTrackingFinish = ({ onMenorDeEdad } = {}) => {
     const navigate = useNavigate();
     const { formData, refreshProfileAndPlan, loadingSensitive, planData } = useAssessment();
     const t = useT();
@@ -39,6 +41,10 @@ export const QTrackingFinish = () => {
                 description: t('Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.'),
                 duration: 3000,
             });
+            return;
+        }
+        if (esMenorDeEdad(formData.age) && typeof onMenorDeEdad === 'function') {
+            onMenorDeEdad();
             return;
         }
         // [P1-PLAN-LOTE-137 · 2026-09-20] Esta puerta también PAUSA: quien llega aquí con un plan vivo («Cambiar mis
@@ -130,6 +136,10 @@ export const QTrackingFinish = () => {
             // El mensaje del Error se pinta tal cual en el toast del catch.
             // [P1-PLAN-LOTE-164] Los errores PROPIOS llevan la marca `paraMostrar`: son los únicos que se pintan tal
             // cual. Lo demás (sin red, «Request timeout tras 30000ms: https://…», «Load failed») es texto técnico.
+            if (r1.status === 422 && typeof onMenorDeEdad === 'function') {
+                const _d = (await r1.json().catch(() => null))?.detail;
+                if (_d && typeof _d === 'object' && _d.code === 'underage') { onMenorDeEdad(); return; }
+            }
             if (!r1.ok) throw Object.assign(new Error(t('No se pudo guardar tu perfil.')), { paraMostrar: true });
 
             const r2 = await fetchWithAuth('/api/profile/plan-mode', {

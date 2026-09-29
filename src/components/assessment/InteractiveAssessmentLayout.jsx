@@ -13,7 +13,10 @@ import { isTrackingMode } from '../../config/dashboardNav';
 import { terminarCompletarFormulario } from '../../utils/completarFormulario';
 import { useCampoVisibleConTeclado } from '../../hooks/useCampoVisibleConTeclado';
 
-const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
+// [P1-PLAN-LOTE-846 · 2026-09-29] `bloqueo`: la pantalla que CORTA el formulario (edad de un menor). Sin «Paso N de M»,
+// sin barra de progreso y sin flecha de «paso anterior»: no es un paso más, es el final del camino. Quedan la cabecera
+// (idioma, salida) y el título, que recibe el foco como el de cualquier paso.
+const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle, bloqueo = false }) => {
     const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile, updateData, session, planData } = useAssessment();
     // [P1-ARQ25-F1-CLOSE · 2026-09-02] Si ya hay un plan generándose (placeholder de la cola sin
     // días), el asistente lo dice arriba y manda al panel: reenviar el formulario cancelaría
@@ -98,7 +101,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
     useEffect(() => {
         focoPendienteRef.current = true;
         window.scrollTo(0, 0);
-    }, [currentStep]);
+    }, [currentStep, bloqueo]);
 
     // [P1-ANDROID-BACK · 2026-08-10] El gesto «atrás» de Android retrocede un paso.
     //
@@ -182,7 +185,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                     </button>
                 )}
                 <div className={styles.headerContent}>
-                    {currentStep > 0 ? (
+                    {currentStep > 0 && !bloqueo ? (
                         /* [P1-PLAN-LOTE-164 · 2026-09-22] En el teléfono la salida al panel existía SOLO en el paso 0 (el
                            pill de la esquina se oculta a ≤768 px): desde el paso 12, doce toques de «atrás» — y en el
                            iPhone no hay gesto atrás. Ahora va junto a la flecha en todos los pasos (en escritorio sigue
@@ -260,7 +263,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                     <motion.div
                         className={styles.progressBar}
                         initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
+                        animate={{ width: bloqueo ? '0%' : `${progress}%` }}
                         transition={{ duration: 0.5, ease: "easeOut" }}
                     />
                 </div>
@@ -277,7 +280,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         pedido del owner. En móvil sigue en el header (.backBtn) y esta se oculta
                         (CSS: display:none base, inline-flex ≥900px). Solo desde el paso 2 (el
                         paso 1 no tiene "anterior"). El .backBtn del header se oculta ≥900px. */}
-                    {currentStep > 0 && (
+                    {currentStep > 0 && !bloqueo && (
                         <button onClick={prevStep} className={styles.cardBackBtn} aria-label={t('Paso anterior')}>
                             <ChevronLeft size={22} />
                         </button>
@@ -296,9 +299,11 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         >
                             {/* [FORM-VISUAL-V2 · 2026-07-02] Kicker de contexto sobre el
                                 título — orienta cuánto falta sin mirar el header. */}
-                            <span className={styles.kicker}>
-                                {t('Paso {actual} de {total}', { actual: currentStep + 1, total: totalSteps })}
-                            </span>
+                            {!bloqueo && (
+                                <span className={styles.kicker}>
+                                    {t('Paso {actual} de {total}', { actual: currentStep + 1, total: totalSteps })}
+                                </span>
+                            )}
                             {/* [P1-WIZARD-STEP-FOCUS] `tabIndex={-1}` lo hace enfocable por
                                 código sin meterlo en el orden de tabulación. */}
                             {title && <h1 ref={tituloRef} tabIndex={-1} className={styles.title}>{title}</h1>}
@@ -364,6 +369,7 @@ InteractiveAssessmentLayout.propTypes = {
     // [P4-LAYOUT-KEY] title/subtitle son JSX (fragments con <span>*</span>), no strings.
     title: PropTypes.node,
     subtitle: PropTypes.node,
+    bloqueo: PropTypes.bool,   // [P1-PLAN-LOTE-846]
 };
 
 export default InteractiveAssessmentLayout;

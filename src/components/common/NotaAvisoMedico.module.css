@@ -1,0 +1,28 @@
+/* [P1-PLAN-LOTE-846 · 2026-09-29] Nota médica fija: pequeña pero legible (12 px de piso, --text-muted = AA en los dos
+   temas; el enlace, --primary subrayado, también AA). Centrada al pie, sin caja: es un pie de página, no un aviso. */
+.nota {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.4rem;
+    max-width: 44rem;
+    margin: 1.5rem auto 0.5rem;
+    padding: 0 1rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.icono {
+    flex: none;
+    margin-top: 0.2rem;
+}
+
+.enlace {
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    white-space: nowrap;
+}
