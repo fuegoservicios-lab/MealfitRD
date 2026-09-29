@@ -5,20 +5,30 @@
 // turno — la frase del usuario mientras habla, la del coach mientras suena — porque sin eso la voz es una caja negra;
 // y la conversación entera queda además escrita en el chat al cerrar.
 //
+// [P1-PLAN-LOTE-688 · 2026-09-29] …y se MINIMIZA a una burbuja. El dueño: «quiero que se pueda mover dentro de la app
+// mientras el modo voz esté activo: si le digo que me comí 2 huevos con pan integral y me pregunta cuántas lonjas,
+// cuando lo agregue lo pueda ver en directo cómo sube el contador». No hace falta mover la conversación: el chat sigue
+// montado (oculto) al cambiar de pestaña (App.jsx, `hasVisitedAgent`) y este portal vive en `body`, fuera de su `inert`.
+// Minimizada no es un diálogo: ni `aria-modal`, ni foco robado, ni scroll bloqueado, ni Escape — la app es usable.
+//
 // El estado lo lleva `hooks/useConversacionPorVoz.js`; este componente solo lo pinta y le pasa los toques.
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { ChevronDown, Maximize2, X } from 'lucide-react';
 import { useT } from '../../i18n';
 import styles from './ModoVoz.module.css';
 
-export default function ModoVoz({ estado, oido, dicho, error, pulso = 0, estadoDelTurno, onTocar, onCerrar }) {
+export default function ModoVoz({
+    estado, oido, dicho, error, pulso = 0, estadoDelTurno, onTocar, onCerrar,
+    minimizado = false, onMinimizar, onExpandir, enChat = false,
+}) {
     const t = useT();
     const capaRef = useRef(null);
     const cerrarRef = useRef(onCerrar);
     useEffect(() => { cerrarRef.current = onCerrar; });
 
     useEffect(() => {
+        if (minimizado) return undefined;   // la burbuja no es un diálogo: la app sigue siendo usable
         // El foco va al diálogo (lo anuncia el lector de pantalla), no al círculo: en él se pintaría el anillo de foco.
         try { capaRef.current?.focus({ preventScroll: true }); } catch { /* sin foco programático */ }
         const alTeclado = (e) => { if (e.key === 'Escape') cerrarRef.current?.(); };
@@ -29,7 +39,7 @@ export default function ModoVoz({ estado, oido, dicho, error, pulso = 0, estadoD
             window.removeEventListener('keydown', alTeclado);
             document.body.style.overflow = antes;
         };
-    }, []);
+    }, [minimizado]);
 
     let lineaDeEstado;
     let etiquetaDelCirculo;
@@ -52,29 +62,62 @@ export default function ModoVoz({ estado, oido, dicho, error, pulso = 0, estadoD
         ? t('Cuéntame qué comiste o pregúntame lo que quieras')
         : '';
 
+    const orbe = (clase) => (
+        <button
+            type="button"
+            className={clase}
+            data-estado={estado}
+            data-latido={pulso % 2}
+            onClick={onTocar}
+            aria-label={etiquetaDelCirculo}
+        >
+            <span className={styles.halo} aria-hidden="true" />
+            <span className={`${styles.halo} ${styles.halo2}`} aria-hidden="true" />
+            <span className={styles.nucleo} aria-hidden="true" />
+        </button>
+    );
+
+    if (minimizado) {
+        // En la pestaña del coach (`enChat`) la caja de escribir y sus atajos ocupan la franja de abajo: la burbuja sube.
+        const bocadillo = error ? t(error) : (subtitulo || lineaDeEstado);
+        return createPortal(
+            <div className={styles.burbuja} data-en-chat={enChat ? '1' : '0'} role="region" aria-label={t('Modo voz')}>
+                <p className={error ? `${styles.bocadillo} ${styles.estadoError}` : styles.bocadillo} aria-live="polite">
+                    {bocadillo}
+                </p>
+                <div className={styles.burbujaFila}>
+                    <button type="button" className={styles.burbujaAccion} onClick={onExpandir} aria-label={t('Abrir el modo voz')}>
+                        <Maximize2 size={16} strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                    {orbe(`${styles.orbe} ${styles.orbeMini}`)}
+                    <button type="button" className={styles.burbujaAccion} onClick={onCerrar} aria-label={t('Terminar el modo voz')}>
+                        <X size={16} strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                </div>
+            </div>,
+            document.body,
+        );
+    }
+
     return createPortal(
         <div ref={capaRef} tabIndex={-1} className={styles.capa} role="dialog" aria-modal="true" aria-labelledby="modo-voz-titulo">
             <div className={styles.fondo} aria-hidden="true" />
             <div className={styles.cabecera}>
                 <span id="modo-voz-titulo" className={styles.titulo}>{t('Modo voz')}</span>
-                <button type="button" className={styles.cerrar} onClick={onCerrar} aria-label={t('Terminar el modo voz')}>
-                    <X size={22} strokeWidth={2.2} aria-hidden="true" />
-                </button>
+                <div className={styles.cabeceraAcciones}>
+                    {onMinimizar && (
+                        <button type="button" className={styles.cerrar} onClick={onMinimizar} aria-label={t('Minimizar el modo voz')}>
+                            <ChevronDown size={22} strokeWidth={2.2} aria-hidden="true" />
+                        </button>
+                    )}
+                    <button type="button" className={styles.cerrar} onClick={onCerrar} aria-label={t('Terminar el modo voz')}>
+                        <X size={22} strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                </div>
             </div>
 
             <div className={styles.centro}>
-                <button
-                    type="button"
-                    className={styles.orbe}
-                    data-estado={estado}
-                    data-latido={pulso % 2}
-                    onClick={onTocar}
-                    aria-label={etiquetaDelCirculo}
-                >
-                    <span className={styles.halo} aria-hidden="true" />
-                    <span className={`${styles.halo} ${styles.halo2}`} aria-hidden="true" />
-                    <span className={styles.nucleo} aria-hidden="true" />
-                </button>
+                {orbe(styles.orbe)}
 
                 <p className={error ? `${styles.estado} ${styles.estadoError}` : styles.estado} aria-live="polite">
                     {error ? t(error) : lineaDeEstado}

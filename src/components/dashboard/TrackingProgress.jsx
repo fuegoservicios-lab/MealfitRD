@@ -3,6 +3,7 @@ import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus,
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
+import { useNumeroAnimado } from '../../hooks/useNumeroAnimado';
 // [P1-DIARY-HISTORY · 2026-07-31] Esta card es SOLO hoy; el coach registra
 // hacia atras con `days_ago`. Sin esta puerta, una comida bien registrada
 // en otro dia no tiene NINGUNA superficie donde verse.
@@ -380,12 +381,16 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
             if (isMounted && e?.detail?.source !== 'tracking-progress') fetchConsumed();
         };
         window.addEventListener('mealfit:refresh-inventory', onAgentRefreshInventory);
+        // [P1-PLAN-LOTE-688] …y al acabar CADA turno del coach: si el modelo anota sin la etiqueta de refresco, el
+        // contador no se enteraba hasta volver a la pestaña. Con el modo voz minimizado se mira en directo.
+        window.addEventListener('mealfit:chat-turn-done', onAgentRefreshInventory);
         window.addEventListener('mealfit:diary-changed', onDiaryChanged);
         document.addEventListener('visibilitychange', onVisibilityChange);
 
         return () => {
             isMounted = false;
             window.removeEventListener('mealfit:refresh-inventory', onAgentRefreshInventory);
+            window.removeEventListener('mealfit:chat-turn-done', onAgentRefreshInventory);
             window.removeEventListener('mealfit:diary-changed', onDiaryChanged);
             document.removeEventListener('visibilitychange', onVisibilityChange);
         };
@@ -798,6 +803,8 @@ TrackingProgress.propTypes = {
 // --- Componente Interno para Barra Individual ---
 const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: DarkIcon, color, lightColor, gradient, large, fillIcon, fillWhiteStroke }) => {
     const isEmpty = perc === 0;
+    // [P1-PLAN-LOTE-688] el número SUBE a la vista cuando el coach anota (la barra ya crecía con transición)
+    const consumedMostrado = useNumeroAnimado(consumed);
     // [APPEARANCE-THEME · 2026-05-29] Los rellenos de iconos (llama/gota sólidos,
     // trigo verde-con-líneas-blancas) son SOLO para modo oscuro. En claro se
     // conserva el diseño anterior (iconos outline). El toggle vive en Settings
@@ -922,7 +929,7 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
                             color: consumedTextColor
                         }}
                     >
-                        {formatNumber(consumed)}
+                        {formatNumber(consumedMostrado)}
                     </span>
                     <span
                         className={styles.barGoal}

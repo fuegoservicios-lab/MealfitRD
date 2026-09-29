@@ -2082,15 +2082,20 @@ const AgentPage = () => {
     }, [hablarModoVoz]);
     // Abrir el modo voz es un TOQUE (iOS no deja hablar sin gesto). Con un turno en vuelo no se abre: el primer
     // mensaje hablado chocaría con el candado del turno y se perdería.
+    // [P1-PLAN-LOTE-688] Minimizado a una burbuja para moverse por la app mientras habla: el chat sigue montado (oculto)
+    // al cambiar de pestaña, así que el turno de voz, su stream y los avisos de «refrescar» siguen vivos.
+    const [vozMinimizada, setVozMinimizada] = useState(false);
     const abrirModoVoz = () => {
         if (isTurnActiveRef.current) return;
         if (dictado.escuchando) dictado.cancelar();
         try { chatInputRef.current?.blur(); } catch (_e) { /* sin foco que soltar */ }
         trackEvent('coach_voz_abierto');
+        setVozMinimizada(false);
         vozCoach.abrir();
     };
     const cerrarModoVoz = () => {
         vozCoach.cerrar();
+        setVozMinimizada(false);
         trackEvent('coach_voz_cerrado');
     };
 
@@ -3419,6 +3424,9 @@ const AgentPage = () => {
             ? options.overrideAttachments
             : (options.overrideImageUrl ? [{ id: `legacy-${Date.now()}`, url: options.overrideImageUrl, status: 'ready' }] : []);
         if ((!textToSend.trim() && attachments.length === 0 && overrideAttachments.length === 0) || isTurnActiveRef.current) return;
+        // [P1-PLAN-LOTE-688] Con el modo voz activo (también minimizado) lo ESCRITO no sale: lo que dice va por su turno
+        // de voz (llega como texto, `overrideInput`). Dos turnos a la vez chocarían en la misma burbuja y en el servidor.
+        if (typeof overrideInput !== 'string' && callModeRef.current) return;
         // [P1-PLAN-LOTE-690 → 695] Va DESPUÉS del guard de entrada (test_p1_chat_stop_power lo exige en los primeros
         // 1.800 caracteres de handleSend) y ANTES de abrir el turno: la reanudación vuelve a entrar por aquí.
         // [P1-PLAN-LOTE-690] Con una foto esperando sus respuestas, lo que se escriba (también tras «Otra…») ES la
@@ -5079,7 +5087,9 @@ const AgentPage = () => {
                             onChange={(e) => { if (isListening) dictado.cancelar(); setInput(e.target.value); }}
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
-                            placeholder={isListening ? t('Te escucho…') : (pistaDeRespuesta || micErrorMsg || t("Pregúntale a {app}", { app: BRAND }))}
+                            // [P1-PLAN-LOTE-688] con el modo voz activo (minimizado) no se escribe: se habla
+                            readOnly={isCallModeActive}
+                            placeholder={isCallModeActive ? t('Modo voz activo · habla o toca la burbuja') : (isListening ? t('Te escucho…') : (pistaDeRespuesta || micErrorMsg || t("Pregúntale a {app}", { app: BRAND })))}
                             onFocus={() => { if (isMobile) setTimeout(scrollToBottom, 300); }}  // [P2-CHAT-ANCHOR-SENT-TOP] en PC no salta
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se
@@ -6457,6 +6467,10 @@ const AgentPage = () => {
                         estadoDelTurno={typeof streamingStatus === 'string' ? streamingStatus : ''}
                         onTocar={vozCoach.tocar}
                         onCerrar={cerrarModoVoz}
+                        minimizado={vozMinimizada}
+                        onMinimizar={() => { setVozMinimizada(true); trackEvent('coach_voz_minimizado'); }}
+                        onExpandir={() => setVozMinimizada(false)}
+                        enChat={isAgentRouteActive}
                     />
                 </Suspense>
             )}
