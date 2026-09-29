@@ -267,6 +267,13 @@ export async function reducirImagen(file, { maxSide = 1600, quality = 0.82, sign
         throw new TypeError('Formato de imagen no soportado');
     }
     assertNotAborted(signal);
+    // [P1-PLAN-LOTE-848 · parte B] Una foto de más de 40 MP (HEIF Max, ProRAW de 48 MP) se rechaza por la CABECERA, sin
+    // decodificarla: antes el worker la decodificaba entera (~190 MB) solo para descubrir que no cabía.
+    const dimensiones = await dimensionesDeCabecera(file);
+    assertNotAborted(signal);
+    if (dimensiones && dimensiones.ancho * dimensiones.alto > CHAT_IMAGE_MAX_PIXELS) {
+        throw errorConCodigo('IMAGE_DIMENSIONS_TOO_LARGE');
+    }
     if (workerDisponible()) {
         try {
             const r = await prepararEnWorker(file, { signal, maxSide, quality, thumbSide: 0 });
@@ -279,8 +286,22 @@ export async function reducirImagen(file, { maxSide = 1600, quality = 0.82, sign
     return _internals.reducirEnHiloPrincipal(file, { signal, maxSide, quality });
 }
 
+// [P1-PLAN-LOTE-848 · parte B] En el hilo principal la foto se abre con `<img>`, no con `createImageBitmap`: aquí solo
+// llega sin OffscreenCanvas (Safari < 16.4), y el `createImageBitmap` de iOS 15 ignora la orientación EXIF (la foto hecha
+// en vertical salía tumbada), mientras que `<img>` la respeta. Y `<img>` da las dimensiones al cargar sin decodificar los
+// píxeles: una foto que no cabe se rechaza antes de dibujarla. Si `<img>` no puede, se intenta como antes.
+const abrirParaReducir = async (file, signal) => {
+    try {
+        return await loadWithImageElement(file, signal);
+    } catch (error) {
+        if (error?.name === 'AbortError') throw error;
+        return decodeImage(file, signal);
+    }
+};
+
 async function reducirEnHiloPrincipal(file, { signal, maxSide = 1600, quality = 0.82 } = {}) {
-    const decoded = await decodeImage(file, signal);
+    assertNotAborted(signal);
+    const decoded = await abrirParaReducir(file, signal);
     let canvas = null;
     try {
         assertNotAborted(signal);
@@ -293,6 +314,54 @@ async function reducirEnHiloPrincipal(file, { signal, maxSide = 1600, quality = 
     } finally {
         if (canvas) { canvas.width = 1; canvas.height = 1; }
         try { decoded.close?.(); } catch { /* ImageBitmap ya cerrado */ }
+    }
+}
+
+// [P1-PLAN-LOTE-848 · parte B] Ancho y alto de un JPEG leídos de su cabecera (el marcador SOF), sin decodificar nada.
+// `null` si no es un JPEG o la cabecera no se entiende: entonces decide la decodificación, como siempre. El `<input>` de
+// iOS entrega JPEG (convierte las HEIC al elegirlas), así que es el caso que importa. Los segmentos APP (EXIF con su
+// miniatura, ICC, MPF) se SALTAN por su longitud: el SOF de la miniatura EXIF no se confunde con el de la foto.
+const CABECERA_MAX_BYTES = 512 * 1024;
+
+const leerBytes = (blob) => (typeof blob.arrayBuffer === 'function'
+    ? blob.arrayBuffer()
+    : new Promise((resolve, reject) => {
+        const lector = new FileReader();
+        lector.onload = () => resolve(lector.result);
+        lector.onerror = () => reject(lector.error || new Error('No se pudo leer la cabecera'));
+        lector.readAsArrayBuffer(blob);
+    }));
+
+export function dimensionesJpeg(bytes) {
+    const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+    if (b.length < 4 || b[0] !== 0xFF || b[1] !== 0xD8) return null;
+    let i = 2;
+    while (i + 3 < b.length) {
+        if (b[i] !== 0xFF) return null;
+        const marca = b[i + 1];
+        if (marca === 0xFF) { i += 1; continue; }                                   // relleno
+        if (marca === 0x01 || (marca >= 0xD0 && marca <= 0xD8)) { i += 2; continue; } // marcadores sin longitud
+        if (marca === 0xD9 || marca === 0xDA) return null;                          // fin o datos antes del SOF
+        const largo = (b[i + 2] << 8) | b[i + 3];
+        if (largo < 2) return null;
+        const esSof = marca >= 0xC0 && marca <= 0xCF && marca !== 0xC4 && marca !== 0xC8 && marca !== 0xCC;
+        if (esSof) {
+            if (i + 8 >= b.length) return null;
+            const alto = (b[i + 5] << 8) | b[i + 6];
+            const ancho = (b[i + 7] << 8) | b[i + 8];
+            return alto && ancho ? { ancho, alto } : null;
+        }
+        i += 2 + largo;
+    }
+    return null;
+}
+
+async function dimensionesDeCabecera(file) {
+    if (!/jpe?g/i.test(String(file.type || ''))) return null;
+    try {
+        return dimensionesJpeg(new Uint8Array(await leerBytes(file.slice(0, CABECERA_MAX_BYTES))));
+    } catch {
+        return null;
     }
 }
 

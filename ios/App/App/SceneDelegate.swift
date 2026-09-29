@@ -3,6 +3,9 @@ import WebKit
 import ObjectiveC
 import AuthenticationServices
 import Capacitor
+import ImageIO
+import PhotosUI
+import UniformTypeIdentifiers
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
@@ -89,6 +92,7 @@ final class PuenteBioboros: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(MfAppleSignInPlugin())
         bridge?.registerPluginInstance(MfWebAuthPlugin())
+        bridge?.registerPluginInstance(MfFotosPlugin())
     }
 }
 
@@ -139,10 +143,18 @@ final class MfAppleSignInPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationCon
         }
         // El nombre SOLO llega la primera vez que la persona autoriza la app; despues viene vacio.
         let partes = [credencial.fullName?.givenName, credencial.fullName?.familyName].compactMap { $0 }.filter { !$0.isEmpty }
-        llamada.resolve([
+        var respuesta: [String: Any] = [
             "identityToken": token,
             "name": partes.joined(separator: " ")
-        ])
+        ]
+        // [P1-PLAN-LOTE-848 · 2026-09-29] El codigo de autorizacion (un solo uso, 5 min): el backend lo canjea por un
+        // refresh token para poder REVOCARLO al borrar la cuenta (App Review 5.1.1(v)). Si no llega, se entra igual.
+        if let datosDelCodigo = credencial.authorizationCode,
+           let codigo = String(data: datosDelCodigo, encoding: .utf8),
+           !codigo.isEmpty {
+            respuesta["authorizationCode"] = codigo
+        }
+        llamada.resolve(respuesta)
     }
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
@@ -219,6 +231,137 @@ final class MfWebAuthPlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthenticationPre
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         return bridge?.viewController?.view.window ?? ASPresentationAnchor()
+    }
+}
+
+// [P1-PLAN-LOTE-848 · 2026-09-29] LA FOTOTECA, SIN PEDIR ACCESO Y SIN EL MENU DE TRES OPCIONES. Auditoria App Store,
+// fila 2.3 (guia 5.1.1(iii), minimizacion): `Camera.pickImages` pedia acceso COMPLETO a Fotos antes de abrir el
+// selector. El `<input type="file">` de WebKit (la parte A de este lote) ya usa PHPicker sin permiso, pero antes enseña
+// el menu de iOS «Fototeca / Hacer foto / Seleccionar archivo» que el dueno habia quitado en los lotes 105 y 110.
+//
+// Este plugin abre `PHPickerViewController` DIRECTO: corre fuera de proceso, la app solo recibe las fotos que la
+// persona elige y iOS no pregunta nada (no se llama a `PHPhotoLibrary.requestAuthorization`). Cada foto sale derecha
+// (la orientacion EXIF aplicada), reducida a `maxSide` px sin decodificarla entera, en JPEG a `quality`, como data URL.
+// Cancelar devuelve una lista vacia. La web pregunta `isPluginAvailable('MfFotos')` ANTES de esperar nada: un binario
+// sin este codigo sigue con el `<input>` (nativeChatImagePicker.js).
+@objc(MfFotosPlugin)
+final class MfFotosPlugin: CAPPlugin, CAPBridgedPlugin, PHPickerViewControllerDelegate, UIAdaptivePresentationControllerDelegate {
+    let identifier = "MfFotosPlugin"
+    let jsName = "MfFotos"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "pick", returnType: CAPPluginReturnPromise)
+    ]
+    private var llamadaEnCurso: CAPPluginCall?
+    private var ladoMaximo: CGFloat = 1600
+    private var calidad: CGFloat = 0.85
+
+    @objc func pick(_ call: CAPPluginCall) {
+        if llamadaEnCurso != nil {
+            call.reject("ya hay una seleccion en curso", "EN_CURSO")
+            return
+        }
+        let limite = max(1, min(call.getInt("limit") ?? 1, 4))
+        ladoMaximo = CGFloat(max(320.0, min(call.getDouble("maxSide") ?? 1600.0, 4096.0)))
+        calidad = CGFloat(max(0.5, min(call.getDouble("quality") ?? 0.85, 1.0)))
+        call.keepAlive = true
+        llamadaEnCurso = call
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            guard var presentador = self.bridge?.viewController else {
+                if let llamada = self.llamadaEnCurso {
+                    self.llamadaEnCurso = nil
+                    llamada.reject("no hay vista para presentar el selector", "SIN_VISTA")
+                    self.bridge?.releaseCall(llamada)
+                }
+                return
+            }
+            while let encima = presentador.presentedViewController {
+                presentador = encima
+            }
+            var configuracion = PHPickerConfiguration()
+            configuracion.filter = .images
+            configuracion.selectionLimit = limite
+            let selector = PHPickerViewController(configuration: configuracion)
+            selector.delegate = self
+            selector.presentationController?.delegate = self
+            presentador.present(selector, animated: true)
+        }
+    }
+
+    // «Cancelar» llega aqui con la lista vacia: se resuelve con `images: []` (la web lo trata como cancelacion).
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true)
+        guard let llamada = llamadaEnCurso else { return }
+        llamadaEnCurso = nil
+        if results.isEmpty {
+            llamada.resolve(["images": [String]()])
+            bridge?.releaseCall(llamada)
+            return
+        }
+        let lado = ladoMaximo
+        let q = calidad
+        let recogidas = FotosRecogidas(cantidad: results.count)
+        let grupo = DispatchGroup()
+        for (indice, resultado) in results.enumerated() {
+            let proveedor = resultado.itemProvider
+            guard proveedor.hasItemConformingToTypeIdentifier(UTType.image.identifier) else { continue }
+            grupo.enter()
+            proveedor.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { datos, _ in
+                if let datos = datos, let jpeg = MfFotosPlugin.reducir(datos, lado: lado, calidad: q) {
+                    recogidas.poner("data:image/jpeg;base64," + jpeg.base64EncodedString(), en: indice)
+                }
+                grupo.leave()
+            }
+        }
+        grupo.notify(queue: .main) { [weak self] in
+            llamada.resolve(["images": recogidas.todas()])
+            self?.bridge?.releaseCall(llamada)
+        }
+    }
+
+    // Red de seguridad: si la hoja se cierra deslizando sin pasar por el delegado del selector, la llamada no se queda
+    // colgada. Si el delegado ya contesto, `llamadaEnCurso` es nil y esto no hace nada.
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        guard let llamada = llamadaEnCurso else { return }
+        llamadaEnCurso = nil
+        llamada.resolve(["images": [String]()])
+        bridge?.releaseCall(llamada)
+    }
+
+    // ImageIO crea la imagen reducida SIN decodificar la foto entera (una de 48 MP no ocupa 190 MB en memoria), y
+    // `WithTransform` aplica la orientacion EXIF: la imagen sale derecha (.up). No amplia las que ya son pequenas.
+    static func reducir(_ datos: Data, lado: CGFloat, calidad: CGFloat) -> Data? {
+        guard let fuente = CGImageSourceCreateWithData(datos as CFData, nil) else { return nil }
+        let opciones: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: Int(lado)
+        ]
+        guard let imagen = CGImageSourceCreateThumbnailAtIndex(fuente, 0, opciones as CFDictionary) else { return nil }
+        return UIImage(cgImage: imagen).jpegData(compressionQuality: calidad)
+    }
+}
+
+// Las fotos llegan en hilos de fondo y en cualquier orden: se guardan en su posicion, bajo cerrojo.
+private final class FotosRecogidas: @unchecked Sendable {
+    private let cerrojo = NSLock()
+    private var urls: [String?]
+
+    init(cantidad: Int) {
+        urls = [String?](repeating: nil, count: cantidad)
+    }
+
+    func poner(_ url: String, en indice: Int) {
+        cerrojo.lock()
+        urls[indice] = url
+        cerrojo.unlock()
+    }
+
+    func todas() -> [String] {
+        cerrojo.lock()
+        defer { cerrojo.unlock() }
+        return urls.compactMap { $0 }
     }
 }
 

@@ -15,7 +15,14 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const plataforma = vi.hoisted(() => ({ nativa: true, nombre: 'ios' }));
-vi.mock('../config/platform', () => ({ isNativeApp: () => plataforma.nativa, nativePlatform: () => plataforma.nombre }));
+// [848 · parte B] Estos casos son el RESPALDO: un binario sin el plugin `MfFotos` (el selector del binario va en
+// lote848b.fotos.test.js).
+vi.mock('../config/platform', () => ({
+    isNativeApp: () => plataforma.nativa,
+    nativePlatform: () => plataforma.nombre,
+    nativePluginAvailable: () => false,
+    registrarPluginNativo: () => { throw new Error('sin MfFotos no se registra nada'); },
+}));
 
 const marcas = vi.hoisted(() => []);
 vi.mock('../utils/keyboardProbe', async (orig) => ({ ...(await orig()), marcarSondaTeclado: (n) => marcas.push(n) }));
@@ -116,11 +123,15 @@ describe('[848] iPhone: la fototeca por el selector del sistema, sin permiso', (
 
     it('hasta 4: el selector del sistema no sabe limitar, así que se devuelven 4 y la pantalla recorta con su aviso', async () => {
         const pendiente = chooseNativeChatImages(2);
-        elegir(inputs()[0], Array.from({ length: 6 }, (_, i) => foto(`f${i}.jpg`)));
+        const elegidas = Array.from({ length: 6 }, (_, i) => foto(`f${i}.jpg`));
+        elegir(inputs()[0], elegidas);
         const files = await pendiente;
         expect(FOTOS_POR_SELECCION).toBe(4);
         expect(files).toHaveLength(4);
-        expect(reduccion.llamadas.map((l) => l.file.name)).toEqual(['f0.jpg', 'f1.jpg', 'f2.jpg', 'f3.jpg']);
+        // [848 · parte B] Solo se reducen las que caben (2): las otras dos van tal cual, para que la pantalla las cuente.
+        expect(reduccion.llamadas.map((l) => l.file.name)).toEqual(['f0.jpg', 'f1.jpg']);
+        expect(files[2]).toBe(elegidas[2]);
+        expect(files[3]).toBe(elegidas[3]);
     });
 
     it('con sitio para una sola, el selector es de una sola', async () => {

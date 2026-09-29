@@ -28,8 +28,12 @@ export async function sha256Hex(texto) {
 }
 
 /**
- * Abre la hoja de Apple. Devuelve `{ identityToken, nonce, name }` —`nonce` es el CRUDO, el que verifica el
- * backend; a Apple se le da su SHA-256— o `{ cancelado: true }` si la persona cerró la hoja (no es un error).
+ * Abre la hoja de Apple. Devuelve `{ identityToken, nonce, name, authorizationCode }` —`nonce` es el CRUDO, el que
+ * verifica el backend; a Apple se le da su SHA-256— o `{ cancelado: true }` si la persona cerró la hoja (no es un error).
+ *
+ * [P1-PLAN-LOTE-848 · 2026-09-29] `authorizationCode`: el binario nuevo lo entrega y el backend lo canjea por un refresh
+ * token para poder REVOCARLO al borrar la cuenta (App Review 5.1.1(v)). Un binario anterior no lo trae: `undefined`, y
+ * se entra igual.
  */
 export async function pedirCredencialDeApple() {
     const nonce = nuevoNonce();
@@ -37,7 +41,8 @@ export async function pedirCredencialDeApple() {
     try {
         const r = await MfAppleSignIn.authorize({ nonce: hash });
         if (!r?.identityToken) throw new Error('SIN_TOKEN');
-        return { identityToken: r.identityToken, nonce, name: (r.name || '').trim() };
+        const authorizationCode = typeof r.authorizationCode === 'string' && r.authorizationCode ? r.authorizationCode : undefined;
+        return { identityToken: r.identityToken, nonce, name: (r.name || '').trim(), authorizationCode };
     } catch (e) {
         if (e?.code === 'CANCELADO') return { cancelado: true };
         throw e;

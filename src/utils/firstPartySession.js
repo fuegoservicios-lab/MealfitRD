@@ -186,13 +186,17 @@ export async function verifyEmailOtpFirstParty(email, otp) {
 
 // [P1-PLAN-LOTE-146 · 2026-09-20] Sign in with Apple NATIVO: el identity token que entrega el binario se canjea en
 // NUESTRO backend (verifica la firma contra Apple y emite la sesión first-party). Misma forma que el OTP.
-export async function signInWithAppleFirstParty({ identityToken, nonce, name }) {
+// [P1-PLAN-LOTE-848] + `authorization_code` si el binario lo trae (el backend lo canjea para poder revocar al borrar la
+// cuenta); `JSON.stringify` omite el `undefined` de un binario anterior.
+export async function signInWithAppleFirstParty({ identityToken, nonce, name, authorizationCode }) {
     try {
         const res = await fetchWithTimeout(api('/api/auth/apple/native'), {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ identity_token: identityToken, nonce, name: name || undefined }),
+            body: JSON.stringify({
+                identity_token: identityToken, nonce, name: name || undefined, authorization_code: authorizationCode || undefined,
+            }),
         });
         const data = await res.json().catch(() => null);
         if (!res.ok || !data?.ok || !data.user_id) {

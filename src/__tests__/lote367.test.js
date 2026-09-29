@@ -14,7 +14,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const plataforma = vi.hoisted(() => ({ valor: 'ios' }));
-vi.mock('../config/platform', () => ({ isNativeApp: () => true, nativePlatform: () => plataforma.valor }));
+vi.mock('../config/platform', () => ({
+    isNativeApp: () => true,
+    nativePlatform: () => plataforma.valor,
+    // [P1-PLAN-LOTE-848 · parte B] Un binario sin el plugin `MfFotos`: iPhone va por el `<input>` de respaldo.
+    nativePluginAvailable: () => false,
+    registrarPluginNativo: () => ({}),
+}));
 vi.mock('../utils/keyboardProbe', async (orig) => ({ ...(await orig()), marcarSondaTeclado: () => {} }));
 const camara = vi.hoisted(() => ({ pick: null, choose: null }));
 vi.mock('@capacitor/camera', () => ({
