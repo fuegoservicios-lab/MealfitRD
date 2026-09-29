@@ -1,7 +1,8 @@
 // [P1-PLAN-LOTE-306 · 2026-09-25] Prepara la foto del chat FUERA del hilo principal: decodificar, reducir a 1600 px
 // para subirla y a 360 px para la miniatura, y codificar las dos en JPEG. Antes todo eso corría en el hilo principal
 // —la miniatura con `toDataURL`, síncrono— justo cuando el teclado volvía a subir tras el selector de fotos.
-// Mensaje: { id, file, maxSide, thumbSide }. Respuesta: { id, ok, upload, thumb, width, height } o { id, ok:false, code }.
+// Mensaje: { id, file, maxSide, thumbSide, quality? }. Respuesta: { id, ok, upload, thumb, width, height } o { id, ok:false, code }.
+// [P1-PLAN-LOTE-848] `quality` (0,82 si falta) y `thumbSide: 0` = sin miniatura: la reducción de la foto elegida en iPhone.
 // Cualquier `ok:false` que no sea de tamaño hace que `chatImageProcessing.js` repita en el hilo principal (HEIC, etc.).
 const MAX_PIXELS = 40_000_000;   // espejo de CHAT_IMAGE_MAX_PIXELS
 
@@ -27,7 +28,7 @@ const cancelados = new Set();
 
 self.addEventListener('message', async ({ data }) => {
     if (data && data.cancel != null) { cancelados.add(data.cancel); return; }
-    const { id, file, maxSide = 1600, thumbSide = 360 } = data || {};
+    const { id, file, maxSide = 1600, thumbSide = 360, quality = 0.82 } = data || {};
     let bitmap = null;
     const cancelado = () => cancelados.delete(id);
     try {
@@ -48,9 +49,11 @@ self.addEventListener('message', async ({ data }) => {
             return;
         }
         if (cancelado()) return;
-        const upload = await escalar(bitmap, width, height, maxSide).convertToBlob({ type: 'image/jpeg', quality: 0.82 });
+        const upload = await escalar(bitmap, width, height, maxSide).convertToBlob({ type: 'image/jpeg', quality });
         if (cancelado()) return;
-        const thumb = await escalar(bitmap, width, height, thumbSide).convertToBlob({ type: 'image/jpeg', quality: 0.72 });
+        const thumb = thumbSide > 0
+            ? await escalar(bitmap, width, height, thumbSide).convertToBlob({ type: 'image/jpeg', quality: 0.72 })
+            : null;
         self.postMessage({ id, ok: true, upload, thumb, width, height });
     } catch {
         self.postMessage({ id, ok: false, code: 'WORKER_FAILED' });

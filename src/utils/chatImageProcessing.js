@@ -142,7 +142,8 @@ const desactivarWorker = () => {
     workerCompartido = null;
 };
 
-const prepararEnWorker = (file, { signal, maxSide }) => new Promise((resolve, reject) => {
+// [P1-PLAN-LOTE-848] `quality` y `thumbSide` opcionales: sin ellos el mensaje es el de siempre (0,82 y miniatura de 360).
+const prepararEnWorker = (file, { signal, maxSide, quality, thumbSide = 360 }) => new Promise((resolve, reject) => {
     let worker;
     try { worker = obtenerWorker(); } catch (error) { desactivarWorker(); reject(errorConCodigo('WORKER_UNAVAILABLE')); return; }
     const id = ++siguienteId;
@@ -180,7 +181,7 @@ const prepararEnWorker = (file, { signal, maxSide }) => new Promise((resolve, re
     worker.addEventListener('messageerror', alError);
     signal?.addEventListener('abort', alAbortar, { once: true });
     try {
-        worker.postMessage({ id, file, maxSide, thumbSide: 360 });
+        worker.postMessage({ id, file, maxSide, thumbSide, ...(quality != null ? { quality } : {}) });
     } catch {
         limpiar();
         reject(errorConCodigo('WORKER_FAILED'));
@@ -256,5 +257,44 @@ async function prepararEnHiloPrincipal(file, { signal, maxSide = 1600 } = {}) {
     }
 }
 
+// ── [P1-PLAN-LOTE-848 · 2026-09-29] Reducir una foto elegida, sin miniatura ────────────────────────────────────────
+// En iPhone la fototeca ya no la abre el plugin de cámara (que pedía acceso a TODAS las fotos) sino el
+// `<input type="file">` de WebKit, y la foto llega tal como está en Fotos (12-24 MP). El plugin la entregaba reducida
+// (1.600 px a calidad 0,85; la de la Nevera, 2.000 px a 0,9): esto hace lo mismo, en el worker cuando se puede
+// —el selector se cierra justo cuando el teclado vuelve a subir— y si no en el hilo principal. Devuelve un Blob JPEG.
+export async function reducirImagen(file, { maxSide = 1600, quality = 0.82, signal } = {}) {
+    if (!(file instanceof Blob) || !String(file.type || '').startsWith('image/')) {
+        throw new TypeError('Formato de imagen no soportado');
+    }
+    assertNotAborted(signal);
+    if (workerDisponible()) {
+        try {
+            const r = await prepararEnWorker(file, { signal, maxSide, quality, thumbSide: 0 });
+            return r.upload;
+        } catch (error) {
+            if (error?.name === 'AbortError' || error?.code === 'IMAGE_DIMENSIONS_TOO_LARGE') throw error;
+            // DECODE_FAILED / WORKER_FAILED / WORKER_UNAVAILABLE: lo intenta el hilo principal, como prepareChatImage.
+        }
+    }
+    return _internals.reducirEnHiloPrincipal(file, { signal, maxSide, quality });
+}
+
+async function reducirEnHiloPrincipal(file, { signal, maxSide = 1600, quality = 0.82 } = {}) {
+    const decoded = await decodeImage(file, signal);
+    let canvas = null;
+    try {
+        assertNotAborted(signal);
+        const width = Number(decoded.naturalWidth || decoded.width) || 0;
+        const height = Number(decoded.naturalHeight || decoded.height) || 0;
+        if (!width || !height) throw new Error('Dimensiones de imagen inválidas');
+        if (width * height > CHAT_IMAGE_MAX_PIXELS) throw errorConCodigo('IMAGE_DIMENSIONS_TOO_LARGE');
+        canvas = drawScaled(decoded, width, height, maxSide);
+        return await canvasToBlob(canvas, 'image/jpeg', quality);
+    } finally {
+        if (canvas) { canvas.width = 1; canvas.height = 1; }
+        try { decoded.close?.(); } catch { /* ImageBitmap ya cerrado */ }
+    }
+}
+
 /** Puntos de prueba (los tests espían el camino del hilo principal). */
-export const _internals = { prepararEnHiloPrincipal };
+export const _internals = { prepararEnHiloPrincipal, reducirEnHiloPrincipal };
