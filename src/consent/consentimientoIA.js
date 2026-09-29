@@ -53,6 +53,11 @@ let _instantanea = null;  // lo que leen los componentes (estable entre cambios,
 const _oyentes = new Set();
 let _peticion = null;     // la hoja pedida: { promesa, resolver, automatica }
 let _host = null;         // quien la dibuja
+// [ronda 1] Cada decisión de aquí (aceptar, retirar, un 428) sube el contador: un GET /api/consents que salió ANTES
+// llega viejo y no se aplica. `_concedidoEn` es cuándo se dio el permiso: un 428 de una petición que salió antes no
+// lo cancela.
+let _decisiones = 0;
+let _concedidoEn = 0;
 
 // ─────────────────────────────────────────────────────────────── estado
 const _ms = (iso) => {
@@ -139,10 +144,16 @@ function _leerRegistro() {
     }
 }
 
+/** El `session_id` del registro del invitado, solo si es de ESTA versión y de la sesión de invitado ACTUAL: el permiso
+ *  de otro «Probar sin cuenta» no viaja a la adopción. Si ya no hay sesión de invitado (la borra la entrada de la
+ *  cuenta, a veces antes de que el host se entere), el registro es el del invitado que acaba de entrar. */
 function _sidDeInvitadoVigente() {
     const r = _leerRegistro();
     const quien = r && typeof r.quien === 'string' ? r.quien : '';
-    return r && r.v === AI_CONSENT_VERSION && quien.startsWith('invitado:') ? quien.slice('invitado:'.length) : null;
+    if (!r || r.v !== AI_CONSENT_VERSION || !quien.startsWith('invitado:')) return null;
+    const sid = quien.slice('invitado:'.length);
+    const actual = safeLocalStorageGet('mealfit_guest_session_id', null);
+    return sid && (!actual || actual === sid) ? sid : null;
 }
 
 function _olvidarPermisoDeInvitado() {
@@ -218,8 +229,11 @@ export function sincronizarConsentimientoIADesdePerfil(uid, aiConsent) {
 export async function refrescarConsentimientoIA() {
     const uid = _uidDe(_titularEfectivo());
     if (!uid) return null;
+    const decisionAlSalir = _decisiones;
     try {
         const e = await leerPermisoIA();
+        // Una decisión tomada mientras el GET viajaba (aceptar, retirar) es más nueva que su respuesta: no se pisa.
+        if (decisionAlSalir !== _decisiones) return estadoConsentimientoIA();
         if (e && typeof e.vigente === 'boolean' && _uidDe(_titularEfectivo()) === uid) _aplicarCuenta(_desdeServidor(uid, e));
         return estadoConsentimientoIA();
     } catch {
@@ -289,26 +303,31 @@ export async function asegurarConsentimientoIA(opciones = {}) {
  *  demostrable). Si falla, la hoja sigue abierta con el motivo. `analytics` es el MISMO dato que «Ayuda a mejorar». */
 export async function aceptarConsentimientoIA({ analytics = false, textoSha256 = null } = {}) {
     const titular = _titularEfectivo();
-    let planReanudado = false;
+    const uid = _uidDe(titular);
+    if (titular !== 'invitado' && !uid) return { ok: false, codigo: 'sin_sesion' };
+    const sid = titular === 'invitado' ? getGuestSessionId() : null;
+    let e = null;
     try {
-        if (titular === 'invitado') {
-            const sid = getGuestSessionId();
-            await concederPermisoIAInvitado({ sessionId: sid, analytics, textoSha256 });
-            _escribirPermisoDeInvitado({ sid, at: new Date().toISOString(), analytics });
-        } else {
-            const uid = _uidDe(titular);
-            if (!uid) return { ok: false, codigo: 'sin_sesion' };
-            const e = await concederPermisoIA({ analytics, textoSha256 });
-            planReanudado = !!(e && e.plan_reanudado);
-            _aplicarCuenta(e && typeof e.vigente === 'boolean'
-                ? _desdeServidor(uid, e)
-                : { uid, vigente: true, version: AI_CONSENT_VERSION, at: new Date().toISOString(), revocadoEn: null, analytics });
-        }
+        e = titular === 'invitado'
+            ? await concederPermisoIAInvitado({ sessionId: sid, analytics, textoSha256 })
+            : await concederPermisoIA({ analytics, textoSha256 });
     } catch (err) {
         return { ok: false, codigo: (err && err.codigo) || 'red' };
     }
-    // La casilla de analítica y el interruptor «Ayuda a mejorar» de Configuración son el MISMO dato.
+    _decisiones += 1;
+    _concedidoEn = Date.now();
+    // La casilla de analítica y el interruptor «Ayuda a mejorar» de Configuración son el MISMO dato. Se escribe ANTES
+    // de cambiar el estado: quien lo escucha (Configuración) relee la bandera al enterarse.
     try { persistAnalyticsOptOut(analytics !== true); } catch { /* la analítica jamás rompe el permiso */ }
+    let planReanudado = false;
+    if (titular === 'invitado') {
+        _escribirPermisoDeInvitado({ sid, at: new Date().toISOString(), analytics });
+    } else {
+        planReanudado = !!(e && e.plan_reanudado);
+        _aplicarCuenta(e && typeof e.vigente === 'boolean'
+            ? _desdeServidor(uid, e)
+            : { uid, vigente: true, version: AI_CONSENT_VERSION, at: new Date().toISOString(), revocadoEn: null, analytics });
+    }
     safeLocalStorageRemove(CLAVE_POSPUESTA);
     _emitir();
     _cerrarPeticion(true);
@@ -326,6 +345,8 @@ export async function retirarConsentimientoIA() {
     const uid = _uidDe(_titularEfectivo());
     if (!uid) throw new Error('sin_sesion');
     const e = await retirarPermisoIA();
+    _decisiones += 1;
+    _concedidoEn = 0;
     _aplicarCuenta(e && typeof e.vigente === 'boolean'
         ? _desdeServidor(uid, e)
         : { ...(_cuenta || { uid, version: null, at: null, analytics: null }), uid, vigente: false, revocadoEn: new Date().toISOString() });
@@ -346,6 +367,8 @@ export function debePreguntarAlAbrirLaApp() {
 // ─────────────────────────────────────────────────────────────── lo que usa fetchWithAuth (import perezoso)
 function _marcarSinPermiso() {
     // El servidor acaba de decir que no hay permiso: el del invitado que hubiera en el dispositivo está rancio.
+    _decisiones += 1;
+    _concedidoEn = 0;
     _olvidarPermisoDeInvitado();
     const uid = _uidDe(_titularEfectivo());
     if (!uid) {
@@ -379,10 +402,13 @@ async function _leerSinGastar(res) {
 
 /** Un 428 de cualquier endpoint: si es `ai_consent_required`, abre la hoja y, aceptada, repite la petición UNA vez
  *  (`reintentar` no vuelve a pasar por aquí). Con «Ahora no» devuelve el 428 (con su cuerpo intacto): el llamador lo
- *  trata como un error más y el aviso «Activa la IA para usar esto» ya salió. */
-export async function resolverPermisoRequerido(res, reintentar) {
+ *  trata como un error más y el aviso «Activa la IA para usar esto» ya salió.
+ *  `salio` (ms) es cuándo salió la petición: si el permiso se dio DESPUÉS, ese 428 es tardío —la petición viajó sin
+ *  él— y se repite sin reabrir la hoja ni borrar el permiso recién dado. */
+export async function resolverPermisoRequerido(res, reintentar, salio = null) {
     const { cuerpo, respuesta } = await _leerSinGastar(res);
     if (!cuerpo || cuerpo.error_code !== PERMISO_REQUERIDO) return respuesta;
+    if (typeof salio === 'number' && _concedidoEn > 0 && _concedidoEn >= salio && !faltaPermisoIA()) return reintentar();
     _marcarSinPermiso();
     const ok = await pedirHojaConsentimientoIA();
     if (!ok) {
@@ -424,4 +450,6 @@ export function _reiniciarConsentimientoIAParaTests() {
     _peticion = null;
     _host = null;
     _oyentes.clear();
+    _decisiones = 0;
+    _concedidoEn = 0;
 }

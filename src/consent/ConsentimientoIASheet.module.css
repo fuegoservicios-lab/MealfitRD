@@ -27,6 +27,7 @@
     z-index: 1;
     width: 100%;
     max-width: 560px;
+    max-height: min(90vh, 820px);   /* iOS 15.0-15.3 no conoce dvh: se queda con esta */
     max-height: min(90dvh, 820px);
     display: flex;
     flex-direction: column;
@@ -332,6 +333,7 @@
 
     .hoja {
         max-width: none;
+        max-height: 92vh;
         max-height: 92dvh;
         border-bottom: 0;
         border-radius: 1.5rem 1.5rem 0 0;

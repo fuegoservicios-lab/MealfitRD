@@ -15,7 +15,7 @@ export function titularDelDispositivo() {
 }
 
 /** El permiso del INVITADO que usa el dispositivo ahora, si es de la versión vigente; si no, null. Una cuenta nunca
- *  tiene uno (su permiso manda en el servidor). Uno de OTRA versión está rancio y se borra al leerlo. */
+ *  tiene uno (su permiso manda en el servidor). Uno de OTRA versión, o de otra sesión de invitado, se borra al leerlo. */
 export function permisoLocalVigente() {
     const crudo = safeLocalStorageGet(AI_CONSENT_STORAGE_KEY, null);
     if (!crudo) return null;
@@ -29,7 +29,12 @@ export function permisoLocalVigente() {
         safeLocalStorageRemove(AI_CONSENT_STORAGE_KEY);
         return null;
     }
-    return r.quien === titularDelDispositivo() ? r : null;
+    const titular = titularDelDispositivo();
+    if (r.quien === titular) return r;
+    // [ronda 1] Otro invitado usa el dispositivo (un «Probar sin cuenta» nuevo): el permiso del anterior no es suyo y
+    // no debe quedar a mano. Con una cuenta se deja: su `session_id` todavía puede hacer falta para la adopción.
+    if (titular && titular.startsWith('invitado:')) safeLocalStorageRemove(AI_CONSENT_STORAGE_KEY);
+    return null;
 }
 
 /** `[nombre, valor]` de la cabecera si el invitado que usa el dispositivo tiene permiso vigente; si no, null. Solo se

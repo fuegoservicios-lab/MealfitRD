@@ -189,7 +189,9 @@ const _fetchWithAuthUnaVez = async (url: string, options: ApiRequestOptions = {}
     // el backend trata un token inválido o caducado como invitado, así que una cabecera sacada del dispositivo podría
     // colar una llamada a la IA de alguien que lo retiró en otro dispositivo. Solo hacia nuestra API.
     if (!token && !_mfSession && (!url.startsWith('http') || (API_BASE && url.startsWith(API_BASE)))) {
-        const cabecera = (await _cabeceraIA()).cabeceraDelInvitado();
+        // Si el módulo no carga, sale sin cabecera: el servidor responde 428 y se pide el permiso.
+        const m = await _cabeceraIA().catch(() => null);
+        const cabecera = m && m.cabeceraDelInvitado();
         if (cabecera) headers.set(cabecera[0], cabecera[1]);
     }
 
@@ -245,14 +247,18 @@ const _fetchWithAuthUnaVez = async (url: string, options: ApiRequestOptions = {}
 //     original (los dos llamadores viven en AssessmentContext, que tiene tope de líneas).
 export const fetchWithAuth = async (url: string, options: ApiRequestOptions = {}) => {
     const adopcion = typeof url === 'string' && url.includes('/adopt-guest-plan');
-    const opts = adopcion ? (await _permisoIA()).conSesionDelPermisoInvitado(options) : options;
+    // Un fallo al cargar `consent/` nunca tumba la petición: sale tal cual y el 428 llega a su llamador.
+    const m = adopcion ? await _permisoIA().catch(() => null) : null;
+    const opts = m ? m.conSesionDelPermisoInvitado(options) : options;
+    const salio = Date.now();   // un 428 de una petición que salió ANTES de dar el permiso es tardío
     const res = await _fetchWithAuthUnaVez(url, opts);
     if (res && res.status === 428) {
-        return (await _permisoIA()).resolverPermisoRequerido(res, () => _fetchWithAuthUnaVez(url, opts));
+        const p = await _permisoIA().catch(() => null);
+        if (p) return p.resolverPermisoRequerido(res, () => _fetchWithAuthUnaVez(url, opts), salio);
     }
     if (adopcion && res) {
         const adoptado = !!res.ok;
-        _permisoIA().then((m) => m.trasAdoptarPlanInvitado(adoptado)).catch(() => {});
+        _permisoIA().then((x) => x.trasAdoptarPlanInvitado(adoptado)).catch(() => {});
     }
     return res;
 };

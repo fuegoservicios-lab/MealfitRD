@@ -116,7 +116,7 @@ import PantryConsentModal from '../components/common/PantryConsentModal';
 // descarguen PDF. Tooltip-anchor: P2-LAZY-PDF.
 import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
 // [P1-PLAN-LOTE-844] El permiso para la IA de terceros: antes de cambiar plato, regenerar o arreglar un día.
-import { asegurarConsentimientoIA, faltaPermisoIA } from '../consent/consentimientoIA';
+import { asegurarConsentimientoIA, faltaPermisoIA, pedirHojaConsentimientoIA } from '../consent/consentimientoIA';
 import { useConsentimientoIA } from '../consent/useConsentimientoIA';
 import { reanudarPlanes } from '../utils/planModeResume';
 // [P1-DASH-BUDGET-EDIT · 2026-06-23] Ciclo de compras (días) para el editor de presupuesto.
@@ -8880,7 +8880,7 @@ const DashboardInner = () => {
                                             description={t('Tus próximos días se preparan con IA y necesitamos tu permiso para enviarle tus datos. Mientras tanto, el diario manual y el agua siguen funcionando.')}
                                             cta={{
                                                 label: t('Activar la IA'),
-                                                onClick: () => { void asegurarConsentimientoIA(); },
+                                                onClick: () => { void pedirHojaConsentimientoIA(); },   // sin el aviso encima de un «Ahora no»
                                             }}
                                         />
                                     );

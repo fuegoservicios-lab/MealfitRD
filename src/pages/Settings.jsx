@@ -81,6 +81,7 @@ import DeleteAccountSection from '../components/account/DeleteAccountSection';
 // [P1-PLAN-LOTE-844] Privacidad → «IA de terceros», y la analítica de «Ayuda a mejorar» también en la cuenta.
 import BloqueIADeTerceros from '../consent/BloqueIADeTerceros';
 import { guardarAnaliticaEnServidor } from '../consent/apiConsentimiento';
+import { useConsentimientoIA } from '../consent/useConsentimientoIA';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
 import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAvatars';
 import { getAvatarId, persistAvatar } from '../utils/avatarStore';
@@ -1462,6 +1463,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // `persistAnalyticsOptOut` escribe además una cookie de `.bioboros.com`, que
     // ven los dos hosts. No vuelvas a escribir la clave a pelo.
     const [analyticsEnabled, setAnalyticsEnabled] = useState(() => !isAnalyticsOptedOut());
+    // [P1-PLAN-LOTE-844 · ronda 1] La hoja del permiso escribe el MISMO dato (su casilla de analítica): cuando cambia
+    // el estado del permiso, el interruptor se vuelve a leer para no enseñar el valor de antes.
+    const permisoIA = useConsentimientoIA();
+    useEffect(() => { setAnalyticsEnabled(!isAnalyticsOptedOut()); }, [permisoIA]);
     const handleToggleAnalytics = () => {
         // [P1-PLAN-LOTE-844 · 2026-09-29] Este interruptor y la casilla de analítica de la hoja del permiso para la IA
         // son el MISMO dato: queda también en la cuenta (user_consents, con fecha). Fuera del updater de estado (en
