@@ -8,8 +8,10 @@
 // `casos` del JSON los corren las dos).
 //
 //   - sustituye en todas las apariciones, con su caja («Ají Morrón» → «Pimiento Morrón»);
-//   - si cambia el género (habichuelas→frijoles) concuerda el determinante de delante y los adjetivos de detrás; si la
-//     cláusula vuelve sobre la palabra en femenino («májalas») o un vecino no sabe concordar, GLOSA, como el lote 649;
+//   - si cambia el género (habichuelas→frijoles) concuerda el determinante de delante y los adjetivos de detrás, también
+//     coordinados («cocidas y escurridas»); si el RESTO —hasta que se vuelve a nombrar la palabra, pasos siguientes
+//     incluidos— vuelve sobre ella en femenino («májalas», «hasta cubrirlas», «, previamente remojadas») o un vecino no
+//     sabe concordar, GLOSA, como el lote 649. Es una heurística con límites medidos (docs/lexico_vista_pais.md);
 //   - «funda» solo como envase de la lista (en un paso es el verbo: «que el queso funda»);
 //   - en la frase, lo que el léxico no cubre lo glosa el 649 en la MISMA pasada (nada se encadena).
 //
@@ -26,7 +28,14 @@ export const lexicoDeVistaActivo = () => !['0', 'false', 'off'].includes(
 );
 
 const _ACENTO = /[áéíóú]/;
-const _FIN_DE_CLAUSULA = /[.;:!?\n]/;
+// El RESTO en fichas: número (con las fracciones de la receta), palabra o signo; espejo de `_FICHA` del backend.
+const _FICHA = /(\p{Nd}+(?:[.,]\p{Nd}+)?|[½¼¾⅓⅔⅕⅛⅜⅝⅞¹²³])|(\p{L}+)|([^\p{L}\p{N}\s_])/gu;
+// El enlace de una coordinación tras el sintagma: «, cocidas» o «y escurridas».
+const _ENLACE = /^\s*(,|\p{L}+)\s+(\p{L}+)/u;
+// Entre un paso y el siguiente, un corte de frase (lo que empieza el paso no se atribuye al anterior).
+const _ENTRE_PASOS = '\n.\n';
+// La palabra como complemento de otro nombre («tortitas de habichuela», «la masa de la habichuela»).
+const _COMPLEMENTO = /(?<![\p{L}\p{N}])de(?:\s+(?:la|una|esta|esa))?\s+$/iu;
 
 const _pais = (pais) => (typeof pais === 'string' ? pais.trim().toUpperCase() : '');
 
@@ -101,31 +110,135 @@ function _femenina(palabra, num, c) {
     return num === 'pl' ? w.endsWith('as') : w.endsWith('a');
 }
 
-/** ¿La cláusula que sigue vuelve sobre la palabra en femenino? («májalas», «ellas», «hasta que estén blandas») */
-function _clausulaInsegura(resto, num, c) {
-    const corte = _FIN_DE_CLAUSULA.exec(resto);
-    const clausula = corte ? resto.slice(0, corte.index) : resto;
-    const toks = clausula.match(/\p{L}+/gu) || [];
+// La lista `clave` de la concordancia como Set, leída una vez (se consulta por palabra en cada render). No se muta.
+const _listas = new WeakMap();
+function _lista(c, clave) {
+    let porClave = _listas.get(c);
+    if (!porClave) { porClave = new Map(); _listas.set(c, porClave); }
+    if (!porClave.has(clave)) porClave.set(clave, new Set(c?.[clave] || []));
+    return porClave.get(clave);
+}
+
+/** [[tipo, texto]] con tipo 'n' (número), 'w' (palabra) o 'p' (signo); los espacios no cuentan. */
+function _fichas(texto) {
+    return [...texto.matchAll(_FICHA)].map((m) => [m[1] ? 'n' : (m[2] ? 'w' : 'p'), m[0]]);
+}
+
+/** ¿`palabra` es un adjetivo o participio femenino que sabemos concordar (y no un nombre que lo parece)? */
+function _adjetivoFemenino(palabra, num, c) {
+    const w = palabra.toLowerCase();
+    if (_lista(c, 'sustantivos').has(w) || _lista(c, 'neutras').has(w)) return false;
+    return _adjetivoConcordado(palabra, num, c) !== null;
+}
+
+/** Artículos, demostrativos, cuantificadores y números en letra, de los dos géneros y números. */
+function _determinantes(c) {
+    const dets = new Set(_lista(c, 'determinantes_otros'));
+    for (const n of ['sg', 'pl']) {
+        for (const [k, v] of Object.entries(c?.determinantes?.[n] || {})) { dets.add(k); dets.add(v); }
+    }
+    return dets;
+}
+
+const _esAdverbio = (w, c) => _lista(c, 'adverbios').has(w) || w.endsWith('mente');
+
+/** ¿El adjetivo justo detrás de `previa` es de `previa` (un nombre)? En plural su nombre acaba en -s. */
+function _atribuible(previa, num, c) {
+    const w = previa.toLowerCase();
+    if (_lista(c, 'conjunciones').has(w) || _lista(c, 'adverbios').has(w) || _lista(c, 'copulas').has(w)
+        || _lista(c, 'preposiciones').has(w) || w.endsWith('mente')) return false;
+    // un nombre acabado en -o/-os es masculino: un femenino no es suyo («trigo rellena»)
+    if (num === 'pl') return w.endsWith('s') && !w.endsWith('os');
+    return !/[aeií]r$/u.test(w) && !w.endsWith('o');
+}
+
+/**
+ * ¿El resto vuelve sobre la palabra en femenino? Pronombre pegado al verbo («májalas», «cubrirlas»), delante del verbo
+ * («no las revuelvas»), atributo tras un copulativo («estén blandas», «quedar suaves y cremosas») o un adjetivo o
+ * participio femenino que no es de un nombre vecino («, previamente remojadas», «cocina tapadas»). Espejo de
+ * `_resto_inseguro` del backend.
+ */
+function _restoInseguro(resto, num, c) {
+    const fichas = _fichas(resto);
     const sufijo = num === 'pl' ? 'las' : 'la';
     const encl = new Set(c?.encliticos?.[num] || []);
-    const copulas = new Set(c?.copulas || []);
-    const adverbios = new Set(c?.adverbios || []);
-    for (let i = 0; i < toks.length; i++) {
-        const w = toks[i].toLowerCase();
-        if (encl.has(w) || (w.length >= 5 && w.endsWith(sufijo) && _ACENTO.test(w))) return true;
+    const noEncl = _lista(c, 'no_encliticos');
+    const procl = _lista(c, 'procliticos_previos');
+    const copulas = _lista(c, 'copulas');
+    const adverbios = _lista(c, 'adverbios');
+    const conj = _lista(c, 'conjunciones');
+    const preps = _lista(c, 'preposiciones');
+    const dets = _determinantes(c);
+    const trasVerbo = new RegExp(`(?:[aeií]r|ndo)${sufijo}$`, 'u');
+    const atribuidos = new Set();
+    for (let i = 0; i < fichas.length; i++) {
+        const [tipo, t] = fichas[i];
+        if (tipo !== 'w') continue;
+        const w = t.toLowerCase();
+        const previa = i ? fichas[i - 1] : null;
+        const pw = previa && previa[0] === 'w' ? previa[1].toLowerCase() : null;
+        if (!noEncl.has(w) && (encl.has(w) || trasVerbo.test(w)
+            || (w.length >= 5 && w.endsWith(sufijo) && _ACENTO.test(w)))) return true;
+        if (w === sufijo && procl.has(pw)) return true;
         if (copulas.has(w)) {
-            for (const sig of toks.slice(i + 1, i + 4)) {
-                if (adverbios.has(sig.toLowerCase())) continue;
-                if (_femenina(sig, num, c)) return true;
-                break;
+            let vistas = 0;
+            for (const [tipo2, t2] of fichas.slice(i + 1)) {
+                if (tipo2 === 'p' && t2 === ',') continue;
+                if (tipo2 !== 'w') break;
+                const w2 = t2.toLowerCase();
+                if (adverbios.has(w2) || conj.has(w2)) continue;
+                if (dets.has(w2) || preps.has(w2)) break;
+                if (_femenina(w2, num, c)) return true;
+                vistas += 1;
+                if (vistas >= 4) break;
             }
+        }
+        if (_adjetivoFemenino(t, num, c)) {
+            if (previa && (previa[0] === 'n' || dets.has(pw))) continue; // «2 cucharadas», «las picadas»: un nombre
+            // el nombre del que es: el de justo antes, saltando adverbios («cebolla muy fina», «parte más gruesa»)
+            let j = i - 1;
+            while (j >= 0 && fichas[j][0] === 'w' && _esAdverbio(fichas[j][1].toLowerCase(), c)) j -= 1;
+            const ancla = j >= 0 ? fichas[j] : null;
+            const aw = ancla && ancla[0] === 'w' ? ancla[1].toLowerCase() : null;
+            if (aw !== null && _atribuible(aw, num, c)) { atribuidos.add(i); continue; }
+            if (ancla && (ancla[1] === ',' || conj.has(aw)) && atribuidos.has(j - 1)) { atribuidos.add(i); continue; }
+            return true;
         }
     }
     return false;
 }
 
-/** Las ediciones de concordancia para sustituir [ini, fin) por un nombre de otro género, o null si no es seguro. */
-function _concordar(texto, ini, fin, n, fila, ocupados) {
+/** Dónde vuelve a nombrarse la palabra de `fila` (cualquier número) a partir de `desde`, o null. */
+function _proximaMencion(texto, desde, fila) {
+    let mejor = null;
+    for (const forma of fila.de) {
+        const re = _patron(forma);
+        re.lastIndex = desde;
+        const m = re.exec(texto);
+        if (m && (mejor === null || m.index < mejor)) mejor = m.index;
+    }
+    return mejor;
+}
+
+/** El texto del que depende la concordancia: hasta la próxima mención, siguiendo por los pasos siguientes. */
+function _restoHastaLaProxima(texto, desde, fila, siguientes) {
+    const corte = _proximaMencion(texto, desde, fila);
+    if (corte !== null) return texto.slice(desde, corte);
+    const partes = [texto.slice(desde)];
+    for (const sig of siguientes || []) {
+        if (typeof sig !== 'string') continue;
+        const k = _proximaMencion(sig, 0, fila);
+        partes.push(k === null ? sig : sig.slice(0, k));
+        if (k !== null) break;
+    }
+    return partes.join(_ENTRE_PASOS);
+}
+
+/**
+ * Las ediciones de concordancia para sustituir [ini, fin) por un nombre de otro género, o null si no es seguro; o
+ * ['glosa', adjetivos, posición] si el resto vuelve sobre la palabra en femenino (la glosa lleva los adjetivos pegados).
+ */
+function _concordar(texto, ini, fin, n, fila, ocupados, siguientes = []) {
     const c = LEXICO?.concordancia?.[`${fila.genero[0]}>${fila.genero[1]}`];
     if (!c) return null;
     const num = n ? 'pl' : 'sg';
@@ -171,8 +284,37 @@ function _concordar(texto, ini, fin, n, fila, ocupados) {
         adjetivos.push(nuevo);
         pos = sig[2];
     }
+    const pegados = [...adjetivos];
+    const posPegados = pos;
+    // Coordinados: «cocidas y escurridas», «rojas, cocidas,». Tras «y» un femenino que no sabemos concordar y no es un
+    // alimento («y blanditas») se glosa; tras la coma, lo que no es adjetivo es otro elemento.
+    const conj = _lista(c, 'conjunciones');
+    for (let k = 0; k < 4; k++) {
+        const m = _ENLACE.exec(texto.slice(pos));
+        if (!m) break;
+        const enlace = m[1].toLowerCase();
+        const x = m[2];
+        if (enlace !== ',' && (!conj.has(enlace) || !adjetivos.length)) break;
+        // «y una tostada», «y de postre»: otro sintagma
+        if (_determinantes(c).has(x.toLowerCase()) || _lista(c, 'preposiciones').has(x.toLowerCase())) break;
+        if (!_adjetivoFemenino(x, num, c)) {
+            if (enlace !== ',' && _femenina(x, num, c) && !_lista(c, 'sustantivos').has(x.toLowerCase())) {
+                return ['glosa', pegados, posPegados];
+            }
+            break;
+        }
+        const xFin = pos + m[0].length;
+        ediciones.push([xFin - x.length, xFin, _adjetivoConcordado(x, num, c)]);
+        adjetivos.push(_adjetivoConcordado(x, num, c));
+        pos = xFin;
+    }
     if (ediciones.some(([a, b]) => _solapa(a, b, ocupados))) return null;
-    if (_clausulaInsegura(texto.slice(pos), num, c)) return ['glosa', adjetivos, pos];
+    // En singular, la palabra también puede ser parte de un plural coordinado («…la habichuela, pica la cebolla y
+    // mézclalas»): el resto se lee en los dos números.
+    // Si es complemento («tortitas de habichuela apiladas; cocínalas»), el plural es del núcleo: no se lee.
+    const resto = _restoHastaLaProxima(texto, pos, fila, siguientes);
+    const pluralCoordinado = num === 'sg' && !_COMPLEMENTO.test(texto.slice(0, ini));
+    if ((pluralCoordinado ? [num, 'pl'] : [num]).some((x) => _restoInseguro(resto, x, c))) return ['glosa', pegados, posPegados];
     return [ediciones, adjetivos, pos];
 }
 
@@ -182,7 +324,7 @@ function _glosaYaEscrita(texto, desde, destino) {
     return g ? g[0].length : 0;
 }
 
-function _ediciones(texto, pais, ambito = 'texto') {
+function _ediciones(texto, pais, ambito = 'texto', siguientes = []) {
     const ediciones = [];
     const inserciones = [];
     const ocupados = [];
@@ -206,7 +348,7 @@ function _ediciones(texto, pais, ambito = 'texto') {
                 ocupados.push([ini, finTotal]);
                 continue;
             }
-            const r = _concordar(texto, ini, fin, n, fila, ocupados);
+            const r = _concordar(texto, ini, fin, n, fila, ocupados, siguientes);
             if (r === null || r[0] === 'glosa') {
                 // no es seguro sustituir: se glosa la primera vez, tras el sintagma («habichuelas negras (frijoles negros)»)
                 ocupados.push([ini, fin]);
@@ -250,20 +392,25 @@ export function localizarTexto(texto, pais = getPaisDelUsuario()) {
 /**
  * El texto de un plato (nombre, descripción, ingrediente o paso) como lo lee un hispanohablante de `pais`: el léxico
  * del país y, en la MISMA pasada, la glosa del 649 para lo que el léxico no cubre. Knob apagado ⇒ solo la glosa.
+ * `siguientes`: los pasos que vienen detrás (uno puede volver sobre la palabra del anterior: «Májalas»).
  */
-export function textoParaLeer(texto, pais = getPaisDelUsuario()) {
+export function textoParaLeer(texto, pais = getPaisDelUsuario(), siguientes = []) {
     if (typeof texto !== 'string' || !texto) return texto;
     const p = _pais(pais);
-    const [ediciones, inserciones, ocupados] = lexicoDeVistaActivo() ? _ediciones(texto, p) : [[], [], []];
+    const [ediciones, inserciones, ocupados] = lexicoDeVistaActivo()
+        ? _ediciones(texto, p, 'texto', siguientes) : [[], [], []];
     const todas = [...inserciones, ...glosasDelTexto(texto, p, [...ocupados])];
     if (!ediciones.length && !todas.length) return texto;
     return _aplicar(texto, ediciones, todas);
 }
 
-/** Igual que `textoParaLeer`, respetando la forma: un array elemento a elemento (el MISMO array si nada cambia). */
-export function textoParaLeerValor(valor, pais = getPaisDelUsuario()) {
+/**
+ * Igual que `textoParaLeer`, respetando la forma: un array elemento a elemento (el MISMO array si nada cambia).
+ * `encadenado`: los pasos de una receta se leen con los que vienen detrás; los ingredientes, cada renglón solo.
+ */
+export function textoParaLeerValor(valor, pais = getPaisDelUsuario(), encadenado = false) {
     if (Array.isArray(valor)) {
-        const nuevo = valor.map((v) => textoParaLeer(v, pais));
+        const nuevo = valor.map((v, i) => textoParaLeer(v, pais, encadenado ? valor.slice(i + 1) : []));
         return nuevo.some((v, i) => v !== valor[i]) ? nuevo : valor;
     }
     return textoParaLeer(valor, pais);

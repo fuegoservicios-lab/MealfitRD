@@ -107,7 +107,8 @@ function _mealDisplayBase(meal, locale) {
             return {
                 name: textoParaLeerValor(originalName, _paisLector),
                 description: textoParaLeerValor(originalDescription, _paisLector),
-                recipe: textoParaLeerValor(originalRecipe, _paisLector),
+                // los pasos, encadenados: uno puede volver sobre la palabra del anterior («Májalas»)
+                recipe: textoParaLeerValor(originalRecipe, _paisLector, true),
                 ingredients: textoParaLeerValor(originalIngredients, _paisLector),
             };
         }

@@ -269,7 +269,9 @@ export const glossShoppingItemName = (
         // [P1-PLAN-LOTE-853] En español, el alimento se COMPRA con el nombre del país de la lista: «Habichuelas negras»
         // → «Frijoles negros» (MX), «Lechosa» → «Papaya». Solo la vista del PDF: `name` sigue siendo el identificador.
         // Ya dice lo que diría la glosa, así que no la lleva. Sin léxico (RD, o lo que no cubre) sigue lo de siempre.
-        const _delPais = nombreDeListaParaLeer(spanishName, _country);
+        // El país del léxico es el del LECTOR (`getPaisDelUsuario`, con la bandera COUNTRY_SYSTEM_UI), el mismo que usan
+        // el plato y el envase: con el sistema de países apagado, ni la lista ni el plato se localizan.
+        const _delPais = nombreDeListaParaLeer(spanishName, getPaisDelUsuario());
         if (_delPais !== spanishName) return _delPais;
         // [P1-GLOSS-MAPUEY-DO · 2026-09-07] DO deja de ser byte-idéntico SÓLO para los glosses de
         // dirección inversa (ver `_GLOSS_INVERSO_DO`). Para los otros 21 sigue igual: el gloss

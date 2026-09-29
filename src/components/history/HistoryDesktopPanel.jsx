@@ -7,6 +7,7 @@ import { CalendarDays, Loader2 } from "lucide-react";
 import { mealEmojiFor } from "../../utils/mealEmoji";
 // [P1-2 · 2026-07-09] SSOT del coalescing days||meals||perfectDay (reemplaza la copia inline).
 import { firstDayMeals } from "../../utils/normalizePlanDays";
+import { mealDisplayName } from "../../utils/displayMeal";
 // [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. `useT()` dentro de los
 // componentes (es lo que los suscribe al cambio de idioma); el `t`/`tn` sueltos
 // para helpers de módulo (`normalizePlan`, `bucketTitle`) que se INVOCAN en
@@ -117,7 +118,9 @@ function normalizePlan(raw, activePlanId, locale, inUsePlanId = null) {
     : firstDayMeals(raw.plan_data);
   const meals = (Array.isArray(rawMeals) ? rawMeals : [])
     .filter((m) => m && m.name && !m.isSkipped)
-    .map((m) => ({ name: (locale && m.display_names?.[locale]) || m.name, emoji: mealEmojiFor(m.meal) }));
+    // [P1-PLAN-LOTE-853] Sin traducción del idioma, el nombre pasa por la capa de VISTA (`mealDisplayName`): en
+    // español fuera de RD, la palabra del país de lectura («Batido de plátano», no «de guineo»). Solo se pinta.
+    .map((m) => ({ name: (locale && m.display_names?.[locale]) || mealDisplayName({ name: m.name }, locale), emoji: mealEmojiFor(m.meal) }));
   return {
     raw,
     id: String(raw.id),

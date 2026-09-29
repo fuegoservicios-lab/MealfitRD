@@ -29,9 +29,9 @@ afterEach(() => {
 
 describe('[853] los casos compartidos con el backend', () => {
     const f = { texto: textoParaLeer, lista: nombreDeListaParaLeer, envase: envaseParaLeer };
-    it.each(LEXICO.casos.map((c) => [c.funcion, c.pais, c.entrada, c.lectura]))(
-        '%s %s «%s»', (funcion, pais, entrada, lectura) => {
-            expect(f[funcion](entrada, pais)).toBe(lectura);
+    it.each(LEXICO.casos.map((c) => [c.funcion, c.pais, c.entrada, c.lectura, c.siguientes]))(
+        '%s %s «%s»', (funcion, pais, entrada, lectura, siguientes) => {
+            expect(f[funcion](entrada, pais, ...(siguientes ? [siguientes] : []))).toBe(lectura);
         },
     );
 });
@@ -76,6 +76,19 @@ describe('[853] el plato en español se lee con la palabra del país', () => {
         expect(mealDisplay(meal, 'en-US').ingredients).toBe(meal.ingredients);
     });
 
+    it('los pasos se leen con los siguientes; los ingredientes, cada renglón solo (ronda 1 del revisor)', () => {
+        setPaisDeLectura('MX');
+        const d = mealDisplay({
+            name: 'Habichuelas majadas',
+            ingredients: ['1 taza de habichuelas rojas', '2 cucharadas de agua'],
+            recipe: ['Escurre las habichuelas rojas.', 'Májalas con un tenedor.'],
+        }, 'es-DO');
+        // «Escurre los frijoles rojos.» + «Májalas…» sería agramatical: el paso siguiente habla de ELLAS
+        expect(d.recipe).toEqual(['Escurre las habichuelas rojas (frijoles rojos).', 'Májalas con un tenedor.']);
+        expect(d.ingredients).toEqual(['1 taza de frijoles rojos', '2 cucharadas de agua']);
+        expect(d.name).toBe('Frijoles majados');
+    });
+
     it('con el knob apagado vuelve la glosa del 649', () => {
         vi.stubEnv('VITE_COUNTRY_DISPLAY_LEXICON', 'false');
         expect(lexicoDeVistaActivo()).toBe(false);
@@ -90,10 +103,21 @@ describe('[853] el plato en español se lee con la palabra del país', () => {
 
 describe('[853] la lista de la compra (PDF)', () => {
     it('el nombre sale con la palabra del país, sin glosa encima', () => {
+        setPaisDeLectura('MX');
         expect(glossShoppingItemName('Habichuelas negras', 'Black beans', 'es-DO', null, 'MX', null)).toBe('Frijoles negros');
         expect(glossShoppingItemName('Lechosa', 'Papaya', 'es-DO', null, 'MX', 'papaya')).toBe('Papaya');
+        setPaisDeLectura('CO');
         expect(glossShoppingItemName('Queso blanco', 'White cheese', 'es-DO', null, 'CO', null)).toBe('Queso campesino');
+        setPaisDeLectura('US');
         expect(glossShoppingItemName('Ají morrón', 'Bell pepper', 'es-DO', null, 'US', null)).toBe('Pimiento morrón');
+    });
+
+    it('con el sistema de países apagado (sin país de lectura) la lista no se localiza, igual que el plato', () => {
+        // AssessmentContext fija el país de lectura solo con COUNTRY_SYSTEM_UI; `formData.country` sigue llegando
+        setPaisDeLectura(null);
+        expect(glossShoppingItemName('Habichuelas negras', 'Black beans', 'es-DO', null, 'MX', null)).toBe('Habichuelas negras');
+        expect(glossShoppingItemName('Lechosa', 'Papaya', 'es-DO', null, 'MX', 'papaya')).toBe('Lechosa (papaya)');
+        expect(mealDisplay({ name: 'Batido de lechosa', ingredients: [], recipe: [] }, 'es-DO').name).toBe('Batido de lechosa');
     });
 
     it('lo que el léxico no cubre sigue con su glosa, y RD no cambia', () => {
@@ -138,6 +162,15 @@ describe('[853] nada de lo pintado vuelve al plan', () => {
             .map((p) => relative(SRC, p).replace(/\\/g, '/'))
             .sort();
         expect(importan).toEqual(['utils/displayMeal.js', 'utils/shoppingHelpers.js']);
+    });
+
+    it('el Historial pinta los chips de platos por la capa de vista (mealDisplayName), no el nombre crudo', () => {
+        for (const panel of ['HistoryDesktopPanel.jsx', 'HistoryMobilePanel.jsx']) {
+            const src = readFileSync(join(SRC, 'components/history', panel), 'utf8');
+            expect(src).toMatch(/m\.display_names\?\.\[locale\]\) \|\| mealDisplayName\(\{ name: m\.name \}, locale\)/);
+        }
+        setPaisDeLectura('MX');
+        expect(mealDisplay({ name: 'Batido de guineo' }, 'es-DO').name).toBe('Batido de plátano');
     });
 
     it('el contexto que escribe el plan (swap, regenerar día, restore-local) no pinta', () => {
