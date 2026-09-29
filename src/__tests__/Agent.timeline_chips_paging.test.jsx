@@ -87,7 +87,10 @@ describe('acciones rápidas con el hilo corto', () => {
         expect(AGENT).toContain('{!isCentered && atajosVisibles && (');
         // dentro del wrapper sticky de la caja (fuera, la caja los tapaba en escritorio)
         expect(AGENT.indexOf('className="chat-quick-chips"')).toBeGreaterThan(AGENT.indexOf('const renderInputArea = (isCentered = false) => ('));
-        expect(AGENT.indexOf('className="chat-quick-chips"')).toBeLessThan(AGENT.indexOf("<div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', minWidth: 0, position: 'relative' }}>"));
+        // [P1-PLAN-LOTE-763] la caja ganó `hidden` (la oculta la pregunta obligatoria de la foto): se ancla en su estilo
+        const caja = AGENT.indexOf("style={{ maxWidth: '800px', margin: '0 auto', width: '100%', minWidth: 0, position: 'relative' }}>");
+        expect(caja).toBeGreaterThan(-1);
+        expect(AGENT.indexOf('className="chat-quick-chips"')).toBeLessThan(caja);
         // [P1-PLAN-LOTE-411] acciones que abren su hoja y preguntas del momento (atajosDelChat.js, lote411.test.js)
         expect(AGENT).toContain("onClick={() => (a.tipo === 'accion' ? setHojaDeComida({ tipo: a.accion }) : handleSend(a.mensaje))}");
         expect(AGENT).toContain('.chat-quick-chip {');

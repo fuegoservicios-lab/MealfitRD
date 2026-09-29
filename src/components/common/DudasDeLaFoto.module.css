@@ -57,3 +57,8 @@
 }
 .aplicar:disabled { opacity: 0.45; cursor: default; }
 .otraAyuda { font-size: 0.78rem; color: var(--text-muted); }
+/* [P1-PLAN-LOTE-763] En el panel del chat (el sitio del teclado): botones del tamaño de una tecla, pregunta legible. */
+.grande { gap: 0.85rem; margin-top: 0.6rem; }
+.grande .pregunta { font-size: 0.98rem; font-weight: 600; }
+.grande .opciones { gap: 0.5rem; }
+.grande .opcion { min-height: 48px; padding: 0.55rem 1.1rem; font-size: 1rem; }

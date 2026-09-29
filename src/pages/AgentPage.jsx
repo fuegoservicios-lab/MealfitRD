@@ -139,6 +139,7 @@ import { getLocale } from '../i18n';
 import { useDictado } from '../hooks/useDictado';
 // [P1-PLAN-LOTE-682] Modo voz del coach: hablarle y oírle con la voz del propio dispositivo (cero coste de API).
 import { useConversacionPorVoz } from '../hooks/useConversacionPorVoz';
+import { siguienteTrozoParaVoz } from '../utils/vozDelCoach';
 import { trackEvent } from '../utils/analytics';
 // La pantalla del modo voz se pide al abrirlo: quien nunca lo usa no la descarga.
 const ModoVoz = lazy(() => import('../components/agent/ModoVoz'));
@@ -4064,15 +4065,15 @@ const AgentPage = () => {
                                         displayContent = fullText.replace(/\[UI_ACT[^\]]*$/g, '');
 
                                         // Extraer oraciones completas para TTS en Modo Llamada
+                                        // [P1-PLAN-LOTE-684] TODAS las que ya estén (antes salía una por evento del
+                                        // stream) y la primera en su primera coma: ver `siguienteTrozoParaVoz`.
                                         if (callModeRef.current) {
-                                            const textSoFar = fullText.substring(lastSpokenIndex);
-                                            const match = textSoFar.match(/.*?[.!?\n](?=\s|$)/);
-                                            if (match) {
-                                                const sentenceToSpeak = match[0].trim();
-                                                lastSpokenIndex += match[0].length;
-                                                if (sentenceToSpeak) {
-                                                    queueTTS(sentenceToSpeak);
-                                                }
+                                            let largo = siguienteTrozoParaVoz(fullText.substring(lastSpokenIndex), lastSpokenIndex === 0);
+                                            while (largo > 0) {
+                                                const sentenceToSpeak = fullText.substring(lastSpokenIndex, lastSpokenIndex + largo).trim();
+                                                lastSpokenIndex += largo;
+                                                if (sentenceToSpeak) queueTTS(sentenceToSpeak);
+                                                largo = siguienteTrozoParaVoz(fullText.substring(lastSpokenIndex), false);
                                             }
                                         }
 
@@ -4866,10 +4867,11 @@ const AgentPage = () => {
                     ))}
                 </div>
             )}
-            {/* [P1-PLAN-LOTE-322] Las dudas de la foto, respondibles con un toque, cuando el coach ya contestó. */}
+            {/* [P1-PLAN-LOTE-322] Las dudas de la foto, respondibles con un toque, cuando el coach ya contestó.
+                [P1-PLAN-LOTE-763] En el teléfono, la que espera ocupa el sitio de la caja (oculta aquí debajo). */}
             {dudasDeLaFoto.length > 0 && !isTurnActive && !chatDeOtroDia && dudasDeLaFotoSesionRef.current === currentSessionId && (
                 <RespuestasDeLaFoto key={fotoPendiente?.clientMessageId || 'tras-el-coach'} dudas={dudasDeLaFoto}
-                    titulo={fotoPendiente ? t('Antes de anotarlo, dime:') : null}
+                    titulo={fotoPendiente ? t('Antes de anotarlo, dime:') : null} enPanel={panelDeDudas}
                     onEnviar={(texto, ajuste) => (fotoPendienteRef.current ? _reanudarFoto(texto, ajuste) : handleSend(texto))}
                     onOmitir={fotoPendiente ? (texto, ajuste) => _reanudarFoto(texto, ajuste) : null}
                     onParcial={(elegidas) => {   // [P1-PLAN-LOTE-695]
@@ -4889,7 +4891,9 @@ const AgentPage = () => {
                     </button>
                 </div>
             )}
-            <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', minWidth: 0, position: 'relative' }}>
+            {/* [P1-PLAN-LOTE-763] Oculta (no desmontada: sus refs y su foco siguen vivos) mientras la pregunta de la foto
+                ocupa su sitio. */}
+            <div hidden={panelDeDudas || undefined} style={{ maxWidth: '800px', margin: '0 auto', width: '100%', minWidth: 0, position: 'relative' }}>
 
                 {isSpeaking && (
                     <div style={{
@@ -5369,6 +5373,19 @@ const AgentPage = () => {
     const _dudasDeEsteChat = dudasDeLaFoto.length > 0 && dudasDeLaFotoSesionRef.current === currentSessionId;
     const atajosVisibles = isMobile && messages.length > 0 && !isTurnActive
         && !isLoadingHistory && !input.trim() && !_dudasDeEsteChat;
+    // [P1-PLAN-LOTE-763 · 2026-09-28] El dueño: «la pregunta que te hace la IA cuando escaneas una comida […] que se vea
+    // donde está el teclado, y el teclado se debe cerrar cuando está la pregunta obligatoria». En el teléfono la tarjeta
+    // salía ENCIMA de la caja de escribir y, con el teclado arriba, quedaba apretada entre los dos. Ahora la pregunta que
+    // espera (la foto no llega al coach sin ella, lote 690) ocupa el sitio de la caja —que se oculta— con botones del
+    // tamaño de una tecla, y el teclado se cierra al aparecer. «Otra…» abre un campo en la propia pregunta y el teclado
+    // sube con ella (vive dentro de `.input-wrapper`, así que la coreografía del teclado la trata como a la caja). La
+    // tarjeta de DESPUÉS del coach (knob apagado) y la del PC siguen como estaban, encima de la caja.
+    const panelDeDudas = isMobile && Boolean(fotoPendiente) && _dudasDeEsteChat && !isTurnActive && !chatDeOtroDia;
+    useLayoutEffect(() => {
+        if (!panelDeDudas) return;
+        const campo = chatInputRef.current;
+        if (campo && document.activeElement === campo) campo.blur();
+    }, [panelDeDudas]);
     const chatUserId = session?.user?.id || userProfile?.id || 'guest';
     // [P1-PLAN-LOTE-412] con el chat abierto (no solo con los atajos): el saludo también los usa
     const resumenHoy = useResumenDeHoy(chatUserId, true);
@@ -5467,6 +5484,27 @@ const AgentPage = () => {
                     font: inherit; font-size: 0.8rem; font-weight: 600; color: var(--text-muted, inherit);
                     text-decoration: underline; text-underline-offset: 3px;
                 }
+                /* [P1-PLAN-LOTE-763] La pregunta obligatoria de la foto en el sitio de la caja de escribir (telefono).
+                   Con la misma superficie que la caja (fondo y borde de la pastilla de escribir): es la caja que se
+                   convierte en la pregunta, y en oscuro se distingue de la conversacion (sin borde se fundia con
+                   ella). Entra subiendo, como un teclado. La caja oculta lleva el atributo hidden: nada la muestra. */
+                .chat-dudas-panel {
+                    width: 100%;
+                    margin: 0 auto;
+                    padding: 0.95rem 1rem 0.35rem;
+                    border: 1px solid var(--border);
+                    border-radius: 1.5rem;
+                    background: var(--bg-muted);
+                    animation: chat-dudas-panel-entra 0.26s cubic-bezier(0.32, 0.72, 0, 1);
+                }
+                .chat-dudas-panel .chat-respuestas-foto-titulo { display: block; font-size: 0.95rem; color: var(--text-main); }
+                .chat-dudas-panel .chat-respuestas-foto-omitir { display: block; margin: 0.7rem auto 0; min-height: 44px; font-size: 0.88rem; }
+                .input-wrapper > [hidden] { display: none !important; }
+                @keyframes chat-dudas-panel-entra {
+                    from { opacity: 0; transform: translateY(14px); }
+                    to { opacity: 1; transform: none; }
+                }
+                @media (prefers-reduced-motion: reduce) { .chat-dudas-panel { animation: none; } }
                 .chat-quick-chips {
                     display: flex;
                     gap: 0.45rem;

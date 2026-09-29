@@ -21,12 +21,14 @@ import {
     motorDeDictado,
 } from '../utils/dictado';
 import { crearVozDelCoach, rutaDeAudio, sintesisDisponible } from '../utils/vozDelCoach';
+import { pedirVozEnLaNube } from '../utils/vozEnLaNube';
 import { sintesisNativa, vozNativaDisponible } from '../utils/vozNativa';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
 import { i18nKey } from '../i18n';
 
 /** Silencio tras la última palabra que se toma como «terminó de hablar». */
-export const VOZ_FIN_DE_FRASE_MS = 1500;
+// [P1-PLAN-LOTE-684] 1,5 s → 1,1 s: medio segundo menos en CADA turno (lo habitual en asistentes de voz: 0,8-1,2 s).
+export const VOZ_FIN_DE_FRASE_MS = 1100;
 /** Micrófono abierto sin una sola palabra: se pausa. */
 export const VOZ_SIN_VOZ_MS = 8000;
 /** Tope de un turno hablado (un monólogo no se queda escuchando para siempre). */
@@ -93,6 +95,8 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         if (!vozRef.current) {
             vozRef.current = crearVozDelCoach({
                 locale: localeRef.current,
+                // [P1-PLAN-LOTE-685] La voz de Gemini (backend /api/chat/voz); sin audio, la del teléfono.
+                nube: { pedir: (texto, opciones) => pedirVozEnLaNube(texto, { ...opciones, locale: localeRef.current }) },
                 alEmpezarFrase: (frase) => {
                     if (estadoRef.current === 'cerrado') return;
                     setDicho(frase);
@@ -251,7 +255,9 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         v.desbloquear();
         triggerMobileHaptic('medium');
         const s = saludoRef.current;
-        if (s) {
+        // [P1-PLAN-LOTE-685] Con la voz de la nube, sin saludo hablado: su audio tardaría ~2 s tras el toque y
+        // parecería roto. Se pone a escuchar al instante (el círculo ya dice «Te escucho»).
+        if (s && !v.enLaNube) {
             setEstado('hablando');
             v.encolar(s);
         } else {
