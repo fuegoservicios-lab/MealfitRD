@@ -15,6 +15,7 @@ import { AlertTriangle, HeartPulse, ShieldCheck } from 'lucide-react';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { useT } from '../i18n';
 import { apexUrl } from '../config/site';
+import { analiticaPermitida } from '../utils/analytics';
 import { VERSION_ANTIGUA } from './apiConsentimiento';
 import { huellaDelTexto, textoDeLaHoja, textoPlanoDeLaHoja } from './textoDeLaHoja';
 import styles from './ConsentimientoIASheet.module.css';
@@ -24,7 +25,9 @@ export default function ConsentimientoIASheet({ onAceptar, onRechazar }) {
     const tx = useMemo(() => textoDeLaHoja(t), [t]);
     const [casillaIA, setCasillaIA] = useState(false);
     const [casillaChina, setCasillaChina] = useState(false);
-    const [analitica, setAnalitica] = useState(false);
+    // [P1-PLAN-LOTE-849] La casilla opcional parte de lo que la persona ya eligió (847: `analiticaPermitida`): al
+    // volver a aceptar tras un cambio de versión o una retirada no se le apaga en silencio. La primera vez, desmarcada.
+    const [analitica, setAnalitica] = useState(() => analiticaPermitida());
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState(null);
     const idTitulo = useId();
