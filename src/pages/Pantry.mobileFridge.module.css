@@ -159,3 +159,5 @@
 /* [P2-DESIGN-CONSISTENCY · 2026-07-07] índigo por token --primary (antes #7C82F0 hardcoded). */
 .brandChip { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 700; letter-spacing: .01em; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
 .brandChipGeneric { composes: brandChip; color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 8%, transparent); border-color: color-mix(in srgb, var(--text-muted) 22%, transparent); }
+/* [P1-PLAN-LOTE-766] Alacena con suplementos y sin alimentos: una línea discreta, no el «vacía» grande. */
+.soloSuplementos { margin: 2px 4px 14px; font-size: .82rem; line-height: 1.5; color: var(--text-muted); text-align: center; }

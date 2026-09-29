@@ -3,96 +3,148 @@
 // «Del plan». Antes vivían en una tarjeta del Dashboard que no decía cuánto quedaba ni de dónde salían las cifras.
 // [P1-PLAN-LOTE-627 · 2026-09-27] Lo que escribe el PLAN (nombre, dosis, momento) sale en el idioma del usuario por la
 // traducción de textos libres; el nombre del pote que escribió el usuario, tal cual.
+// [P1-PLAN-LOTE-766 · 2026-09-29] El dueño, con su ganador de peso recién guardado por el coach: «mejora el diseño
+// cuando el suplemento está agregado, está feo». Eran renglones grises sueltos, un campo sin rótulo («Porcione:») y un
+// «Guardar» sin contexto. Ahora es una categoría más de la Alacena (cabecera con icono y cuenta) y cada pote una
+// tarjeta: nombre y marca, chips de estado (la etiqueta por porción, o «Sin etiqueta» en ámbar con cómo completarla) y
+// las porciones con − / + (o, si no se saben, la pregunta con su campo). Sin `onCambiarPorciones` (solo lectura) las
+// porciones van en un chip, como antes.
 import React, { useState } from 'react';
-import { Pill, Trash2 } from 'lucide-react';
+import { Camera, Minus, Pill, Plus, Trash2 } from 'lucide-react';
 import { useT } from '../../i18n';
 import { lineaEtiqueta, unidadTexto } from '../../utils/suplementosAlacena';
 import { useTextosTraducidos } from '../../hooks/useTextosTraducidos';
+import s from './GrupoSuplementos.module.css';
 
-const estilos = {
-    grupo: { border: '1px solid var(--border)', borderRadius: '0.9rem', background: 'var(--bg-card)', padding: '0.85rem 1rem', marginBottom: '0.9rem' },
-    titulo: { display: 'flex', alignItems: 'center', gap: '0.45rem', margin: '0 0 0.5rem', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' },
-    lista: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' },
-    pote: { display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0 },
-    nombre: { fontWeight: 600, color: 'var(--text-main)', overflowWrap: 'anywhere' },
-    fino: { fontSize: '0.82rem', color: 'var(--text-muted)' },
-    plan: { fontSize: '0.82rem', color: 'var(--primary)' },
-    acciones: { display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.35rem', flexWrap: 'wrap' },
-    input: { width: '4.5rem', padding: '0.3rem 0.45rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--bg-page)', color: 'var(--text-main)', fontSize: '0.82rem' },
-    boton: { padding: '0.3rem 0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-main)', fontSize: '0.78rem', cursor: 'pointer' },
-    quitar: { padding: '0.3rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex' },
-    chip: { marginLeft: '0.4rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: '999px', border: '1px solid var(--border)', color: 'var(--text-muted)' },
+// El borrador de un campo de porciones → número válido, o null.
+const porcionesValidas = (v) => {
+    if (v === undefined || v === null || String(v).trim() === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 && n <= 9999 ? n : null;
 };
+
+function Porciones({ pote, n, onCambiar, t }) {
+    const [borrador, setBorrador] = useState(null);   // null = sin tocar (se ve lo guardado)
+    const valor = borrador ?? (n > 0 ? String(n) : '');
+    const nuevo = porcionesValidas(valor);
+    const cambiado = borrador !== null && nuevo !== null && nuevo !== n;
+    const guardar = () => {
+        if (!cambiado) return;
+        onCambiar(pote.id, nuevo);
+        setBorrador(null);
+    };
+    const paso = (d) => {
+        const base = porcionesValidas(valor) ?? n;
+        const siguiente = Math.max(0, Math.min(9999, base + d));
+        setBorrador(null);
+        if (siguiente !== n) onCambiar(pote.id, siguiente);
+    };
+    const campo = {
+        'aria-label': t('Porciones de {nombre}', { nombre: pote.nombre }),
+        type: 'number', min: '0', max: '9999', inputMode: 'numeric', value: valor,
+        onChange: (e) => setBorrador(e.target.value),
+        onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); guardar(); } },
+    };
+    const botonGuardar = (
+        <button type="button" className={s.guardar} disabled={!cambiado} onClick={guardar}
+            aria-label={t('Guardar porciones de {nombre}', { nombre: pote.nombre })}>
+            {t('Guardar')}
+        </button>
+    );
+    if (n <= 0) {
+        // No se sabe cuántas trae: la pregunta, con su campo (el coach no siempre lee el envase).
+        return (
+            <div className={`${s.porciones} ${s.pregunta}`}>
+                <span className={s.rotulo}>{t('¿Cuántas porciones trae el pote?')}</span>
+                <input className={s.campo} {...campo} />
+                {botonGuardar}
+            </div>
+        );
+    }
+    return (
+        <div className={s.porciones}>
+            <span className={s.rotulo}>{t('Te quedan')}</span>
+            <div className={s.stepper}>
+                <button type="button" className={s.paso} onClick={() => paso(-1)} disabled={n <= 0}
+                    aria-label={t('Disminuir {alimento}', { alimento: pote.nombre })}>
+                    <Minus size={15} strokeWidth={2.5} aria-hidden="true" />
+                </button>
+                <input className={s.numero} {...campo} />
+                <button type="button" className={s.paso} onClick={() => paso(1)}
+                    aria-label={t('Aumentar {alimento}', { alimento: pote.nombre })}>
+                    <Plus size={15} strokeWidth={3} aria-hidden="true" />
+                </button>
+            </div>
+            <span className={s.unidad}>{unidadTexto(pote.unidad, n, t)}</span>
+            {cambiado && botonGuardar}
+        </div>
+    );
+}
 
 export default function GrupoSuplementos({ potes = [], soloDelPlan = [], onCambiarPorciones = null, onBorrar = null }) {
     const t = useT();
-    // [P1-PLAN-LOTE-300] Editar porciones y quitar un pote (detalle pedido por el dueño): borrador por pote.
-    const [borrador, setBorrador] = useState({});
     const tr = useTextosTraducidos([
         ...potes.flatMap((p) => [p.delPlan?.dose, p.delPlan?.timing]),
         ...soloDelPlan.flatMap((x) => [x.name, x.dose, x.timing]),
     ]);
     if (!potes.length && !soloDelPlan.length) return null;
     return (
-        <section style={estilos.grupo} aria-label={t('Suplementos')}>
-            <h4 style={estilos.titulo}><Pill size={16} aria-hidden="true" />{t('Suplementos')}</h4>
-            <ul style={estilos.lista}>
+        <section className={s.grupo} aria-label={t('Suplementos')}>
+            <h4 className={s.cabecera}>
+                <span className={s.icono}><Pill size={15} aria-hidden="true" /></span>
+                <span>{t('Suplementos')}</span>
+                <span className={s.cuenta}>{potes.length + soloDelPlan.length}</span>
+            </h4>
+            <ul className={s.lista}>
                 {potes.map((p) => {
                     const n = Math.round(p.porciones);
+                    const incompleto = !p.etiqueta || n <= 0;
                     return (
-                        <li key={p.id} style={estilos.pote}>
-                            <span style={estilos.nombre}>{p.nombre}{p.marca ? ` · ${p.marca}` : ''}</span>
-                            <span style={estilos.fino}>
-                                {n > 0
-                                    ? t('~{n} {unidad}', { n, unidad: unidadTexto(p.unidad, n, t) })
-                                    : t('Porciones por confirmar — díselas al coach')}
-                            </span>
-                            <span style={estilos.fino}>{lineaEtiqueta(p.etiqueta, p.unidad, t)}</span>
-                            {p.delPlan && (
-                                <span style={estilos.plan}>{t('Plan: {dosis} · {cuando}', { dosis: tr(p.delPlan.dose || ''), cuando: tr(p.delPlan.timing || '') })}</span>
-                            )}
-                            {(onCambiarPorciones || onBorrar) && (
-                                <div style={estilos.acciones}>
-                                    {onCambiarPorciones && (
-                                        <>
-                                            <input
-                                                type="number" min="0" max="9999" inputMode="numeric" style={estilos.input}
-                                                aria-label={t('Porciones de {nombre}', { nombre: p.nombre })}
-                                                value={borrador[p.id] ?? (n > 0 ? String(n) : '')}
-                                                placeholder={t('Porciones')}
-                                                onChange={(e) => setBorrador((b) => ({ ...b, [p.id]: e.target.value }))}
-                                            />
-                                            <button
-                                                type="button" style={estilos.boton}
-                                                aria-label={t('Guardar porciones de {nombre}', { nombre: p.nombre })}
-                                                onClick={() => {
-                                                    const v = Number(borrador[p.id]);
-                                                    if (Number.isFinite(v) && v >= 0) onCambiarPorciones(p.id, v);
-                                                }}
-                                            >
-                                                {t('Guardar')}
-                                            </button>
-                                        </>
-                                    )}
-                                    {onBorrar && (
-                                        <button
-                                            type="button" style={estilos.quitar}
-                                            aria-label={t('Quitar {nombre}', { nombre: p.nombre })}
-                                            title={t('Quitar {nombre}', { nombre: p.nombre })}
-                                            onClick={() => onBorrar(p.id)}
-                                        >
-                                            <Trash2 size={14} aria-hidden="true" />
-                                        </button>
-                                    )}
+                        <li key={p.id} className={incompleto ? `${s.pote} ${s.incompleto}` : s.pote}>
+                            <div className={s.arriba}>
+                                <span className={s.foto} aria-hidden="true"><Pill size={18} /></span>
+                                <div className={s.nombres}>
+                                    <span className={s.nombre}>{p.nombre}</span>
+                                    {p.marca && <span className={s.marca}>{p.marca}</span>}
                                 </div>
+                                {onBorrar && (
+                                    <button type="button" className={s.quitar} onClick={() => onBorrar(p.id)}
+                                        aria-label={t('Quitar {nombre}', { nombre: p.nombre })}
+                                        title={t('Quitar {nombre}', { nombre: p.nombre })}>
+                                        <Trash2 size={15} aria-hidden="true" />
+                                    </button>
+                                )}
+                            </div>
+                            <div className={s.chips}>
+                                {!onCambiarPorciones && (n > 0
+                                    ? <span className={s.chip}>{t('~{n} {unidad}', { n, unidad: unidadTexto(p.unidad, n, t) })}</span>
+                                    : <span className={s.aviso}>{t('Porciones por confirmar — díselas al coach')}</span>)}
+                                {p.etiqueta
+                                    ? <span className={s.chip}>{lineaEtiqueta(p.etiqueta, p.unidad, t)}</span>
+                                    : <span className={s.aviso}>{t('Sin etiqueta')}</span>}
+                            </div>
+                            {p.delPlan && (
+                                <span className={s.plan}>{t('Plan: {dosis} · {cuando}', { dosis: tr(p.delPlan.dose || ''), cuando: tr(p.delPlan.timing || '') })}</span>
                             )}
+                            {!p.etiqueta && (
+                                <p className={s.pista}>
+                                    <Camera size={15} aria-hidden="true" />
+                                    <span>{t('Mándale al coach una foto de la tabla nutricional para completar sus cifras.')}</span>
+                                </p>
+                            )}
+                            {onCambiarPorciones && <Porciones pote={p} n={n} onCambiar={onCambiarPorciones} t={t} />}
                         </li>
                     );
                 })}
-                {soloDelPlan.map((s) => (
-                    <li key={`plan-${s.name}`} style={estilos.pote}>
-                        <span style={estilos.nombre}>{tr(s.name)}<span style={estilos.chip}>{t('Del plan')}</span></span>
-                        <span style={estilos.plan}>{t('Plan: {dosis} · {cuando}', { dosis: tr(s.dose || ''), cuando: tr(s.timing || '') })}</span>
+                {soloDelPlan.map((x) => (
+                    <li key={`plan-${x.name}`} className={s.pote}>
+                        <div className={s.arriba}>
+                            <span className={s.foto} aria-hidden="true"><Pill size={18} /></span>
+                            <div className={s.nombres}>
+                                <span className={s.nombre}>{tr(x.name)}<span className={s.delPlan}>{t('Del plan')}</span></span>
+                            </div>
+                        </div>
+                        <span className={s.plan}>{t('Plan: {dosis} · {cuando}', { dosis: tr(x.dose || ''), cuando: tr(x.timing || '') })}</span>
                     </li>
                 ))}
             </ul>

@@ -398,3 +398,5 @@
 /* Deshabilitado mientras hay una respuesta en vuelo: evita doble-tap sobre
    dos items distintos, que dejaría el banner inconsistente. */
 .reconcileActions button:disabled { opacity: 0.45; cursor: not-allowed; }
+/* [P1-PLAN-LOTE-766] Alacena con suplementos y sin alimentos: una línea discreta, no el «vacía» grande. */
+.soloSuplementos { margin: 2px 4px 14px; font-size: .82rem; line-height: 1.5; color: var(--text-muted); text-align: center; }

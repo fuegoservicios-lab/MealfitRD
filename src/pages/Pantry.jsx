@@ -2237,6 +2237,10 @@ const PantryPage = () => {
         () => agrupar(inventory, suplementosDelPlan),
         [inventory, suplementosDelPlan],
     );
+    // [P1-PLAN-LOTE-766] Con suplementos, la Alacena NO está vacía: el dueño vio «Tu alacena está vacía» encima de su
+    // ganador de peso recién guardado. Sin alimentos (y sin buscar), queda solo una línea discreta de lo que vive aquí.
+    const alacenaSoloSuplementos = tempZone === 'seco' && !searchQuery.trim()
+        && (potesSuplementos.length > 0 || suplementosSoloDelPlan.length > 0);
     const filteredInventory = useMemo(() => {
         let textMatch = sinSuplementos(inventory);
         if (deferredSearchQuery.trim()) {
@@ -2770,6 +2774,9 @@ const PantryPage = () => {
 
     // [P1-PLAN-LOTE-125] «vacía» = ni un alimento en NINGÚN mueble (no «este mueble sin nada»)
     const neveraVacia = inventory.length === 0;
+    // [P1-PLAN-LOTE-766] El número de arriba cuenta ALIMENTOS: con 2 potes y ningún alimento decía «2 alimentos» y el
+    // aviso de debajo, «tienes 0 alimentos». Los suplementos llevan su propia cuenta en su grupo de la Alacena.
+    const cuentaAlimentos = sinSuplementos(inventory).length;
 
     // [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] Shell móvil dedicado (topbar
     // apilado + zonas + chips + tarjeta por alimento). Usa los MISMOS
@@ -2781,7 +2788,7 @@ const PantryPage = () => {
                 el aria-label pasa a descriptor funcional (solo lector de pantalla). */}
             <div className={mstyles.top}>
                 <div className={mstyles.toprow}>
-                    <span className={mstyles.count}><b>{inventory.length}</b> {tn(inventory.length, 'alimento', 'alimentos')}</span>
+                    <span className={mstyles.count}><b>{cuentaAlimentos}</b> {tn(cuentaAlimentos, 'alimento', 'alimentos')}</span>
                 </div>
                 {/* [P1-PLAN-LOTE-125] Con la nevera VACÍA no se ofrece lo que no puede hacer nada: ni buscar, ni «Borrar
                     todos» (que además pesaba lo mismo que el botón principal), ni el chip «Todos 0», ni el aviso de
@@ -2879,7 +2886,7 @@ const PantryPage = () => {
             )}
 
             <div className={mstyles.body}>
-                {visibleZones.length === 0 && depletedForTemp.length === 0 && (
+                {visibleZones.length === 0 && depletedForTemp.length === 0 && !alacenaSoloSuplementos && (
                     <div className={mstyles.empty} data-mueble={tempZone}>
                         {searchQuery.trim() ? (
                             <>
@@ -2901,6 +2908,9 @@ const PantryPage = () => {
                 )}
 
                 {tempZone === 'seco' && <GrupoSuplementos potes={potesSuplementos} soloDelPlan={suplementosSoloDelPlan} onCambiarPorciones={cambiarPorcionesSuplemento} onBorrar={borrarSuplemento} />}
+                {alacenaSoloSuplementos && visibleZones.length === 0 && depletedForTemp.length === 0 && (
+                    <p className={mstyles.soloSuplementos}>{t('Arroz, granos, especias y conservas viven aquí.')}</p>
+                )}
                 {visibleZones.map(({ z, list }) => {
                     const Icon = z.icon;
                     return (
@@ -2942,8 +2952,8 @@ const PantryPage = () => {
                             pedido del owner (sin sinónimo). El bloque pasa a ser un
                             stat: conteo total prominente + etiqueta. */}
                         <div className={fstyles.brand}>
-                            <b>{inventory.length}</b>
-                            <small>{tn(inventory.length, 'alimento', 'alimentos')}</small>
+                            <b>{cuentaAlimentos}</b>
+                            <small>{tn(cuentaAlimentos, 'alimento', 'alimentos')}</small>
                         </div>
 
                         <div className={fstyles.zones} role="tablist" aria-label={t('Mueble')}>
@@ -3170,7 +3180,7 @@ const PantryPage = () => {
 
                         {/* Lista agrupada por categoría del mueble activo */}
                         <div className={fstyles.list}>
-                            {visibleZones.length === 0 && depletedForTemp.length === 0 && (
+                            {visibleZones.length === 0 && depletedForTemp.length === 0 && !alacenaSoloSuplementos && (
                                 <div className={fstyles.empty}>
                                     {searchQuery.trim() ? (
                                         <>{t('No hay alimentos que coincidan con “{consulta}”.', { consulta: searchQuery.trim() })}</>
@@ -3183,6 +3193,9 @@ const PantryPage = () => {
                             )}
 
                             {tempZone === 'seco' && <GrupoSuplementos potes={potesSuplementos} soloDelPlan={suplementosSoloDelPlan} onCambiarPorciones={cambiarPorcionesSuplemento} onBorrar={borrarSuplemento} />}
+                            {alacenaSoloSuplementos && visibleZones.length === 0 && depletedForTemp.length === 0 && (
+                                <p className={fstyles.soloSuplementos}>{t('Arroz, granos, especias y conservas viven aquí. Añádelos con el botón “Añadir”.')}</p>
+                            )}
                             {visibleZones.map(({ z, list }) => (
                                 <div key={z.key} className={fstyles.group} style={{ '--cat': zoneColor(z.key), '--cat-ink': zoneInk(z.key) }}>
                                     {effFilter === 'todos' && (

@@ -1,0 +1,103 @@
+/* [P1-PLAN-LOTE-766 · 2026-09-29] Los suplementos se pintan como una categoría más de la Alacena: cabecera con su icono
+   y su cuenta, y cada pote en una tarjeta como las de los alimentos (fondo, borde y radio de `.item`). Antes eran
+   renglones grises sueltos con un campo sin rótulo («Porcione:») y un «Guardar» sin contexto: el dueño, «está feo».
+   Todo con tokens: claro, oscuro y papel. El ámbar de «sin etiqueta» usa --warning-* (AA en los tres temas). */
+.grupo { margin: 6px 0 18px; }
+
+.cabecera {
+    display: flex; align-items: center; gap: 9px; margin: 0 0 11px;
+    font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-main);
+}
+.icono {
+    width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex: none;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+}
+.cuenta {
+    font-size: .75rem; font-weight: 800; color: var(--primary); padding: 2px 8px; border-radius: 99px;
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.pote {
+    background: var(--bg-page); border: 1px solid var(--border); border-radius: 15px; padding: 12px 13px;
+    display: flex; flex-direction: column; gap: 10px; min-width: 0;
+}
+.pote.incompleto { border-color: var(--warning-border); }
+
+.arriba { display: flex; align-items: flex-start; gap: 10px; }
+.foto {
+    width: 38px; height: 38px; border-radius: 11px; flex: none; display: grid; place-items: center;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.nombres { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nombre { font-size: .95rem; font-weight: 700; line-height: 1.25; color: var(--text-main); overflow-wrap: anywhere; }
+.marca { font-size: .8rem; font-weight: 600; color: var(--text-muted); overflow-wrap: anywhere; }
+.quitar {
+    flex: none; width: 32px; height: 32px; border-radius: 9px; border: 1px solid transparent; background: transparent;
+    color: var(--text-muted); display: grid; place-items: center; cursor: pointer; transition: .15s;
+}
+.quitar:hover, .quitar:focus-visible { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+    font-size: .75rem; font-weight: 700; padding: 3px 9px; border-radius: 7px; line-height: 1.35;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 24%, transparent);
+}
+.aviso {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: .75rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; line-height: 1.35;
+    color: var(--warning-text); background: var(--warning-bg); border: 1px solid var(--warning-border);
+}
+.plan { font-size: .82rem; font-weight: 600; color: var(--primary); }
+
+.pista {
+    display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px 11px; border-radius: 11px;
+    font-size: .82rem; line-height: 1.45; color: var(--text-muted); background: var(--bg-card);
+}
+.pista svg { flex: none; margin-top: 1px; color: var(--primary); }
+
+.porciones { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rotulo { font-size: .82rem; font-weight: 700; color: var(--text-main); }
+/* sin porciones: la pregunta en su línea y, debajo, el campo con su «Guardar» (en fila se cortaba y saltaba) */
+.pregunta .rotulo { flex: 1 1 100%; }
+.unidad { font-size: .82rem; font-weight: 600; color: var(--text-muted); }
+.stepper {
+    display: inline-flex; align-items: center; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 11px; overflow: hidden;
+}
+.paso {
+    appearance: none; border: 0; cursor: pointer; width: 38px; height: 38px; background: transparent;
+    color: var(--text-main); display: grid; place-items: center; touch-action: manipulation; transition: .14s;
+}
+.paso:hover:not(:disabled) { background: var(--bg-muted); }
+.paso:disabled { opacity: .35; cursor: default; }
+.numero {
+    appearance: textfield; -moz-appearance: textfield; width: 56px; height: 38px; border: 0; background: transparent;
+    text-align: center; font: inherit; font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums;
+    color: var(--text-main);
+}
+.numero::-webkit-outer-spin-button, .numero::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.numero:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.campo {
+    width: 84px; height: 38px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-main); font: inherit; font-size: 1rem; font-weight: 700;
+}
+.campo:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.guardar {
+    appearance: none; cursor: pointer; font: inherit; font-size: .82rem; font-weight: 800; min-height: 38px;
+    padding: 0 14px; border-radius: 11px; border: 1px solid transparent;
+    color: #fff; background: var(--primary-fill, var(--primary));
+}
+.guardar:disabled { opacity: .45; cursor: default; }
+
+.delPlan {
+    font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: 6px;
+    color: var(--text-muted); border: 1px solid var(--border); white-space: nowrap;
+}
