@@ -73,6 +73,17 @@ export function dictadoContinuo(userAgent = typeof navigator !== 'undefined' ? n
     return !/android/i.test(String(userAgent || ''));
 }
 
+// [P1-PLAN-LOTE-904 · 2026-09-29] Lo que el reconocedor oye de una tos o un «ah» suelto. En el modo voz del dueño
+// (29-sep) llegó «Ah» como mensaje y el coach le contestó sobre el agua. Sin «sí», «no», «ok» ni «ajá»: contestan.
+const RUIDO = new Set(['ah', 'aah', 'eh', 'ehh', 'em', 'emm', 'mm', 'mmm', 'hm', 'hmm', 'oh', 'uh', 'uhm', 'um', 'ay']);
+
+/** ¿Lo oído es solo ruido (muletillas sueltas)? Entonces no es un mensaje. */
+export function esSoloRuido(texto) {
+    const palabras = String(texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9ñ\s]/g, ' ').split(/\s+/).filter(Boolean);
+    return palabras.length > 0 && palabras.every((p) => RUIDO.has(p));
+}
+
 /** Lee TODA la lista de resultados de la sesión (no solo el último): lo firme y lo que aún puede cambiar. */
 export function leerResultados(results) {
     let finales = '';

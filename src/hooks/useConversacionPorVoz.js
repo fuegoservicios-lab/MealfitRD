@@ -17,6 +17,7 @@ import {
     dictadoDisponible,
     idiomasDeDictado,
     leerResultados,
+    esSoloRuido,
     mensajeDeErrorDeDictado,
     motorDeDictado,
 } from '../utils/dictado';
@@ -301,7 +302,17 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
                 escucharRef.current?.(false, true);
                 return;
             }
-            if (texto) enviarTexto(texto);
+            // [P1-PLAN-LOTE-904] Un «ah» o una tos no es un mensaje: se sigue escuchando (con el mismo tope de reaperturas).
+            if (texto && esSoloRuido(texto) && reaperturasRef.current < VOZ_MAX_REAPERTURAS
+                && Date.now() - inicioTurnoRef.current < VOZ_TOPE_ESCUCHA_MS) {
+                reaperturasRef.current += 1;
+                acumuladoRef.current = '';
+                oidoRef.current = '';
+                setOido('');
+                escucharRef.current?.(false, true);
+                return;
+            }
+            if (texto && !esSoloRuido(texto)) enviarTexto(texto);
             else setEstado('pausa');
         };
 
