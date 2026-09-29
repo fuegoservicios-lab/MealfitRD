@@ -22,7 +22,7 @@ import {
 } from '../utils/dictado';
 import { crearVozDelCoach, rutaDeAudio, sintesisDisponible } from '../utils/vozDelCoach';
 import { abrirVozEnLaNube, pedirVozEnLaNube } from '../utils/vozEnLaNube';
-import { sintesisNativa, vozNativaDisponible } from '../utils/vozNativa';
+import { sintesisNativa, sintesisNativaDisponible } from '../utils/vozNativa';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
 import { i18nKey } from '../i18n';
 
@@ -398,8 +398,9 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
     useEffect(() => {
         if (!disponible) return;
         try {
-            if (window.speechSynthesis) window.speechSynthesis.getVoices();
-            else if (vozNativaDisponible()) sintesisNativa();   // Android: arranca el motor y pide sus voces ya
+            // [P1-PLAN-LOTE-902] Android con el plugin: SU motor (arranca y pide sus voces ya), aunque el WebView traiga otro.
+            if (sintesisNativaDisponible()) sintesisNativa();
+            else if (window.speechSynthesis) window.speechSynthesis.getVoices();
         } catch { /* sin voces todavía */ }
     }, [disponible]);
 

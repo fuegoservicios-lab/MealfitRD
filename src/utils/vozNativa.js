@@ -15,9 +15,21 @@
 import { nativePlatform, nativePluginAvailable } from '../config/platform';
 
 export function vozNativaDisponible() {
-    return nativePlatform() === 'android'
-        && nativePluginAvailable('SpeechRecognition')
-        && nativePluginAvailable('SpeechSynthesis');
+    return reconocimientoNativoDisponible() && sintesisNativaDisponible();
+}
+
+// [P1-PLAN-LOTE-902 · 2026-09-29] Cada motor por separado, y cuando está, MANDA sobre el del WebView. El dueño: «en
+// android están teniendo problemas con el modo de voz y con el modo de micrófono normal». Los registros del servidor:
+// los Android con la app abrieron el chat una y otra vez y NINGUNO llegó a mandar un mensaje. `motorDeDictado` elegía
+// primero `webkitSpeechRecognition`, y el WebView de Android EXPONE ese objeto sin un servicio de voz detrás: el
+// micrófono «arrancaba» y no oía nada. El 683 lo probó con `win = {}` («el WebView no trae SpeechRecognition»), que
+// nadie comprobó en un teléfono. Con el plugin en el binario, el reconocedor es el de Android, siempre.
+export function reconocimientoNativoDisponible() {
+    return nativePlatform() === 'android' && nativePluginAvailable('SpeechRecognition');
+}
+
+export function sintesisNativaDisponible() {
+    return nativePlatform() === 'android' && nativePluginAvailable('SpeechSynthesis');
 }
 
 // Los códigos del reconocedor de Android → los de la Web Speech API, que es lo que entienden los hooks.
