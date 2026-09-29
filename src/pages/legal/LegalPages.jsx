@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 import styles from './LegalPages.module.css';
+// [P1-PLAN-LOTE-849] Dentro de la app nativa, Términos no señala dónde se compra (Apple 3.1.1); la web lo dice entero.
+import { nativeHidesCommerce } from '../../config/platform';
 // [P1-PAPER-LEGAL · 2026-08-02] `CalendarDays` salió con `.metaIcon`: bajo
 // papel el metadato de un pliego se ROTULA en mono, no se ilustra.
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
@@ -332,7 +334,7 @@ export const Terms = () => (
         <p>Todos los pagos se procesan mediante PayPal. La suscripción se renueva automáticamente al final de cada período (mensual o anual) salvo que usted la cancele desde Ajustes o desde su cuenta de PayPal antes de la fecha de renovación. Las cancelaciones surten efecto al final del período facturado en curso — no realizamos prorrateo de devolución por períodos parcialmente consumidos.</p>
         <p><strong>Reembolsos:</strong> las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Puede cancelar en cualquier momento para detener las renovaciones futuras; conservará el acceso hasta el final del período ya pagado. El detalle está en la <strong>Política de Reembolsos y Cancelaciones</strong>.</p>
         <p>Reservamos el derecho de modificar los precios y planes con notificación previa de treinta (30) días para suscriptores existentes.</p>
-        <p><strong>Aplicación para iPhone:</strong> si usted usa Bioboros desde la app de la App Store, esa app <strong>no vende suscripciones ni incluye ninguna compra</strong>: sólo refleja el plan que usted tenga contratado. Todas las suscripciones se contratan, renuevan y cancelan exclusivamente en bioboros.com a través de PayPal, según se describe en esta sección. Apple no interviene en el cobro ni en la gestión de su suscripción.</p>
+        <p><strong>Aplicación para iPhone:</strong> si usted usa Bioboros desde la app de la App Store, esa app <strong>no vende suscripciones ni incluye ninguna compra</strong>: sólo refleja el plan que usted tenga contratado.{nativeHidesCommerce() ? ' Apple no interviene en el cobro ni en la gestión de su suscripción.' : ' Todas las suscripciones se contratan, renuevan y cancelan exclusivamente en bioboros.com a través de PayPal, según se describe en esta sección. Apple no interviene en el cobro ni en la gestión de su suscripción.'}</p>
 
         <h3>4. Uso Aceptable</h3>
         <p>Usted se compromete a NO:</p>
