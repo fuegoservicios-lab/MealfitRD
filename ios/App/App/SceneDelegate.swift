@@ -256,28 +256,35 @@ final class MfFotosPlugin: CAPPlugin, CAPBridgedPlugin, PHPickerViewControllerDe
     private var calidad: CGFloat = 0.85
 
     @objc func pick(_ call: CAPPluginCall) {
-        if llamadaEnCurso != nil {
-            call.reject("ya hay una seleccion en curso", "EN_CURSO")
-            return
-        }
         let limite = max(1, min(call.getInt("limit") ?? 1, 4))
-        ladoMaximo = CGFloat(max(320.0, min(call.getDouble("maxSide") ?? 1600.0, 4096.0)))
-        calidad = CGFloat(max(0.5, min(call.getDouble("quality") ?? 0.85, 1.0)))
+        let lado = CGFloat(max(320.0, min(call.getDouble("maxSide") ?? 1600.0, 4096.0)))
+        let q = CGFloat(max(0.5, min(call.getDouble("quality") ?? 0.85, 1.0)))
         call.keepAlive = true
-        llamadaEnCurso = call
+        // Todo el estado del plugin se lee y se escribe en el hilo principal, donde tambien contestan los delegados.
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            if self.llamadaEnCurso != nil {
+                call.reject("ya hay una seleccion en curso", "EN_CURSO")
+                self.bridge?.releaseCall(call)
+                return
+            }
             guard var presentador = self.bridge?.viewController else {
-                if let llamada = self.llamadaEnCurso {
-                    self.llamadaEnCurso = nil
-                    llamada.reject("no hay vista para presentar el selector", "SIN_VISTA")
-                    self.bridge?.releaseCall(llamada)
-                }
+                call.reject("no hay vista para presentar el selector", "SIN_VISTA")
+                self.bridge?.releaseCall(call)
                 return
             }
             while let encima = presentador.presentedViewController {
                 presentador = encima
             }
+            // Una vista que se esta cerrando o que no esta en pantalla no presenta nada y la llamada se quedaria colgada.
+            if presentador.isBeingDismissed || presentador.viewIfLoaded?.window == nil {
+                call.reject("no hay vista para presentar el selector", "SIN_VISTA")
+                self.bridge?.releaseCall(call)
+                return
+            }
+            self.llamadaEnCurso = call
+            self.ladoMaximo = lado
+            self.calidad = q
             var configuracion = PHPickerConfiguration()
             configuracion.filter = .images
             configuracion.selectionLimit = limite
@@ -298,24 +305,35 @@ final class MfFotosPlugin: CAPPlugin, CAPBridgedPlugin, PHPickerViewControllerDe
             bridge?.releaseCall(llamada)
             return
         }
-        let lado = ladoMaximo
-        let q = calidad
-        let recogidas = FotosRecogidas(cantidad: results.count)
-        let grupo = DispatchGroup()
-        for (indice, resultado) in results.enumerated() {
-            let proveedor = resultado.itemProvider
-            guard proveedor.hasItemConformingToTypeIdentifier(UTType.image.identifier) else { continue }
-            grupo.enter()
-            proveedor.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { datos, _ in
-                if let datos = datos, let jpeg = MfFotosPlugin.reducir(datos, lado: lado, calidad: q) {
-                    recogidas.poner("data:image/jpeg;base64," + jpeg.base64EncodedString(), en: indice)
-                }
-                grupo.leave()
+        let proveedores = results.map { $0.itemProvider }
+        MfFotosPlugin.cargarEnOrden(proveedores, desde: 0, lado: ladoMaximo, calidad: calidad, acumuladas: []) { [weak self] urls in
+            DispatchQueue.main.async {
+                llamada.resolve(["images": urls])
+                self?.bridge?.releaseCall(llamada)
             }
         }
-        grupo.notify(queue: .main) { [weak self] in
-            llamada.resolve(["images": recogidas.todas()])
-            self?.bridge?.releaseCall(llamada)
+    }
+
+    // De UNA en UNA y en el orden elegido: solo una foto original (hasta decenas de MB) esta en memoria a la vez.
+    private static func cargarEnOrden(_ proveedores: [NSItemProvider], desde indice: Int, lado: CGFloat, calidad: CGFloat,
+                                      acumuladas: [String], alTerminar: @escaping ([String]) -> Void) {
+        guard indice < proveedores.count else {
+            alTerminar(acumuladas)
+            return
+        }
+        let proveedor = proveedores[indice]
+        guard proveedor.hasItemConformingToTypeIdentifier(UTType.image.identifier) else {
+            MfFotosPlugin.cargarEnOrden(proveedores, desde: indice + 1, lado: lado, calidad: calidad,
+                                        acumuladas: acumuladas, alTerminar: alTerminar)
+            return
+        }
+        proveedor.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { datos, _ in
+            var nuevas = acumuladas
+            if let datos = datos, let jpeg = MfFotosPlugin.reducir(datos, lado: lado, calidad: calidad) {
+                nuevas.append("data:image/jpeg;base64," + jpeg.base64EncodedString())
+            }
+            MfFotosPlugin.cargarEnOrden(proveedores, desde: indice + 1, lado: lado, calidad: calidad,
+                                        acumuladas: nuevas, alTerminar: alTerminar)
         }
     }
 
@@ -340,28 +358,6 @@ final class MfFotosPlugin: CAPPlugin, CAPBridgedPlugin, PHPickerViewControllerDe
         ]
         guard let imagen = CGImageSourceCreateThumbnailAtIndex(fuente, 0, opciones as CFDictionary) else { return nil }
         return UIImage(cgImage: imagen).jpegData(compressionQuality: calidad)
-    }
-}
-
-// Las fotos llegan en hilos de fondo y en cualquier orden: se guardan en su posicion, bajo cerrojo.
-private final class FotosRecogidas: @unchecked Sendable {
-    private let cerrojo = NSLock()
-    private var urls: [String?]
-
-    init(cantidad: Int) {
-        urls = [String?](repeating: nil, count: cantidad)
-    }
-
-    func poner(_ url: String, en indice: Int) {
-        cerrojo.lock()
-        urls[indice] = url
-        cerrojo.unlock()
-    }
-
-    func todas() -> [String] {
-        cerrojo.lock()
-        defer { cerrojo.unlock() }
-        return urls.compactMap { $0 }
     }
 }
 

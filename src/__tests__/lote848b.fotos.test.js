@@ -200,7 +200,7 @@ describe('[848-B] escáner de comida: la salida del visor abre la galería dentr
 
 describe('[848-B] el binario: MfFotos en SceneDelegate.swift', () => {
     const swift = readFileSync(resolve(__dirname, '../../ios/App/App/SceneDelegate.swift'), 'utf8').replace(/\r\n/g, '\n');
-    const plugin = swift.slice(swift.indexOf('final class MfFotosPlugin'), swift.indexOf('private final class FotosRecogidas'));
+    const plugin = swift.slice(swift.indexOf('final class MfFotosPlugin'), swift.indexOf('// La tecnica de siempre'));
 
     it('registrado por el controlador propio, como MfAppleSignIn, con su nombre JS', () => {
         expect(swift).toContain('bridge?.registerPluginInstance(MfFotosPlugin())');
@@ -232,6 +232,24 @@ describe('[848-B] el binario: MfFotos en SceneDelegate.swift', () => {
     it('cancelar resuelve una lista vacía y la llamada nunca se queda colgada', () => {
         expect(plugin).toContain('llamada.resolve(["images": [String]()])');
         expect(plugin).toContain('func presentationControllerDidDismiss(_ presentationController: UIPresentationController)');
-        expect(plugin.match(/bridge\?\.releaseCall\(llamada\)/g).length).toBeGreaterThanOrEqual(4);
+        expect(plugin.match(/bridge\?\.releaseCall\(llamada\)/g).length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('[ronda 1] el estado se toca SOLO en el hilo principal, y sin vista presentable se rechaza y se suelta', () => {
+        const principal = plugin.indexOf('DispatchQueue.main.async { [weak self] in');
+        expect(principal).toBeGreaterThan(-1);
+        expect(plugin.indexOf('if self.llamadaEnCurso != nil {')).toBeGreaterThan(principal);
+        expect(plugin.indexOf('self.llamadaEnCurso = call')).toBeGreaterThan(principal);
+        expect(plugin.indexOf('self.ladoMaximo = lado')).toBeGreaterThan(principal);
+        expect(plugin).not.toMatch(/^\s{8}llamadaEnCurso = call$/m);
+        expect(plugin).toContain('if presentador.isBeingDismissed || presentador.viewIfLoaded?.window == nil {');
+        // Los tres rechazos de `pick` (ocupado, sin vista, vista que no está en pantalla) sueltan la llamada.
+        expect(plugin.match(/call\.reject\([^)]*\)\n\s*self\.bridge\?\.releaseCall\(call\)/g)).toHaveLength(3);
+    });
+
+    it('[ronda 1] las fotos se cargan de UNA en UNA y en orden (una sola original en memoria)', () => {
+        expect(plugin).toContain('private static func cargarEnOrden(');
+        expect(plugin).toContain('MfFotosPlugin.cargarEnOrden(proveedores, desde: indice + 1,');
+        expect(plugin).not.toMatch(/DispatchGroup|enumerated\(\)/);
     });
 });
