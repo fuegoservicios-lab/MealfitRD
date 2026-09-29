@@ -128,6 +128,26 @@ export function siguienteTrozoParaVoz(texto, esPrimero = false, minComa = 24) {
 }
 
 /**
+ * [P1-PLAN-LOTE-901] Bytes de la red → muestras. Los trozos de la red no respetan las muestras de 2 bytes: el byte suelto del final se
+ * devuelve para anteponerlo al siguiente. PCM little-endian (todas las plataformas donde corre la app).
+ */
+export function pcmAMuestras(bytes, suelto = null) {
+    let b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+    if (suelto && suelto.length) {
+        const junto = new Uint8Array(suelto.length + b.length);
+        junto.set(suelto, 0);
+        junto.set(b, suelto.length);
+        b = junto;
+    }
+    const pares = b.length - (b.length % 2);
+    const resto = pares < b.length ? b.slice(pares) : null;
+    const enteros = new Int16Array(b.slice(0, pares).buffer);   // `slice` = un ArrayBuffer propio y alineado
+    const muestras = new Float32Array(enteros.length);
+    for (let i = 0; i < enteros.length; i += 1) muestras[i] = enteros[i] / 32768;
+    return { muestras, suelto: resto };
+}
+
+/**
  * La cola de voz. `encolar(texto)` acepta trozos del stream tal como llegan; cada frase es una locución propia
  * (así la primera suena en cuanto llega, y Chrome no corta las largas). `cancelar()` sube la generación: las
  * locuciones de antes que aún disparen `onend` ya no mueven la cola.
@@ -137,6 +157,10 @@ export function siguienteTrozoParaVoz(texto, esPrimero = false, minComa = 24) {
  * anterior) y SUENA en orden por Web Audio; el círculo late con la amplitud de la voz. La primera vez que la nube no
  * da audio (204, fallo, AudioContext roto) la sesión pasa entera a la voz del teléfono: nunca dos voces en la misma
  * respuesta salvo esa frase de transición, y nunca un silencio.
+ *
+ * [P1-PLAN-LOTE-901] Con `nube.abrir(texto, { signal })` → `{ frecuencia, lector } | 'wav' | null` la frase llega en
+ * STREAMING: se lee en cuanto se encola y suena trozo a trozo mientras llega (el primer audio a ~0,65 s en vez de ~2 s
+ * del WAV entero). `'wav'` = el servidor tiene el streaming apagado: esa frase y las siguientes, por `pedir`.
  */
 export function crearVozDelCoach({
     win = typeof window !== 'undefined' ? window : undefined,
@@ -153,6 +177,7 @@ export function crearVozDelCoach({
     const Locucion = fuente?.SpeechSynthesisUtterance;
     const ContextoDeAudio = win?.AudioContext || win?.webkitAudioContext;
     let usarNube = Boolean(nube?.pedir && ContextoDeAudio);
+    let usarFlujo = Boolean(usarNube && nube?.abrir);
     let ctx = null;
     let sonando = null;       // el AudioBufferSourceNode de la frase en curso (voz en la nube)
     let pulso = null;         // requestAnimationFrame del latido
@@ -273,12 +298,116 @@ export function crearVozDelCoach({
         latir(analizador, gen);
     };
 
+    // [P1-PLAN-LOTE-901] Lee el flujo de una frase EN CUANTO se encola (en paralelo, como `pedir`): las muestras
+    // esperan en `f.trozos` hasta que le toque sonar. `f.primero` se resuelve con el primer audio o al acabar sin él.
+    const bombear = (frase, signal) => {
+        const f = { trozos: [], terminado: false, conAudio: false, frecuencia: 24000, wav: null, alLlegar: null };
+        let avisarPrimero;
+        f.primero = new Promise((r) => { avisarPrimero = r; });
+        const llego = () => { avisarPrimero(); f.alLlegar?.(); };
+        (async () => {
+            try {
+                const abierto = await nube.abrir(frase, { signal });
+                if (abierto === 'wav') {
+                    usarFlujo = false;
+                    f.wav = await Promise.resolve(nube.pedir(frase, { signal })).catch(() => null);
+                    return;
+                }
+                if (!abierto?.lector) return;
+                f.frecuencia = abierto.frecuencia || 24000;
+                let suelto = null;
+                for (;;) {
+                    const { done, value } = await abierto.lector.read();
+                    if (done) break;
+                    const r = pcmAMuestras(value, suelto);
+                    suelto = r.suelto;
+                    if (r.muestras.length) { f.trozos.push(r.muestras); f.conAudio = true; llego(); }
+                }
+            } catch { /* abortado o red caída: suena lo que llegó */ }
+            finally {
+                f.terminado = true;
+                llego();
+            }
+        })();
+        return f;
+    };
+
+    const tocarFlujo = async (f, frase, gen) => {
+        const c = contexto();
+        if (!c) { pasarAlTelefono(); hablarEnElTelefono(frase, gen); return; }
+        try { if (c.state !== 'running') await c.resume(); } catch { /* el próximo toque lo reanuda */ }
+        if (gen !== generacion) return;
+        let salida = c.destination;
+        let analizador = null;
+        try {
+            analizador = c.createAnalyser();
+            analizador.fftSize = 512;
+            analizador.connect(c.destination);
+            salida = analizador;
+        } catch { analizador = null; salida = c.destination; }
+        const fuentes = [];
+        let usados = 0;
+        let proximo = c.currentTime + 0.05;
+        let terminada = false;
+        const fin = () => {
+            if (terminada) return;
+            terminada = true;
+            f.alLlegar = null;
+            terminarFrase(gen);
+        };
+        // Todo lo que ya llegó en UN búfer, pegado al anterior en la línea de tiempo del contexto (sin huecos).
+        const programar = () => {
+            if (gen !== generacion || terminada) return;
+            if (usados < f.trozos.length) {
+                const nuevos = f.trozos.slice(usados);
+                usados = f.trozos.length;
+                const total = nuevos.reduce((n, t) => n + t.length, 0);
+                const b = c.createBuffer(1, total, f.frecuencia);
+                const canal = b.getChannelData(0);
+                let o = 0;
+                for (const t of nuevos) { canal.set(t, o); o += t.length; }
+                const src = c.createBufferSource();
+                src.buffer = b;
+                src.connect(salida);
+                const cuando = Math.max(proximo, c.currentTime + 0.02);
+                try { src.start(cuando); } catch { fin(); return; }
+                proximo = cuando + b.duration;
+                fuentes.push(src);
+            }
+            soltarVigia();
+            const quedaMs = Math.max(0, (proximo - c.currentTime) * 1000);
+            if (f.terminado) {
+                const ultima = fuentes[fuentes.length - 1];
+                if (ultima) ultima.onended = fin; else { fin(); return; }
+                vigia = setTimeout(fin, quedaMs + 3000);   // red por si `onended` no llega
+            } else {
+                vigia = setTimeout(fin, quedaMs + 8000);   // el flujo se quedó colgado: no esperar para siempre
+            }
+        };
+        sonando = { stop: () => { for (const s of fuentes) { try { s.stop(); } catch { /* ya terminó */ } } } };
+        f.alLlegar = programar;
+        rutaDeAudio(win, 'playback');
+        alEmpezarFrase?.(frase);
+        programar();
+        latir(analizador, gen);
+    };
+
     const siguiente = () => {
         if (hablando) return;
         const item = cola.shift();
         if (item === undefined) { alVaciarse?.(); return; }
         hablando = true;
         const gen = generacion;
+        if (usarNube && item.flujo) {
+            const f = item.flujo;
+            f.primero.then(() => {
+                if (gen !== generacion) return;
+                if (f.wav) { sonar(f.wav, item.frase, gen); return; }
+                if (!f.conAudio) { pasarAlTelefono(); hablarEnElTelefono(item.frase, gen); return; }
+                tocarFlujo(f, item.frase, gen);
+            });
+            return;
+        }
         if (usarNube && item.audio) {
             item.audio.then((bytes) => {
                 if (gen !== generacion) return;
@@ -293,8 +422,11 @@ export function crearVozDelCoach({
     return {
         encolar(texto) {
             for (const frase of trocearParaVoz(textoParaHablar(texto, locale))) {
-                const item = { frase, audio: null, ctrl: null };
-                if (usarNube) {
+                const item = { frase, audio: null, flujo: null, ctrl: null };
+                if (usarNube && usarFlujo) {
+                    item.ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                    item.flujo = bombear(frase, item.ctrl?.signal);
+                } else if (usarNube) {
                     item.ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
                     item.audio = Promise.resolve()
                         .then(() => nube.pedir(frase, { signal: item.ctrl?.signal }))

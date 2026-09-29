@@ -21,7 +21,7 @@ import {
     motorDeDictado,
 } from '../utils/dictado';
 import { crearVozDelCoach, rutaDeAudio, sintesisDisponible } from '../utils/vozDelCoach';
-import { pedirVozEnLaNube } from '../utils/vozEnLaNube';
+import { abrirVozEnLaNube, pedirVozEnLaNube } from '../utils/vozEnLaNube';
 import { sintesisNativa, vozNativaDisponible } from '../utils/vozNativa';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
 import { i18nKey } from '../i18n';
@@ -140,7 +140,11 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
             vozRef.current = crearVozDelCoach({
                 locale: localeRef.current,
                 // [P1-PLAN-LOTE-685] La voz de Gemini (backend /api/chat/voz); sin audio, la del teléfono.
-                nube: { pedir: (texto, opciones) => pedirVozEnLaNube(texto, { ...opciones, locale: localeRef.current }) },
+                // [P1-PLAN-LOTE-901] En streaming (`abrir`): el primer audio a ~0,65 s; `pedir` queda de respaldo.
+                nube: {
+                    abrir: (texto, opciones) => abrirVozEnLaNube(texto, { ...opciones, locale: localeRef.current }),
+                    pedir: (texto, opciones) => pedirVozEnLaNube(texto, { ...opciones, locale: localeRef.current }),
+                },
                 alEmpezarFrase: (frase) => {
                     if (estadoRef.current === 'cerrado') return;
                     setDicho(frase);

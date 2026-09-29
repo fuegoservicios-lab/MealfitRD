@@ -12,10 +12,12 @@ import { act, renderHook } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const nubeMock = vi.hoisted(() => ({ pedir: null }));
+const nubeMock = vi.hoisted(() => ({ pedir: null, abrir: null }));
 vi.mock('../utils/vozEnLaNube', async (orig) => ({
     ...(await orig()),
     pedirVozEnLaNube: (...a) => (nubeMock.pedir ? nubeMock.pedir(...a) : Promise.resolve(null)),
+    // [P1-PLAN-LOTE-901] el hook abre primero el streaming; aquí «apagado» ('wav') para probar el camino del WAV
+    abrirVozEnLaNube: (...a) => (nubeMock.abrir ? nubeMock.abrir(...a) : Promise.resolve('wav')),
 }));
 
 import { crearVozDelCoach, siguienteTrozoParaVoz, textoParaHablar } from '../utils/vozDelCoach';

@@ -26,3 +26,30 @@ export async function pedirVozEnLaNube(texto, { locale = 'es-DO', signal, fetche
         return null;
     }
 }
+
+/**
+ * [P1-PLAN-LOTE-901 · 2026-09-29] La misma voz en streaming (`POST /api/chat/voz/flujo`): PCM 16 bits mono mientras
+ * Google lo produce — el primer audio a ~0,65 s en vez de los ~2-3 s del WAV entero. Devuelve `{ frecuencia, lector }`
+ * (un lector del cuerpo), `'wav'` si el servidor tiene el streaming apagado (que se pida el WAV de siempre) o `null`
+ * (que hable el teléfono). El `timeout` cubre hasta las cabeceras: el servidor solo responde 200 con el primer audio
+ * ya en la mano, así que un 200 nunca es un silencio.
+ */
+export async function abrirVozEnLaNube(texto, { locale = 'es-DO', signal, fetcher = fetchWithAuth } = {}) {
+    const frase = String(texto || '').trim();
+    if (!frase) return null;
+    try {
+        const r = await fetcher('/api/chat/voz/flujo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ texto: frase, locale }),
+            timeout: VOZ_NUBE_TIMEOUT_MS,
+            signal,
+        });
+        if (r && r.status === 204 && r.headers?.get?.('X-Voz-Motivo') === 'flujo_apagado') return 'wav';
+        if (!r || r.status !== 200 || !r.body?.getReader) return null;
+        const frecuencia = Number(r.headers?.get?.('X-Voz-Frecuencia')) || 24000;
+        return { frecuencia, lector: r.body.getReader() };
+    } catch {
+        return null;
+    }
+}
