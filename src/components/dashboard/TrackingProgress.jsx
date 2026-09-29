@@ -30,7 +30,7 @@ import { formatNumber, formatPercent, useT, useTn } from '../../i18n';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 // [P1-PLAN-LOTE-721 · 2026-09-28] La fila abre la ficha del plato; la foto del escáner (solo en este dispositivo) sale
 // en miniatura. El almacén de fotos se importa dinámico dentro del hook: este trozo está en el techo de precache-guard.
-import { useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
+import { useIdsConFoto, useEnlazarFotosDelChat, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
 import MiniaturaDeComida from './MiniaturaDeComida';
 import styles from './TrackingProgress.module.css';
 
@@ -205,6 +205,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     const [fichaMeal, setFichaMeal] = useState(null);
     const handleFichaClose = useCallback(() => setFichaMeal(null), []);
     const idsConFoto = useIdsConFoto(userId);
+    // [P1-PLAN-LOTE-727] la foto que mandaste al chat llega a la ficha aunque salieras antes de que el coach terminara
+    useEnlazarFotosDelChat(userId);
 
     const [consumed, setConsumed] = useState(() => {
         // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20]

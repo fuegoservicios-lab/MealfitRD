@@ -3756,10 +3756,11 @@ const AgentPage = () => {
                 }
 
                 uploadedImageUrl = uploadedAttachments.find((item) => item.image_url)?.image_url || null;
-                // [P1-PLAN-LOTE-726] las fotos de PLATO de este turno: al cerrarlo (o el de sus dudas) se enlazan a la
-                // comida que el coach registre con ellas
-                const _uidFotos = session?.user?.id;
-                cargarFotosDelChat().then((m) => m.recordarFotosDelChat(_uidFotos, uploadedAttachments)).catch(() => {});
+                // [P1-PLAN-LOTE-726 → 727] las fotos de COMIDA de este turno (plato o sueltos): al cerrarlo (o el de sus
+                // dudas) se enlazan a la comida que el coach registre con ellas. El usuario, el mismo que usa el panel.
+                const _uidFotos = session?.user?.id || userProfile?.id;
+                const _sesionFotos = currentSessionId;
+                cargarFotosDelChat().then((m) => m.recordarFotosDelChat(_uidFotos, uploadedAttachments, { sesion: _sesionFotos })).catch(() => {});
                 setMessages((prev) => prev.map((message, index) => {
                     if (index !== prev.length - 1 || message.role !== 'user' || !message.isImage) return message;
                     const remote = uploadedAttachments.map((item) => ({
@@ -4106,13 +4107,11 @@ const AgentPage = () => {
                                             isCallMode: !!callModeRef.current,
                                             sessionId: currentSessionId,
                                         });
-                                        // [P1-PLAN-LOTE-726] (tras la telemetría, que va la primera) si el coach registró una comida tras una foto de plato, la foto
-                                        // va a su ficha (en este teléfono). Fuego y olvido: no toca el turno.
-                                        const _uidVinculo = session?.user?.id;
-                                        cargarFotosDelChat().then((m) => m.vincularFotosDelChat(_uidVinculo, {
-                                            fetchJson: async (url) => { const r = await fetchWithAuth(url); return r.ok ? r.json() : null; },
-                                            fetchBlob: async (url) => { const r = await fetchWithAuth(url); return r.ok ? r.blob() : null; },
-                                        })).catch(() => {});
+                                        // [P1-PLAN-LOTE-726 → 727] (tras la telemetría, que va la primera) si el coach registró una comida tras una
+                                        // foto de comida, la foto va a su ficha (en este teléfono); y el turno de ESTE chat cuenta para sus fotos.
+                                        // Fuego y olvido: no toca el turno.
+                                        const _uidVinculo = session?.user?.id || userProfile?.id;
+                                        cargarFotosDelChat().then((m) => m.vincularFotosDelChat(_uidVinculo, { cierraTurnoDe: currentSessionId })).catch(() => {});
                                         _sawDone = true; // [P2-CHAT-FRONT-AUDIT] el turno terminó bien
                                         setIsLoading(false);
                                         setStreamingStatus(null);

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('../utils/fotosDeComidas', () => ({
     guardarFotoDeComida: vi.fn(async () => true),
     idsConFoto: vi.fn(async () => new Set()),
@@ -49,20 +50,20 @@ describe('qué foto le toca a cada comida', () => {
 });
 
 describe('recordar y enlazar', () => {
-    it('solo se recuerdan las fotos de PLATO', () => {
+    it('solo se recuerdan las fotos de COMIDA (plato o sueltos; el 727 sumó los sueltos)', () => {
         recordarFotosDelChat(UID, [
             { attachment_id: 'p', kind: 'plato', image_url: '/api/chat/attachments/p', file: blob() },
             { attachment_id: 'c', kind: 'items', image_url: '/api/chat/attachments/c' },
             { attachment_id: 'x', kind: 'otro', image_url: '/api/chat/attachments/x' },
-        ], T0);
+        ], { ahora: T0 });
         const lista = JSON.parse(window.localStorage.getItem(`mealfit_fotos_del_chat:${UID}`));
-        expect(lista.map((f) => f.id)).toEqual(['p']);
-        recordarFotosDelChat('guest', [{ attachment_id: 'g', kind: 'plato' }], T0);
+        expect(lista.map((f) => f.id)).toEqual(['p', 'c']);
+        recordarFotosDelChat('guest', [{ attachment_id: 'g', kind: 'plato' }], { ahora: T0 });
         expect(window.localStorage.getItem('mealfit_fotos_del_chat:guest')).toBeNull();
     });
 
     it('la comida que el coach registra tras la foto se queda con ella; lo anotado a mano no', async () => {
-        recordarFotosDelChat(UID, [{ attachment_id: 'p', kind: 'plato', image_url: '/api/chat/attachments/p', file: blob() }], T0);
+        recordarFotosDelChat(UID, [{ attachment_id: 'p', kind: 'plato', image_url: '/api/chat/attachments/p', file: blob() }], { ahora: T0 });
         const s = servidor([
             { id: 'lasana', created_at: iso(T0 + 90000), source: 'chat' },
             { id: 'manual', created_at: iso(T0 + 95000), source: 'manual' },
@@ -85,7 +86,7 @@ describe('recordar y enlazar', () => {
     });
 
     it('una comida que ya tiene foto (el escáner) no se toca', async () => {
-        recordarFotosDelChat(UID, [{ attachment_id: 'p', kind: 'plato', file: blob() }], T0);
+        recordarFotosDelChat(UID, [{ attachment_id: 'p', kind: 'plato', file: blob() }], { ahora: T0 });
         vi.mocked(idsConFoto).mockResolvedValue(new Set(['plato']));
         const s = servidor([{ id: 'plato', created_at: iso(T0 + 60000), source: 'chat' }]);
         expect(await vincularFotosDelChat(UID, { ...s, ahora: T0 + 90000 })).toBe(0);
@@ -102,9 +103,9 @@ describe('enganches en el chat', () => {
     const ap = readFileSync(resolve(process.cwd(), 'src/pages/AgentPage.jsx'), 'utf8');
     it('recuerda al subir y enlaza al cerrar el turno, con import dinámico', () => {
         expect(ap).toContain("const cargarFotosDelChat = () => import('../utils/fotosDelChat');");
-        expect(ap).toContain('m.recordarFotosDelChat(_uidFotos, uploadedAttachments)');
+        expect(ap).toContain('m.recordarFotosDelChat(_uidFotos, uploadedAttachments, { sesion: _sesionFotos })');
         const done = ap.indexOf("} else if (dataObj.type === 'done') {");
-        expect(ap.slice(done, done + 2000)).toContain('m.vincularFotosDelChat(_uidVinculo, {');
+        expect(ap.slice(done, done + 2000)).toContain('m.vincularFotosDelChat(_uidVinculo, { cierraTurnoDe: currentSessionId })');
         expect(ap).not.toMatch(/^import .*fotosDelChat/m);
     });
 });

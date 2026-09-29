@@ -18,6 +18,7 @@ vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), err
 vi.mock('../hooks/useFotosDeComidas', () => ({
     useFotoDeComida: vi.fn(() => null),
     useIdsConFoto: vi.fn(() => new Set()),
+    useEnlazarFotosDelChat: vi.fn(),   // [P1-PLAN-LOTE-727] el panel enlaza las fotos del chat al abrirse
     borrarFotoDeComidaEnSegundoPlano: vi.fn(),
 }));
 vi.mock('../context/AssessmentContext', () => ({ useAssessment: vi.fn(() => ({ planData: null })) }));

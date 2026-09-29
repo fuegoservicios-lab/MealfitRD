@@ -72,6 +72,22 @@ export function useFotoDeComida(userId, mealId, tipo = 'foto', activa = true) {
     return estado.clave === clave ? estado.url : undefined;
 }
 
+/** [P1-PLAN-LOTE-727] Enlaza las fotos del chat que falten al abrir el panel y al volver a primer plano: si saliste del
+ *  chat antes de que terminara el turno, el coach lo terminó igual (760) pero este teléfono nunca vio su `done`. Sin
+ *  fotos pendientes no toca la red. */
+export function useEnlazarFotosDelChat(userId) {
+    useEffect(() => {
+        if (!_conUsuario(userId)) return undefined;
+        const enlazar = () => {
+            if (document.visibilityState === 'hidden') return;
+            import('../utils/fotosDelChat').then((m) => m.vincularFotosDelChat(userId)).catch(() => {});
+        };
+        enlazar();
+        document.addEventListener('visibilitychange', enlazar);
+        return () => document.removeEventListener('visibilitychange', enlazar);
+    }, [userId]);
+}
+
 /** Borra la foto de una comida (fuego y olvido: la comida ya se borró; la foto no puede tumbar nada). */
 export function borrarFotoDeComidaEnSegundoPlano(userId, mealId) {
     if (!_conUsuario(userId) || !mealId) return;

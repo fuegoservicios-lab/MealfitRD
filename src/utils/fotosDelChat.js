@@ -5,19 +5,35 @@
 // (`fotosDeComidas.js`); en el chat la comida la registra el COACH en el servidor, y el id de esa fila nunca llega al
 // navegador (va solo en el mensaje interno de la herramienta). Así que el enlace se hace aquí, al cerrar cada turno:
 //
-//  1. al subir una foto de PLATO al chat (`photo_kind === 'plato'`) se recuerda: su blob (mientras la página viva) y su
-//     `image_url` firmada (para después de recargar, o si se contestan sus dudas en otro turno);
+//  1. al subir una foto de COMIDA al chat (`photo_kind` 'plato' o 'items') se recuerda: su blob (mientras la página
+//     viva), su `image_url` firmada (para después de recargar, o si se contestan sus dudas en otro turno), lo que la
+//     foto dice que muestra y el chat en que se mandó;
 //  2. al terminar un turno se pide el día (hoy y ayer) y cada comida registrada por el coach (`source === 'chat'`,
 //     `GET /api/diary/meal/{id}`) DESPUÉS de una foto y dentro de `VENTANA_MS`, sin foto todavía, recibe la foto más
 //     reciente anterior a ella; se guarda con `guardarFotoDeComida` (solo en este teléfono, como el escáner);
 //  3. una foto ya enlazada solo se reutiliza para lo registrado en el MISMO momento (`MISMO_TURNO_MS`: el coach puede
 //     partir un plato en dos registros); una comida anotada más tarde a mano no hereda una foto vieja.
 //
+// [P1-PLAN-LOTE-727 · 2026-09-29] «sigue sin haber foto en los detalles» (Limoncillos, 28-sep 21:11 hora RD). La foto
+// se clasificó 'items' (frutas SUELTAS, no un plato servido) y el 726 solo recordaba 'plato': nunca se guardó. Y ya no
+// se puede recuperar: al resumir el chat (02:02 UTC) el servidor borró sus mensajes viejos y la foto se fue con ellos
+// (`chat_attachments.message_id` ON DELETE CASCADE). Ahora:
+//  - se recuerdan 'plato' e 'items' (no 'etiqueta' —la tabla de un pote va a la Alacena— ni 'otro', que no es comida);
+//  - como 'items' también es la foto de una COMPRA, una foto solo se da a lo que el coach anota en SU turno o, en los
+//    `MAX_TURNOS_DESPUES` turnos siguientes de ese chat (el coach pregunta «¿te los comiste?»), a una comida cuyo
+//    nombre o ingredientes nombren algo de lo que la foto muestra (`hablanDeLoMismo`);
+//  - el panel también enlaza al abrirse o volver a primer plano (`useEnlazarFotosDelChat`): si sales del chat antes
+//    de que termine el turno, el coach lo termina igual (760) pero este teléfono nunca ve su `done`;
+//  - el cierre relee la lista antes de escribir: una foto subida mientras se enlazaba no se pierde.
+//
 // Nada de esto lanza hacia la interfaz: si algo falla, la comida sale sin foto, como antes.
 import { guardarFotoDeComida, idsConFoto } from './fotosDeComidas';
+import { fetchWithAuth } from '../config/api';
 
 export const VENTANA_MS = 45 * 60 * 1000;
 export const MISMO_TURNO_MS = 2 * 60 * 1000;
+export const MAX_TURNOS_DESPUES = 2;
+const TIPOS_DE_COMIDA = new Set(['plato', 'items']);
 const CLAVE = (userId) => `mealfit_fotos_del_chat:${userId}`;
 const MAX = 6;
 const _blobs = new Map();   // attachmentId -> Blob (solo mientras la página viva)
@@ -38,73 +54,143 @@ function _escribir(userId, lista) {
     try { window.localStorage.setItem(CLAVE(userId), JSON.stringify(lista.slice(-MAX))); } catch { /* sin almacenamiento */ }
 }
 
-/** Recuerda las fotos de PLATO de un turno recién subidas (las de la compra o sin comida no se enlazan). */
-export function recordarFotosDelChat(userId, subidas, ahora = Date.now()) {
+// Palabras que salen en cualquier descripción o receta y no dicen QUÉ se comió (medidas, cocciones, colores, rótulos
+// de comida): con ellas, la foto de una compra «casaría» con cualquier plato.
+const _VACIAS = new Set(('plato platos porcion porciones racion raciones comida comidas unidad unidades gramo gramos '
+    + 'taza tazas vaso vasos cucharada cucharadas cucharadita cucharaditas rebanada rebanadas pieza piezas trozo trozos '
+    + 'mediano mediana medianos medianas grande grandes pequeno pequena pequenos pequenas cocido cocida cocidos cocidas '
+    + 'frito frita fritos fritas hervido hervida hervidos hervidas asado asada asados asadas horneado horneada natural '
+    + 'casero casera caseros caseras entero entera enteros enteras mitad medio media servido servida acompanado '
+    + 'acompanada acompanados acompanadas blanco blanca blancos blancas verde verdes rojo roja rojos rojas maduro madura '
+    + 'maduros maduras fresco fresca frescos frescas salsa aceite azucar desayuno almuerzo cena merienda snack bebida '
+    + 'sobre para unos unas algo este esta estos estas cada aprox aproximadamente alrededor junto tipo estilo foto '
+    + 'imagen mesa bandeja fondo visible parece posible posiblemente probablemente paquete botella lata').split(' '));
+
+function _raices(texto) {
+    const out = new Set();
+    String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+        .split(/[^a-z]+/)
+        .forEach((w) => {
+            if (w.length < 4 || _VACIAS.has(w)) return;
+            out.add(w.endsWith('s') ? w.slice(0, -1) : w);
+        });
+    return out;
+}
+
+const _mismaRaiz = (a, b) => a === b
+    || (Math.min(a.length, b.length) >= 4 && Math.abs(a.length - b.length) <= 1 && (a.startsWith(b) || b.startsWith(a)));
+
+/** ¿Nombra la comida algo de lo que la foto muestra? («2 limoncillos» ↔ «Limoncillos»; «limones» ↔ «limón»;
+ *  «papa» NO es «papaya»). Pura. */
+export function hablanDeLoMismo(descripcion, textoDeLaComida) {
+    const a = _raices(descripcion);
+    if (!a.size) return false;
+    const b = [..._raices(textoDeLaComida)];
+    return [...a].some((x) => b.some((y) => _mismaRaiz(x, y)));
+}
+
+/** Recuerda las fotos de COMIDA de un turno recién subidas (las de etiquetas o sin comida no se enlazan). */
+export function recordarFotosDelChat(userId, subidas, { ahora = Date.now(), sesion = null } = {}) {
     if (!_valido(userId) || !Array.isArray(subidas)) return;
-    const nuevas = subidas.filter((s) => s && s.kind === 'plato' && s.attachment_id && !s.analysis_failed);
+    const nuevas = subidas.filter((s) => s && TIPOS_DE_COMIDA.has(s.kind) && s.attachment_id && !s.analysis_failed);
     if (!nuevas.length) return;
     const lista = _leer(userId).filter((f) => ahora - Number(f.t) < VENTANA_MS);
     nuevas.forEach((s) => {
         if (s.file instanceof Blob) _blobs.set(String(s.attachment_id), s.file);
         if (!lista.some((f) => f.id === String(s.attachment_id))) {
-            lista.push({ id: String(s.attachment_id), url: s.image_url || '', t: ahora, enlazadaEn: null });
+            lista.push({
+                id: String(s.attachment_id), url: s.image_url || '', t: ahora, enlazadaEn: null,
+                kind: s.kind, desc: String(s.description || '').slice(0, 400), ses: sesion || null, turnos: 0,
+            });
         }
     });
     _escribir(userId, lista);
 }
 
-/** Qué foto le toca a una comida creada en `creada` (ms), o null. Pura: se prueba sin red. */
-export function fotoParaComida(fotos, creada) {
+/** Qué foto le toca a una comida creada en `creada` (ms), o null. `textoDeLaComida` (nombre + ingredientes) decide
+ *  las fotos de turnos anteriores; sin él solo valen las del mismo turno. Pura: se prueba sin red. */
+export function fotoParaComida(fotos, creada, textoDeLaComida = '') {
     const candidatas = (Array.isArray(fotos) ? fotos : [])
         .filter((f) => Number(f.t) <= creada + 5000 && creada - Number(f.t) <= VENTANA_MS)
         .filter((f) => f.enlazadaEn == null || Math.abs(creada - Number(f.enlazadaEn)) <= MISMO_TURNO_MS)
+        .filter((f) => {
+            const turnos = Number(f.turnos) || 0;
+            if (turnos > MAX_TURNOS_DESPUES) return false;
+            return turnos === 0 || hablanDeLoMismo(f.desc, textoDeLaComida);
+        })
         .sort((a, b) => Number(b.t) - Number(a.t));
     return candidatas[0] || null;
 }
 
 const _fechaLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+const _fetchJson = async (url) => { const r = await fetchWithAuth(url); return r.ok ? r.json() : null; };
+const _fetchBlob = async (url) => { const r = await fetchWithAuth(url); return r.ok ? r.blob() : null; };
+
+const _textoDeLaComida = (meal) => [meal?.meal_name || '']
+    .concat((meal?.ingredientes?.lineas || []).map((l) => l?.texto || ''))
+    .join(' ');
+
 /** Enlaza las comidas que el coach registró tras una foto. Devuelve cuántas fotos guardó. `fetchJson(url)` y
- *  `fetchBlob(url)` se inyectan (en la app, sobre `fetchWithAuth`). */
-export async function vincularFotosDelChat(userId, { fetchJson, fetchBlob, ahora = Date.now() } = {}) {
+ *  `fetchBlob(url)` se inyectan en las pruebas (por defecto, sobre `fetchWithAuth`). `cierraTurnoDe` = el chat cuyo
+ *  turno acaba de terminar: sus fotos cuentan un turno más (el panel enlaza sin cerrar turnos). */
+export async function vincularFotosDelChat(userId, {
+    fetchJson = _fetchJson, fetchBlob = _fetchBlob, ahora = Date.now(), cierraTurnoDe = null,
+} = {}) {
     if (!_valido(userId) || typeof fetchJson !== 'function') return 0;
-    let fotos = _leer(userId).filter((f) => ahora - Number(f.t) < VENTANA_MS + MISMO_TURNO_MS);
-    if (!fotos.length) return 0;
-    const desde = Math.min(...fotos.map((f) => Number(f.t))) - 5000;
-
-    const tz = new Date().getTimezoneOffset();
-    const hoy = new Date(ahora);
-    const ayer = new Date(ahora - 86400000);
-    let comidas = [];
-    for (const d of [hoy, ayer]) {
-        try {
-            const data = await fetchJson(`/api/diary/consumed/${userId}?date=${_fechaLocal(d)}&tzOffset=${tz}`);
-            if (Array.isArray(data?.meals)) comidas = comidas.concat(data.meals);
-        } catch { /* ese día sin datos */ }
-    }
-    const conFoto = await idsConFoto(userId);
-    const nuevas = comidas
-        .filter((m) => m?.id && !conFoto.has(m.id) && Date.parse(m.created_at) >= desde)
-        .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
-
+    const vigente = (f) => ahora - Number(f.t) < VENTANA_MS + MISMO_TURNO_MS && (Number(f.turnos) || 0) <= MAX_TURNOS_DESPUES;
+    let fotos = _leer(userId).filter(vigente);
+    const enlaces = new Map();   // id de foto -> instante de la comida a la que se dio
     let guardadas = 0;
-    for (const m of nuevas) {
-        const creada = Date.parse(m.created_at);
-        const foto = fotoParaComida(fotos, creada);
-        if (!foto) continue;
-        let detalle = null;
-        try { detalle = await fetchJson(`/api/diary/meal/${m.id}`); } catch { detalle = null; }
-        if (detalle?.meal?.source !== 'chat') continue;
-        let blob = _blobs.get(foto.id) || null;
-        if (!blob && foto.url && typeof fetchBlob === 'function') {
-            try { blob = await fetchBlob(foto.url); } catch { blob = null; }
+    if (fotos.length) {
+        const desde = Math.min(...fotos.map((f) => Number(f.t))) - 5000;
+        const tz = new Date().getTimezoneOffset();
+        let comidas = [];
+        for (const d of [new Date(ahora), new Date(ahora - 86400000)]) {
+            try {
+                const data = await fetchJson(`/api/diary/consumed/${userId}?date=${_fechaLocal(d)}&tzOffset=${tz}`);
+                if (Array.isArray(data?.meals)) comidas = comidas.concat(data.meals);
+            } catch { /* ese día sin datos */ }
         }
-        if (!(blob instanceof Blob)) continue;
-        if (await guardarFotoDeComida(userId, m.id, blob)) {
-            guardadas += 1;
-            fotos = fotos.map((f) => (f.id === foto.id && f.enlazadaEn == null ? { ...f, enlazadaEn: creada } : f));
+        const conFoto = await idsConFoto(userId);
+        const vistas = new Set();
+        const nuevas = comidas
+            .filter((m) => m?.id && !vistas.has(m.id) && vistas.add(m.id) && !conFoto.has(m.id) && Date.parse(m.created_at) >= desde)
+            .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+
+        for (const m of nuevas) {
+            const creada = Date.parse(m.created_at);
+            // sin ninguna foto posible por la hora, ni se pregunta el detalle
+            if (!fotos.some((f) => Number(f.t) <= creada + 5000 && creada - Number(f.t) <= VENTANA_MS)) continue;
+            let detalle = null;
+            try { detalle = await fetchJson(`/api/diary/meal/${m.id}`); } catch { detalle = null; }
+            if (detalle?.meal?.source !== 'chat') continue;
+            const foto = fotoParaComida(fotos, creada, _textoDeLaComida(detalle.meal));
+            if (!foto) continue;
+            let blob = _blobs.get(foto.id) || null;
+            if (!blob && foto.url && typeof fetchBlob === 'function') {
+                try { blob = await fetchBlob(foto.url); } catch { blob = null; }
+            }
+            if (!(blob instanceof Blob)) continue;
+            if (await guardarFotoDeComida(userId, m.id, blob)) {
+                guardadas += 1;
+                if (foto.enlazadaEn == null) {
+                    enlaces.set(foto.id, creada);
+                    fotos = fotos.map((f) => (f.id === foto.id ? { ...f, enlazadaEn: creada } : f));
+                }
+            }
         }
     }
-    _escribir(userId, fotos);
+    // Relee antes de escribir: lo subido mientras se enlazaba sigue ahí (y su turno no ha terminado: no cuenta).
+    const cerrada = (f) => cierraTurnoDe && Number(f.t) <= ahora && (f.ses == null || f.ses === cierraTurnoDe);
+    const final = _leer(userId)
+        .map((f) => {
+            let g = f;
+            if (enlaces.has(f.id) && g.enlazadaEn == null) g = { ...g, enlazadaEn: enlaces.get(f.id) };
+            if (cerrada(g)) g = { ...g, turnos: (Number(g.turnos) || 0) + 1 };
+            return g;
+        })
+        .filter((f) => ahora - Number(f.t) < VENTANA_MS + MISMO_TURNO_MS && (Number(f.turnos) || 0) <= MAX_TURNOS_DESPUES);
+    _escribir(userId, final);
     return guardadas;
 }
