@@ -5,7 +5,7 @@
 // SIEMPRE, sin X: pequeña, al pie del plan y del contador, con el enlace al Aviso Médico.
 //
 // El enlace es `apexUrl('/medical')`: en la web, el `/medical` del apex; en la app nativa, la variante sin navegación
-// ni comercio (`/app/medical`) que resuelve `apexUrl` (lote 845). Pestaña nueva / Safari: no se pierde el plan.
+// ni comercio que resuelve `apexUrl` (lote 845). Pestaña nueva / Safari: no se pierde el plan.
 import { Stethoscope } from 'lucide-react';
 import { apexUrl } from '../../config/site';
 import { BRAND } from '../../data/routeMeta';
