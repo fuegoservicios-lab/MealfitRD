@@ -105,3 +105,10 @@ describe('capa y tamaño', () => {
         expect(css).toContain("@keyframes desvanecer");
     });
 });
+
+describe('fuera de la app (iPhone)', () => {
+    it('el binario iOS declara audio en segundo plano: la voz en vivo sigue con la app minimizada o la pantalla apagada', () => {
+        const plist = readFileSync(join(__dirname, '..', '..', 'ios', 'App', 'App', 'Info.plist'), 'utf8');
+        expect(plist).toMatch(/<key>UIBackgroundModes<\/key>\s*<array>\s*<string>audio<\/string>\s*<\/array>/);
+    });
+});

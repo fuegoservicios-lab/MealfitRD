@@ -94,5 +94,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- [P1-PLAN-LOTE-906] Voz en vivo (GPT-Live-1) con la app en segundo plano o la pantalla apagada: desde iOS 17.5.1
+	     el micrófono del WKWebView sigue abierto solo con este modo (developer.apple.com/forums/thread/727009). -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 </dict>
 </plist>
