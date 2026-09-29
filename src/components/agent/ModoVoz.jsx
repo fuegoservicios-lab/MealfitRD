@@ -17,6 +17,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, Maximize2, X } from 'lucide-react';
 import { useT } from '../../i18n';
 import styles from './ModoVoz.module.css';
+import { useBurbujaArrastrable } from '../../hooks/useBurbujaArrastrable';
 
 export default function ModoVoz({
     estado, oido, dicho, error, pulso = 0, estadoDelTurno, onTocar, onCerrar,
@@ -24,6 +25,7 @@ export default function ModoVoz({
 }) {
     const t = useT();
     const capaRef = useRef(null);
+    const burbuja = useBurbujaArrastrable();   // [P1-PLAN-LOTE-906] se lleva con el dedo y se pega al borde
     const cerrarRef = useRef(onCerrar);
     useEffect(() => { cerrarRef.current = onCerrar; });
 
@@ -81,18 +83,35 @@ export default function ModoVoz({
         // En la pestaña del coach (`enChat`) la caja de escribir y sus atajos ocupan la franja de abajo: la burbuja sube.
         // `pistaBurbuja`: la primera vez, que se puede mover por la app — hasta que hay algo que decir (lo suyo o lo del coach)
         const bocadillo = error ? t(error) : (subtitulo || pistaBurbuja || lineaDeEstado);
+        // [P1-PLAN-LOTE-906] El globo se desvanece solo a los pocos segundos (una animación por texto: `key`), salvo
+        // mientras el coach habla o hay un error: no tapa lo de debajo más de lo que hace falta.
+        const globoFijo = Boolean(error) || estado === 'hablando';
         return createPortal(
-            <div className={styles.burbuja} data-en-chat={enChat ? '1' : '0'} role="region" aria-label={t('Modo voz')}>
-                <p className={error ? `${styles.bocadillo} ${styles.estadoError}` : styles.bocadillo} aria-live="polite">
+            <div
+                ref={burbuja.ref}
+                className={styles.burbuja}
+                style={burbuja.estilo}
+                data-en-chat={enChat ? '1' : '0'}
+                data-lado={burbuja.lado || undefined}
+                data-arrastrando={burbuja.arrastrando ? '1' : '0'}
+                role="region"
+                aria-label={t('Modo voz')}
+            >
+                <p
+                    key={bocadillo}
+                    className={error ? `${styles.bocadillo} ${styles.estadoError}` : styles.bocadillo}
+                    data-fijo={globoFijo ? '1' : '0'}
+                    aria-live="polite"
+                >
                     {bocadillo}
                 </p>
-                <div className={styles.burbujaFila}>
+                <div className={styles.burbujaFila} {...burbuja.manejadores}>
                     <button type="button" className={styles.burbujaAccion} onClick={onExpandir} aria-label={t('Abrir el modo voz')}>
-                        <Maximize2 size={16} strokeWidth={2.2} aria-hidden="true" />
+                        <Maximize2 size={14} strokeWidth={2.2} aria-hidden="true" />
                     </button>
                     {orbe(`${styles.orbe} ${styles.orbeMini}`)}
                     <button type="button" className={styles.burbujaAccion} onClick={onCerrar} aria-label={t('Terminar el modo voz')}>
-                        <X size={16} strokeWidth={2.2} aria-hidden="true" />
+                        <X size={14} strokeWidth={2.2} aria-hidden="true" />
                     </button>
                 </div>
             </div>,

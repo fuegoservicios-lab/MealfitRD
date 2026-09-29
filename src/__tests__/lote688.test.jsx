@@ -70,7 +70,7 @@ describe('ModoVoz minimizado: una burbuja, no un diálogo', () => {
 
     it('la burbuja va encima de la barra de pestañas y debajo de los modales', () => {
         const css = leer('components/agent/ModoVoz.module.css');
-        expect(css).toMatch(/\.burbuja \{[\s\S]*?z-index: var\(--z-widget\);/);
+        expect(css).toMatch(/\.burbuja \{[\s\S]*?z-index: var\(--z-voz\);/);
         expect(css).toMatch(/bottom: calc\(env\(safe-area-inset-bottom, 0px\) \+ 96px - var\(--tabbar-recupera, 0px\)\)/);
         expect(css).toContain(".burbuja[data-en-chat='1']");
     });

@@ -38,7 +38,7 @@ describe('[P1-Z-SCALE] la escala existe y conserva su orden', () => {
         // apilamiento de la app aunque ningún componente se haya tocado.
         const orden = [
             '--z-widget', '--z-handle', '--z-appbar', '--z-appbar-menu',
-            '--z-cover', '--z-cover-top', '--z-drawer', '--z-dialog',
+            '--z-cover', '--z-cover-top', '--z-drawer', '--z-dialog', '--z-voz',
             '--z-sysbanner', '--z-modal', '--z-modal-over', '--z-modal-top', '--z-skip',
         ];
         for (let i = 1; i < orden.length; i += 1) {

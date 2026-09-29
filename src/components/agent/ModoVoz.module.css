@@ -199,15 +199,27 @@
   position: fixed;
   right: 14px;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 96px - var(--tabbar-recupera, 0px));
-  z-index: var(--z-widget);
+  /* [P1-PLAN-LOTE-906] Su propia capa: por ENCIMA de la ventana de Configuración (el dueño quiere hablar también
+     ahí) y debajo de los avisos del sistema y de los modales. */
+  z-index: var(--z-voz);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
-  max-width: min(78vw, 300px);
+  gap: 6px;
+  max-width: min(72vw, 280px);
   animation: aparecer 220ms ease-out;
+  transition: top 180ms ease-out, left 180ms ease-out, right 180ms ease-out;
   pointer-events: none;   /* el hueco entre piezas deja tocar la app de debajo */
 }
+
+/* [P1-PLAN-LOTE-906] Pegada al borde izquierdo: todo se alinea a ese lado. */
+.burbuja[data-lado='izq'] { align-items: flex-start; }
+.burbuja[data-lado='izq'] .bocadillo { border-radius: 14px 14px 14px 4px; }
+.burbuja[data-arrastrando='1'] .burbujaFila { cursor: grabbing; transform: scale(1.04); }
+
+/* El globo se va solo a los 6 s (sigue en el DOM para el lector de pantalla) salvo que esté fijo. */
+.bocadillo[data-fijo='0'] { animation: desvanecer 6s ease-in forwards; }
+@keyframes desvanecer { 0%, 80% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
 
 .burbuja[data-en-chat='1'] {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 184px - var(--tabbar-recupera, 0px));
@@ -221,18 +233,18 @@
 .bocadillo {
   pointer-events: auto;
   margin: 0;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 14px 14px 4px 14px;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-card) 94%, transparent);
   box-shadow: 0 10px 28px -12px color-mix(in srgb, #000 45%, transparent);
   color: var(--text-main);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.35;
   overflow-wrap: anywhere;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -241,17 +253,19 @@
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px;
+  gap: 6px;
+  padding: 4px;
   border-radius: 999px;
+  touch-action: none;   /* [P1-PLAN-LOTE-906] arrastrarla no desplaza la página */
+  cursor: grab;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-card) 90%, transparent);
   box-shadow: 0 14px 34px -14px color-mix(in srgb, var(--primary) 55%, transparent);
 }
 
 .burbujaAccion {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--bg-card);
@@ -267,7 +281,7 @@
   outline-offset: 2px;
 }
 
-.orbe.orbeMini { width: 64px; }
+.orbe.orbeMini { width: 50px; }
 .orbe.orbeMini:focus-visible { outline-offset: 4px; }
 
 @keyframes aparecer { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
@@ -281,6 +295,7 @@
 @media (prefers-reduced-motion: reduce) {
   .capa,
   .burbuja,
+  .bocadillo[data-fijo='0'],
   .nucleo,
   .halo { animation: none !important; }
   .nucleo { transition: none; }

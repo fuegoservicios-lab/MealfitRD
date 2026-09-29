@@ -497,6 +497,7 @@
   --z-cover-top: 710;     /* su contenido, cuando es HERMANO del velo y no hijo */
   --z-drawer: 720;        /* cajón que gana a otro cajón */
   --z-dialog: 800;        /* ventana con URL propia (Configuración) */
+  --z-voz: 850;           /* burbuja del modo voz: se habla también con Configuración abierta (P1-PLAN-LOTE-906) */
   --z-sysbanner: 900;     /* aviso de sistema no bloqueante (sin conexión) */
   --z-modal: 1000;        /* modal */
   --z-modal-over: 1100;   /* modal abierto DESDE un modal */
