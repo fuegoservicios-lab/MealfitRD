@@ -20,7 +20,7 @@ import styles from './ModoVoz.module.css';
 
 export default function ModoVoz({
     estado, oido, dicho, error, pulso = 0, estadoDelTurno, onTocar, onCerrar,
-    minimizado = false, onMinimizar, onExpandir, enChat = false,
+    minimizado = false, onMinimizar, onExpandir, enChat = false, pistaBurbuja = '',
 }) {
     const t = useT();
     const capaRef = useRef(null);
@@ -79,7 +79,8 @@ export default function ModoVoz({
 
     if (minimizado) {
         // En la pestaña del coach (`enChat`) la caja de escribir y sus atajos ocupan la franja de abajo: la burbuja sube.
-        const bocadillo = error ? t(error) : (subtitulo || lineaDeEstado);
+        // `pistaBurbuja`: la primera vez, que se puede mover por la app — hasta que hay algo que decir (lo suyo o lo del coach)
+        const bocadillo = error ? t(error) : (subtitulo || pistaBurbuja || lineaDeEstado);
         return createPortal(
             <div className={styles.burbuja} data-en-chat={enChat ? '1' : '0'} role="region" aria-label={t('Modo voz')}>
                 <p className={error ? `${styles.bocadillo} ${styles.estadoError}` : styles.bocadillo} aria-live="polite">

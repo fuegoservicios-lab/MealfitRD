@@ -143,6 +143,8 @@ import { siguienteTrozoParaVoz } from '../utils/vozDelCoach';
 import { trackEvent } from '../utils/analytics';
 // La pantalla del modo voz se pide al abrirlo: quien nunca lo usa no la descarga.
 const ModoVoz = lazy(() => import('../components/agent/ModoVoz'));
+// [P1-PLAN-LOTE-688] La burbuja del modo voz ya se explicó una vez en este dispositivo.
+const CLAVE_BURBUJA_EXPLICADA = 'mealfit_voz_burbuja_explicada';
 import { useToqueSinFoco } from '../hooks/useToqueSinFoco';
 import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAcompana, duracionDeApertura, insetDeApertura, CURVA_TECLADO, KB_PAD_ABIERTO_REM, RELEVO_MARGEN_MS } from '../utils/keyboardChoreography';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
@@ -2084,18 +2086,26 @@ const AgentPage = () => {
     // mensaje hablado chocaría con el candado del turno y se perdería.
     // [P1-PLAN-LOTE-688] Minimizado a una burbuja para moverse por la app mientras habla: el chat sigue montado (oculto)
     // al cambiar de pestaña, así que el turno de voz, su stream y los avisos de «refrescar» siguen vivos.
-    const [vozMinimizada, setVozMinimizada] = useState(false);
+    // …y ABRE minimizado (el dueño: «que se minimice de primeras para que el usuario sepa que se puede hacer; si quiere
+    // agrandarlo, que lo decida él»). La primera vez, el bocadillo lo dice con palabras hasta que empieza a hablar.
+    const [vozMinimizada, setVozMinimizada] = useState(true);
+    const [pistaDeLaBurbuja, setPistaDeLaBurbuja] = useState(false);
     const abrirModoVoz = () => {
         if (isTurnActiveRef.current) return;
         if (dictado.escuchando) dictado.cancelar();
         try { chatInputRef.current?.blur(); } catch (_e) { /* sin foco que soltar */ }
         trackEvent('coach_voz_abierto');
-        setVozMinimizada(false);
+        setVozMinimizada(true);
+        if (!safeLocalStorageGet(CLAVE_BURBUJA_EXPLICADA, null)) {
+            setPistaDeLaBurbuja(true);
+            safeLocalStorageSet(CLAVE_BURBUJA_EXPLICADA, '1');
+        }
         vozCoach.abrir();
     };
     const cerrarModoVoz = () => {
         vozCoach.cerrar();
-        setVozMinimizada(false);
+        setVozMinimizada(true);
+        setPistaDeLaBurbuja(false);
         trackEvent('coach_voz_cerrado');
     };
 
@@ -6471,6 +6481,7 @@ const AgentPage = () => {
                         onMinimizar={() => { setVozMinimizada(true); trackEvent('coach_voz_minimizado'); }}
                         onExpandir={() => setVozMinimizada(false)}
                         enChat={isAgentRouteActive}
+                        pistaBurbuja={pistaDeLaBurbuja ? t('Puedes moverte por la app mientras hablamos') : ''}
                     />
                 </Suspense>
             )}

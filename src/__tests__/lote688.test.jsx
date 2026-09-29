@@ -35,6 +35,15 @@ describe('ModoVoz minimizado: una burbuja, no un diálogo', () => {
         expect(onCerrar).toHaveBeenCalledTimes(1);                          // Escape no cierra una burbuja
     });
 
+    it('la primera vez el bocadillo explica que se puede mover, hasta que hay algo que decir', () => {
+        const pistaBurbuja = 'Puedes moverte por la app mientras hablamos';
+        const { rerender } = render(<ModoVoz {...base} minimizado pistaBurbuja={pistaBurbuja} onTocar={vi.fn()} onCerrar={vi.fn()} />);
+        expect(screen.getByText(pistaBurbuja)).toBeTruthy();
+        rerender(<ModoVoz {...base} oido="me comí dos huevos" minimizado pistaBurbuja={pistaBurbuja} onTocar={vi.fn()} onCerrar={vi.fn()} />);
+        expect(screen.queryByText(pistaBurbuja)).toBeNull();
+        expect(screen.getByText('me comí dos huevos')).toBeTruthy();
+    });
+
     it('el bocadillo dice lo que dice el coach mientras habla, o el error', () => {
         const { rerender } = render(<ModoVoz {...base} estado="hablando" dicho="¿Cuántas lonjas de pan?" minimizado onTocar={vi.fn()} onCerrar={vi.fn()} />);
         expect(screen.getByText('¿Cuántas lonjas de pan?')).toBeTruthy();
@@ -117,7 +126,12 @@ describe('cableado', () => {
 
     it('el chat minimiza la voz, la sube en su pestaña y no deja salir lo escrito mientras está activa', () => {
         const ap = leer('pages/AgentPage.jsx');
-        expect(ap).toContain('const [vozMinimizada, setVozMinimizada] = useState(false);');
+        // abre MINIMIZADO («que se minimice de primeras para que el usuario sepa que se puede hacer»)
+        expect(ap).toContain('const [vozMinimizada, setVozMinimizada] = useState(true);');
+        const abrir = ap.slice(ap.indexOf('const abrirModoVoz = () => {'), ap.indexOf('const cerrarModoVoz = () => {'));
+        expect(abrir).toContain('setVozMinimizada(true);');
+        expect(abrir).toContain('safeLocalStorageGet(CLAVE_BURBUJA_EXPLICADA, null)');
+        expect(ap).toContain("pistaBurbuja={pistaDeLaBurbuja ? t('Puedes moverte por la app mientras hablamos') : ''}");
         expect(ap).toContain('minimizado={vozMinimizada}');
         expect(ap).toContain('enChat={isAgentRouteActive}');
         expect(ap).toContain('readOnly={isCallModeActive}');
