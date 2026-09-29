@@ -120,8 +120,8 @@ describe('cableado', () => {
         const tp = leer('components/dashboard/TrackingProgress.jsx');
         expect(tp).toContain("window.addEventListener('mealfit:chat-turn-done', onAgentRefreshInventory);");
         expect(tp).toContain("window.removeEventListener('mealfit:chat-turn-done', onAgentRefreshInventory);");
-        expect(tp).toContain('const consumedMostrado = useNumeroAnimado(consumed);');
-        expect(tp).toContain('{formatNumber(consumedMostrado)}');
+        expect(tp).toContain('const consumed = useNumeroAnimado(consumedReal);');
+        expect(tp).toContain('{formatNumber(consumed)}');
     });
 
     it('el chat minimiza la voz, la sube en su pestaña y no deja salir lo escrito mientras está activa', () => {

@@ -801,10 +801,11 @@ TrackingProgress.propTypes = {
 };
 
 // --- Componente Interno para Barra Individual ---
-const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: DarkIcon, color, lightColor, gradient, large, fillIcon, fillWhiteStroke }) => {
+const ProgressBar = ({ label, consumed: consumedReal, goal, unit, perc, icon: Icon, darkIcon: DarkIcon, color, lightColor, gradient, large, fillIcon, fillWhiteStroke }) => {
     const isEmpty = perc === 0;
-    // [P1-PLAN-LOTE-688] el número SUBE a la vista cuando el coach anota (la barra ya crecía con transición)
-    const consumedMostrado = useNumeroAnimado(consumed);
+    // [P1-PLAN-LOTE-688] el número SUBE a la vista cuando el coach anota (la barra ya crecía con transición). Se sigue
+    // llamando `consumed`: `formatNumber(consumed)` es el ancla de test_p3_i18n_metrica_coma_clavada.
+    const consumed = useNumeroAnimado(consumedReal);
     // [APPEARANCE-THEME · 2026-05-29] Los rellenos de iconos (llama/gota sólidos,
     // trigo verde-con-líneas-blancas) son SOLO para modo oscuro. En claro se
     // conserva el diseño anterior (iconos outline). El toggle vive en Settings
@@ -929,7 +930,7 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
                             color: consumedTextColor
                         }}
                     >
-                        {formatNumber(consumedMostrado)}
+                        {formatNumber(consumed)}
                     </span>
                     <span
                         className={styles.barGoal}
