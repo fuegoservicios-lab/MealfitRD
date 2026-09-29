@@ -2108,9 +2108,7 @@ export const AssessmentProvider = ({ children }) => {
                 if (await _resolveViaFirstParty()) return;
             }
             handleAuthChange(newSession);
-            // [POSTHOG-ANALYTICS · 2026-07-12 → P1-PLAN-LOTE-794 · 2026-09-28] Asociar/desasociar
-            // los eventos al usuario vive ahora dentro de `handleAuthChange`: sin cookies,
-            // identify ya no persiste y hay que declararlo en cada carga, no sólo aquí.
+            // [POSTHOG-ANALYTICS → P1-PLAN-LOTE-794] identify/reset vive en `handleAuthChange` (sin cookies no persiste).
         });
 
         return () => subscription.unsubscribe();
