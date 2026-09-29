@@ -315,21 +315,31 @@ describe('P1-PLAN-LOTE-794 · la Política de Privacidad dice lo que hace el có
     // (prueba con el SDK real: rama lote-840 de la sesión 0f, lote840.test.js). §7 deja de decir «con el texto
     // visible de cada uno» y el ejemplo «Diabetes tipo 2»; §8 vuelve a decir que PostHog no recibe datos de
     // salud, con el mecanismo. Mismo texto que el landing (rama ia6d-integ-landing).
-    it('§7 cuenta el código diario del servidor y que el autocapture NO manda el texto de lo que se pulsa', () => {
+    // [Delta legal n.º 1 · ronda 2 · 2026-09-29] La máscara no bastaba: el revisor de 6d, con el SDK real, vio que
+    // posthog-js 1.399.2 sigue mandando tag_name, classes, nth_child/nth_of_type y el href, y la posición del chip
+    // de QMedical decía la condición. Lo que hace cierto el texto es el lote 842 (frontend cd3c7d3b, rama lote-840,
+    // SIN desplegar): ph-no-capture en las preguntas del formulario y en la rejilla de Configuración
+    // (lote842.test.jsx). Fuera de esas dos zonas la posición sigue viajando (medido: la escala de hambre y energía
+    // de RenewalCheckinModal.jsx), así que §7 ya no dice «ni sus atributos» ni «no sabe qué opción eligió», y §8
+    // dice qué NO recibe en vez de «No recibe datos de salud». Este texto sólo se publica con cd3c7d3b desplegado.
+    it('§7: el formulario y Configuración, sin autocapture; fuera, el control sin su texto pero con posición', () => {
         const s7 = seccion('7. Monitoreo de Errores y Telemetría');
         expect(s7).toMatch(/código seudónimo a partir de su dirección IP, su navegador y una clave que cambia cada día/);
         expect(s7).not.toMatch(/texto visible/);
         expect(s7).not.toMatch(/Diabetes tipo 2/);
-        expect(s7).toMatch(/qué pantallas visita y qué controles pulsa en la aplicación, sin su texto ni sus atributos/);
-        expect(s7).toMatch(/PostHog no sabe qué opción eligió/);
+        expect(s7).not.toMatch(/ni sus atributos/);
+        expect(s7).not.toMatch(/no sabe qué opción eligió/);
+        expect(s7).toMatch(/En las preguntas del formulario de su perfil y en los ajustes de Configuración, donde usted marca sus condiciones de salud, medicación, alergias y dieta, no registra nada de lo que usted pulsa\./);
+        expect(s7).toMatch(/En el resto de la aplicación registra qué controles pulsa, sin su texto: sí el tipo de control, su posición en la página, sus clases de estilo y, si es un enlace, su dirección\./);
         expect(s7).toMatch(/No registra lo que usted escribe en los campos de texto/);
     });
 
-    it('§8 dice que PostHog no recibe datos de salud, ni lo que se pulsa ni lo que se escribe', () => {
+    it('§8 dice qué NO recibe PostHog: lo que se marca en el formulario y en Configuración, y lo que se escribe', () => {
         const s8 = seccion('8. Proveedores Subcontratados (Encargados de Tratamiento)');
         const posthog = s8.slice(s8.indexOf('<strong>PostHog, Inc.</strong>'));
         expect(posthog.slice(0, 400)).not.toMatch(/texto visible/);
-        expect(posthog.slice(0, 400)).toMatch(/No recibe datos de salud: ni el texto de lo que usted pulsa ni lo que escribe/);
+        expect(posthog.slice(0, 400)).not.toMatch(/No recibe datos de salud/);
+        expect(posthog.slice(0, 400)).toMatch(/No recibe nada de lo que usted marca en el formulario ni en Configuración, ni lo que escribe en los campos de texto/);
     });
 
     it('§13 no dice «ni fingerprinting» y remite al código diario', () => {

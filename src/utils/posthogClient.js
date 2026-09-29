@@ -47,15 +47,26 @@
 // privacy benefit of this mode»). Aquí se identifica en cada carga con sesión (analítica por
 // cuenta, bajo el interés legítimo de §7/§13); la alternativa es `person_profiles: 'never'`
 // y no identificar. Sin banner se cumple ePrivacy (nada en el dispositivo); lo otro es RGPD.
-// RESUELTO [ronda 2 → lote 716 + delta legal n.º 1 · 2026-09-29]: el autocapture (encendido en la
+// RESUELTO [ronda 2 → lotes 716 y 842 + delta legal n.º 1 (y su ronda 2) · 2026-09-29]: el autocapture (encendido en la
 // app, observabilityScope.js) mandaba el TEXTO VISIBLE de lo que se pulsa, y los chips del formulario
 // (`ChipOption`, div role="button" con cursor: pointer) lo cumplían: pulsar «Diabetes T2» llegaba a
-// PostHog, unido a la cuenta tras `identify` — un dato de salud (art. 9 RGPD). Se resolvió con
-// `mask_all_text: true` + `mask_all_element_attributes: true` en `posthogCaptureOptions` (P1-PLAN-LOTE-716,
-// 4ffc8391): PostHog sabe qué pantalla y qué control, no qué decía (siguen la etiqueta, las clases CSS y
-// el `href` de un enlace). Y la política lo RETIRA: Privacidad §7/§8 y Protección de Datos §5 ya no
-// declaran que la analítica recibe datos de salud, en las dos copias a la vez (LegalPages.jsx y el
-// landing, rama ia6d-integ-landing). Si alguien quita la máscara, la política vuelve a ser falsa.
+// PostHog, unido a la cuenta tras `identify` — un dato de salud (art. 9 RGPD). DOS capas:
+//   1. `mask_all_text: true` + `mask_all_element_attributes: true` en `posthogCaptureOptions`
+//      (P1-PLAN-LOTE-716, 4ffc8391) quitan `$el_text` y los `attr__*`. NO bastan: posthog-js 1.399.2
+//      sigue mandando de cada elemento la etiqueta, las clases CSS (`classes`), la POSICIÓN
+//      (`nth_child`/`nth_of_type`) y el `href` del enlace, y los chips de salud salen siempre en el
+//      mismo orden: la posición decía qué condición se marcó (revisor de 6d, con el SDK real).
+//   2. `ph-no-capture` en el contenedor de las preguntas del formulario (InteractiveAssessmentFlow.jsx)
+//      y en la rejilla de Configuración (Settings.jsx) (P1-PLAN-LOTE-842, cd3c7d3b): el SDK descarta
+//      el evento entero si el elemento o un ancestro lleva la clase (lote842.test.jsx).
+// La política lo dice con ese alcance, en las dos copias a la vez (LegalPages.jsx y el landing, rama
+// ia6d-integ-landing): Privacidad §7 «En las preguntas del formulario […] y en los ajustes de
+// Configuración […] no registra nada de lo que usted pulsa»; fuera, el control «sin su texto» pero con
+// tipo, posición, clases y enlace. Ese texto SÓLO se publica con cd3c7d3b desplegado. Fuera de esas dos
+// zonas la posición sigue viajando, y en la escala de hambre y energía de RenewalCheckinModal.jsx es el
+// valor elegido: por eso §8 dice qué NO recibe PostHog y no «No recibe datos de salud» (abierto al dueño,
+// contenido-legal.json del landing, punto 7). Si alguien quita la máscara o la clase, la política vuelve a
+// ser falsa.
 // Ancla: src/__tests__/lote794.test.js (con el SDK real, no con un mock de `init`).
 import { isAnalyticsOptedOut } from './analytics';
 import { posthogCaptureOptions } from './observabilityScope';

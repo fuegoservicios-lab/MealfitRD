@@ -87,7 +87,7 @@ const REFUTADAS = [
     // bioboros.com volvían a publicar dos contratos distintos.
     {
         frase: 'Sin datos de salud, correo ni nombre',
-        porque: 'la fórmula corta calla de qué depende: desde el lote 716 (4ffc8391) es cierta sólo porque observabilityScope.js enmascara el texto y los atributos (mask_all_text + mask_all_element_attributes); la copia lo dice nombrando el mecanismo («sin su texto») y, si alguien quita la máscara, las dos frases vuelven a ser falsas a la vez',
+        porque: 'promete más de lo que el código garantiza: la máscara del 716 no bastaba (nth_child decía qué chip de salud se pulsó); con el 842 (cd3c7d3b, ph-no-capture) PostHog no recibe nada del formulario ni de Configuración, pero fuera de ellos sigue la posición del control, y en la escala de hambre y energía del check-in de renovación esa posición es el valor elegido. La copia dice QUÉ no recibe',
     },
     // [Delta legal n.º 1 · 2026-09-29] PostHog YA NO recibe el texto de lo que se pulsa: desde el lote 716
     // (4ffc8391, en producción desde el 29-sep ~02:00 UTC) observabilityScope.js:55-60 pasa a posthog.init
@@ -100,6 +100,19 @@ const REFUTADAS = [
     {
         frase: 'puede recibir el texto de una opción de salud',
         porque: 'la misma afirmación en Protección de Datos §5: la analítica ya no está entre los que reciben datos de salud',
+    },
+    // [Delta legal n.º 1 · ronda 2 · 2026-09-29] El revisor de 6d, con el SDK real: con mask_all_text +
+    // mask_all_element_attributes, posthog-js 1.399.2 sigue mandando tag_name, classes, nth_child/nth_of_type y
+    // el href. Lo que hace cierto el texto es el lote 842 (frontend cd3c7d3b, rama lote-840, SIN desplegar):
+    // ph-no-capture en las preguntas del formulario y en la rejilla de Configuración (lote842.test.jsx). Las
+    // mismas filas del landing (verdad-publica.json, rama ia6d-integ-landing).
+    {
+        frase: 'sin su texto ni sus atributos',
+        porque: 'con mask_all_element_attributes el SDK sigue mandando las clases CSS (classes) y el href del enlace pulsado: son atributos',
+    },
+    {
+        frase: 'no sabe qué opción eligió',
+        porque: 'fuera del formulario y de Configuración la posición del control viaja (nth_child), y en la escala de hambre y energía del check-in de renovación (RenewalCheckinModal.jsx) es el valor elegido: medido con el SDK real',
     },
     {
         frase: 'su nombre completo, correo',
@@ -237,7 +250,8 @@ const REFUTADAS = [
 const EXIGIDAS = [
     { frase: 'sin cookies ni almacenamiento local', porque: 'PostHog en cookieless_mode (§7/§13)' },
     { frase: 'una clave que cambia cada día', porque: 'el código seudónimo diario que PostHog calcula en su servidor (§7)' },
-    { frase: 'sin su texto', porque: 'el autocapture registra qué control se pulsa, sin su texto ni sus atributos (§7, delta legal n.º 1)' },
+    { frase: 'sin su texto', porque: 'fuera del formulario y de Configuración el autocapture registra qué control se pulsa, sin su texto pero con su tipo, posición, clases y enlace (§7, delta legal n.º 1)' },
+    { frase: 'no registra nada de lo que usted pulsa', porque: 'las preguntas del formulario y los ajustes de Configuración llevan ph-no-capture (842, cd3c7d3b): sólo es cierto con ese frontend desplegado (§7, delta legal n.º 1 · ronda 2)' },
     { frase: 'el nombre de su cuenta', porque: 'el coach recibe el nombre (Privacidad §4)' },
     { frase: 'el nombre de tu cuenta', porque: 'el coach recibe el nombre (Política de IA §2)' },
     { frase: 'Hoy son <strong>cuatro</strong>', porque: 'DeepSeek, OpenAI, Google/Gemini y Cohere (Privacidad §4)' },
