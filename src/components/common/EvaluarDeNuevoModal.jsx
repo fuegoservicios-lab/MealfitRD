@@ -463,8 +463,10 @@ export default function EvaluarDeNuevoModal({
   return createPortal(
     <>
     <style>{EDN_CSS}</style>
+    {/* [P1-PLAN-LOTE-842] Portal a <body>: no hereda el `ph-no-capture` de ningún contenedor. La opción elegida
+        («Renovar» / «Empezar desde cero») viajaba a PostHog con su posición. */}
     <div
-      className="edn-overlay"
+      className="edn-overlay ph-no-capture"
       onMouseDown={(e) => { if (e.target === e.currentTarget) cerrar(); }}
       style={{
         position: "fixed",

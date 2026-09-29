@@ -130,8 +130,10 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
         </div>
     );
 
+    // [P1-PLAN-LOTE-842] `ph-no-capture`: en la escala de hambre y energía la POSICIÓN del botón pulsado es el valor
+    // (energía 2 → `button.rc-scale` con nth_child 3); el peso también se escribe aquí.
     return (
-        <div style={{
+        <div className="ph-no-capture" style={{
             position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center',
             justifyContent: 'center', background: 'rgba(4,8,20,0.78)', padding: 16,
         }}>

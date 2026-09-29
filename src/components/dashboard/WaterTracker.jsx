@@ -341,7 +341,8 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
                         </div>
                     </header>
 
-                    <div className={styles.cups} role="group" aria-label={t('Vasos de agua')} style={{ '--cols': columnsPerRow }}>
+                    {/* [P1-PLAN-LOTE-842] `ph-no-capture`: el índice del vaso pulsado dice cuánta agua se registró. */}
+                    <div className={`ph-no-capture ${styles.cups}`} role="group" aria-label={t('Vasos de agua')} style={{ '--cols': columnsPerRow }}>
                         {Array.from({ length: goal }, (_, i) => {
                             const fill = Math.max(0, Math.min(1, glasses - i));
                             return (

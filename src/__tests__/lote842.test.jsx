@@ -23,6 +23,7 @@ vi.mock('../context/AssessmentContext', () => ({
 }));
 
 import { QMedical } from '../components/assessment/questions/QMedical';
+import RenewalCheckinModal from '../components/plan/RenewalCheckinModal';
 
 const TOKEN = 'phc_test_lote842';
 const autocapturas = [];
@@ -86,11 +87,28 @@ describe('P1-PLAN-LOTE-842 · los chips de salud no llegan a PostHog (SDK y comp
         expect(JSON.stringify(nuevos)).toMatch(/nth.child/);
     });
 
-    it('la clase está en el contenedor de las preguntas del formulario y en la rejilla de Configuración', () => {
-        const flujo = fs.readFileSync(
-            path.resolve(__dirname, '../components/assessment/InteractiveAssessmentFlow.jsx'), 'utf8');
-        expect(flujo).toMatch(/<div className="ph-no-capture" style=\{\{ display: 'flex', flexDirection: 'column'/);
-        const ajustes = fs.readFileSync(path.resolve(__dirname, '../pages/Settings.jsx'), 'utf8');
-        expect(ajustes).toMatch(/<div className=\{`ph-no-capture \$\{styles\.grid\}/);
+    it('el check-in de renovación (hambre y energía: la posición ES el valor) no emite ningún $autocapture', () => {
+        const { container } = render(<RenewalCheckinModal onDone={() => {}} />);
+        const escalas = Array.from(container.querySelectorAll('button.rc-scale'));
+        expect(escalas.length).toBeGreaterThan(3);
+        const antes = autocapturas.length;
+        for (const b of escalas.slice(0, 4)) b.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        expect(autocapturas.length).toBe(antes);
+    });
+
+    it('los mapas de calor siguen apagados: no miran `ph-no-capture` y llegarían por los flags remotos', () => {
+        expect(window.posthog.config.advanced_disable_flags).toBe(true);
+    });
+
+    it('la clase está en cada superficie donde la posición delata un dato de salud', () => {
+        const leer = (rel) => fs.readFileSync(path.resolve(__dirname, rel), 'utf8');
+        expect(leer('../components/assessment/InteractiveAssessmentFlow.jsx'))
+            .toMatch(/<div className="ph-no-capture" style=\{\{ display: 'flex', flexDirection: 'column'/);
+        // El contenedor ENTERO de Configuración (lista de secciones y diálogos incluidos), no solo la rejilla.
+        expect(leer('../pages/Settings.jsx')).toMatch(/<div className=\{`ph-no-capture \$\{styles\.wrapper\}/);
+        // Se porta a <body>: no hereda la clase de ningún contenedor.
+        expect(leer('../components/common/EvaluarDeNuevoModal.jsx')).toMatch(/className="edn-overlay ph-no-capture"/);
+        expect(leer('../components/plan/RenewalCheckinModal.jsx')).toMatch(/<div className="ph-no-capture" style=\{\{/);
+        expect(leer('../components/dashboard/WaterTracker.jsx')).toMatch(/className=\{`ph-no-capture \$\{styles\.cups\}`\}/);
     });
 });

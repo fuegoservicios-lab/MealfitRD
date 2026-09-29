@@ -2713,7 +2713,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             {/* [P1-SETTINGS-DIALOG-POLISH · 2026-08-10] En ventana, el mismo
                 contenido se despoja de su chrome de página: ver el bloque
                 `.inDialog` del .module.css. */}
-            <div className={`${styles.wrapper} ${inDialog ? styles.inDialog : ''}`}>
+            {/* [P1-PLAN-LOTE-842 · 2026-09-29] `ph-no-capture` en el contenedor ENTERO de Configuración (lista de
+                secciones, diálogos de descartar cambios y de cancelar suscripción incluidos), no solo en la rejilla:
+                el autocapture de PostHog descarta todo clic aquí dentro. Aquí se editan peso, condiciones, medicación,
+                alergias, embarazo y dieta, y la posición de cada control (`nth_child` en `$elements`) bastaba para
+                saber qué se marcó aunque el texto vaya enmascarado. */}
+            <div className={`ph-no-capture ${styles.wrapper} ${inDialog ? styles.inDialog : ''}`}>
                 {/* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] La fila de chrome del diálogo.
                     El botón de salida y la cabecera dejan de ser CONTENIDO del elemento
                     que scrollea y pasan a ser una fila fija del panel. De esa mudanza
@@ -3015,10 +3020,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             degradado + borde + barra/glows indigo) se aplana en móvil →
                             fondo uniforme. Pedido owner: aplicarlo a TODAS las secciones de
                             Ajustes (general, capacidades, súper-pers, plan, suscripción). */}
-                        {/* [P1-PLAN-LOTE-842 · 2026-09-29] `ph-no-capture`: Configuración entera sin autocapture de PostHog. Aquí
-                            se editan peso, condiciones, medicación, alergias, embarazo y dieta; la posición de cada control
-                            (`nth_child` en `$elements`) bastaba para saber qué se marcó aunque el texto vaya enmascarado. */}
-                        <div className={`ph-no-capture ${styles.grid} ${['profile', 'preferences', 'superpers', 'clinical', 'plan', 'subscription'].includes(activeSection) ? styles.gridFlush : ''}`}>
+                        <div className={`${styles.grid} ${['profile', 'preferences', 'superpers', 'clinical', 'plan', 'subscription'].includes(activeSection) ? styles.gridFlush : ''}`}>
 
                     {/* SECCIÓN 1: PERFIL + APARIENCIA */}
                     {activeSection === 'profile' && (
