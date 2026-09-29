@@ -3,17 +3,29 @@
 // design.md §4.2): buscar una cuenta por su correo EXACTO (no hay lista), ver su ficha y regalarle créditos o un plan
 // de cortesía, o revertir un regalo. Cada acción pide un motivo y enseña su efecto antes de aplicarse; el servidor la
 // anota antes de escribir. Interno —solo el dueño, solo español—: los textos fijos viven en TEXTOS.
-import { useId, useState } from 'react';
+// [P1-PLAN-LOTE-833 · 2026-09-29] Con el interruptor de cuentas de prueba encendido, encima del buscador exacto (que se
+// pinta igual desde el primer render) va la lista de todas las cuentas (`AdminCuentasLista`, que se pide ella misma: un
+// 404 deja el panel como hoy), la ficha gana sus bloques nuevos (`AdminFichaAmpliada`) y el detalle de una cuenta de
+// prueba se abre como ESTADO de esta página (`detalle`), sin rutas nuevas: `/admin` es una ruta exacta.
+import { useEffect, useId, useRef, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { formatDate } from '../i18n';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { ultimoDiaDeRegalo } from '../utils/regalosCuenta';
+import AdminCuentasLista from './AdminCuentasLista';
+import AdminFichaAmpliada from './AdminFichaAmpliada';
 import styles from './AdminCuentas.module.css';
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
 const TEXTOS = {
     correo: 'Correo de la cuenta',
     ayudaBusqueda: 'Escribe el correo completo; no hay lista de cuentas. Cada búsqueda queda anotada.',
+    ayudaConLista: 'Si tienes el correo exacto, búscalo aquí. Cada búsqueda queda anotada.',
+    volverLista: 'Volver a la lista',
+    abriendo: 'Abriendo la cuenta…',
+    detalleDe: (correo) => `Detalle de ${correo}`,
+    volverFicha: 'Volver a la ficha',
     buscar: 'Buscar',
     buscando: 'Buscando…',
     noExiste: 'No hay ninguna cuenta con ese correo.',
@@ -112,7 +124,7 @@ function Medidor({ titulo, m, esAdmin }) {
     );
 }
 
-function Ficha({ ficha, onAccion }) {
+function Ficha({ ficha, onAccion, onCambio, onVerDetalle, refVerDetalle }) {
     const hayMejor = !ficha.es_admin && planesMejores(ficha.plan_pagado).length > 0;
     return (
         <article className={styles.ficha} aria-label={TEXTOS.cuenta(ficha.email)}>
@@ -174,6 +186,8 @@ function Ficha({ ficha, onAccion }) {
                     </ul>
                 )}
             </section>
+            {/* [P1-PLAN-LOTE-833] Actividad, cuenta de prueba y ajustes: solo si la ficha los trae (interruptor encendido) */}
+            <AdminFichaAmpliada key={ficha.user_id} ficha={ficha} onCambio={onCambio} onVerDetalle={onVerDetalle} refVerDetalle={refVerDetalle} />
         </article>
     );
 }
@@ -341,25 +355,83 @@ export default function AdminCuentas() {
     const [error, setError] = useState('');
     const [accion, setAccion] = useState(null);
     const [hecho, setHecho] = useState(false);
+    // [P1-PLAN-LOTE-833 · 2026-09-29] `hayLista`: null mientras se pregunta, false si la lista respondió 404 (el panel
+    // sigue como hoy). `versionLista` sube tras cada cambio para que la lista se refresque. `detalle`: la cuenta de
+    // prueba cuyo detalle se ve (`{ user_id, email }`) — la Task 7 (lote 834) lo monta en el hueco de abajo.
+    const [hayLista, setHayLista] = useState(null);
+    const [versionLista, setVersionLista] = useState(0);
+    const [detalle, setDetalle] = useState(null);
+    const turno = useRef(0);          // la última búsqueda o apertura gana: nunca se pinta la ficha de otra cuenta
+    const seccionRef = useRef(null);
+    const volverRef = useRef(null);
+    const detalleRef = useRef(null);
+    const verDetalleRef = useRef(null);
+    const enfocar = useRef(null);     // a dónde va el foco tras el próximo render (la vista cambia bajo el dedo)
+
+    useEffect(() => {
+        const destino = enfocar.current;
+        if (!destino) return;
+        enfocar.current = null;
+        let el = null;
+        if (destino === 'volver') el = volverRef.current;
+        else if (destino === 'detalle') el = detalleRef.current;
+        else if (destino === 'ficha') el = verDetalleRef.current;
+        else if (seccionRef.current) {
+            const id = destino.startsWith('cuenta:') ? destino.slice('cuenta:'.length) : null;
+            el = [...seccionRef.current.querySelectorAll('[data-abrir-cuenta]')].find((b) => b.dataset.abrirCuenta === id)
+                || seccionRef.current.querySelector('[data-titulo-lista]');
+        }
+        el?.focus();
+    });
 
     const buscar = async (e) => {
         e.preventDefault();
         if (!correo.trim()) return;
+        const mio = ++turno.current;
         setEstado('buscando');
         setError('');
         setHecho(false);
         try {
             const datos = await pedir('/api/admin/cuentas/buscar', { email: correo });
+            if (mio !== turno.current) return;
             if (datos?.cuenta) { setFicha(datos.cuenta); setEstado('ficha'); } else { setFicha(null); setEstado('nada'); }
         } catch (err) {
+            if (mio !== turno.current) return;
             setError(err.message);
             setEstado('error');
         }
     };
 
+    // [P1-PLAN-LOTE-833] Tocar un correo de la lista abre su ficha: la lista se aparta y el foco va a «Volver a la lista».
+    const abrirDesdeLista = async (fila) => {
+        const mio = ++turno.current;
+        setEstado('abriendo');
+        setError('');
+        setHecho(false);
+        try {
+            const datos = await pedir(`/api/admin/cuentas/${fila.user_id}`);
+            if (mio !== turno.current) return;
+            if (datos?.cuenta) { enfocar.current = 'volver'; setFicha(datos.cuenta); setEstado('ficha'); } else { setFicha(null); setEstado('nada'); }
+        } catch (err) {
+            if (mio !== turno.current) return;
+            setError(err.message);
+            setEstado('error');
+        }
+    };
+    const volverALista = () => {
+        enfocar.current = ficha ? `cuenta:${ficha.user_id}` : 'lista';
+        setEstado('inicio');
+        setFicha(null);
+        setHecho(false);
+        setError('');
+    };
+    const verDetalle = (d) => { enfocar.current = 'detalle'; setDetalle(d); };
+    const cerrarDetalle = () => { enfocar.current = 'ficha'; setDetalle(null); };
+
     const alTerminar = async (cuenta) => {
         setAccion(null);
         setHecho(true);
+        setVersionLista((v) => v + 1);   // [P1-PLAN-LOTE-833] la lista enseña plan y marca: que no se quede vieja
         if (cuenta) { setFicha(cuenta); return; }
         try {
             const datos = await pedir(`/api/admin/cuentas/${ficha.user_id}`);
@@ -369,8 +441,19 @@ export default function AdminCuentas() {
         }
     };
 
-    return (
-        <section className={styles.cuentas}>
+    const conFicha = estado === 'ficha' && Boolean(ficha);
+    const vista = (
+        <section ref={seccionRef} className={styles.cuentas} hidden={Boolean(detalle)}>
+            {hayLista !== false && (
+                <AdminCuentasLista version={versionLista} oculta={conFicha} onDisponible={setHayLista} onAbrir={abrirDesdeLista} />
+            )}
+            {estado === 'abriendo' && <p className={styles.vacio} role="status">{TEXTOS.abriendo}</p>}
+            {conFicha && hayLista && (
+                <button ref={volverRef} type="button" className={`${styles.boton} ${styles.volver}`} onClick={volverALista}>
+                    <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
+                    {TEXTOS.volverLista}
+                </button>
+            )}
             <form className={styles.buscador} role="search" onSubmit={buscar}>
                 <label htmlFor="admin-correo-cuenta" className={styles.etiqueta}>{TEXTOS.correo}</label>
                 <div className={styles.fila}>
@@ -387,13 +470,44 @@ export default function AdminCuentas() {
                         {estado === 'buscando' ? TEXTOS.buscando : TEXTOS.buscar}
                     </button>
                 </div>
-                <p className={styles.ayuda}>{TEXTOS.ayudaBusqueda}</p>
+                <p className={styles.ayuda}>{hayLista ? TEXTOS.ayudaConLista : TEXTOS.ayudaBusqueda}</p>
             </form>
             {estado === 'nada' && <p className={styles.vacio}>{TEXTOS.noExiste}</p>}
             {error && <p className={styles.error} role="alert">{error}</p>}
             {hecho && estado === 'ficha' && <p className={styles.hecho} role="status">{TEXTOS.hecho}</p>}
-            {estado === 'ficha' && ficha && <Ficha ficha={ficha} onAccion={(a) => { setHecho(false); setAccion(a); }} />}
+            {estado === 'ficha' && ficha && (
+                <Ficha
+                    ficha={ficha}
+                    onAccion={(a) => { setHecho(false); setAccion(a); }}
+                    onCambio={alTerminar}
+                    onVerDetalle={verDetalle}
+                    refVerDetalle={verDetalleRef}
+                />
+            )}
             {accion && ficha && <Dialogo accion={accion} ficha={ficha} onCerrar={() => setAccion(null)} onHecho={alTerminar} />}
         </section>
+    );
+    if (!detalle) return vista;
+    // El detalle de prueba es ESTADO de la página: la lista, el buscador y la ficha siguen montados (ocultos) y volver
+    // no pierde filtros, página ni selección.
+    return (
+        <>
+            {vista}
+            <section
+                ref={detalleRef}
+                className={styles.detalle}
+                aria-label={TEXTOS.detalleDe(detalle.email)}
+                data-detalle-prueba={detalle.user_id}
+                tabIndex={-1}
+            >
+                <button type="button" className={`${styles.boton} ${styles.volver}`} onClick={cerrarDetalle}>
+                    <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
+                    {TEXTOS.volverFicha}
+                </button>
+                {/* [P1-PLAN-LOTE-833 · 2026-09-29] Hueco del detalle de prueba: aquí monta la Task 7 (lote 834) su
+                    AdminPruebaDetalle con `detalle.user_id` (pestañas Formulario · Comidas · Planes · Conversaciones ·
+                    Actividad, cada una pedida al abrirla). */}
+            </section>
+        </>
     );
 }

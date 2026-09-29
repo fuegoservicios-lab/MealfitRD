@@ -1,0 +1,89 @@
+/* frontend/src/pages/AdminCuentasLista.module.css — [P1-PLAN-LOTE-833 · 2026-09-29] Panel · Cuentas: la lista de todas
+   las cuentas, con los tokens del panel (AdminCuentas / AdminPage). Escritorio: una tabla que se desplaza DENTRO de su
+   caja, nunca la página. Teléfono (≤ 640 px): cada fila es una tarjeta y cada cifra lleva su rótulo (`data-etiqueta`).
+   Las etiquetas dicen su estado en PALABRA; el color solo acompaña. Nada por debajo de 12 px. */
+.lista { display: flex; flex-direction: column; gap: 0.85rem; }
+/* `display: flex` de la clase ganaría al `[hidden]` del navegador: sin esto la lista no se apartaría al abrir una ficha */
+.lista[hidden] { display: none; }
+.cabecera { display: flex; align-items: flex-end; justify-content: space-between; gap: 0.5rem 1rem; flex-wrap: wrap; }
+.titulo { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.titulo:focus { outline: none; }
+.meta { margin: 0.15rem 0 0; font-size: 0.82rem; color: var(--text-muted); }
+.herramientas { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 0.6rem 0.75rem; align-items: end; }
+.campo { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+/* un <select> no se encoge solo a su celda: sin esto «Inactivas (14 días o más)» empujaba la rejilla */
+.campo input, .campo select { width: 100%; }
+.seleccion { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.9rem; font-size: 0.86rem; }
+.opcion { display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.25rem; cursor: pointer; }
+.contador { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.botonTexto { font: inherit; font-size: 0.84rem; font-weight: 600; color: var(--text-muted); background: none; border: 0; padding: 0.4rem 0.25rem; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.botonTexto:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+.estado { margin: 0; font-size: 0.82rem; color: var(--text-muted); min-height: 1.1rem; }
+.error { margin: 0; font-size: 0.86rem; color: var(--danger-text, var(--danger)); }
+.vacio { margin: 0; padding: 1rem; color: var(--text-muted); }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* el resumen del lote: qué pasó con cada cuenta */
+.resultado { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid var(--success-border); background: var(--success-bg); color: var(--text-main); font-size: 0.88rem; }
+.resultadoLinea { margin: 0; font-weight: 700; color: var(--success-text, var(--text-main)); }
+.resultadoNota { margin: 0; line-height: 1.45; }
+.resultadoCorreos { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; }
+.resultadoPie { display: flex; justify-content: flex-end; }
+
+/* tabla (escritorio) */
+.desplazable { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-card); transition: opacity 180ms ease; }
+.desplazable[aria-busy="true"] { opacity: 0.55; }
+.tabla { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.tabla th, .tabla td { text-align: left; padding: 0.6rem 0.55rem; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); vertical-align: top; }
+/* los rótulos largos («Gasto de IA (30 días)») se parten en dos líneas: así la tabla cabe entera a 1 280 px */
+.tabla th { color: var(--text-muted); font-size: 0.78rem; font-weight: 600; vertical-align: bottom; }
+.tabla tbody tr:last-child td { border-bottom: 0; }
+.tabla tbody tr:hover { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.tabla .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nota { display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+.celdaSeleccion { width: 2.75rem; }
+.casilla { display: inline-flex; align-items: center; justify-content: center; min-width: 1.75rem; min-height: 1.75rem; cursor: pointer; }
+.casilla input { width: 1.05rem; height: 1.05rem; cursor: pointer; }
+.casilla input:disabled { cursor: default; }
+.celdaCuenta { min-width: 13rem; }
+.tabla .fecha { white-space: nowrap; }
+.correo { font: inherit; font-weight: 700; color: var(--primary); background: none; border: 0; padding: 0; text-align: left; cursor: pointer; overflow-wrap: anywhere; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.correo:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+.sub { display: block; margin-top: 0.15rem; font-size: 0.78rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.etiquetas { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+.chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 700; line-height: 1.25; padding: 0.12rem 0.5rem; border-radius: 999px; border: 1px solid var(--border); color: var(--text-main); background: var(--bg-card); white-space: nowrap; }
+.chip::before { content: ''; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: currentColor; flex: none; }
+.chip[data-tono="prueba"] { color: var(--info-text); background: var(--info-bg); border-color: var(--info-border); }
+.chip[data-tono="pendiente"] { color: var(--warning-text); background: var(--warning-bg); border-color: var(--warning-border); }
+.chip[data-tono="admin"] { color: var(--text-muted); }
+.paginas { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.6rem 1rem; font-size: 0.86rem; color: var(--text-muted); }
+
+/* extras del diálogo con motivo (AdminDialogoMotivo) */
+.explicacion { margin: 0; font-size: 0.88rem; line-height: 1.45; color: var(--text-main); }
+.correosDialogo { list-style: none; margin: 0; padding: 0.5rem 0.7rem; display: flex; flex-direction: column; gap: 0.2rem; border-radius: 10px; border: 1px solid var(--border); font-size: 0.84rem; overflow-wrap: anywhere; }
+.confirmacion { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+.confirmacion input { margin-top: 0.2rem; flex: none; }
+
+@media (prefers-reduced-motion: reduce) {
+    .desplazable { transition: none; }
+}
+
+@media (max-width: 860px) {
+    .herramientas { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .campoBuscar { grid-column: 1 / -1; }
+}
+
+@media (max-width: 640px) {
+    /* cada fila, una tarjeta: la cabecera se va y cada celda dice qué es con su `data-etiqueta` */
+    .desplazable { overflow: visible; border: 0; border-radius: 0; background: none; }
+    .tabla thead { display: none; }
+    .tabla, .tabla tbody { display: block; }
+    .tabla tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 1rem; position: relative; padding: 0.85rem 1rem; margin-bottom: 0.6rem; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card); }
+    .tabla td { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; padding: 0; border: 0; text-align: left; }
+    .tabla [data-etiqueta]::before { content: attr(data-etiqueta); font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+    .tabla .num, .tabla .fecha { text-align: left; white-space: normal; }
+    .tabla .celdaCuenta { grid-column: 1 / -1; min-width: 0; padding-right: 2.75rem; }
+    /* la casilla, arriba a la derecha de la tarjeta y con blanco táctil de 44 px */
+    .celdaSeleccion { position: absolute; top: 0.25rem; right: 0.25rem; width: auto; }
+    .casilla { min-width: 2.75rem; min-height: 2.75rem; }
+}

@@ -1,5 +1,12 @@
 /* frontend/src/pages/AdminCuentas.module.css — [P1-PLAN-LOTE-775] Panel · Cuentas: los tokens del panel (AdminPage). */
 .cuentas { display: flex; flex-direction: column; gap: 1.1rem; margin-top: 1.5rem; }
+/* [P1-PLAN-LOTE-833] con el detalle de prueba abierto, la vista de cuentas se oculta sin desmontarse (el `display: flex`
+   de arriba ganaría al `[hidden]` del navegador); «Volver a la lista / a la ficha» con su flecha, como «Volver a la app» */
+.cuentas[hidden] { display: none; }
+.volver { display: inline-flex; align-items: center; gap: 0.4rem; align-self: flex-start; }
+.volver svg { color: var(--text-muted); flex: none; }
+.detalle { display: flex; flex-direction: column; gap: 1.1rem; margin-top: 1.5rem; }
+.detalle:focus { outline: none; }
 .buscador { display: flex; flex-direction: column; gap: 0.45rem; max-width: 560px; }
 .fila { display: flex; gap: 0.6rem; }
 .etiqueta { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
@@ -11,6 +18,8 @@
 .primario { border: 0; background: var(--primary-fill); color: #fff; }
 .boton { border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); }
 .primario:disabled, .boton:disabled { opacity: 0.5; cursor: default; }
+/* [P1-PLAN-LOTE-833] ocupado sin `disabled` (conserva el foco): se ve igual de apagado */
+.primario[aria-disabled="true"], .boton[aria-disabled="true"] { opacity: 0.5; cursor: default; }
 .primario:focus-visible, .boton:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .vacio { color: var(--text-muted); margin: 0; }
 .error { color: var(--danger-text, var(--danger)); margin: 0; font-size: 0.86rem; }
