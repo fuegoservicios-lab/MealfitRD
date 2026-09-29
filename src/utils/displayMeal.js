@@ -1,4 +1,5 @@
-import { conFahrenheitValor, conOnzasValor, getPaisDeLectura, glosarValor } from './nombresDelPais';
+import { conFahrenheitValor, conOnzasValor, getPaisDeLectura, getPaisDelUsuario } from './nombresDelPais';
+import { lexicoDeVistaActivo, textoParaLeerValor, tieneLexico } from './lexicoDelPais';
 // [P1-PLAN-DISPLAY-I18N · 2026-08-19] Capa de lectura del plan en el idioma
 // del usuario. El motor SIEMPRE genera y persiste `plan_data` en español
 // canónico (backend/plan_display_i18n.py; contrato completo en
@@ -97,13 +98,17 @@ function _mealDisplayBase(meal, locale) {
 
     if (!entry || typeof entry !== 'object') {
         // [P1-PLAN-LOTE-649] En español fuera de RD, el nombre local del alimento entre paréntesis («guineo (plátano)»).
-        // Sin país de lectura (RD, EE. UU., o el sistema de países apagado) son los originales, byte a byte.
-        if (getPaisDeLectura() && (!locale || String(locale).startsWith('es'))) {
+        // [P1-PLAN-LOTE-853] …y, con léxico de vista del país, la palabra del país en su sitio («plátano»; también en
+        // EE. UU.), con la glosa del 649 para lo que el léxico no cubre, en la misma pasada. Es la vista: el meal no se
+        // toca. Sin país de lectura ni léxico (RD, o el sistema de países apagado) son los originales, byte a byte.
+        const _paisLector = getPaisDelUsuario();
+        if ((getPaisDeLectura() || (lexicoDeVistaActivo() && tieneLexico(_paisLector)))
+            && (!locale || String(locale).startsWith('es'))) {
             return {
-                name: glosarValor(originalName),
-                description: glosarValor(originalDescription),
-                recipe: glosarValor(originalRecipe),
-                ingredients: glosarValor(originalIngredients),
+                name: textoParaLeerValor(originalName, _paisLector),
+                description: textoParaLeerValor(originalDescription, _paisLector),
+                recipe: textoParaLeerValor(originalRecipe, _paisLector),
+                ingredients: textoParaLeerValor(originalIngredients, _paisLector),
             };
         }
         return {

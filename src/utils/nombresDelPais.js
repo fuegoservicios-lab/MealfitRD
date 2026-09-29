@@ -41,11 +41,13 @@ function _patronesDe(pais) {
     return _patrones[pais];
 }
 
-/** `texto` con el nombre local de `pais` tras la primera aparición de cada alimento; igual si no hay nada que glosar. */
-export function glosarTexto(texto, pais = getPaisDeLectura()) {
+/**
+ * [P1-PLAN-LOTE-853] Las glosas de `texto` SIN aplicarlas: `[posición, ' (local)']`. `ocupados` son tramos que ya
+ * reescribió otra capa (el léxico de vista del país): lo que cae dentro no se glosa. Sin `ocupados`, lo de siempre.
+ */
+export function glosasDelTexto(texto, pais = getPaisDeLectura(), ocupados = []) {
     const p = typeof pais === 'string' ? pais.toUpperCase() : '';
-    if (typeof texto !== 'string' || !texto || !NOMBRES_POR_PAIS[p]) return texto;
-    const ocupados = [];
+    if (typeof texto !== 'string' || !texto || !NOMBRES_POR_PAIS[p]) return [];
     const inserciones = [];
     for (const { local, re, yaGlosado } of _patronesDe(p)) {
         re.lastIndex = 0;
@@ -59,6 +61,12 @@ export function glosarTexto(texto, pais = getPaisDeLectura()) {
             break;   // solo la primera vez en este texto
         }
     }
+    return inserciones;
+}
+
+/** `texto` con el nombre local de `pais` tras la primera aparición de cada alimento; igual si no hay nada que glosar. */
+export function glosarTexto(texto, pais = getPaisDeLectura()) {
+    const inserciones = glosasDelTexto(texto, pais, []);
     if (!inserciones.length) return texto;
     let out = texto;
     for (const [pos, glosa] of inserciones.sort((a, b) => b[0] - a[0])) out = out.slice(0, pos) + glosa + out.slice(pos);

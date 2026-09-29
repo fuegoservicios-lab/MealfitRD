@@ -3,10 +3,13 @@ import { buildGlossIndex, glossShoppingItemName } from '../utils/shoppingHelpers
 
 
 describe('[P1-COUNTRY-GLOSS-SOLO-INGLES] gloss español por país', () => {
+    // [P1-PLAN-LOTE-853 · 2026-09-29] La lechosa, la auyama o el guineo ya no se glosan en la lista de ES/MX/CO/PR: el
+    // léxico de vista del país los SUSTITUYE («Papaya»; ver `lexicoDelPais.p1_plan_lote_853.test.js`). El contrato
+    // del gloss se sigue probando con lo que el léxico no cubre (la chinola: cambia de género, se glosa).
     it.each(['ES', 'MX', 'CO', 'PR'])('%s con locale es-DO muestra el gloss panhispánico', (country) => {
         expect(
-            glossShoppingItemName('Lechosa', 'Papaya', 'es-DO', null, country, 'papaya'),
-        ).toBe('Lechosa (papaya)');
+            glossShoppingItemName('Chinola', 'Passion fruit', 'es-DO', null, country, 'maracuyá'),
+        ).toBe('Chinola (maracuyá)');
     });
 
     it('DO conserva byte-idéntico el identificador canónico', () => {
@@ -46,8 +49,8 @@ describe('[P1-COUNTRY-GLOSS-SOLO-INGLES] gloss español por país', () => {
     });
 
     it('el catálogo sirve de respaldo para planes viejos sin campo embebido', () => {
-        const index = buildGlossIndex([{ name: 'Lechosa', name_en: 'Papaya', gloss_es: 'papaya' }]);
-        expect(glossShoppingItemName('Lechosa', null, 'es-DO', index, 'ES')).toBe('Lechosa (papaya)');
+        const index = buildGlossIndex([{ name: 'Chinola', name_en: 'Passion fruit', gloss_es: 'maracuyá' }]);
+        expect(glossShoppingItemName('Chinola', null, 'es-DO', index, 'ES')).toBe('Chinola (maracuyá)');
     });
 
     it('la caché persistida conserva gloss_es sin guardar el catálogo entero', async () => {

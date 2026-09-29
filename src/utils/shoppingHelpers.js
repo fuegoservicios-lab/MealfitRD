@@ -1,5 +1,6 @@
 import { formatNumber, getLocale, i18nKey } from '../i18n';
 import { formatRegionFor, getPaisDelUsuario } from './paisDelUsuario';
+import { envaseParaLeer, nombreDeListaParaLeer } from './lexicoDelPais';
 
 // ============================================================
 // [P0-2] Parser robusto de `market_qty` para items del shopping list.
@@ -265,6 +266,11 @@ export const glossShoppingItemName = (
     // Para los cuatro mercados hispanohablantes beta se conserva el identificador
     // canónico y se adjunta el término panhispánico; DO queda byte-idéntico.
     if (locale === 'es-DO') {
+        // [P1-PLAN-LOTE-853] En español, el alimento se COMPRA con el nombre del país de la lista: «Habichuelas negras»
+        // → «Frijoles negros» (MX), «Lechosa» → «Papaya». Solo la vista del PDF: `name` sigue siendo el identificador.
+        // Ya dice lo que diría la glosa, así que no la lleva. Sin léxico (RD, o lo que no cubre) sigue lo de siempre.
+        const _delPais = nombreDeListaParaLeer(spanishName, _country);
+        if (_delPais !== spanishName) return _delPais;
         // [P1-GLOSS-MAPUEY-DO · 2026-09-07] DO deja de ser byte-idéntico SÓLO para los glosses de
         // dirección inversa (ver `_GLOSS_INVERSO_DO`). Para los otros 21 sigue igual: el gloss
         // existe para el extranjero y a un dominicano le sobra.
@@ -550,6 +556,10 @@ export const glossShoppingQty = (displayQty, t) => {
     }
 
     let out = displayQty;
+    // [P1-PLAN-LOTE-853] En español, el envase del país («1 funda (1 Lb)» → «1 bolsa (1 Lb)» en ES/MX/CO/US). Solo el
+    // sustantivo tras la cantidad, como el paso 1: el paréntesis es el rótulo real del producto. En otro idioma lo
+    // traduce `t` más abajo, así que aquí no se toca.
+    if (String(getLocale() || '').startsWith('es')) out = envaseParaLeer(out, getPaisDelUsuario());
     let envases;
     try {
         envases = _ENVASES_TRADUCIBLES(t);

@@ -37,16 +37,19 @@ describe('[649] glosa del nombre local', () => {
 });
 
 describe('[649] el plan en español se lee con el nombre del país', () => {
-    const meal = { name: 'Avena con guineo', description: 'Rápida.', ingredients: ['1 guineo mediano', '½ taza de avena'],
-        recipe: ['Corta el guineo.', 'Mezcla.'] };
+    // [P1-PLAN-LOTE-853 · 2026-09-29] El guineo ya no se glosa en el plato de ES: el léxico de vista lo sustituye
+    // («plátano»; ver `lexicoDelPais.p1_plan_lote_853.test.js`). La glosa sigue para lo que cambia de género y el
+    // léxico no cubre: la batata («la boniato asada» sería agramatical).
+    const meal = { name: 'Avena con batata', description: 'Rápida.', ingredients: ['1 batata mediana', '½ taza de avena'],
+        recipe: ['Corta la batata.', 'Mezcla.'] };
 
     it('con el país ES, nombre, ingredientes y pasos llevan la glosa', () => {
         setPaisDeLectura('ES');
         const d = mealDisplay(meal, 'es-DO');
-        expect(d.name).toBe('Avena con guineo (plátano)');
-        expect(d.ingredients).toEqual(['1 guineo (plátano) mediano', '½ taza de avena']);
-        expect(d.recipe).toEqual(['Corta el guineo (plátano).', 'Mezcla.']);
-        expect(meal.ingredients[0]).toBe('1 guineo mediano');   // el dato no se toca
+        expect(d.name).toBe('Avena con batata (boniato)');
+        expect(d.ingredients).toEqual(['1 batata (boniato) mediana', '½ taza de avena']);
+        expect(d.recipe).toEqual(['Corta la batata (boniato).', 'Mezcla.']);
+        expect(meal.ingredients[0]).toBe('1 batata mediana');   // el dato no se toca
     });
 
     it('en RD el resultado es el de siempre, y en otro idioma manda la traducción', () => {
