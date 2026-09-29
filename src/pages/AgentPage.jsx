@@ -134,7 +134,10 @@ import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
 // de React (`_buildAgentErrorMessage`, `menuItemsDelAgente`); dentro del componente
 // se usa `useT()`, que además suscribe al cambio de idioma.
-import { t, useT, formatDate } from '../i18n';
+import { t, useT, formatDate, useI18n } from '../i18n';
+// [P1-PLAN-LOTE-900] Lo que el coach cambia de la app (tarjetas, tema, idioma, pantallas) se aplica aquí.
+import { aplicarAjustesDelCoach } from '../utils/ajustesDelCoach';
+import { pedirCompletarFormulario } from '../utils/completarFormulario';
 import { getLocale } from '../i18n';
 import { useDictado } from '../hooks/useDictado';
 // [P1-PLAN-LOTE-682] Modo voz del coach: hablarle y oírle con la voz del propio dispositivo (cero coste de API).
@@ -560,7 +563,7 @@ const AgentPage = () => {
     // [P1-I18N-DASHBOARD · 2026-08-15] El hook (y no el `t` de módulo importado
     // arriba) es lo que suscribe a este componente al cambio de idioma.
     const t = useT();
-    const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, checkPlanLimit, restoreSessionData } = useAssessment();
+    const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, checkPlanLimit, restoreSessionData, refreshProfileAndPlan } = useAssessment();
     // [P1-COACH-QUOTA-METER · 2026-09-02] Cuota mensual del coach, visible en la cabecera.
     // Se lee al entrar y tras cada respuesta (cuando `isLoading` vuelve a false).
     const [coachQuota, setCoachQuota] = useState(null);
@@ -581,6 +584,7 @@ const AgentPage = () => {
     // [P1-SETTINGS-DIALOG · 2026-08-10] Ubicación de fondo para abrir la
     // configuración como ventana sin desmontar la conversación.
     const location = useLocation();
+    const { setLocale } = useI18n();   // [P1-PLAN-LOTE-900] «cámbiala a inglés»
     const isAgentRouteActive = location.pathname.startsWith('/dashboard/agent');
     const [titlePollCount, setTitlePollCount] = useState(0);
     const [showNavMenu, setShowNavMenu] = useState(false);
@@ -4298,6 +4302,29 @@ const AgentPage = () => {
                                             } catch (_lsErr) {
                                                 // QuotaExceeded / private mode / parse fail — silencioso.
                                             }
+                                        }
+
+                                        // [P1-PLAN-LOTE-900 · 2026-09-29] El coach cambió ajustes de la app o pidió abrir una pantalla
+                                        // (`cambiar_ajuste_de_la_app` / `abrir_pantalla_de_la_app`): el servidor ya lo guardó; aquí,
+                                        // lo que haría el interruptor en pantalla. En modo voz la conversación sigue al navegar.
+                                        if (dataObj.ajustes_de_app && typeof dataObj.ajustes_de_app === 'object') {
+                                            const _uidAjustes = session?.user?.id || userProfile?.id;
+                                            aplicarAjustesDelCoach(dataObj.ajustes_de_app, {
+                                                navigate,
+                                                ubicacion: location,
+                                                setLocale,
+                                                guardarIdioma: (code) => fetchWithAuth('/api/profile', {
+                                                    method: 'PATCH',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ fields: { locale: code } }),
+                                                }),
+                                                updateData,
+                                                refrescarPerfil: refreshProfileAndPlan,
+                                                restaurarPlan: () => (_uidAjustes ? restoreSessionData(_uidAjustes) : null),
+                                                sincronizarAvisos: () => import('../utils/avisosDeComida').then((m) => m.sincronizarAvisosLocales()),
+                                                pedirFormulario: pedirCompletarFormulario,
+                                                modoContador: isTrackingMode(userProfile, planData),
+                                            });
                                         }
 
                                         // Actualizar contador de créditos en tiempo real
