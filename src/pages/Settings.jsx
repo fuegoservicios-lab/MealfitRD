@@ -3015,7 +3015,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             degradado + borde + barra/glows indigo) se aplana en móvil →
                             fondo uniforme. Pedido owner: aplicarlo a TODAS las secciones de
                             Ajustes (general, capacidades, súper-pers, plan, suscripción). */}
-                        <div className={`${styles.grid} ${['profile', 'preferences', 'superpers', 'clinical', 'plan', 'subscription'].includes(activeSection) ? styles.gridFlush : ''}`}>
+                        {/* [P1-PLAN-LOTE-842 · 2026-09-29] `ph-no-capture`: Configuración entera sin autocapture de PostHog. Aquí
+                            se editan peso, condiciones, medicación, alergias, embarazo y dieta; la posición de cada control
+                            (`nth_child` en `$elements`) bastaba para saber qué se marcó aunque el texto vaya enmascarado. */}
+                        <div className={`ph-no-capture ${styles.grid} ${['profile', 'preferences', 'superpers', 'clinical', 'plan', 'subscription'].includes(activeSection) ? styles.gridFlush : ''}`}>
 
                     {/* SECCIÓN 1: PERFIL + APARIENCIA */}
                     {activeSection === 'profile' && (

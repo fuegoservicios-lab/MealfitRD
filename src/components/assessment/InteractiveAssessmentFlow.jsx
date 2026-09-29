@@ -1155,7 +1155,11 @@ const InteractiveAssessmentFlow = () => {
             title={currentStepConfig.title}
             subtitle={currentStepConfig.subtitle}
         >
-            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', position: 'relative' }}>
+            {/* [P1-PLAN-LOTE-842 · 2026-09-29] `ph-no-capture`: el autocapture de PostHog descarta TODO clic dentro de las
+                preguntas (salud, medicación, alergias, embarazo, religión, dieta, hábitos). Enmascarar el texto (716) no
+                bastaba: `$elements` lleva `nth_child` y los chips salen siempre en el mismo orden, así que la POSICIÓN
+                decía qué condición se marcó. El embudo del formulario va por eventos explícitos, que esto no toca. */}
+            <div className="ph-no-capture" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', position: 'relative' }}>
                 {/* [P1-PLAN-LOTE-164] Lo que antes decía el diálogo de Configuración (que en el iPhone no llegaba a
                     verse), dicho donde sí se ve: cuántas preguntas faltan, que lo ya contestado no se repite y que
                     generar cuesta un crédito AL FINAL — abrir el formulario no gasta nada. */}

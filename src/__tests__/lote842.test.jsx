@@ -1,0 +1,96 @@
+/**
+ * [P1-PLAN-LOTE-842 · 2026-09-29] Pulsar un chip de salud del formulario NO manda ningún `$autocapture` a PostHog.
+ *
+ * El lote 716 enmascaró el texto y los atributos (`mask_all_text`, `mask_all_element_attributes`), pero el revisor de
+ * la sesión 6d lo reprodujo con el SDK real: `$elements` sigue llevando `nth_child`/`nth_of_type`, y los chips de
+ * QMedical salen siempre en el mismo orden. Pulsar «Diabetes tipo 2» mandaba `div:nth-child="1"` con la clase
+ * `mf-opt-chip`, unido a la cuenta por `identify`: la posición decía qué condición se marcó. La prueba de un solo
+ * chip (lote840) no podía verlo.
+ *
+ * El arreglo es la clase `ph-no-capture` en el contenedor de las preguntas (InteractiveAssessmentFlow) y en la
+ * rejilla de Configuración. El SDK recorre los ancestros y descarta el evento entero
+ * (posthog-js `autocapture.js`, `explicitNoCapture`). Aquí se prueba con el componente REAL de condiciones médicas y
+ * el SDK REAL. El control, sin la clase, emite eventos con la posición: sin él, la prueba podría pasar porque el
+ * autocapture no arrancó.
+ */
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
+import { render, cleanup } from '@testing-library/react';
+import fs from 'node:fs';
+import path from 'node:path';
+
+vi.mock('../context/AssessmentContext', () => ({
+    useAssessment: () => ({ formData: { medicalConditions: [], medications: [] }, updateData: () => {} }),
+}));
+
+import { QMedical } from '../components/assessment/questions/QMedical';
+
+const TOKEN = 'phc_test_lote842';
+const autocapturas = [];
+
+const chipsDe = (contenedor) => Array.from(contenedor.querySelectorAll('.mf-opt-chip'));
+
+const pulsarVarios = (contenedor, n = 4) => {
+    const chips = chipsDe(contenedor).slice(0, n);
+    expect(chips.length).toBe(n);
+    for (const chip of chips) chip.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+};
+
+describe('P1-PLAN-LOTE-842 · los chips de salud no llegan a PostHog (SDK y componente reales)', () => {
+    beforeAll(async () => {
+        // En el navegador, `index.css` da `cursor: pointer` a `.mf-opt-chip`, y así el autocapture trata al chip
+        // (un div role="button") como clicable. jsdom no carga ese CSS: la regla se inyecta aquí, igual que en la app.
+        const estilo = document.createElement('style');
+        estilo.textContent = '.mf-opt-chip { cursor: pointer; }';
+        document.head.appendChild(estilo);
+        localStorage.clear();
+        sessionStorage.clear();
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            ok: true, status: 200, headers: new Map(), json: async () => ({}), text: async () => '{}',
+        })));
+        vi.stubGlobal('XMLHttpRequest', class {
+            open() {} send() {} setRequestHeader() {} abort() {}
+        });
+        vi.stubEnv('VITE_POSTHOG_KEY', TOKEN);
+        const cliente = await import('../utils/posthogClient');
+        await cliente.initPostHog();
+        window.posthog.on('eventCaptured', (ev) => {
+            if (ev.event === '$autocapture') autocapturas.push(ev);
+        });
+    });
+
+    afterEach(() => cleanup());
+
+    afterAll(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+        delete window.posthog;
+        vi.unstubAllGlobals();
+        vi.unstubAllEnvs();
+    });
+
+    it('dentro del contenedor con ph-no-capture, varios chips seguidos no emiten ningún $autocapture', () => {
+        const { container } = render(
+            <div className="ph-no-capture"><QMedical onManualAdvance={() => {}} nextLabel="Seguir" /></div>,
+        );
+        const antes = autocapturas.length;
+        pulsarVarios(container);
+        expect(autocapturas.length).toBe(antes);
+    });
+
+    it('control: sin la clase, los mismos clics SÍ emiten eventos, con la posición del chip', () => {
+        const { container } = render(<div><QMedical onManualAdvance={() => {}} nextLabel="Seguir" /></div>);
+        const antes = autocapturas.length;
+        pulsarVarios(container);
+        const nuevos = autocapturas.slice(antes);
+        expect(nuevos.length).toBeGreaterThan(0);
+        expect(JSON.stringify(nuevos)).toMatch(/nth.child/);
+    });
+
+    it('la clase está en el contenedor de las preguntas del formulario y en la rejilla de Configuración', () => {
+        const flujo = fs.readFileSync(
+            path.resolve(__dirname, '../components/assessment/InteractiveAssessmentFlow.jsx'), 'utf8');
+        expect(flujo).toMatch(/<div className="ph-no-capture" style=\{\{ display: 'flex', flexDirection: 'column'/);
+        const ajustes = fs.readFileSync(path.resolve(__dirname, '../pages/Settings.jsx'), 'utf8');
+        expect(ajustes).toMatch(/<div className=\{`ph-no-capture \$\{styles\.grid\}/);
+    });
+});
