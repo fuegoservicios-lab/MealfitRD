@@ -43,6 +43,7 @@ const REVISADOS = [
     // Observabilidad que sí corre en el apex.
     'assets/sdk-',            // arranque de Sentry (init), P1-APEX-ENTRY-DIET
     'assets/module-',         // posthog-js: el embudo nace en la portada
+    'assets/posthogConfig-',  // [P1-PLAN-LOTE-847] el MISMO posthog-js + su config: el trozo lleva ahora este nombre
     // Marca.
     'favicon.png',
     'favicon.ico',

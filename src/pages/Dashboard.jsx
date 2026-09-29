@@ -8885,8 +8885,8 @@ const DashboardInner = () => {
                                 // [P1-PLAN-LOTE-844 · 2026-09-29] Sin permiso para la IA la cola NO avanza: el backend
                                 // frena la recogida de bloques (843). «Se llenará solo» sería mentira, y actualizar la
                                 // Nevera tampoco lo destraba: lo que falta es el permiso. Va antes que la pausa por Nevera.
-                                if (sinPermisoIA && (_isPlaceholderGenerating || _emptyDayPaused || _emptyDayInFlight
-                                    || Number(chunkStatusInfo?.scheduled_count || 0) > 0)) {
+                                // `in_flight_count` ya incluye lo programado y lo que corre ahora (/chunk-status).
+                                if (sinPermisoIA && (_isPlaceholderGenerating || _emptyDayPaused || _emptyDayInFlight)) {
                                     return (
                                         <EmptyState
                                             icon={Lock}
