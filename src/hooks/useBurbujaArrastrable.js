@@ -34,6 +34,8 @@ export function useBurbujaArrastrable() {
     const [pos, setPos] = useState(leer);            // { lado, y } | null = la esquina de siempre (CSS)
     const [arrastre, setArrastre] = useState(null);  // { x, y } mientras el dedo la lleva
     const ref = useRef(null);
+    // Referencia de función (no el objeto `ref`): la regla `react-hooks/refs` no deja leer un ref durante el render.
+    const alMontar = useCallback((nodo) => { ref.current = nodo; }, []);
     const inicio = useRef(null);
     const ultimo = useRef(null);
     const movio = useRef(false);
@@ -104,7 +106,7 @@ export function useBurbujaArrastrable() {
     }
 
     return {
-        ref,
+        alMontar,
         estilo,
         lado: arrastre ? null : (pos?.lado || 'der'),
         arrastrando: Boolean(arrastre),

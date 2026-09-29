@@ -25,7 +25,9 @@ export default function ModoVoz({
 }) {
     const t = useT();
     const capaRef = useRef(null);
-    const burbuja = useBurbujaArrastrable();   // [P1-PLAN-LOTE-906] se lleva con el dedo y se pega al borde
+    // [P1-PLAN-LOTE-906] se lleva con el dedo y se pega al borde (desestructurado: la regla de refs de React no deja
+    // leer propiedades de un objeto que parece un ref durante el render).
+    const { alMontar: montarBurbuja, estilo: estiloBurbuja, lado: ladoBurbuja, arrastrando, manejadores: manejadoresBurbuja } = useBurbujaArrastrable();
     const cerrarRef = useRef(onCerrar);
     useEffect(() => { cerrarRef.current = onCerrar; });
 
@@ -88,12 +90,12 @@ export default function ModoVoz({
         const globoFijo = Boolean(error) || estado === 'hablando';
         return createPortal(
             <div
-                ref={burbuja.ref}
+                ref={montarBurbuja}
                 className={styles.burbuja}
-                style={burbuja.estilo}
+                style={estiloBurbuja}
                 data-en-chat={enChat ? '1' : '0'}
-                data-lado={burbuja.lado || undefined}
-                data-arrastrando={burbuja.arrastrando ? '1' : '0'}
+                data-lado={ladoBurbuja || undefined}
+                data-arrastrando={arrastrando ? '1' : '0'}
                 role="region"
                 aria-label={t('Modo voz')}
             >
@@ -105,7 +107,7 @@ export default function ModoVoz({
                 >
                     {bocadillo}
                 </p>
-                <div className={styles.burbujaFila} {...burbuja.manejadores}>
+                <div className={styles.burbujaFila} {...manejadoresBurbuja}>
                     <button type="button" className={styles.burbujaAccion} onClick={onExpandir} aria-label={t('Abrir el modo voz')}>
                         <Maximize2 size={14} strokeWidth={2.2} aria-hidden="true" />
                     </button>

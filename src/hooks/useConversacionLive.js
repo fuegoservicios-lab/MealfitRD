@@ -89,7 +89,6 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
             soltar();
             setEstado('cerrado');
         } else if (tipo === 'error') {
-            // eslint-disable-next-line no-console
             console.error('[P1-PLAN-LOTE-905] GPT-Live', ev);
         }
     }, [soltar, sondear]);
