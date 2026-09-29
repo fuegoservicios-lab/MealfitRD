@@ -10,11 +10,28 @@
 // las porciones con − / + (o, si no se saben, la pregunta con su campo). Sin `onCambiarPorciones` (solo lectura) las
 // porciones van en un chip, como antes.
 import React, { useState } from 'react';
-import { Camera, Minus, Pill, Plus, Trash2 } from 'lucide-react';
+import { Camera, Globe, Minus, Pill, Plus, Trash2 } from 'lucide-react';
 import { useT } from '../../i18n';
 import { lineaEtiqueta, unidadTexto } from '../../utils/suplementosAlacena';
 import { useTextosTraducidos } from '../../hooks/useTextosTraducidos';
 import s from './GrupoSuplementos.module.css';
+
+// [P1-PLAN-LOTE-767 · 2026-09-29] De dónde salen las cifras cuando NO son de la tabla del pote: la Alacena lo dice, y
+// cómo dejarlas exactas. Sin tabla, el coach usa las del frente del envase (carbohidratos y grasa estimados) o las busca
+// en internet; «estimado» son las típicas de ese tipo de suplemento.
+// (Cada rama con su `t()` literal: el extractor de i18n no ve un `t(variable)`.)
+function origenDe(fuente, t) {
+    switch (fuente) {
+        case 'web':
+            return { chip: t('De internet'), pista: t('Cifras encontradas en internet: si tu pote dice otra cosa, mándale al coach una foto de la tabla.') };
+        case 'frente':
+            return { chip: t('Del frente del pote'), pista: t('Carbohidratos y grasa estimados: con una foto de la tabla quedan exactos.') };
+        case 'estimado':
+            return { chip: t('Estimado'), pista: t('Cifras típicas de este tipo de suplemento: con una foto de la tabla quedan exactas.') };
+        default:
+            return null;
+    }
+}
 
 // El borrador de un campo de porciones → número válido, o null.
 const porcionesValidas = (v) => {
@@ -99,6 +116,7 @@ export default function GrupoSuplementos({ potes = [], soloDelPlan = [], onCambi
                 {potes.map((p) => {
                     const n = Math.round(p.porciones);
                     const incompleto = !p.etiqueta || n <= 0;
+                    const origen = origenDe(p.fuente, t);   // [P1-PLAN-LOTE-767]
                     return (
                         <li key={p.id} className={incompleto ? `${s.pote} ${s.incompleto}` : s.pote}>
                             <div className={s.arriba}>
@@ -122,6 +140,7 @@ export default function GrupoSuplementos({ potes = [], soloDelPlan = [], onCambi
                                 {p.etiqueta
                                     ? <span className={s.chip}>{lineaEtiqueta(p.etiqueta, p.unidad, t)}</span>
                                     : <span className={s.aviso}>{t('Sin etiqueta')}</span>}
+                                {p.etiqueta && origen && <span className={s.origen}>{origen.chip}</span>}
                             </div>
                             {p.delPlan && (
                                 <span className={s.plan}>{t('Plan: {dosis} · {cuando}', { dosis: tr(p.delPlan.dose || ''), cuando: tr(p.delPlan.timing || '') })}</span>
@@ -130,6 +149,12 @@ export default function GrupoSuplementos({ potes = [], soloDelPlan = [], onCambi
                                 <p className={s.pista}>
                                     <Camera size={15} aria-hidden="true" />
                                     <span>{t('Mándale al coach una foto de la tabla nutricional para completar sus cifras.')}</span>
+                                </p>
+                            )}
+                            {p.etiqueta && origen && (
+                                <p className={s.pista}>
+                                    {p.fuente === 'web' ? <Globe size={15} aria-hidden="true" /> : <Camera size={15} aria-hidden="true" />}
+                                    <span>{origen.pista}</span>
                                 </p>
                             )}
                             {onCambiarPorciones && <Porciones pote={p} n={n} onCambiar={onCambiarPorciones} t={t} />}
