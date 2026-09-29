@@ -47,8 +47,8 @@
 // privacy benefit of this mode»). Aquí se identifica en cada carga con sesión (analítica por
 // cuenta, bajo el interés legítimo de §7/§13); la alternativa es `person_profiles: 'never'`
 // y no identificar. Sin banner se cumple ePrivacy (nada en el dispositivo); lo otro es RGPD.
-// RESUELTO [ronda 2 → lotes 716 y 842 + delta legal n.º 1 (y su ronda 2) · 2026-09-29]: el autocapture (encendido en la
-// app, observabilityScope.js) mandaba el TEXTO VISIBLE de lo que se pulsa, y los chips del formulario
+// RESUELTO [ronda 2 → lotes 716 y 842 + delta legal n.º 1 (rondas 1-3) · 2026-09-29]: el autocapture (encendido en
+// la app, observabilityScope.js) mandaba el TEXTO VISIBLE de lo que se pulsa, y los chips del formulario
 // (`ChipOption`, div role="button" con cursor: pointer) lo cumplían: pulsar «Diabetes T2» llegaba a
 // PostHog, unido a la cuenta tras `identify` — un dato de salud (art. 9 RGPD). DOS capas:
 //   1. `mask_all_text: true` + `mask_all_element_attributes: true` en `posthogCaptureOptions`
@@ -56,16 +56,24 @@
 //      sigue mandando de cada elemento la etiqueta, las clases CSS (`classes`), la POSICIÓN
 //      (`nth_child`/`nth_of_type`) y el `href` del enlace, y los chips de salud salen siempre en el
 //      mismo orden: la posición decía qué condición se marcó (revisor de 6d, con el SDK real).
-//   2. `ph-no-capture` en el contenedor de las preguntas del formulario (InteractiveAssessmentFlow.jsx)
-//      y en la rejilla de Configuración (Settings.jsx) (P1-PLAN-LOTE-842, cd3c7d3b): el SDK descarta
-//      el evento entero si el elemento o un ancestro lleva la clase (lote842.test.jsx).
+//   2. `ph-no-capture` (P1-PLAN-LOTE-842, frontend 3d6d079b, que contiene cd3c7d3b): el SDK descarta el
+//      evento entero si el elemento o un ancestro lleva la clase. Va en el contenedor de las preguntas del
+//      formulario (InteractiveAssessmentFlow.jsx), en el contenedor ENTERO de Configuración (Settings.jsx,
+//      `styles.wrapper`: secciones, paneles y diálogos), en la raíz del portal de «Evaluar de nuevo»
+//      (EvaluarDeNuevoModal.jsx, que se porta a <body>), en la raíz del check-in de renovación
+//      (RenewalCheckinModal.jsx: peso, hambre, energía, adherencia) y en la fila de vasos del agua
+//      (WaterTracker.jsx). Prueba con el SDK real: lote842.test.jsx (5 casos).
+// La clase NO toca los eventos propios (`trackEvent` → `capture`): de Configuración salen `locale_changed`
+// (i18n/index.js, desde Settings.jsx) y `plan_regeneration_triggered` con `account_reset` (Settings.jsx), y
+// ninguno de los `trackEvent` lleva datos del perfil (`identify` va sin propiedades).
 // La política lo dice con ese alcance, en las dos copias a la vez (LegalPages.jsx y el landing, rama
-// ia6d-integ-landing): Privacidad §7 «En las preguntas del formulario […] y en los ajustes de
-// Configuración […] no registra nada de lo que usted pulsa»; fuera, el control «sin su texto» pero con
-// tipo, posición, clases y enlace. Ese texto SÓLO se publica con cd3c7d3b desplegado. Fuera de esas dos
-// zonas la posición sigue viajando, y en la escala de hambre y energía de RenewalCheckinModal.jsx es el
-// valor elegido: por eso §8 dice qué NO recibe PostHog y no «No recibe datos de salud» (abierto al dueño,
-// contenido-legal.json del landing, punto 7). Si alguien quita la máscara o la clase, la política vuelve a
+// ia6d-integ-landing): Privacidad §7 nombra las zonas sin autocapture («no registra nada de lo que usted
+// pulsa»), los dos eventos propios de Configuración y, fuera, el control «sin su texto» pero con tipo,
+// posición, clases y enlace; §8 «No recibe datos de salud» (remite a §7); Protección de Datos §5 «La
+// analítica de producto (PostHog) no los recibe». Ese texto SÓLO se publica con 3d6d079b desplegado. Fuera
+// de las zonas siguen, con posición fija, Sorbo/Vaso/Botella del agua, la porción del escáner y «Lo comí»:
+// cantidades del diario, no el perfil (abierto al dueño, contenido-legal.json del landing, punto 7). Si
+// alguien quita la máscara o la clase, o añade un `trackEvent` con datos del perfil, la política vuelve a
 // ser falsa.
 // Ancla: src/__tests__/lote794.test.js (con el SDK real, no con un mock de `init`).
 import { isAnalyticsOptedOut } from './analytics';

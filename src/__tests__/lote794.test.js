@@ -322,24 +322,41 @@ describe('P1-PLAN-LOTE-794 · la Política de Privacidad dice lo que hace el có
     // (lote842.test.jsx). Fuera de esas dos zonas la posición sigue viajando (medido: la escala de hambre y energía
     // de RenewalCheckinModal.jsx), así que §7 ya no dice «ni sus atributos» ni «no sabe qué opción eligió», y §8
     // dice qué NO recibe en vez de «No recibe datos de salud». Este texto sólo se publica con cd3c7d3b desplegado.
-    it('§7: el formulario y Configuración, sin autocapture; fuera, el control sin su texto pero con posición', () => {
+    // [Delta legal n.º 1 · ronda 3 · 2026-09-29] El revisor de 6d, con el SDK real, encontró lo que cd3c7d3b dejaba
+    // fuera, y la sesión 0f lo cerró en frontend 3d6d079b (misma rama lote-840, SIN desplegar): ph-no-capture en el
+    // contenedor ENTERO de Configuración (Settings.jsx, styles.wrapper), en la raíz del portal de EvaluarDeNuevoModal,
+    // en la raíz de RenewalCheckinModal (peso, hambre, energía, adherencia) y en la fila de vasos de WaterTracker
+    // (lote842.test.jsx, 5 casos). Los eventos PROPIOS no miran la clase: de Configuración salen locale_changed
+    // (i18n/index.js:810, desde Settings.jsx:457) y plan_regeneration_triggered con account_reset (Settings.jsx:2927),
+    // y §7 los nombra. §8 vuelve a decir «No recibe datos de salud», remitiendo a §7, y Protección de Datos §5 lo dice
+    // en positivo. Fuera quedan tres controles del DIARIO con posición fija (Sorbo/Vaso/Botella del agua, la porción
+    // del escáner, «Lo comí»): por eso §7 dice «los vasos del registro de agua». Sólo se publica con 3d6d079b desplegado.
+    it('§7: las zonas sin autocapture, los eventos propios de Configuración y, fuera, el control sin su texto', () => {
         const s7 = seccion('7. Monitoreo de Errores y Telemetría');
         expect(s7).toMatch(/código seudónimo a partir de su dirección IP, su navegador y una clave que cambia cada día/);
         expect(s7).not.toMatch(/texto visible/);
         expect(s7).not.toMatch(/Diabetes tipo 2/);
         expect(s7).not.toMatch(/ni sus atributos/);
         expect(s7).not.toMatch(/no sabe qué opción eligió/);
-        expect(s7).toMatch(/En las preguntas del formulario de su perfil y en los ajustes de Configuración, donde usted marca sus condiciones de salud, medicación, alergias y dieta, no registra nada de lo que usted pulsa\./);
+        expect(s7).toMatch(/En el formulario de su perfil, en Configuración \(donde usted marca sus condiciones de salud, medicación, alergias y dieta\), en el chequeo de renovación de su plan \(su peso, su hambre, su energía y cuánto siguió el plan\) y en los vasos del registro de agua, no registra nada de lo que usted pulsa\./);
+        expect(s7).toMatch(/De Configuración sólo recibe, como eventos propios de Bioboros, que usted cambió de idioma y a cuál, o que reinició su cuenta\./);
         expect(s7).toMatch(/En el resto de la aplicación registra qué controles pulsa, sin su texto: sí el tipo de control, su posición en la página, sus clases de estilo y, si es un enlace, su dirección\./);
-        expect(s7).toMatch(/No registra lo que usted escribe en los campos de texto/);
+        expect(s7).toMatch(/Nunca registra lo que usted escribe en los campos de texto/);
     });
 
-    it('§8 dice qué NO recibe PostHog: lo que se marca en el formulario y en Configuración, y lo que se escribe', () => {
+    it('§8 dice que PostHog no recibe datos de salud, remitiendo a §7', () => {
         const s8 = seccion('8. Proveedores Subcontratados (Encargados de Tratamiento)');
         const posthog = s8.slice(s8.indexOf('<strong>PostHog, Inc.</strong>'));
-        expect(posthog.slice(0, 400)).not.toMatch(/texto visible/);
-        expect(posthog.slice(0, 400)).not.toMatch(/No recibe datos de salud/);
-        expect(posthog.slice(0, 400)).toMatch(/No recibe nada de lo que usted marca en el formulario ni en Configuración, ni lo que escribe en los campos de texto/);
+        expect(posthog.slice(0, 450)).not.toMatch(/texto visible/);
+        expect(posthog.slice(0, 450)).toMatch(/No recibe datos de salud: ni lo que usted marca en el formulario, en Configuración o en el chequeo de renovación, ni lo que escribe en los campos de texto \(ver Sección 7\)\./);
+    });
+
+    it('Protección de Datos §5 dice en positivo que la analítica no recibe datos de salud', () => {
+        const ini = LEGAL.indexOf('5. Datos Sensibles de Salud');
+        expect(ini, 'falta Protección de Datos §5').toBeGreaterThan(-1);
+        const s5 = LEGAL.slice(ini, LEGAL.indexOf('<h3>', ini + 4));
+        expect(s5).toMatch(/La analítica de producto \(PostHog\) no los recibe\./);
+        expect(s5).not.toMatch(/puede recibir el texto de una opción de salud/);
     });
 
     it('§13 no dice «ni fingerprinting» y remite al código diario', () => {

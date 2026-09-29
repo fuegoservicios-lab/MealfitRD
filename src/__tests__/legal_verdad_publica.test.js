@@ -82,13 +82,12 @@ const REFUTADAS = [
         frase: 'consentimiento expreso de un padre o tutor',
         porque: 'decisión del dueño 2026-08-22: solo 18+, sin excepción — datos de salud y medicación, sin mecanismo de consentimiento parental, y los otros dos documentos ya decían 18+',
     },
-    // [P1-PLAN-LOTE-794 · 2026-09-28 · ronda 2] Las frases que `verdad-publica.json` del landing (rama
-    // ia6d-legal, 2ab05b9/e94872d) ya prohíbe y que esta copia seguía diciendo. Con ellas la app y
-    // bioboros.com volvían a publicar dos contratos distintos.
-    {
-        frase: 'Sin datos de salud, correo ni nombre',
-        porque: 'promete más de lo que el código garantiza: la máscara del 716 no bastaba (nth_child decía qué chip de salud se pulsó); con el 842 (cd3c7d3b, ph-no-capture) PostHog no recibe nada del formulario ni de Configuración, pero fuera de ellos sigue la posición del control, y en la escala de hambre y energía del check-in de renovación esa posición es el valor elegido. La copia dice QUÉ no recibe',
-    },
+    // [P1-PLAN-LOTE-794 · 2026-09-28 · ronda 2] Aquí vivía «Sin datos de salud, correo ni nombre», que
+    // `verdad-publica.json` del landing prohibía. [Delta legal n.º 1 · ronda 3 · 2026-09-29] Sale de las
+    // refutadas y pasa a EXIGIDA como «No recibe datos de salud» (fila `posthog-sin-datos-de-salud` del
+    // landing): con frontend 3d6d079b (P1-PLAN-LOTE-842, rondas 1 y 2) el formulario, Configuración entera,
+    // «Evaluar de nuevo», el check-in de renovación y los vasos del agua quedan fuera del autocapture, y
+    // ningún evento propio lleva datos del perfil.
     // [Delta legal n.º 1 · 2026-09-29] PostHog YA NO recibe el texto de lo que se pulsa: desde el lote 716
     // (4ffc8391, en producción desde el 29-sep ~02:00 UTC) observabilityScope.js:55-60 pasa a posthog.init
     // mask_all_text + mask_all_element_attributes. Prueba con el SDK real: rama lote-840 de la sesión 0f
@@ -112,7 +111,7 @@ const REFUTADAS = [
     },
     {
         frase: 'no sabe qué opción eligió',
-        porque: 'fuera del formulario y de Configuración la posición del control viaja (nth_child), y en la escala de hambre y energía del check-in de renovación (RenewalCheckinModal.jsx) es el valor elegido: medido con el SDK real',
+        porque: 'fuera de las zonas con ph-no-capture la posición del control viaja (nth_child): con 3d6d079b la porción del escáner (½/1/1½/2) o Sorbo/Vaso/Botella del agua siguen diciendo con su posición qué se eligió (antes también la escala de hambre y energía del check-in, medido con el SDK real)',
     },
     {
         frase: 'su nombre completo, correo',
@@ -250,8 +249,14 @@ const REFUTADAS = [
 const EXIGIDAS = [
     { frase: 'sin cookies ni almacenamiento local', porque: 'PostHog en cookieless_mode (§7/§13)' },
     { frase: 'una clave que cambia cada día', porque: 'el código seudónimo diario que PostHog calcula en su servidor (§7)' },
-    { frase: 'sin su texto', porque: 'fuera del formulario y de Configuración el autocapture registra qué control se pulsa, sin su texto pero con su tipo, posición, clases y enlace (§7, delta legal n.º 1)' },
-    { frase: 'no registra nada de lo que usted pulsa', porque: 'las preguntas del formulario y los ajustes de Configuración llevan ph-no-capture (842, cd3c7d3b): sólo es cierto con ese frontend desplegado (§7, delta legal n.º 1 · ronda 2)' },
+    { frase: 'sin su texto', porque: 'fuera de las zonas con ph-no-capture el autocapture registra qué control se pulsa, sin su texto pero con su tipo, posición, clases y enlace (§7, delta legal n.º 1)' },
+    { frase: 'no registra nada de lo que usted pulsa', porque: 'el formulario, Configuración entera, el check-in de renovación y los vasos del agua llevan ph-no-capture (842, 3d6d079b): sólo es cierto con ese frontend desplegado (§7, delta legal n.º 1 · rondas 2 y 3)' },
+    // [Delta legal n.º 1 · ronda 3 · 2026-09-29] Las mismas exigidas del landing (verdad-publica.json, rama
+    // ia6d-integ-landing): posthog-sin-datos-de-salud, posthog-eventos-propios-de-configuracion y
+    // posthog-sin-salud-en-proteccion-de-datos. Sólo son ciertas con frontend 3d6d079b desplegado.
+    { frase: 'No recibe datos de salud', porque: 'con 3d6d079b ninguna pantalla donde lo pulsado es un dato del perfil de salud entra en el autocapture, y ningún trackEvent lleva datos del perfil (§8, remite a §7)' },
+    { frase: 'como eventos propios de Bioboros', porque: 'ph-no-capture no corta los eventos propios: de Configuración salen locale_changed (i18n/index.js:810, desde Settings.jsx:457) y plan_regeneration_triggered con account_reset (Settings.jsx:2927), y §7 los nombra' },
+    { frase: 'La analítica de producto (PostHog) no los recibe', porque: 'Protección de Datos §5, la sección de datos sensibles, lo dice en positivo y no sólo callando' },
     { frase: 'el nombre de su cuenta', porque: 'el coach recibe el nombre (Privacidad §4)' },
     { frase: 'el nombre de tu cuenta', porque: 'el coach recibe el nombre (Política de IA §2)' },
     { frase: 'Hoy son <strong>cuatro</strong>', porque: 'DeepSeek, OpenAI, Google/Gemini y Cohere (Privacidad §4)' },
