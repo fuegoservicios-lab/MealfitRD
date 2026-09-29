@@ -233,7 +233,11 @@ function getCompFeatures() {
                 },
                 {
                     name: t('Soporte Prioritario VIP'),
-                    desc: t('Respuesta < 24h con técnico dedicado'),
+                    /* [P1-APP-VARIANTES · 2026-09-29, decisión de 0f] Vendía una respuesta en menos de un
+                       día con un técnico asignado: un plazo vendido que nadie ha comprometido es una promesa
+                       comercial engañosa. Reversible el día que el dueño comprometa un plazo (y entonces se
+                       quita el bloque de `legal_verdad_publica.test.js` que lo vigila). */
+                    desc: t('Soporte prioritario'),
                     values: { gratis: false, basic: false, plus: false, ultra: true },
                 },
             ],

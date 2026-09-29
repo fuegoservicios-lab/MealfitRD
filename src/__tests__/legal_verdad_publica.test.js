@@ -247,21 +247,60 @@ const REFUTADAS = [
     // `ajustes-en-negrita`, `renovacion-en-ajustes`). El dueño no ha comprometido plazo de respuesta, y la app
     // no tiene ningún menú «Ajustes»: la pantalla es «Configuración» (AccountMenu.jsx:180, Settings.jsx
     // sectionsConfig). El «Ajustes» que sí existe es el del sistema del teléfono, no un menú de Bioboros.
-    { frase: 'menos de 24 horas', porque: 'Reembolsos §8 prometía un plazo de respuesta que el dueño no ha comprometido' },
-    { frase: 'Respondemos en menos de', porque: 'la misma promesa con otro número' },
-    { frase: 'Ajustes →', porque: 'no hay menú «Ajustes» en la app: es Configuración (Privacidad §7, §10 y §13)' },
-    { frase: 'desde Ajustes', porque: 'el mismo menú inexistente sin flecha (Privacidad §2 y §10, Términos §3 y §8)' },
-    { frase: '<strong>Ajustes</strong>', porque: 'el mismo menú inexistente en negrita (Reembolsos §2, Protección de Datos §5)' },
-    { frase: 'en Ajustes o en PayPal', porque: 'el mismo menú inexistente (Reembolsos §5)' },
+    //
+    // `landing` dice de dónde se retiró la frase en el repo del landing; sin él, el mensaje de fallo da el
+    // origen de las primeras filas de esta tabla (privacy + data-protection), que no es el de éstas.
+    {
+        frase: 'menos de 24 horas',
+        porque: 'Reembolsos §8 prometía un plazo de respuesta que el dueño no ha comprometido',
+        landing: 'La misma frase se retiró de content/refunds.html (§8) y del pie de todo el sitio en el repo del landing',
+    },
+    {
+        frase: 'Respondemos en menos de',
+        porque: 'la misma promesa con otro número',
+        landing: 'La misma frase se retiró de content/refunds.html (§8) y del pie de todo el sitio en el repo del landing',
+    },
+    {
+        frase: 'Ajustes →',
+        porque: 'no hay menú «Ajustes» en la app: es Configuración (Privacidad §7, §10 y §13)',
+        landing: 'La misma frase se retiró de content/privacy.html en el repo del landing',
+    },
+    {
+        frase: 'desde Ajustes',
+        porque: 'el mismo menú inexistente sin flecha (Privacidad §2 y §10, Términos §3 y §8)',
+        landing: 'La misma frase se retiró de content/privacy.html y content/terms.html en el repo del landing',
+    },
+    {
+        frase: '<strong>Ajustes</strong>',
+        porque: 'el mismo menú inexistente en negrita (Reembolsos §2, Protección de Datos §5)',
+        landing: 'La misma frase se retiró de content/refunds.html y content/data-protection.html en el repo del landing',
+    },
+    {
+        frase: 'en Ajustes o en PayPal',
+        porque: 'el mismo menú inexistente (Reembolsos §5)',
+        landing: 'La misma frase se retiró de content/refunds.html en el repo del landing',
+    },
     // [P1-APP-VARIANTES · 2026-09-29 · pedido de 0f] Espejo de `plazo-en-dias-habiles`,
-    // `plazo-de-respuesta-menor-que-24h` y su forma escapada. ALCANCE: sólo esta copia legal
-    // (`LegalPages.jsx`). «Respuesta < 24h con técnico dedicado» de `pages/Upgrade.jsx` es un beneficio
-    // vendido del plan Ultra, decisión de producto pendiente: queda fuera a propósito. «Respondemos en» a
-    // secas no se prohíbe: casaría con Protección de Datos §5 («Respondemos en un plazo máximo de treinta
-    // (30) días»), plazo de norma que se queda.
-    { frase: 'días hábiles', porque: 'Divulgación Responsable §1 prometía acusar recibo en 3 días hábiles, un plazo que el dueño no ha comprometido' },
-    { frase: '< 24h', porque: 'la misma promesa de plazo en forma abreviada' },
-    { frase: '&lt; 24h', porque: 'la misma promesa de plazo en forma abreviada, escrita como entidad HTML' },
+    // `plazo-de-respuesta-menor-que-24h` y su forma escapada. ALCANCE de esta tabla: sólo la copia legal
+    // (`LegalPages.jsx`). El beneficio del plan Max de `pages/Upgrade.jsx`, que vendía el mismo plazo, lo
+    // vigila su propio bloque más abajo (decisión de 0f del 29-sep). «Respondemos en» a secas no se prohíbe:
+    // casaría con Protección de Datos §5 («Respondemos en un plazo máximo de treinta (30) días»), plazo de
+    // norma que se queda.
+    {
+        frase: 'días hábiles',
+        porque: 'Divulgación Responsable §1 prometía acusar recibo en 3 días hábiles, un plazo que el dueño no ha comprometido',
+        landing: 'La misma frase se retiró de content/responsible-disclosure.html (§1) en el repo del landing',
+    },
+    {
+        frase: '< 24h',
+        porque: 'la misma promesa de plazo en forma abreviada',
+        landing: 'El landing la prohíbe en todo el sitio (verdad-publica.json), donde nunca llegó a publicarse',
+    },
+    {
+        frase: '&lt; 24h',
+        porque: 'la misma promesa de plazo en forma abreviada, escrita como entidad HTML',
+        landing: 'El landing la prohíbe en todo el sitio (verdad-publica.json), donde nunca llegó a publicarse',
+    },
 ];
 
 // [P1-PLAN-LOTE-794 · ronda 2] Lo que la copia TIENE que decir, igual que las `exigidas` del landing. Sin
@@ -344,6 +383,9 @@ const EXIGIDAS = [
     { frase: 'Configuración → Suscripción → «Cancelar Suscripción»', porque: 'Settings.jsx: botón «Cancelar Suscripción» de la sección Suscripción (Reembolsos §2) — `ruta-cancelar-suscripcion`' },
     { frase: 'la app para iPhone o Android no muestra esa sección', porque: 'SECTION_IDS quita Suscripción con nativeHidesCommerce() (Reembolsos §2) — `cancelar-no-en-la-app-nativa`' },
     { frase: 'Configuración → Suscripción (al usar Bioboros en el navegador)', porque: 'Términos §3 y §8 — `ruta-cancelar-terminos`' },
+    // [Decisión de 0f · 2026-09-29] Las tres de arriba son `solo_web` en el landing: /app/terms y /app/refunds
+    // (las que abre la app nativa) las quitan y dejan sólo la cuenta de PayPal (Apple 3.1.1). Esta copia es la
+    // WEB (app.bioboros.com en el navegador), así que aquí se siguen exigiendo.
     { frase: 'reembolsos, escríbenos a <strong>bioboros.support@gmail.com</strong>.', porque: 'Reembolsos §8 sigue dando el correo, sin plazo — `reembolsos-contacto-sin-plazo`' },
     { frase: 'Confirmaremos la recepción de tu reporte.', porque: 'Divulgación Responsable §1 sigue comprometiendo el acuse, sin plazo — `divulgacion-acuse-sin-plazo`' },
 ];
@@ -362,13 +404,14 @@ const RESEARCH_EXIGIDAS = [
 describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
     const texto = fs.readFileSync(LEGAL, 'utf8');
 
-    it.each(REFUTADAS)('no afirma «$frase»', ({ frase, porque }) => {
+    it.each(REFUTADAS)('no afirma «$frase»', ({ frase, porque, landing }) => {
         const donde = texto.toLowerCase().indexOf(frase.toLowerCase());
+        const origen = landing
+            ?? 'La misma frase se retiró de content/privacy.html y content/data-protection.html en el repo del landing';
         expect(
             donde,
             `LegalPages.jsx afirma «${frase}», y ${porque}. `
-            + `La misma frase se retiró de content/privacy.html y content/data-protection.html `
-            + `en el repo del landing: si vuelve aquí, el usuario con sesión iniciada lee un `
+            + `${origen}: si vuelve aquí, el usuario con sesión iniciada lee un `
             + `contrato distinto del que lee el visitante.`,
         ).toBe(-1);
     });
@@ -422,5 +465,32 @@ describe('P1-VERDAD-PUBLICA · la FAQ de Investigación del dashboard', () => {
             texto.toLowerCase().includes(frase.toLowerCase()),
             `ResearchPage.jsx ya no dice «${frase}» (${porque}). El landing lo exige en content/research.html.`,
         ).toBe(true);
+    });
+});
+
+// [P1-APP-VARIANTES · 2026-09-29 · decisión de 0f] El beneficio «Soporte Prioritario VIP» del plan Max
+// (`pages/Upgrade.jsx`) vendía una respuesta en menos de 24 h con un técnico asignado. Nadie ha comprometido
+// ese plazo: un plazo vendido que no se cumple es una promesa comercial engañosa (`plazo-de-respuesta-24-horas`
+// y `plazo-de-respuesta-menor-que-24h` del landing). Pasa a «Soporte prioritario». Reversible: el día que el
+// dueño comprometa un plazo, se quita este bloque junto con el cambio de copy.
+const UPGRADE = path.join(process.cwd(), 'src', 'pages', 'Upgrade.jsx');
+const CATALOGOS = ['en-US', 'fr-FR', 'it-IT', 'pt-BR'];
+const PLAZO_VENDIDO = /<\s*24\s*h|&lt;\s*24\s*h|menos de 24 horas|técnico dedicado/i;
+
+describe('P1-VERDAD-PUBLICA · el soporte que vende Upgrade.jsx', () => {
+    it('Upgrade.jsx no vende un plazo de respuesta', () => {
+        const hit = fs.readFileSync(UPGRADE, 'utf8').match(PLAZO_VENDIDO);
+        expect(hit?.[0] ?? null, `Upgrade.jsx vende «${hit?.[0]}»: nadie ha comprometido un plazo de respuesta.`).toBeNull();
+    });
+
+    it('Upgrade.jsx sigue describiendo el beneficio', () => {
+        expect(fs.readFileSync(UPGRADE, 'utf8')).toContain("desc: t('Soporte prioritario')");
+    });
+
+    it.each(CATALOGOS)('el catálogo %s no traduce el plazo viejo', (loc) => {
+        const catalogo = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'src', 'i18n', 'locales', `${loc}.json`), 'utf8'));
+        expect(catalogo).not.toHaveProperty(['Respuesta < 24h con técnico dedicado']);
+        expect(typeof catalogo['Soporte prioritario'], `${loc}.json no traduce «Soporte prioritario»`).toBe('string');
+        expect(catalogo['Soporte prioritario']).not.toBe('');
     });
 });
