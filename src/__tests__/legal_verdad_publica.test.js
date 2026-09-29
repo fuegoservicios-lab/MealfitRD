@@ -185,6 +185,39 @@ const REFUTADAS = [
         frase: 'Ese acceso no incluye sus conversaciones',
         porque: 'absoluta y falsa: hay acceso técnico directo a la base de datos; lo que se puede prometer es lo que el PANEL de soporte no muestra',
     },
+    // [FUSIÓN 0f + 6d · ronda 3 · 2026-09-29] Las prohibidas nuevas del landing (verdad-publica.json), en esta copia.
+    {
+        frase: 'las fotos de comida que usted escanea o envía al chat',
+        porque: 'el chat manda a Google y guarda CUALQUIER imagen (routers/diary.py purpose=chat, sin mirar el contenido); sólo el escáner es de comida (Privacidad §4)',
+    },
+    {
+        frase: '<strong>análisis de las fotos de comida</strong> que usted escanea o envía al chat',
+        porque: 'la misma acotación en la entrada de Google de Privacidad §8',
+    },
+    {
+        frase: 'Las fotos de comida que usted decide escanear o enviar al chat',
+        porque: 'la misma acotación en la lista de lo que se envía (Privacidad §4)',
+    },
+    {
+        frase: 'Las fotos de comida que decidas escanear o enviar al chat',
+        porque: 'la misma acotación, tuteada, en la Política de IA §2',
+    },
+    {
+        frase: 'no guarda su correo, su nombre ni su perfil de salud.',
+        porque: 'absoluta: el motivo de cada ajuste del panel es texto libre del personal y se guarda en admin_access_log (lote-771 admin_cuentas._motivo) — Privacidad §9',
+    },
+    {
+        frase: '<strong>DeepSeek</strong> genera partes de su plan y mueve la conversación con el coach.',
+        porque: 'DeepSeek estima además las comidas anotadas por escrito (estimate-macros/estimate-plate/scan: ChatGLM flash → deepseek), como ya dice Privacidad §8',
+    },
+    {
+        frase: '<strong>DeepSeek</strong> genera partes de tu plan y mueve la conversación con el coach;',
+        porque: 'la misma omisión en la Política de IA §2',
+    },
+    {
+        frase: 'Política de Privacidad (Secciones 7 y 8)',
+        porque: 'la voz y el dictado viven en Privacidad §2: Protección de Datos §5 tiene que remitir también a ella',
+    },
 ];
 
 // [P1-PLAN-LOTE-794 · ronda 2] Lo que la copia TIENE que decir, igual que las `exigidas` del landing. Sin
@@ -238,6 +271,30 @@ const EXIGIDAS = [
     { frase: '<strong>911</strong> en Estados Unidos, Puerto Rico y México', porque: 'Aviso Médico §6' },
     { frase: '<strong>112</strong> en España', porque: 'Aviso Médico §6' },
     { frase: '<strong>123</strong> en Colombia', porque: 'Aviso Médico §6' },
+    // [FUSIÓN 0f + 6d · ronda 3 · 2026-09-29] Las exigidas nuevas del landing (verdad-publica.json), en esta copia.
+    { frase: 'y las fotos que usted envía al chat</strong>', porque: 'Google recibe cualquier foto del chat, no sólo de comida (Privacidad §4)' },
+    { frase: 'y las fotos que usted envía al chat (sólo a Google)', porque: 'la lista de lo que se envía (Privacidad §4)' },
+    { frase: 'y de las fotos que usted envía al chat</strong>', porque: 'la entrada de Google en Privacidad §8' },
+    { frase: 'y las fotos que envíes al chat, con lo que escribas para aclararlas', porque: 'la lista de lo que se envía (Política de IA §2)' },
+    { frase: 'No recibe sus fotos.', porque: 'OpenAI no recibe ninguna foto: el único cliente de imágenes va a Gemini (Privacidad §8)' },
+    { frase: 'las que sube sin llegar a enviarlas, pasadas 24 horas', porque: 'la purga de adjuntos del chat sin mensaje (db_chat._cleanup_orphan_chat_attachments + cron horario del lote 798), Privacidad §2' },
+    { frase: '<strong>Borrador del chat (<code>IndexedDB</code>):</strong>', porque: 'chatDraftStore.js: texto y hasta 4 fotos por conversación en el dispositivo (Privacidad §13)' },
+    { frase: 'más allá de lo que el personal escriba como motivo de un ajuste, que no debe incluir datos personales', porque: 'la única salvedad que el código permite al registro del equipo (Privacidad §9)' },
+    { frase: 'estima las macros de las comidas que usted anota por escrito', porque: 'DeepSeek en Privacidad §4, como en §8' },
+    { frase: 'para estimar sus macros (sólo a DeepSeek)', porque: 'las listas de lo que se envía (Privacidad §4 y Política de IA §2)' },
+    { frase: 'estima las macros de las comidas que anotas por escrito', porque: 'DeepSeek en la Política de IA §2' },
+    { frase: 'Política de Privacidad (Secciones 2, 7 y 8)', porque: 'Protección de Datos §5 remite a donde viven la voz y el dictado' },
+];
+
+// [FUSIÓN 0f + 6d · ronda 3 · 2026-09-29] La FAQ de Investigación también existe dos veces:
+// `content/research.html` en el landing y `ResearchPage.jsx` aquí. Misma fila que el landing
+// (`research-un-solo-proveedor` / `research-proveedores-en-plural`).
+const RESEARCH = path.join(process.cwd(), 'src', 'pages', 'ResearchPage.jsx');
+const RESEARCH_REFUTADAS = [
+    { frase: 'El modelo generativo base es de un proveedor externo', porque: 'son cuatro proveedores de IA (DeepSeek, OpenAI, Google/Gemini y Cohere), no uno' },
+];
+const RESEARCH_EXIGIDAS = [
+    { frase: 'Los modelos de IA que usamos son de proveedores externos', porque: 'la FAQ habla de los proveedores en plural, como las políticas' },
 ];
 
 describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
@@ -266,5 +323,23 @@ describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
     // fichero pasaría por «no afirma nada falso» simplemente por no afirmar nada.
     it('sigue describiendo cómo se entra de verdad', () => {
         expect(texto).toMatch(/sin contrase|c[oó]digo de un solo uso/i);
+    });
+});
+
+describe('P1-VERDAD-PUBLICA · la FAQ de Investigación del dashboard', () => {
+    const texto = fs.readFileSync(RESEARCH, 'utf8');
+
+    it.each(RESEARCH_REFUTADAS)('no afirma «$frase»', ({ frase, porque }) => {
+        expect(
+            texto.toLowerCase().indexOf(frase.toLowerCase()),
+            `ResearchPage.jsx afirma «${frase}», y ${porque}. content/research.html del landing ya no lo dice.`,
+        ).toBe(-1);
+    });
+
+    it.each(RESEARCH_EXIGIDAS)('dice «$frase»', ({ frase, porque }) => {
+        expect(
+            texto.toLowerCase().includes(frase.toLowerCase()),
+            `ResearchPage.jsx ya no dice «${frase}» (${porque}). El landing lo exige en content/research.html.`,
+        ).toBe(true);
     });
 });

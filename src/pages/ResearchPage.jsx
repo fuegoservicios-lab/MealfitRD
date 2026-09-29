@@ -141,7 +141,7 @@ const CONTROL = [
 
 const FAQ = [
     { q: '¿Usan mis datos de salud para investigar?', a: 'No de forma identificable sin tu permiso. Tu perfil de salud es dato sensible (Ley 172-13); por defecto solo trabajamos con datos disociados de tu identidad. Un estudio con datos identificables requeriría tu consentimiento expreso y separado, y podrías negarte sin afectar tu servicio.' },
-    { q: '¿Entrenan la IA con lo que escribo o con mi plan?', a: 'No. No usamos tus datos para entrenar modelos de IA, ni propios ni de terceros. El modelo generativo base es de un proveedor externo y tampoco le cedemos tus datos para entrenamiento.' },
+    { q: '¿Entrenan la IA con lo que escribo o con mi plan?', a: 'No. No usamos tus datos para entrenar modelos de IA, ni propios ni de terceros. Los modelos de IA que usamos son de proveedores externos (la Política de Uso de Inteligencia Artificial dice cuáles y qué recibe cada uno), y tampoco les cedemos tus datos para entrenamiento.' },
     { q: '¿Cómo me opongo a que usen mis datos para mejorar el producto?', a: 'Escríbenos a bioboros.support@gmail.com y lo aplicamos. Oponerte no afecta tu capacidad de usar Bioboros. También puedes ejercer el resto de tus derechos según la Política de Protección de Datos.' },
 ];
 
