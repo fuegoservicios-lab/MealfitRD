@@ -142,6 +142,7 @@ import { getLocale } from '../i18n';
 import { useDictado } from '../hooks/useDictado';
 // [P1-PLAN-LOTE-682] Modo voz del coach: hablarle y oírle con la voz del propio dispositivo (cero coste de API).
 import { useConversacionPorVoz } from '../hooks/useConversacionPorVoz';
+import { useConversacionLive } from '../hooks/useConversacionLive';   // [P1-PLAN-LOTE-905] GPT-Live-1 (prueba)
 import { siguienteTrozoParaVoz } from '../utils/vozDelCoach';
 // [P1-PLAN-LOTE-844] El permiso para la IA de terceros: antes de cada mensaje al coach y del modo voz.
 import { asegurarConsentimientoIA, faltaPermisoIA } from '../consent/consentimientoIA';
@@ -2047,7 +2048,7 @@ const AgentPage = () => {
     // y `speechSynthesis` para hablar (el ElevenLabs de pago que lo apagó ya no interviene). Cada turno hablado es un
     // mensaje normal de este chat —cuota, memoria, herramientas y filtros clínicos de siempre— con `is_call_mode`,
     // que en el backend elige el prompt de voz (breve, sin formato). El bucle vive en `useConversacionPorVoz`.
-    const vozCoach = useConversacionPorVoz({
+    const vozDelTelefono = useConversacionPorVoz({
         locale: getLocale(),
         esNativa: isNativeApp(),
         saludo: t('Te escucho.'),
@@ -2056,6 +2057,40 @@ const AgentPage = () => {
             return handleSendRef.current?.(texto);
         },
     });
+    // [P1-PLAN-LOTE-905 · 2026-09-29] Con la prueba de GPT-Live-1 habilitada para esta cuenta (servidor), el modo voz
+    // habla con OpenAI en vivo y el coach de siempre piensa detrás. Cada turno lo guarda el servidor: aquí se recarga
+    // el chat y se aplica lo que el coach cambió (ajustes, Nevera), como en el `done` de un turno escrito.
+    const fetchSessionMessagesRef = useRef(null);
+    const vozEnVivo = useConversacionLive({
+        sessionId: currentSessionId,
+        locale: getLocale(),
+        alNovedad: (n) => {
+            trackEvent('coach_voz_live_turno');
+            try { fetchSessionMessagesRef.current?.(currentSessionIdRef.current); } catch { /* el próximo */ }
+            try { window.dispatchEvent(new CustomEvent('mealfit:chat-turn-done')); } catch { /* best-effort */ }
+            if (n?.nevera) { try { window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory')); } catch { /* best-effort */ } }
+            if (n?.ajustes_de_app) {
+                const _uid = session?.user?.id || userProfile?.id;
+                aplicarAjustesDelCoach(n.ajustes_de_app, {
+                    navigate,
+                    ubicacion: location,
+                    setLocale,
+                    guardarIdioma: (code) => fetchWithAuth('/api/profile', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ fields: { locale: code } }),
+                    }),
+                    updateData,
+                    refrescarPerfil: refreshProfileAndPlan,
+                    restaurarPlan: () => (_uid ? restoreSessionData(_uid) : null),
+                    sincronizarAvisos: () => import('../utils/avisosDeComida').then((m) => m.sincronizarAvisosLocales()),
+                    pedirFormulario: pedirCompletarFormulario,
+                    modoContador: isTrackingMode(userProfile, planData),
+                });
+            }
+        },
+    });
+    const vozCoach = vozEnVivo.disponible ? vozEnVivo : vozDelTelefono;
     const isCallModeActive = vozCoach.abierto;
     const callModeRef = useRef(false);
     useEffect(() => { callModeRef.current = isCallModeActive; }, [isCallModeActive]);
@@ -3114,6 +3149,7 @@ const AgentPage = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setMessages, setIsLoadingHistory, _setWelcomeIfAbsent, _setFotoPendienteMem]);
+    useEffect(() => { fetchSessionMessagesRef.current = fetchSessionMessages; }, [fetchSessionMessages]);   // [P1-PLAN-LOTE-905]
 
     // [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Borrar un chat era UN toque sin vuelta atrás, y en el
     // teléfono la papelera vive a 1 cm del título en cada fila. Ahora el toque abre una hoja de

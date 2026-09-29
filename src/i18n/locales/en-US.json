@@ -3868,5 +3868,8 @@
   "Uso de IA": "AI use",
   "Listo. Vuelve a tocar el modo voz para empezar.": "Done. Tap voice mode again to start.",
   "Activa la IA para completar tu plan": "Turn on AI to complete your plan",
-  "Tus próximos días se preparan con IA y necesitamos tu permiso para enviarle tus datos. Mientras tanto, el diario manual y el agua siguen funcionando.": "Your next days are prepared with AI, and we need your permission to send it your data. Meanwhile, the manual diary and water keep working."
+  "Tus próximos días se preparan con IA y necesitamos tu permiso para enviarle tus datos. Mientras tanto, el diario manual y el agua siguen funcionando.": "Your next days are prepared with AI, and we need your permission to send it your data. Meanwhile, the manual diary and water keep working.",
+  "Se agotó el saldo de la prueba de voz": "The voice test balance ran out",
+  "La voz en vivo no está disponible": "Live voice isn't available",
+  "No se pudo conectar la voz en vivo": "Couldn't connect live voice"
 }
