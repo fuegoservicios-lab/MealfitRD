@@ -56,7 +56,8 @@ const TEXTOS = {
     hasta: 'Hasta (incluido)',
     sinFecha: 'Sin fecha de fin',
     motivo: 'Motivo',
-    motivoAyuda: 'Obligatorio. Queda anotado junto al cambio (p. ej., «compensación por el fallo del 27-sep»).',
+    // [P1-PLAN-LOTE-841] El motivo se guarda en el rastro del equipo hasta su purga (24 meses): nada de datos personales.
+    motivoAyuda: 'Obligatorio. Queda anotado junto al cambio (p. ej., «compensación por el fallo del 27-sep»). No escribas datos personales ni de salud.',
     efecto: 'Efecto',
     nadaQueRecargar: 'Ya tiene disponible todo el cupo de su plan.',
     hastaEl: (f) => `hasta el ${f}`,
