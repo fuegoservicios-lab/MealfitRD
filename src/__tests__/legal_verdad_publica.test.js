@@ -242,6 +242,17 @@ const REFUTADAS = [
         frase: 'Política de Privacidad (Secciones 7 y 8)',
         porque: 'la voz y el dictado viven en Privacidad §2: Protección de Datos §5 tiene que remitir también a ella',
     },
+    // [P1-APP-VARIANTES · 2026-09-29 · pedido de 0f] Espejo de verdad-publica.json del landing
+    // (`plazo-de-respuesta-24-horas`, `respondemos-en-menos-de`, `ruta-de-menu-ajustes`, `desde-ajustes`,
+    // `ajustes-en-negrita`, `renovacion-en-ajustes`). El dueño no ha comprometido plazo de respuesta, y la app
+    // no tiene ningún menú «Ajustes»: la pantalla es «Configuración» (AccountMenu.jsx:180, Settings.jsx
+    // sectionsConfig). El «Ajustes» que sí existe es el del sistema del teléfono, no un menú de Bioboros.
+    { frase: 'menos de 24 horas', porque: 'Reembolsos §8 prometía un plazo de respuesta que el dueño no ha comprometido' },
+    { frase: 'Respondemos en menos de', porque: 'la misma promesa con otro número' },
+    { frase: 'Ajustes →', porque: 'no hay menú «Ajustes» en la app: es Configuración (Privacidad §7, §10 y §13)' },
+    { frase: 'desde Ajustes', porque: 'el mismo menú inexistente sin flecha (Privacidad §2 y §10, Términos §3 y §8)' },
+    { frase: '<strong>Ajustes</strong>', porque: 'el mismo menú inexistente en negrita (Reembolsos §2, Protección de Datos §5)' },
+    { frase: 'en Ajustes o en PayPal', porque: 'el mismo menú inexistente (Reembolsos §5)' },
 ];
 
 // [P1-PLAN-LOTE-794 · ronda 2] Lo que la copia TIENE que decir, igual que las `exigidas` del landing. Sin
@@ -315,6 +326,16 @@ const EXIGIDAS = [
     { frase: 'para estimar sus macros (sólo a DeepSeek)', porque: 'las listas de lo que se envía (Privacidad §4 y Política de IA §2)' },
     { frase: 'estima las macros de las comidas que anotas por escrito', porque: 'DeepSeek en la Política de IA §2' },
     { frase: 'Política de Privacidad (Secciones 2, 7 y 8)', porque: 'Protección de Datos §5 remite a donde viven la voz y el dictado' },
+    // [P1-APP-VARIANTES · 2026-09-29 · pedido de 0f] Las rutas de menú REALES (exigidas del landing con el mismo id).
+    { frase: 'Configuración → General → Notificaciones', porque: 'Settings.jsx: sección General (id profile), título «Notificaciones» (Privacidad §2) — `ruta-notificaciones`' },
+    { frase: 'Configuración → Privacidad → «Ayuda a mejorar Bioboros»', porque: 'Settings.jsx: Privacidad → Preferencias → t(\'Ayuda a mejorar {app}\') (Privacidad §7 y §13) — `ruta-analitica-configuracion-privacidad`' },
+    { frase: 'Configuración → Privacidad → Eliminar mi cuenta', porque: 'DeleteAccountSection dentro de Privacidad, botón «Eliminar mi cuenta» (Privacidad §10) — `ruta-eliminar-cuenta`' },
+    { frase: 'Configuración → Privacidad → Exportar datos', porque: 'Privacidad → «Tus datos» → «Exportar datos» (Privacidad §10) — `ruta-exportar-datos`' },
+    { frase: 'desde <strong>Configuración</strong> en la aplicación', porque: 'Protección de Datos §5 — `ruta-configuracion-proteccion-datos`' },
+    { frase: 'Configuración → Suscripción → «Cancelar Suscripción»', porque: 'Settings.jsx: botón «Cancelar Suscripción» de la sección Suscripción (Reembolsos §2) — `ruta-cancelar-suscripcion`' },
+    { frase: 'la app para iPhone o Android no muestra esa sección', porque: 'SECTION_IDS quita Suscripción con nativeHidesCommerce() (Reembolsos §2) — `cancelar-no-en-la-app-nativa`' },
+    { frase: 'Configuración → Suscripción (al usar Bioboros en el navegador)', porque: 'Términos §3 y §8 — `ruta-cancelar-terminos`' },
+    { frase: 'reembolsos, escríbenos a <strong>bioboros.support@gmail.com</strong>.', porque: 'Reembolsos §8 sigue dando el correo, sin plazo — `reembolsos-contacto-sin-plazo`' },
 ];
 
 // [FUSIÓN 0f + 6d · ronda 3 · 2026-09-29] La FAQ de Investigación también existe dos veces:
@@ -354,6 +375,25 @@ describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
     // fichero pasaría por «no afirma nada falso» simplemente por no afirmar nada.
     it('sigue describiendo cómo se entra de verdad', () => {
         expect(texto).toMatch(/sin contrase|c[oó]digo de un solo uso/i);
+    });
+});
+
+// [P1-APP-VARIANTES · 2026-09-29 · pedido de 0f] El pie de las páginas públicas de la app React también
+// prometía «Respondemos en menos de 24 horas», como el pie del landing (`plazo-de-respuesta-24-horas`).
+const FOOTER = path.join(process.cwd(), 'src', 'components', 'layout', 'Footer.jsx');
+
+describe('P1-VERDAD-PUBLICA · el pie de la app React', () => {
+    const texto = fs.readFileSync(FOOTER, 'utf8');
+
+    it.each(['menos de 24 horas', 'Respondemos en menos de'])('no promete un plazo de respuesta («%s»)', (frase) => {
+        expect(
+            texto.toLowerCase().indexOf(frase.toLowerCase()),
+            `Footer.jsx dice «${frase}»: el dueño no ha comprometido ningún plazo de respuesta, y el pie del landing ya no lo dice.`,
+        ).toBe(-1);
+    });
+
+    it('sigue dando el correo de soporte', () => {
+        expect(texto).toContain('mailto:bioboros.support@gmail.com');
     });
 });
 

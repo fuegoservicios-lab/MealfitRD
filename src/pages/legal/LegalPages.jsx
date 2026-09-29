@@ -165,7 +165,7 @@ export const Privacy = () => (
             <li><strong>Dictado y modo voz (opcional):</strong> el dictado convierte su voz en texto en su propio dispositivo o navegador: a Bioboros sólo llega el texto transcrito, que se trata como cualquier otro mensaje del chat, y su voz no se envía a nuestros servidores. Según el navegador, su fabricante (por ejemplo, Google en Chrome o Apple en Safari y en el iPhone) puede procesar en sus servidores lo que usted dice, bajo sus propios términos. En el modo voz, para leerle en voz alta la respuesta del coach, enviamos el texto de esa respuesta a Google (API de Gemini, servicio de pago que, según sus condiciones, no usa esos datos para entrenar sus modelos) y reproducimos el audio que devuelve. Si ese servicio no está disponible, se usa la voz de su dispositivo o navegador, que, según el navegador o el dispositivo, puede generarse en servidores de su fabricante (por ejemplo, Google en Chrome) a partir del mismo texto, bajo sus propios términos.</li>
             <li><strong>Datos de pago:</strong> NO almacenamos números de tarjeta de crédito ni información financiera. Solo guardamos el identificador de suscripción de PayPal (<code>paypal_subscription_id</code>) y el plan vigente (<code>plan_tier</code>).</li>
             <li><strong>Regalos en su cuenta:</strong> si el equipo de Bioboros le regala créditos o un plan de cortesía, guardamos el regalo con su vigencia y el motivo (<code>account_grants</code>). Se borra con su cuenta y aparece en la exportación de sus datos. El registro del equipo sobre ese regalo (quién lo dio, cuándo y por qué) se conserva aunque borre su cuenta (ver Sección 9).</li>
-            <li><strong>Notificaciones:</strong> si usted activa los avisos en el navegador, guardamos la suscripción push de su navegador (<code>push_subscriptions</code>); en la app para Android o iPhone, si su dispositivo permite los avisos de Bioboros, guardamos el identificador de avisos de ese dispositivo (<code>device_push_tokens</code>). Los usamos sólo para enviarle esos avisos. Puede desactivarlos en cualquier momento desde Ajustes o desde su dispositivo.</li>
+            <li><strong>Notificaciones:</strong> si usted activa los avisos en el navegador, guardamos la suscripción push de su navegador (<code>push_subscriptions</code>); en la app para Android o iPhone, si su dispositivo permite los avisos de Bioboros, guardamos el identificador de avisos de ese dispositivo (<code>device_push_tokens</code>). Los usamos sólo para enviarle esos avisos. Puede desactivarlos en cualquier momento desde Configuración → General → Notificaciones o desde su dispositivo.</li>
             <li><strong>Datos técnicos automáticos:</strong> dirección IP, tipo de navegador o dispositivo, sistema operativo, y eventos de error (gestionados por Sentry con filtrado de información personal — ver Sección 7).</li>
         </ul>
 
@@ -209,6 +209,10 @@ export const Privacy = () => (
             [Ronda 3] Con el 842 completo (3d6d079b: Configuración entera, «Evaluar de nuevo», el check-in de
             renovación y los vasos del agua) §8 vuelve a decir que PostHog no recibe datos de salud y Protección de
             Datos §5 lo dice en positivo (landing, rama ia6d-integ-landing, 4a610e1). Sólo con 3d6d079b desplegado.
+            [P1-APP-VARIANTES · 2026-09-29, pedido de 0f] Las dos copias a la vez (landing ia6d-soporte2, a72c235):
+            Reembolsos §8 sin plazo de respuesta, y el menú «Ajustes», que no existe, por las rutas reales de Configuración
+            (Privacidad §2, §7, §10 y §13; Protección de Datos §5; Reembolsos §2 y §5; Términos §3 y §8), con la
+            salvedad de que Suscripción sólo existe en el navegador (SECTION_IDS, nativeHidesCommerce).
             Ancla: src/__tests__/legal_verdad_publica.test.js */}
         <p>Como motor generativo utilizamos <strong>modelos de IA de última generación de proveedores externos</strong>, y un proveedor más para la memoria del coach. Hoy son <strong>cuatro</strong> proveedores de IA, y no todos reciben lo mismo:</p>
         <ul>
@@ -263,7 +267,7 @@ export const Privacy = () => (
             a propósito: el landing
             dice que «estas políticas» no cargan PostHog porque allí se sirven desde bioboros.com; esta
             copia vive en app.bioboros.com, que sí lo carga. Ancla: src/__tests__/lote794.test.js */}
-        <p>Usamos además <strong>PostHog</strong> (PostHog, Inc.) para analítica de producto dentro de la aplicación: cuántas personas la usan, qué secciones visitan y en qué punto abandonan el registro. Es analítica de uso, no publicidad: no vendemos ni compartimos esos datos con anunciantes, y sólo asociamos los eventos a su cuenta —por identificador interno, nunca por correo ni nombre— si usted ha iniciado sesión. Funciona <strong>sin cookies ni almacenamiento local</strong>: PostHog no escribe cookies ni entradas de <code>localStorage</code> en su dispositivo, así que no deja en él ningún identificador de analítica. Por eso no le pedimos aceptar cookies para la analítica: no hay ninguna cookie de analítica que aceptar. Para contar visitantes sin guardar nada en su dispositivo, PostHog calcula en sus servidores un código seudónimo a partir de su dirección IP, su navegador y una clave que cambia cada día; si usted no ha iniciado sesión, ese código no permite reconocerle de un día a otro. PostHog registra además, de forma automática, qué pantallas visita. En el formulario de su perfil, en Configuración (donde usted marca sus condiciones de salud, medicación, alergias y dieta), en el chequeo de renovación de su plan (su peso, su hambre, su energía y cuánto siguió el plan) y en los vasos del registro de agua, no registra nada de lo que usted pulsa. De Configuración sólo recibe, como eventos propios de Bioboros, que usted cambió de idioma y a cuál, o que reinició su cuenta. En el resto de la aplicación registra qué controles pulsa, sin su texto: sí el tipo de control, su posición en la página, sus clases de estilo y, si es un enlace, su dirección. Nunca registra lo que usted escribe en los campos de texto. Las páginas informativas de bioboros.com (portada, precios, artículos y las políticas publicadas allí) no cargan PostHog; las de la aplicación (app.bioboros.com), incluida esta, sí. Los eventos se procesan en servidores de PostHog en <strong>Estados Unidos</strong>, lo que implica una transferencia internacional de datos (ver Sección 12); como en cualquier conexión, PostHog recibe la dirección IP y el tipo de navegador o dispositivo desde el que se envían. Puede desactivar por completo estos eventos desde <strong>Ajustes → Privacidad → «Ayuda a mejorar Bioboros»</strong>.</p>
+        <p>Usamos además <strong>PostHog</strong> (PostHog, Inc.) para analítica de producto dentro de la aplicación: cuántas personas la usan, qué secciones visitan y en qué punto abandonan el registro. Es analítica de uso, no publicidad: no vendemos ni compartimos esos datos con anunciantes, y sólo asociamos los eventos a su cuenta —por identificador interno, nunca por correo ni nombre— si usted ha iniciado sesión. Funciona <strong>sin cookies ni almacenamiento local</strong>: PostHog no escribe cookies ni entradas de <code>localStorage</code> en su dispositivo, así que no deja en él ningún identificador de analítica. Por eso no le pedimos aceptar cookies para la analítica: no hay ninguna cookie de analítica que aceptar. Para contar visitantes sin guardar nada en su dispositivo, PostHog calcula en sus servidores un código seudónimo a partir de su dirección IP, su navegador y una clave que cambia cada día; si usted no ha iniciado sesión, ese código no permite reconocerle de un día a otro. PostHog registra además, de forma automática, qué pantallas visita. En el formulario de su perfil, en Configuración (donde usted marca sus condiciones de salud, medicación, alergias y dieta), en el chequeo de renovación de su plan (su peso, su hambre, su energía y cuánto siguió el plan) y en los vasos del registro de agua, no registra nada de lo que usted pulsa. De Configuración sólo recibe, como eventos propios de Bioboros, que usted cambió de idioma y a cuál, o que reinició su cuenta. En el resto de la aplicación registra qué controles pulsa, sin su texto: sí el tipo de control, su posición en la página, sus clases de estilo y, si es un enlace, su dirección. Nunca registra lo que usted escribe en los campos de texto. Las páginas informativas de bioboros.com (portada, precios, artículos y las políticas publicadas allí) no cargan PostHog; las de la aplicación (app.bioboros.com), incluida esta, sí. Los eventos se procesan en servidores de PostHog en <strong>Estados Unidos</strong>, lo que implica una transferencia internacional de datos (ver Sección 12); como en cualquier conexión, PostHog recibe la dirección IP y el tipo de navegador o dispositivo desde el que se envían. Puede desactivar por completo estos eventos desde <strong>Configuración → Privacidad → «Ayuda a mejorar Bioboros»</strong>.</p>
         <p>No utilizamos Google Analytics, Mixpanel, Facebook Pixel, ni ningún rastreador publicitario.</p>
 
         <h3>8. Proveedores Subcontratados (Encargados de Tratamiento)</h3>
@@ -289,10 +293,10 @@ export const Privacy = () => (
         <h3>10. Sus Derechos</h3>
         <p>Usted puede en cualquier momento:</p>
         <ul>
-            <li><strong>Acceder</strong> a la información que tenemos de usted desde Ajustes en la app o solicitándola por correo.</li>
+            <li><strong>Acceder</strong> a la información que tenemos de usted desde Configuración en la app o solicitándola por correo.</li>
             <li><strong>Rectificar</strong> datos incorrectos editando su perfil directamente.</li>
-            <li><strong>Eliminar</strong> su cuenta y todos los datos asociados directamente <strong>desde la app</strong> (Ajustes → Eliminar cuenta, con confirmación), o escribiendo a bioboros.support@gmail.com. El borrado dispara CASCADE sobre todas las tablas vinculadas mediante claves foráneas. Lo que se conserva después, y por qué, está en la Sección 9.</li>
-            <li><strong>Exportar</strong> sus datos en formato JSON <strong>al instante desde la app</strong> (Ajustes → Privacidad → Exportar datos). Si prefiere pedirlo por correo, cumplimos en un plazo máximo de 30 días.</li>
+            <li><strong>Eliminar</strong> su cuenta y todos los datos asociados directamente <strong>desde la app</strong> (Configuración → Privacidad → Eliminar mi cuenta, con confirmación), o escribiendo a bioboros.support@gmail.com. El borrado dispara CASCADE sobre todas las tablas vinculadas mediante claves foráneas. Lo que se conserva después, y por qué, está en la Sección 9.</li>
+            <li><strong>Exportar</strong> sus datos en formato JSON <strong>al instante desde la app</strong> (Configuración → Privacidad → Exportar datos). Si prefiere pedirlo por correo, cumplimos en un plazo máximo de 30 días.</li>
             <li><strong>Oponerse</strong> al tratamiento para finalidades distintas a la ejecución del contrato.</li>
             <li><strong>Revocar el consentimiento</strong> cancelando su suscripción y eliminando la cuenta.</li>
         </ul>
@@ -313,7 +317,7 @@ export const Privacy = () => (
             <li><strong>Borrador del chat (<code>IndexedDB</code>):</strong> lo que usted escribe en el chat del coach y todavía no ha enviado —el texto y hasta 4 fotos por conversación— se guarda en SU dispositivo para que no lo pierda si sale de la conversación o de la app. No llega a nuestros servidores mientras no lo envíe; se borra al enviarlo o vaciarlo, al borrar esa conversación y al cerrar sesión.</li>
             <li><strong>Service Worker (PWA):</strong> como Aplicación Web Progresiva, registramos un Service Worker que cachea recursos estáticos (imágenes, fuentes, JavaScript) para uso offline e instalación como app. No envía información personal a nuestros servidores.</li>
             <li><strong>Sentry (telemetría técnica):</strong> inserta un identificador anónimo de sesión técnica para correlacionar errores de una misma visita — sin cookies de rastreo publicitario y con filtrado de datos personales (ver Sección 7).</li>
-            <li><strong>PostHog (analítica de producto):</strong> no guarda cookies ni entradas de <code>localStorage</code> en su dispositivo. Lo nombramos aquí precisamente para decirlo: la analítica no deja en su navegador ningún identificador de visitante (el código diario con el que cuenta visitantes lo calcula PostHog en sus servidores; ver Sección 7). Se desactiva desde <strong>Ajustes → Privacidad</strong>.</li>
+            <li><strong>PostHog (analítica de producto):</strong> no guarda cookies ni entradas de <code>localStorage</code> en su dispositivo. Lo nombramos aquí precisamente para decirlo: la analítica no deja en su navegador ningún identificador de visitante (el código diario con el que cuenta visitantes lo calcula PostHog en sus servidores; ver Sección 7). Se desactiva desde <strong>Configuración → Privacidad → «Ayuda a mejorar Bioboros»</strong>.</li>
             <li><strong>Preferencia de privacidad:</strong> si desactiva los eventos de uso, guardamos esa decisión en su dispositivo (en el <code>localStorage</code> y en una cookie de preferencia de <code>bioboros.com</code>) para seguir respetándola en sus próximas visitas. Contiene sólo esa elección, ningún identificador, y se escribe únicamente cuando usted usa ese interruptor.</li>
         </ul>
         <p>Usted tiene control total: puede bloquear o eliminar cookies desde la configuración de su navegador, borrar el <code>localStorage</code> y desinstalar el Service Worker desde las DevTools (Application → Storage), o usar el modo incógnito para no persistir nada entre sesiones. Tenga en cuenta que bloquear las cookies estrictamente necesarias (sesión) impedirá iniciar sesión o usar funciones que requieran autenticación.</p>
@@ -327,7 +331,7 @@ export const Privacy = () => (
    TÉRMINOS DE SERVICIO
    ============================================================================ */
 export const Terms = () => (
-    <LegalLayout title="Términos de Servicio" lastUpdated="22 de Agosto, 2026">
+    <LegalLayout title="Términos de Servicio" lastUpdated="29 de Septiembre, 2026">
         <p>Bienvenido a Bioboros. Al acceder o utilizar nuestra plataforma usted acepta los presentes Términos de Servicio, que constituyen un acuerdo legalmente vinculante entre usted y Bioboros. Por favor léalos con atención.</p>
 
         <h3>1. Naturaleza del Servicio</h3>
@@ -347,7 +351,7 @@ export const Terms = () => (
         <h3>3. Suscripciones, Planes y Pagos</h3>
         <p>Ofrecemos un plan gratuito con {TIER_CREDITS.gratis} créditos mensuales y tres planes pagos:</p>
         <PlanesDelContrato />
-        <p>Todos los pagos se procesan mediante PayPal. La suscripción se renueva automáticamente al final de cada período (mensual o anual) salvo que usted la cancele desde Ajustes o desde su cuenta de PayPal antes de la fecha de renovación. Las cancelaciones surten efecto al final del período facturado en curso — no realizamos prorrateo de devolución por períodos parcialmente consumidos.</p>
+        <p>Todos los pagos se procesan mediante PayPal. La suscripción se renueva automáticamente al final de cada período (mensual o anual) salvo que usted la cancele desde Configuración → Suscripción (al usar Bioboros en el navegador) o desde su cuenta de PayPal antes de la fecha de renovación. Las cancelaciones surten efecto al final del período facturado en curso — no realizamos prorrateo de devolución por períodos parcialmente consumidos.</p>
         <p><strong>Reembolsos:</strong> las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Puede cancelar en cualquier momento para detener las renovaciones futuras; conservará el acceso hasta el final del período ya pagado. El detalle está en la <strong>Política de Reembolsos y Cancelaciones</strong>.</p>
         <p>Reservamos el derecho de modificar los precios y planes con notificación previa de treinta (30) días para suscriptores existentes.</p>
         <p><strong>Aplicación para iPhone:</strong> si usted usa Bioboros desde la app de la App Store, esa app <strong>no vende suscripciones ni incluye ninguna compra</strong>: sólo refleja el plan que usted tenga contratado. Todas las suscripciones se contratan, renuevan y cancelan exclusivamente en bioboros.com a través de PayPal, según se describe en esta sección. Apple no interviene en el cobro ni en la gestión de su suscripción.</p>
@@ -385,7 +389,7 @@ export const Terms = () => (
         <p>Podremos modificar funcionalidades de la plataforma, añadir nuevas características, deprecar otras o ajustar la capacidad de modelos de IA disponibles, con previo aviso razonable cuando los cambios sean materiales. Estos Términos pueden actualizarse periódicamente; la versión vigente se publica siempre en esta página con su fecha. Para cambios materiales, le notificaremos por correo electrónico antes de su entrada en vigor.</p>
 
         <h3>8. Terminación</h3>
-        <p>Usted puede cancelar su suscripción en cualquier momento desde Ajustes. Bioboros podrá terminar o suspender cuentas que violen estos Términos, incurran en fraude, o representen riesgo para otros usuarios o para la infraestructura. Tras la terminación, sus datos personales se eliminarán según se describe en la Política de Privacidad. Los registros de facturación necesarios para cumplimiento legal se conservarán por el plazo aplicable.</p>
+        <p>Usted puede cancelar su suscripción en cualquier momento desde Configuración → Suscripción (al usar Bioboros en el navegador) o desde su cuenta de PayPal. Bioboros podrá terminar o suspender cuentas que violen estos Términos, incurran en fraude, o representen riesgo para otros usuarios o para la infraestructura. Tras la terminación, sus datos personales se eliminarán según se describe en la Política de Privacidad. Los registros de facturación necesarios para cumplimiento legal se conservarán por el plazo aplicable.</p>
 
         <h3>9. Ley Aplicable y Resolución de Disputas</h3>
         <p>Estos Términos se rigen por las leyes de la República Dominicana, incluyendo en lo pertinente la Ley 358-05 de Protección al Consumidor. Cualquier controversia que no pueda resolverse amistosamente será sometida a los tribunales competentes de la ciudad de Santo Domingo, Distrito Nacional.</p>
@@ -508,7 +512,7 @@ export const DataProtection = () => (
         <h3>4. Cómo Ejercer sus Derechos</h3>
         <p>Ofrecemos vías directas, gratuitas y sin formalismos excesivos:</p>
         <ul>
-            <li><strong>Acceso y rectificación inmediatos:</strong> edite su perfil, peso, objetivos, condiciones y preferencias directamente desde <strong>Ajustes</strong> en la aplicación.</li>
+            <li><strong>Acceso y rectificación inmediatos:</strong> edite su perfil, peso, objetivos, condiciones y preferencias directamente desde <strong>Configuración</strong> en la aplicación.</li>
             <li><strong>Eliminación autoservicio:</strong> puede borrar su cuenta y todos los datos asociados desde la propia app; la eliminación dispara un borrado en cascada sobre todas las tablas vinculadas a su identificador; lo que se conserva después, y por qué, está en la Política de Privacidad (Sección 9).</li>
             <li><strong>Solicitudes por correo:</strong> para acceso detallado, portabilidad (exportación JSON), oposición o cualquier otro derecho, escriba a <strong>bioboros.support@gmail.com</strong> desde el correo asociado a su cuenta. Respondemos en un plazo máximo de <strong>treinta (30) días</strong>.</li>
         </ul>
@@ -632,14 +636,14 @@ export const Research = () => (
    POLÍTICA DE REEMBOLSOS Y CANCELACIONES
    ============================================================================ */
 export const Refunds = () => (
-    <LegalLayout title="Política de Reembolsos y Cancelaciones" lastUpdated="18 de Agosto, 2026">
+    <LegalLayout title="Política de Reembolsos y Cancelaciones" lastUpdated="29 de Septiembre, 2026">
         <p>Esta Política detalla cómo funcionan las cancelaciones y los reembolsos de tu suscripción a Bioboros. Queremos que sea clara y justa, conforme a la Ley No. 358-05 de Protección al Consumidor de República Dominicana. En resumen: puedes <strong>probar gratis</strong> antes de pagar y <strong>cancelar cuando quieras</strong>; las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley lo exija.</p>
 
         <h3>1. Plan Gratis</h3>
         <p>El Plan Gratis no tiene costo ni requiere tarjeta. Puedes dejar de usarlo cuando quieras, sin cargos ni compromisos.</p>
 
         <h3>2. Cómo Cancelar tu Suscripción</h3>
-        <p>Puedes cancelar en cualquier momento desde <strong>Ajustes</strong> en la app o directamente desde tu cuenta de <strong>PayPal</strong>. La cancelación:</p>
+        <p>Puedes cancelar en cualquier momento desde <strong>Configuración → Suscripción → «Cancelar Suscripción»</strong> al usar Bioboros en el navegador (la app para iPhone o Android no muestra esa sección), o directamente desde tu cuenta de <strong>PayPal</strong>. La cancelación:</p>
         <ul>
             <li>Detiene las futuras renovaciones automáticas.</li>
             <li>Surte efecto <strong>al final del período ya facturado</strong> (mensual o anual): conservas el acceso de pago hasta esa fecha.</li>
@@ -658,7 +662,7 @@ export const Refunds = () => (
         <p>Cuando la Ley No. 358-05 de Protección al Consumidor u otra normativa aplicable te reconozca un derecho de reembolso o de retracto en un caso concreto, lo respetaremos. Si consideras que te corresponde, escríbenos a <strong>bioboros.support@gmail.com</strong> desde el correo asociado a tu cuenta, indicando el plan y la fecha de compra; revisaremos tu solicitud y, cuando proceda, acreditaremos el reembolso por la misma vía de pago (PayPal).</p>
 
         <h3>5. Renovación Automática</h3>
-        <p>Las suscripciones se renuevan automáticamente al final de cada período hasta que las canceles. Te recomendamos revisar tu fecha de renovación en Ajustes o en PayPal. Si modificamos los precios, te avisaremos con al menos <strong>treinta (30) días</strong> de anticipación antes de que el nuevo precio aplique a tu renovación.</p>
+        <p>Las suscripciones se renuevan automáticamente al final de cada período hasta que las canceles. Te recomendamos revisar tu fecha de renovación en Configuración → Suscripción («Próximo cobro»), al usar Bioboros en el navegador, o en PayPal. Si modificamos los precios, te avisaremos con al menos <strong>treinta (30) días</strong> de anticipación antes de que el nuevo precio aplique a tu renovación.</p>
 
         <h3>6. Pagos por PayPal</h3>
         <p>Todos los pagos se procesan a través de PayPal. Bioboros no almacena tu número de tarjeta ni datos financieros. Validamos del lado del servidor que el plan reportado por PayPal coincida con el que seleccionaste.</p>
@@ -667,7 +671,7 @@ export const Refunds = () => (
         <p>Si tienes un problema con un cobro, contáctanos primero a <strong>bioboros.support@gmail.com</strong> — la mayoría se resuelve rápido. Conservas tus derechos como consumidor bajo la Ley 358-05 y la posibilidad de acudir a las instancias de protección al consumidor que correspondan.</p>
 
         <h3>8. Contacto</h3>
-        <p>Para cualquier asunto de facturación, cancelaciones o reembolsos: <strong>bioboros.support@gmail.com</strong>. Respondemos en menos de 24 horas.</p>
+        <p>Para cualquier asunto de facturación, cancelaciones o reembolsos, escríbenos a <strong>bioboros.support@gmail.com</strong>.</p>
     </LegalLayout>
 );
 

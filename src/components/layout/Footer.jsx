@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { Link, useLocation } from 'react-router-dom';
-import { Instagram, Youtube, Facebook, Mail, Clock } from 'lucide-react';
+import { Instagram, Youtube, Facebook, Mail } from 'lucide-react';
 import styles from './Footer.module.css';
 // [P3-LEGAL-HEADER-PARITY · 2026-06-30] LEGAL_PATHS desde SSOT compartido con Header.
 import { LEGAL_PATHS } from '../../utils/legalRoutes';
@@ -241,10 +241,10 @@ const Footer = () => {
                                     </span>
                                     bioboros.support@gmail.com
                                 </a>
-                                <p className={styles.supportNote}>
-                                    <Clock size={13} strokeWidth={2.25} aria-hidden="true" />
-                                    {t('Respondemos en menos de 24 horas')}
-                                </p>
+                                {/* [P1-APP-VARIANTES · 2026-09-29, pedido de 0f] Aquí iba un plazo de
+                                    respuesta con un reloj. El dueño no ha comprometido ninguno, y un plazo
+                                    incumplido es una promesa falsa ante el consumidor: fuera, igual que en el
+                                    pie del landing. Ancla: src/__tests__/legal_verdad_publica.test.js. */}
                     </FooterColumn>
                 </div>
 

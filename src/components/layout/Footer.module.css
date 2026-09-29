@@ -213,21 +213,6 @@
     background: rgba(129, 140, 248, 0.1);
 }
 
-.supportNote {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin: 0.95rem 0 0;
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--text-muted);
-}
-
-.supportNote svg {
-    flex-shrink: 0;
-    color: var(--secondary);
-}
-
 .bottom {
     grid-column: 1 / -1;
     width: 100%;
@@ -545,20 +530,6 @@
 :global(html[data-theme="paper"]) .supportLink:hover .supportIcon {
     border-color: var(--pa-ink);
     background: transparent;
-}
-
-/* [P1-PAPER-THEME-FIX1 · 2026-08-01, corregido Task 8] `.supportNote` usa
-   var(--text-muted) sobre el footer siempre-oscuro: #64748B/#0F172A da
-   3,75:1 a 0,8rem — FALLA AA HOY, antes de este rediseño; no es un problema
-   nuevo de papel. Bajo papel, --text-muted remapea a #3D3D3B: peor todavía
-   sobre #0B0B0B. var(--pa-ink-3) (aquí #8C8C84) sube a 5,81:1. El fallo de
-   AA en dark/light queda fuera de este PR — la base (línea ~210) no se toca. */
-:global(html[data-theme="paper"]) .supportNote {
-    color: var(--pa-ink-3);
-}
-
-:global(html[data-theme="paper"]) .supportNote svg {
-    color: var(--pa-ink-3);
 }
 
 /* [cajetín retirado · 2026-08-07] Aquí vivía la fila inferior de papel:
