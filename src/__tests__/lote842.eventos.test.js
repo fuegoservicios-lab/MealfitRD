@@ -25,6 +25,7 @@ const PERMITIDOS = {
     coach_voz_cerrado: [],
     coach_voz_minimizado: [],   // lote 688: minimizar el modo voz a burbuja, sin propiedades
     coach_voz_turno: [],
+    coach_voz_live_turno: [],   // lote 905: un turno con GPT-Live-1 (prueba del operador), sin propiedades
     dashboard_initial_inventory_stale: ['reason', 'user_id'],
     locale_changed: ['a', 'de', 'resultado'],
     pdf_download_failed: ['duration', 'error_message', 'error_name', 'plan_id', 'user_id'],
