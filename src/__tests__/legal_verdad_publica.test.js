@@ -272,7 +272,7 @@ const REFUTADAS = [
     },
     {
         frase: '<strong>Ajustes</strong>',
-        porque: 'el mismo menú inexistente en negrita (Reembolsos §2, Protección de Datos §5)',
+        porque: 'el mismo menú inexistente en negrita (Reembolsos §2, Protección de Datos §4)',
         landing: 'La misma frase se retiró de content/refunds.html y content/data-protection.html en el repo del landing',
     },
     {
@@ -284,7 +284,7 @@ const REFUTADAS = [
     // `plazo-de-respuesta-menor-que-24h` y su forma escapada. ALCANCE de esta tabla: sólo la copia legal
     // (`LegalPages.jsx`). El beneficio del plan Max de `pages/Upgrade.jsx`, que vendía el mismo plazo, lo
     // vigila su propio bloque más abajo (decisión de 0f del 29-sep). «Respondemos en» a secas no se prohíbe:
-    // casaría con Protección de Datos §5 («Respondemos en un plazo máximo de treinta (30) días»), plazo de
+    // casaría con Protección de Datos §4 («Respondemos en un plazo máximo de treinta (30) días»), plazo de
     // norma que se queda.
     {
         frase: 'días hábiles',
@@ -379,7 +379,7 @@ const EXIGIDAS = [
     { frase: 'Configuración → Privacidad → «Ayuda a mejorar Bioboros»', porque: 'Settings.jsx: Privacidad → Preferencias → t(\'Ayuda a mejorar {app}\') (Privacidad §7 y §13) — `ruta-analitica-configuracion-privacidad`' },
     { frase: 'Configuración → Privacidad → Eliminar mi cuenta', porque: 'DeleteAccountSection dentro de Privacidad, botón «Eliminar mi cuenta» (Privacidad §10) — `ruta-eliminar-cuenta`' },
     { frase: 'Configuración → Privacidad → Exportar datos', porque: 'Privacidad → «Tus datos» → «Exportar datos» (Privacidad §10) — `ruta-exportar-datos`' },
-    { frase: 'desde <strong>Configuración</strong> en la aplicación', porque: 'Protección de Datos §5 — `ruta-configuracion-proteccion-datos`' },
+    { frase: 'desde <strong>Configuración</strong> en la aplicación', porque: 'Protección de Datos §4 — `ruta-configuracion-proteccion-datos`' },
     { frase: 'Configuración → Suscripción → «Cancelar Suscripción»', porque: 'Settings.jsx: botón «Cancelar Suscripción» de la sección Suscripción (Reembolsos §2) — `ruta-cancelar-suscripcion`' },
     { frase: 'la app para iPhone o Android no muestra esa sección', porque: 'SECTION_IDS quita Suscripción con nativeHidesCommerce() (Reembolsos §2) — `cancelar-no-en-la-app-nativa`' },
     { frase: 'Configuración → Suscripción (al usar Bioboros en el navegador)', porque: 'Términos §3 y §8 — `ruta-cancelar-terminos`' },
