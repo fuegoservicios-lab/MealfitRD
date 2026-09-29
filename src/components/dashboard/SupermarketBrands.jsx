@@ -3,6 +3,8 @@ import PropTypes from 'prop-types';
 import { BadgeCheck, Check, ChevronDown, Store } from 'lucide-react';
 import { toast } from 'sonner';
 import { APEX_ORIGIN } from '../../config/site';
+// [P1-PLAN-LOTE-845] El ÚNICO gate de comercio (P1-IOS-NATIVE-SHELL): en nativo no se enlaza el catálogo público.
+import { nativeHidesCommerce } from '../../config/platform';
 import { api, fetchWithAuth } from '../../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import { formatNumber, useT, useTn } from '../../i18n';
@@ -962,7 +964,12 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                                         </button>
                                                                     );
                                                                 })}
-                                                                {g.variants.length > g.shownVariants.length && (
+                                                                {/* [P1-PLAN-LOTE-845 · 2026-09-29] En la app nativa no: abría en
+                                                                    Safari `bioboros.com/supermercado`, página de marketing con
+                                                                    «Precios» en la navegación (3.1.1) — la misma que «Más
+                                                                    información» y el pie ya no enlazan en nativo. Las variantes
+                                                                    de arriba siguen eligiéndose aquí. */}
+                                                                {!nativeHidesCommerce() && g.variants.length > g.shownVariants.length && (
                                                                     <a
                                                                         href={`${APEX_ORIGIN}/supermercado?q=${encodeURIComponent(g.food_name)}`}
                                                                         target="_blank"

@@ -1,6 +1,8 @@
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../../data/routeMeta';
+// [P1-PLAN-LOTE-845] El ÚNICO gate de comercio (P1-IOS-NATIVE-SHELL).
+import { nativeHidesCommerce } from '../../config/platform';
 // [P3-MORE-INFO-MENU · 2026-07-03] SSOT de los enlaces del submenú "Más
 // información" (estilo Claude.ai) — consumido por la card del menú de cuenta
 // del sidebar (AccountMenu) y por el menú "más" móvil (DashboardLayout).
@@ -63,17 +65,22 @@ export function moreInfoGroups(traducir) {
   const t = typeof traducir === 'function'
     ? traducir
     : (x, vars) => String(x).replace(/\{(\w+)\}/g, (m, n) => (vars && n in vars ? String(vars[n]) : m));
-  return [
-    [
-      { label: t('Acerca de {app}', { app: BRAND }), path: '/about' },
-      { label: t('Novedades'), path: '/novedades' },
-      { label: t('Cómo funciona'), path: '/como-funciona' },
-      { label: t('Supermercado RD'), path: '/supermercado' },
-    ],
-    [
-      { label: t('Términos de servicio'), path: '/terms' },
-      { label: t('Política de privacidad'), path: '/privacy' },
-      { label: t('Aviso médico'), path: '/medical' },
-    ],
+  const conocer = [
+    { label: t('Acerca de {app}', { app: BRAND }), path: '/about' },
+    { label: t('Novedades'), path: '/novedades' },
+    { label: t('Cómo funciona'), path: '/como-funciona' },
+    { label: t('Supermercado RD'), path: '/supermercado' },
   ];
+  const legal = [
+    { label: t('Términos de servicio'), path: '/terms' },
+    { label: t('Política de privacidad'), path: '/privacy' },
+    { label: t('Aviso médico'), path: '/medical' },
+  ];
+  // [P1-PLAN-LOTE-845 · 2026-09-29] En la app nativa, SOLO el grupo legal (auditoría App Store, fila 10.2 y §A.5).
+  // Los cuatro de arriba son marketing del apex: citan precios, su navegación enlaza a /precios y abrirlos en
+  // Safari era llegar a comprar fuera desde la app (3.1.1). Los legales sí se quedan —Apple exige la política
+  // accesible desde la app— y en nativo `apexUrl()` los manda a su variante `/app/*`, sin navegación de marketing.
+  // Aquí y no en los dos menús: el SSOT decide una vez y los dos consumidores (AccountMenu y el menú «más» móvil)
+  // lo heredan.
+  return nativeHidesCommerce() ? [legal] : [conocer, legal];
 }

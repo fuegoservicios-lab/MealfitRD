@@ -79,14 +79,44 @@ export function registerNativeProbe(fn) {
     _isNativeProbe = typeof fn === 'function' ? fn : () => false;
 }
 
+/**
+ * [P1-PLAN-LOTE-845 · 2026-09-29] Páginas del apex que tienen variante `/app/*`: el MISMO
+ * texto legal, sin la navegación de marketing, sin precios y sin botones de llamada a la
+ * acción (las publicó la sesión 6d; auditoría App Store, filas 1.1 y 10.2, §A.5).
+ *
+ * Por qué. En la app nativa cada enlace legal abría `bioboros.com/privacy` en Safari, y esa
+ * página lleva «Precios» en su navegación: desde la app se llegaba a comprar fuera en dos
+ * toques (guideline 3.1.1). Apple exige que la política sea alcanzable desde la app, así que
+ * la solución no es quitar el enlace sino que apunte a una página sin salida al comercio.
+ *
+ * Se decide AQUÍ y en ningún otro sitio: todos los enlaces legales pasan ya por `apexUrl()`
+ * (el test de P1-LEGAL-LINKS-APEX lo vigila), así que la hoja del permiso de IA, Configuración,
+ * el login, «Más información» y el pie la heredan sin tocar sus call sites. Solo en NATIVO: la
+ * web sigue enlazando las páginas normales. Una ruta que no está en la lista sigue a su página
+ * de siempre (no existe una variante que inventar).
+ */
+export const RUTAS_CON_VARIANTE_APP = Object.freeze([
+    '/privacy', '/terms', '/medical', '/ai-policy', '/data-protection',
+    '/acceptable-use', '/refunds', '/soporte',
+]);
+
+// `/privacy#seccion` o `/terms?x=1` conservan el resto tras la ruta.
+function varianteApp(path) {
+    const p = String(path);
+    const corte = p.search(/[?#]/);
+    const ruta = corte < 0 ? p : p.slice(0, corte);
+    const resto = corte < 0 ? '' : p.slice(corte);
+    return RUTAS_CON_VARIANTE_APP.includes(ruta) ? `/app${ruta}${resto}` : p;
+}
+
 export function apexUrl(path) {
     if (typeof window === 'undefined') return path;
     // En la app nativa el host es `localhost` (capacitor://localhost), igual que en
     // dev — pero aquí NO hay ruta interna que valga: la copia JSX de las legales
     // quedó obsoleta frente al apex (única copia desde P1-LEGAL-UNA-SOLA-COPIA) y
     // Apple exige que la política accesible desde la app sea LA política. Así que en
-    // nativo el apex es siempre absoluto.
-    if (_isNativeProbe()) return `${APEX_ORIGIN}${path}`;
+    // nativo el apex es siempre absoluto, y en su variante `/app/*` cuando la tiene.
+    if (_isNativeProbe()) return `${APEX_ORIGIN}${varianteApp(path)}`;
     const { protocol, hostname } = window.location;
     if (isSiteHost(hostname)) {
         return `${protocol}//${hostname.replace(/^app\./i, '')}${path}`;

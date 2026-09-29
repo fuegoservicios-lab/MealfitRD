@@ -190,12 +190,24 @@ const Footer = () => {
                     <FooterColumn title={t('Privacidad y datos')} collapsible={isPaper}>
                                 <EnlaceLegal a="/privacy">{t('Política de Privacidad')}</EnlaceLegal>
                                 <EnlaceLegal a="/data-protection">{t('Protección de Datos')}</EnlaceLegal>
-                                <EnlaceLegal a="/responsible-disclosure">{t('Divulgación Responsable')}</EnlaceLegal>
+                                {/* [P1-PLAN-LOTE-845 · 2026-09-29] En nativo no se enlaza: es la única legal
+                                    del pie SIN variante `/app/*` (`RUTAS_CON_VARIANTE_APP`, site.js), así que
+                                    abriría la página normal del apex, con «Precios» en la navegación (3.1.1).
+                                    Cuando exista `/app/responsible-disclosure`, se añade a esa lista y este gate
+                                    sobra. */}
+                                {!nativeHidesCommerce() && (
+                                    <EnlaceLegal a="/responsible-disclosure">{t('Divulgación Responsable')}</EnlaceLegal>
+                                )}
                     </FooterColumn>
                 </div>
 
                 {/* [P3-ABOUT-PAGE · 2026-06-30] Columna "Empresas": página corporativa
                     (Acerca de Bioboros) + Investigación (movida desde "Privacidad y datos"). */}
+                {/* [P1-PLAN-LOTE-845 · 2026-09-29] En la app nativa la columna ENTERA sale (auditoría App Store,
+                    fila 10.2 y §A.5): sus cuatro destinos son marketing. Novedades y Supermercado colapsan a
+                    /dashboard en nativo (un enlace que rebota), el apex de /about y de /supermercado lleva
+                    «Precios» en su navegación, e Investigación es una página de presentación, no de la app. */}
+                {!nativeHidesCommerce() && (
                 <div className={styles.col}>
                     {/* [P1-PAPER-THEME · 2026-08-01 · ronda de arreglo 1, 2ª iter] El
                         <details> de Términos+Privacidad solo (868,9px) no bastaba para bajar
@@ -213,7 +225,10 @@ const Footer = () => {
                                 En NATIVO no se enlaza: a diferencia de las legales —que Apple
                                 EXIGE que sean alcanzables— esta es marketing, cita precios en
                                 RD$ y enlaza a `/precios` (3.1.1). Antes lo tapaba el gate de
-                                la ruta React; al quitar la ruta, el gate se muda aquí. */}
+                                la ruta React; al quitar la ruta, el gate se muda aquí.
+                                [P1-PLAN-LOTE-845] Su gate propio se queda aunque la columna ya
+                                no se pinte en nativo: si el enlace cambia de columna, el gate
+                                se va con él. */}
                             {!nativeHidesCommerce() && (
                                 <EnlaceApex a="/about">Bioboros</EnlaceApex>
                             )}
@@ -224,6 +239,7 @@ const Footer = () => {
                             <Link to="/research" state={{ from: fromPath }}>{t('Investigación')}</Link>
                     </FooterColumn>
                 </div>
+                )}
 
                 {/* [P3-FOOTER-SUPPORT · 2026-05-31] Contacto directo de soporte
                     en un clic (antes solo alcanzable enterrado en las legales /

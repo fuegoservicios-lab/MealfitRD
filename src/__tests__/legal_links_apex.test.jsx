@@ -49,7 +49,10 @@ describe('[P1-LEGAL-LINKS-APEX] apexUrl() en la app nativa', () => {
     it('en nativo devuelve el apex absoluto aunque el host sea localhost', () => {
         nativeFlag.value = true;
         // jsdom: window.location.hostname === 'localhost', igual que capacitor://localhost
-        expect(apexUrl('/privacy')).toBe(`${APEX_ORIGIN}/privacy`);
+        // [P1-PLAN-LOTE-845 · 2026-09-29] …y en su variante `/app/*` cuando la tiene: el mismo texto sin la
+        // navegación de marketing con «Precios» (3.1.1). Una ruta sin variante sigue absoluta, como antes.
+        expect(apexUrl('/privacy')).toBe(`${APEX_ORIGIN}/app/privacy`);
+        expect(apexUrl('/about')).toBe(`${APEX_ORIGIN}/about`);
     });
 
     it('en web-dev (localhost, NO nativo) sigue devolviendo la ruta interna', () => {

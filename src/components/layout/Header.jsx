@@ -29,6 +29,8 @@ import { isNewsRoute } from '../../utils/newsRoutes';
 import { isPaperSurface } from '../../utils/paperSurface';
 import { useT } from '../../i18n';
 import Wordmark from '../common/Wordmark';
+// [P1-PLAN-LOTE-845] El ÚNICO gate de comercio (P1-IOS-NATIVE-SHELL): en nativo, ni la nav de marketing ni el CTA fijo.
+import { nativeHidesCommerce } from '../../config/platform';
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../../data/routeMeta';
@@ -109,7 +111,11 @@ const Header = () => {
     // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El CTA del header SIEMPRE visible en
     // landing/marketing (decisión del owner). Ya no se gatea por scroll, así que Header
     // dejó de consumir heroCtaVisible.
-    const showStickyCta = isLandingLike && !hideStartNow;
+    // [P1-PLAN-LOTE-845 · 2026-09-29] …salvo en la app nativa (auditoría App Store, fila 10.2 y §A.5; 3.1.1). Las
+    // rutas con este header que siguen vivas en nativo (las legales internas y /research) pintaban la nav de
+    // marketing, cuyo último ítem es «Precios», y el CTA fijo del landing. La nav y el CTA van con el mismo gate.
+    const showMarketingNav = isLandingLike && !nativeHidesCommerce();
+    const showStickyCta = isLandingLike && !hideStartNow && !nativeHidesCommerce();
 
     // [ACCOUNT-MENU · 2026-06-01] Identidad para el avatar (inicial) + la cabecera
     // del menú (nombre + correo). Fallbacks: nombre del perfil → parte local del
@@ -196,7 +202,7 @@ const Header = () => {
                     SEGMENTADA CENTRADA (entre logo y CTA). En el DOM también en móvil para
                     mobile-first indexing (display:none <768px en CSS). Cada ítem es un
                     enlace de RUTA a su página de detalle; el activo se marca por pathname. */}
-                {isLandingLike && (
+                {showMarketingNav && (
                     <nav className={styles.navMarketing} aria-label={t('Páginas')}>
                         {/* [P1-PAPER-THEME · 2026-08-01] `aria-current` baja de `'true'` a
                             `'page'`: este link SÍ representa "la página actual dentro de un
@@ -363,7 +369,7 @@ const Header = () => {
                         {/* [P3-HEADER-MOBILE-HAMBURGER · 2026-06-29] Opciones del nav de
                             marketing dentro del menú móvil (landing-like): Cómo funciona,
                             Funciones, Precisión, Precios. */}
-                        {isLandingLike && navSections.map((s, i) => (
+                        {showMarketingNav && navSections.map((s, i) => (
                             <Link
                                 key={s.id}
                                 to={s.to}
