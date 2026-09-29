@@ -11,7 +11,8 @@
 //   - si cambia el género (habichuelas→frijoles) concuerda el determinante de delante y los adjetivos de detrás, también
 //     coordinados («cocidas y escurridas»); si el RESTO —hasta que se vuelve a nombrar la palabra, pasos siguientes
 //     incluidos— vuelve sobre ella en femenino («májalas», «hasta cubrirlas», «, previamente remojadas») o un vecino no
-//     sabe concordar, GLOSA, como el lote 649. Es una heurística con límites medidos (docs/lexico_vista_pais.md);
+//     sabe concordar, GLOSA, como el lote 649; también con un número o un invariable entre un determinante que cambia
+//     y la palabra («las 2 habichuelas», «las demás»). Es una heurística con límites medidos (docs/lexico_vista_pais.md);
 //   - «funda» solo como envase de la lista (en un paso es el verbo: «que el queso funda»);
 //   - en la frase, lo que el léxico no cubre lo glosa el 649 en la MISMA pasada (nada se encadena).
 //
@@ -36,6 +37,8 @@ const _ENLACE = /^\s*(,|\p{L}+)\s+(\p{L}+)/u;
 const _ENTRE_PASOS = '\n.\n';
 // La palabra como complemento de otro nombre («tortitas de habichuela», «la masa de la habichuela»).
 const _COMPLEMENTO = /(?<![\p{L}\p{N}])de(?:\s+(?:la|una|esta|esa))?\s+$/iu;
+// Lo último antes de una posición: un número (grupo 1, con las fracciones de la receta) o una palabra (grupo 2).
+const _FINAL_NUM_O_PALABRA = /(?:(\p{Nd}+(?:[.,]\p{Nd}+)?[½¼¾⅓⅔⅕⅛⅜⅝⅞¹²³]?|[½¼¾⅓⅔⅕⅛⅜⅝⅞¹²³])|(\p{L}+))\s+$/u;
 
 const _pais = (pais) => (typeof pais === 'string' ? pais.trim().toUpperCase() : '');
 
@@ -208,6 +211,23 @@ function _restoInseguro(resto, num, c) {
     return false;
 }
 
+/**
+ * Dónde empieza la racha de números y de palabras de `previos_invariables` justo delante de `hasta` («las 2
+ * habichuelas», «las demás habichuelas», «las otras dos»), o null si no hay ninguno. Espejo de `_inicio_de_invariables`.
+ */
+function _inicioDeInvariables(texto, hasta, c) {
+    const inv = _lista(c, 'previos_invariables');
+    let h = hasta;
+    let inicio = null;
+    for (let k = 0; k < 4; k++) {
+        const m = _FINAL_NUM_O_PALABRA.exec(texto.slice(0, h));
+        if (!m || (m[2] !== undefined && !inv.has(m[2].toLowerCase()))) break;
+        h = m.index;
+        inicio = h;
+    }
+    return inicio;
+}
+
 /** Dónde vuelve a nombrarse la palabra de `fila` (cualquier número) a partir de `desde`, o null. */
 function _proximaMencion(texto, desde, fila) {
     let mejor = null;
@@ -244,6 +264,13 @@ function _concordar(texto, ini, fin, n, fila, ocupados, siguientes = []) {
     const num = n ? 'pl' : 'sg';
     const dets = c?.determinantes?.[num] || {};
     const ediciones = [];
+    // Un número o un invariable entre el determinante y el nombre («las 2 habichuelas», «las demás habichuelas»): el
+    // determinante no es el vecino y no se concuerda; si es de los que cambian, no es seguro sustituir.
+    const salto = _inicioDeInvariables(texto, ini, c);
+    if (salto !== null) {
+        const antesDeSalto = _palabraPrevia(texto, salto);
+        if (antesDeSalto && Object.prototype.hasOwnProperty.call(dets, antesDeSalto[0].toLowerCase())) return null;
+    }
     const prev = _palabraPrevia(texto, ini);
     if (prev) {
         const [palabra, pIni, pFin] = prev;
