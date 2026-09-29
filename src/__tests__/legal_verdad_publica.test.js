@@ -253,6 +253,15 @@ const REFUTADAS = [
     { frase: 'desde Ajustes', porque: 'el mismo menú inexistente sin flecha (Privacidad §2 y §10, Términos §3 y §8)' },
     { frase: '<strong>Ajustes</strong>', porque: 'el mismo menú inexistente en negrita (Reembolsos §2, Protección de Datos §5)' },
     { frase: 'en Ajustes o en PayPal', porque: 'el mismo menú inexistente (Reembolsos §5)' },
+    // [P1-APP-VARIANTES · 2026-09-29 · pedido de 0f] Espejo de `plazo-en-dias-habiles`,
+    // `plazo-de-respuesta-menor-que-24h` y su forma escapada. ALCANCE: sólo esta copia legal
+    // (`LegalPages.jsx`). «Respuesta < 24h con técnico dedicado» de `pages/Upgrade.jsx` es un beneficio
+    // vendido del plan Ultra, decisión de producto pendiente: queda fuera a propósito. «Respondemos en» a
+    // secas no se prohíbe: casaría con Protección de Datos §5 («Respondemos en un plazo máximo de treinta
+    // (30) días»), plazo de norma que se queda.
+    { frase: 'días hábiles', porque: 'Divulgación Responsable §1 prometía acusar recibo en 3 días hábiles, un plazo que el dueño no ha comprometido' },
+    { frase: '< 24h', porque: 'la misma promesa de plazo en forma abreviada' },
+    { frase: '&lt; 24h', porque: 'la misma promesa de plazo en forma abreviada, escrita como entidad HTML' },
 ];
 
 // [P1-PLAN-LOTE-794 · ronda 2] Lo que la copia TIENE que decir, igual que las `exigidas` del landing. Sin
@@ -336,6 +345,7 @@ const EXIGIDAS = [
     { frase: 'la app para iPhone o Android no muestra esa sección', porque: 'SECTION_IDS quita Suscripción con nativeHidesCommerce() (Reembolsos §2) — `cancelar-no-en-la-app-nativa`' },
     { frase: 'Configuración → Suscripción (al usar Bioboros en el navegador)', porque: 'Términos §3 y §8 — `ruta-cancelar-terminos`' },
     { frase: 'reembolsos, escríbenos a <strong>bioboros.support@gmail.com</strong>.', porque: 'Reembolsos §8 sigue dando el correo, sin plazo — `reembolsos-contacto-sin-plazo`' },
+    { frase: 'Confirmaremos la recepción de tu reporte.', porque: 'Divulgación Responsable §1 sigue comprometiendo el acuse, sin plazo — `divulgacion-acuse-sin-plazo`' },
 ];
 
 // [FUSIÓN 0f + 6d · ronda 3 · 2026-09-29] La FAQ de Investigación también existe dos veces:

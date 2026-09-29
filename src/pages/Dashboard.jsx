@@ -3472,11 +3472,11 @@ const DashboardInner = () => {
                 });
             } else if (r.code === 'permiso_denegado') {
                 toast.info(t('Notificaciones omitidas'), {
-                    description: t('Puedes activarlas más adelante desde Ajustes.')
+                    description: t('Puedes activarlas más adelante desde Configuración → General.')
                 });
             } else {
                 toast.error(t('No se pudieron activar las alertas'), {
-                    description: t('Puedes activarlas más adelante desde Ajustes.')
+                    description: t('Puedes activarlas más adelante desde Configuración → General.')
                 });
             }
         } catch (error) {

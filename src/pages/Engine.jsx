@@ -369,7 +369,7 @@ const Engine = () => {
                         exentas de todo lo anterior: nunca se fusionan ni pierden peso, y su prioridad
                         se fija siempre al máximo (por diseño, fallan del lado seguro). Tu memoria vive
                         por cuenta —jamás se cruza con la de otro usuario ni se usa para entrenar
-                        modelos de terceros— y puedes pausarla cuando quieras desde Ajustes.
+                        modelos de terceros— y puedes pausarla cuando quieras desde Configuración → Capacidades.
                     </p>
                 </div>
             </section>

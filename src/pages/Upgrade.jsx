@@ -250,7 +250,10 @@ function getFaqItems() {
     return [
         {
             q: t('¿Puedo cancelar en cualquier momento?'),
-            a: t('Sí. Tu suscripción se puede cancelar desde Ajustes en un click, sin penalización ni preguntas. Mantienes acceso al plan hasta el final del período facturado.'),
+            // [P1-APP-VARIANTES · 2026-09-29, pedido de 0f] Decía «desde Ajustes en un click»: no hay menú «Ajustes» y
+            // cancelar pide confirmación (botón + modal). La acción vive en Configuración → Suscripción
+            // (Settings.jsx `renderSubscriptionSection`), sólo en el navegador — como esta página (App.jsx NATIVE_NO_COMMERCE).
+            a: t('Sí. Tu suscripción se puede cancelar desde Configuración → Suscripción, sin penalización ni preguntas. Mantienes acceso al plan hasta el final del período facturado.'),
         },
         {
             q: t('¿Qué pasa cuando se acaban mis créditos del mes?'),

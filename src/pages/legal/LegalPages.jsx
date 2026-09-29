@@ -740,9 +740,12 @@ export const AcceptableUse = () => (
    POLÍTICA DE DIVULGACIÓN RESPONSABLE (SEGURIDAD)
    [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de reporte coordinado de
    vulnerabilidades. Companion: /.well-known/security.txt (RFC 9116) la referencia.
+   [P1-APP-VARIANTES · 2026-09-29, pedido de 0f] §1 acusa recibo SIN plazo (antes prometía
+   hacerlo en un plazo de 3 días): el dueño no ha comprometido ninguno. Igual que el landing
+   (ia6d-soporte2, d6f7bee). Ancla: src/__tests__/legal_verdad_publica.test.js.
    ============================================================================ */
 export const ResponsibleDisclosure = () => (
-    <LegalLayout title="Política de Divulgación Responsable" lastUpdated="30 de Junio, 2026">
+    <LegalLayout title="Política de Divulgación Responsable" lastUpdated="29 de Septiembre, 2026">
         <p>En Bioboros la seguridad de tus datos —especialmente tu información de salud— es una prioridad. Agradecemos a la comunidad de investigadores de seguridad que nos ayuda a proteger a nuestros usuarios. Esta Política explica cómo reportarnos una vulnerabilidad de forma responsable y qué puedes esperar de nosotros a cambio.</p>
 
         <h3>1. Cómo Reportar una Vulnerabilidad</h3>
@@ -753,7 +756,7 @@ export const ResponsibleDisclosure = () => (
             <li>El navegador, sistema operativo o herramienta que usaste.</li>
             <li>Cualquier sugerencia de mitigación, si la tienes.</li>
         </ul>
-        <p>Puedes escribirnos en español o en inglés. Confirmaremos la recepción de tu reporte normalmente dentro de <strong>3 días hábiles</strong>.</p>
+        <p>Puedes escribirnos en español o en inglés. Confirmaremos la recepción de tu reporte.</p>
 
         <h3>2. Nuestro Compromiso Contigo</h3>
         <p>Cuando reportas de buena fe siguiendo esta Política, nos comprometemos a:</p>

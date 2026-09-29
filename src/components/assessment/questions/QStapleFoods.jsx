@@ -344,7 +344,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                     background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
                     color: 'var(--warning-text)', fontSize: '0.82rem', lineHeight: 1.45,
                 }}>
-                    {t('No pudimos cargar la lista de alimentos, así que el buscador no va a encontrar nada ahora mismo. Este paso es opcional: puedes seguir y añadir tus básicos más adelante desde Ajustes.')}
+                    {t('No pudimos cargar la lista de alimentos, así que el buscador no va a encontrar nada ahora mismo. Este paso es opcional: puedes seguir y añadir tus básicos más adelante desde Configuración → Súper Personalización.')}
                 </p>
             )}
 
