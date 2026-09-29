@@ -133,6 +133,33 @@ const REFUTADAS = [
         frase: 'ElevenLabs',
         porque: 'producción no le envía nada desde el 31-may (P1-DEADCODE-TTS); nombrarlo declara un tratamiento que no ocurre',
     },
+    // [FUSIÓN 0f + 6d · 2026-09-28] Lo que la rama lote-771-legal-react (0f) corrigió en esta copia y
+    // las filas nuevas de `verdad-publica.json` del landing fusionado (rama ia6d-integ-landing). La
+    // guarda «(sólo a OpenAI)» de 0f ya la cubre `sólo a OpenAI`, más arriba.
+    {
+        frase: 'Z.ai',
+        porque: 'DeepSeek reemplazó a Z.ai como generador del plan y del coach; Z.ai ya no recibe nada (0 llamadas en llm_usage_events)',
+    },
+    {
+        frase: 'decida compartir (cuando la función esté disponible)',
+        porque: 'el escáner de fotos está vivo (hoy lo sirve Google, API de Gemini); la Política de Uso lo presentaba como futuro',
+    },
+    {
+        frase: 'cómputo y de nuestro proveedor de IA',
+        porque: 'son cuatro proveedores de IA (DeepSeek, OpenAI, Google y Cohere), no uno',
+    },
+    {
+        frase: 'salvo el proveedor de inferencia',
+        porque: 'los datos de salud los reciben varios proveedores de inferencia, además de Cohere, los avisos y la analítica (Protección de Datos §5)',
+    },
+    {
+        frase: 'personas para las que cocina',
+        porque: 'el tamaño del hogar no se pregunta ni se puede fijar (householdSize fijo en 1)',
+    },
+    {
+        frase: 'Sirven para escalar las cantidades',
+        porque: 'restos de la frase del hogar: el presupuesto acota la lista, nada escala las cantidades a cuántos comen',
+    },
 ];
 
 // [P1-PLAN-LOTE-794 · ronda 2] Lo que la copia TIENE que decir, igual que las `exigidas` del landing. Sin
@@ -150,9 +177,27 @@ const EXIGIDAS = [
     { frase: '<strong>Cohere</strong>', porque: '«cohere» es subcadena de «coherencia»: se exige el nombre marcado' },
     { frase: 'un resumen de su perfil (objetivo, alergias', porque: 'lo que Cohere recibe al generar el plan (Privacidad)' },
     { frase: 'un resumen de tu perfil (objetivo, alergias', porque: 'lo mismo en la Política de IA' },
-    { frase: 'Google LLC', porque: 'Google en sus tres papeles: fotos, avisos de Android e identidad' },
+    { frase: 'Google LLC', porque: 'Google en sus cuatro papeles: fotos, avisos de Android, voz del modo voz e identidad' },
     { frase: 'Firebase Cloud Messaging', porque: 'los avisos de Android llevan texto que puede mencionar la salud' },
     { frase: 'Apple Push Notification', porque: 'los avisos del iPhone, ídem' },
+    // [FUSIÓN 0f + 6d · 2026-09-28] Las exigidas nuevas del landing fusionado, en esta copia.
+    { frase: 'en cuatro papeles distintos', porque: 'Google: fotos, avisos de Android, voz del modo voz (P1-PLAN-LOTE-685) e identidad (Privacidad §8)' },
+    { frase: 'enviamos el texto de esa respuesta a Google (API de Gemini', porque: 'desde el 685 la voz del modo voz la genera Google a partir del texto de la respuesta (Privacidad §2)' },
+    { frase: 'a Bioboros sólo llega el texto transcrito', porque: 'el dictado convierte la voz en texto en el dispositivo (Privacidad §2)' },
+    { frase: 'se usa la voz de su dispositivo', porque: 'el respaldo del modo voz es la voz del dispositivo, no un tercer proveedor' },
+    { frase: 'Cada cambio queda registrado con quién lo hizo, cuándo y por qué, y cada consulta, con quién la hizo y cuándo.', porque: 'acceso del equipo de Bioboros (P1-PLAN-LOTE-771, Privacidad §5): cada acción del panel queda en admin_access_log' },
+    { frase: 'Ese acceso no incluye sus conversaciones con el asistente, sus fotos ni su perfil de salud.', porque: 'lo que el panel de soporte NO ve (Privacidad §5)' },
+    { frase: 'aparece en la exportación de sus datos', porque: 'los regalos de cuenta (account_grants) salen en la exportación (Privacidad §2)' },
+    { frase: 'genera días de su plan', porque: 'OpenAI genera días del plan en todos los planes, no sólo revisa los de pago (Privacidad §4)' },
+    { frase: 'genera días de tu plan', porque: 'lo mismo en la Política de IA §2' },
+    { frase: '<strong>Cohere Inc.</strong>', porque: 'Cohere como encargado en Privacidad §8' },
+    { frase: 'los proveedores de inferencia', porque: 'Protección de Datos §5, en plural' },
+    { frase: 'nuestros proveedores de IA', porque: 'Política de Uso §4, en plural' },
+    { frase: 'no le pedimos aceptar cookies para la analítica', porque: 'PostHog sin cookies: no hay ninguna que aceptar (Privacidad §7)' },
+    { frase: '<strong>9-1-1</strong> en República Dominicana', porque: 'Aviso Médico §6: el número de cada país (G94)' },
+    { frase: '<strong>911</strong> en Estados Unidos, Puerto Rico y México', porque: 'Aviso Médico §6' },
+    { frase: '<strong>112</strong> en España', porque: 'Aviso Médico §6' },
+    { frase: '<strong>123</strong> en Colombia', porque: 'Aviso Médico §6' },
 ];
 
 describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
