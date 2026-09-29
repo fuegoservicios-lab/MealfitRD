@@ -157,7 +157,10 @@ describe('lote 166 · beta nativa', () => {
         const f = s.slice(i, i + 3200);
         expect(f).toContain('if (isNativeApp()) {');
         expect(f).toContain('navigator.share');
-        expect(f).toContain('navigator.clipboard');
+        // [P1-PLAN-LOTE-716] Con los plugins del binario se comparte el ARCHIVO (Filesystem + Share); el respaldo ya no
+        // copia el JSON de salud al portapapeles (al alcance de cualquier app): dice dónde descargarlo.
+        expect(f).toContain('puedeCompartirNativo()');
+        expect(f).not.toContain('navigator.clipboard.writeText(json)');
     });
     it('Configuración valida con los rangos del formulario', () => {
         const s = leer('src/pages/Settings.jsx');

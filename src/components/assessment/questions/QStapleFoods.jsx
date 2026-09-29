@@ -175,15 +175,20 @@ export const QStapleFoods = ({ onManualAdvance }) => {
 
     const freeableSlots = collapsedGroups.reduce((acc, g) => acc + g.length - 1, 0);
 
+    // [P1-PLAN-LOTE-715 · 2026-09-28] Las DOS claves a la vez: el servidor lee `staple_foods` (la que escribe el panel de
+    // Configuración) antes que `stapleFoods`, y el formulario lleva una copia hidratada de `staple_foods`. Escribiendo
+    // solo `stapleFoods`, lo que se cambiaba aquí se ignoraba y el plan salía con los básicos viejos.
+    const guardarBasicos = (lista) => { updateData('stapleFoods', lista); updateData('staple_foods', lista); };
+
     const addStaple = (name) => {
         if (atMax || !name) return;
         const next = [...staples, name];
-        updateData('stapleFoods', next);
+        guardarBasicos(next);
         setQuery('');
     };
 
     const removeStaple = (name) => {
-        updateData('stapleFoods', staples.filter(s => s !== name));
+        guardarBasicos(staples.filter(s => s !== name));
         if (anchors.some((a) => a && a.name === name)) updateData('stapleAnchors', anchors.filter((a) => a && a.name !== name));
         if (editing === name) setEditing(null);
     };

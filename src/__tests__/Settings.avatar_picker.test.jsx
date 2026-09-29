@@ -25,11 +25,14 @@ describe('avatar del perfil: elegir directo y quitar', () => {
         expect(block).toContain("aria-label={t('Quitar avatar')}");
     });
     it('fila de opciones accesible: radiogroup con la inicial + los 11 avatares', () => {
-        expect(SRC).toContain('role="radiogroup" aria-label={t(\'Elegir avatar\')}');
+        // [P1-PLAN-LOTE-718] El grupo usa `useRadioGroupAccesible` (una parada de Tab + flechas): el hook pone
+        // `role="radiogroup"` / `role="radio"` / `aria-checked` / tabindex.
+        expect(SRC).toContain("{...rgAvatar.propsGrupo} aria-label={t('Elegir avatar')}");
+        expect(SRC).toContain("{...rgAvatar.propsRadio('__inicial__')}");
         expect(SRC).toContain("aria-label={t('Usar mi inicial')}");
         expect(SRC).toContain('{MINIMAL_AVATARS.map((a, i) => (');
         expect(SRC).toContain("aria-label={t('Avatar {n}', { n: i + 1 })}");
-        expect(SRC).toContain('aria-checked={avatarId === a.id}');
+        expect(SRC).toContain('{...rgAvatar.propsRadio(a.id)}');
     });
     it('estilos por tokens: la «×» se tiñe de peligro al hover y la opción elegida lleva anillo', () => {
         expect(CSS).toContain('.avatarRemove:hover {');

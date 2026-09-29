@@ -11,6 +11,8 @@
 //     ignora; si no, se muestra como aviso local para que no se pierda.
 //   · Tocar el aviso abre la ruta que trae (`data.url`).
 //   · Cerrar sesión borra el token de ESTA cuenta (antes del signOut, que el DELETE va autenticado).
+//   · [P1-PLAN-LOTE-718] Apagar «Alertas Inteligentes» también: `apagarPushNativa` borra el token en el servidor
+//     y deja una marca para que volver a la app no lo registre otra vez; `permitirPushNativa` la quita.
 // Sin el plugin (binario anterior) todo es no-op: el JS llega por OTA, el plugin solo con un APK nuevo.
 import { isNativeApp, nativePluginAvailable, nativePlatform } from '../config/platform';
 import { fetchWithAuth } from '../config/api';
@@ -19,11 +21,51 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 
 export const CLAVE_TOKEN = 'mealfit_fcm_token';
 export const CLAVE_ENVIADO = 'mealfit_fcm_enviado';   // `{ user, at }` del último registro aceptado por el servidor
+// [P1-PLAN-LOTE-718 · 2026-09-28] `{ user, pendiente }`: esta cuenta apagó las alertas en este teléfono. `pendiente` =
+// el DELETE del token aún no llegó al servidor (sin red al apagar) y se reintenta al volver a la app.
+export const CLAVE_APAGADA = 'mealfit_fcm_apagada';
 export const CANAL_ANDROID = 'bioboros-avisos';        // el mismo canal que los recordatorios (utils/avisosDeComida)
 export const REENVIO_MS = 24 * 60 * 60 * 1000;
 const ID_AVISO_EN_PRIMER_PLANO = 4400;
+const TOPE_BORRADO_MS = 2500;
 
 const _usuarioActual = () => safeLocalStorageGet('mealfit_user_id', null) || null;
+
+function _leerJSON(clave) {
+    try { return JSON.parse(safeLocalStorageGet(clave, 'null') || 'null'); } catch { return null; }
+}
+
+/**
+ * [P1-PLAN-LOTE-718 · 2026-09-28] ¿La cuenta actual apagó la push nativa en este teléfono?
+ *
+ * EL DEFECTO: apagar «Alertas Inteligentes» en la app nativa solo cancelaba los recordatorios LOCALES. El token de
+ * FCM/APNs seguía en el servidor —el plan listo, el coach, la Nevera seguían llegando— y, peor, `registrarSiHayPermiso`
+ * volvía a registrarlo en cada regreso a la app: aunque alguien lo borrara, el teléfono lo reponía solo.
+ *
+ * Es por cuenta: la marca de A no apaga nada a B si entra en el mismo teléfono. Sin usuario conocido, se respeta.
+ */
+export function pushNativaApagada() {
+    const marca = _leerJSON(CLAVE_APAGADA);
+    if (!marca) return false;
+    const usuario = _usuarioActual();
+    return !marca.user || !usuario || marca.user === usuario;
+}
+
+async function _borrarTokenEnServidor(token) {
+    try {
+        const r = await Promise.race([
+            fetchWithAuth('/api/notifications/device-token', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, platform: nativePlatform() === 'ios' ? 'ios' : 'android' }),
+            }),
+            new Promise((resolve) => setTimeout(() => resolve(null), TOPE_BORRADO_MS)),
+        ]);
+        return !!(r && r.ok);
+    } catch {
+        return false;
+    }
+}
 
 /** ¿Hay que (re)enviar el token? Pura: token, usuario actual, lo último enviado y «ahora». */
 export function hayQueEnviar({ token, usuario, enviado, ahora = Date.now() }) {
@@ -34,6 +76,8 @@ export function hayQueEnviar({ token, usuario, enviado, ahora = Date.now() }) {
 
 /** ¿El servidor ya tiene el token de este teléfono para la cuenta actual? (el vigía del plan lo consulta) */
 export function pushNativaActiva() {
+    // [P1-PLAN-LOTE-718] Apagada = el vigía local del plan listo vuelve a ser quien avisa.
+    if (pushNativaApagada()) return false;
     try {
         const enviado = JSON.parse(safeLocalStorageGet(CLAVE_ENVIADO, 'null') || 'null');
         return !!(enviado && enviado.user && enviado.user === _usuarioActual());
@@ -54,6 +98,8 @@ async function _plugin() {
 }
 
 export async function enviarToken() {
+    // [P1-PLAN-LOTE-718] Con las alertas apagadas no se registra nada: ni al arrancar, ni al volver, ni cada 5 min.
+    if (pushNativaApagada()) return false;
     const token = safeLocalStorageGet(CLAVE_TOKEN, null);
     const usuario = _usuarioActual();
     let enviado = null;
@@ -75,6 +121,8 @@ export async function enviarToken() {
 
 /** Pide a FCM el token si el permiso ya está concedido (sin diálogo). */
 export async function registrarSiHayPermiso() {
+    // [P1-PLAN-LOTE-718] Mientras la cuenta tenga las alertas apagadas, volver a la app NO vuelve a registrarse.
+    if (pushNativaApagada()) return false;
     const PN = (await _plugin())?.PN;
     if (!PN) return false;
     try {
@@ -87,21 +135,64 @@ export async function registrarSiHayPermiso() {
     }
 }
 
+/**
+ * [P1-PLAN-LOTE-718 · 2026-09-28] Apaga la push NATIVA de la cuenta actual en este teléfono: marca «apagada» (así
+ * `registrarSiHayPermiso`/`enviarToken` dejan de reponer el token al volver a la app) y borra el token en el servidor
+ * (`DELETE /api/notifications/device-token`, el mismo que usa el cierre de sesión). Acotado a 2,5 s; si el borrado
+ * no llega, la marca lo deja pendiente y se reintenta al volver a la app. Nunca lanza.
+ * @returns {Promise<boolean>} true si el servidor confirmó el borrado (o no había nada que borrar).
+ */
+export async function apagarPushNativa() {
+    const usuario = _usuarioActual();
+    const token = safeLocalStorageGet(CLAVE_TOKEN, null);
+    safeLocalStorageRemove(CLAVE_ENVIADO);
+    const hayQueBorrar = !!(token && isNativeApp());
+    safeLocalStorageSet(CLAVE_APAGADA, JSON.stringify({ user: usuario, pendiente: hayQueBorrar }));
+    if (!hayQueBorrar) return true;
+    const ok = await _borrarTokenEnServidor(token);
+    if (ok) safeLocalStorageSet(CLAVE_APAGADA, JSON.stringify({ user: usuario, pendiente: false }));
+    return ok;
+}
+
+/**
+ * [P1-PLAN-LOTE-718 · 2026-09-28] Lo contrario: quita la marca y, con el permiso ya concedido, registra el token y se
+ * lo manda al servidor. No pide permiso (eso lo hace quien enciende). Nunca lanza.
+ * @returns {Promise<boolean>} true si el token quedó enviado.
+ */
+export async function permitirPushNativa() {
+    safeLocalStorageRemove(CLAVE_APAGADA);
+    try {
+        await registrarSiHayPermiso();
+        return await enviarToken();
+    } catch {
+        return false;
+    }
+}
+
+/** Un borrado que quedó pendiente al apagar (sin red), reintentado con la sesión que haya ahora. */
+async function _reintentarBorradoPendiente() {
+    const marca = _leerJSON(CLAVE_APAGADA);
+    const token = safeLocalStorageGet(CLAVE_TOKEN, null);
+    if (!marca || !marca.pendiente || !token || !pushNativaApagada()) return;
+    if (await _borrarTokenEnServidor(token)) {
+        safeLocalStorageSet(CLAVE_APAGADA, JSON.stringify({ user: marca.user || null, pendiente: false }));
+    }
+}
+
 /** Al cerrar sesión: el servidor deja de mandar a este teléfono los avisos de esta cuenta. Acotado a 2,5 s. */
 export async function olvidarTokenAlCerrarSesion() {
     const token = safeLocalStorageGet(CLAVE_TOKEN, null);
+    // [P1-PLAN-LOTE-718 · 2026-09-28] Solo se borra lo que este teléfono registró para la cuenta (o un borrado que
+    // quedó pendiente al apagar las alertas). Tras BORRAR LA CUENTA, `DeleteAccountSection` ya hizo esta limpieza con
+    // la sesión viva; un segundo DELETE aquí, ya sin cuenta, respondía 401 y hacía saltar «Tu sesión expiró» encima de
+    // «Tu cuenta fue eliminada».
+    const habiaEnvio = !!safeLocalStorageGet(CLAVE_ENVIADO, null);
+    const marca = _leerJSON(CLAVE_APAGADA);
+    const pendiente = !!(marca && marca.pendiente);
     safeLocalStorageRemove(CLAVE_ENVIADO);
-    if (!token || !isNativeApp()) return;
-    try {
-        await Promise.race([
-            fetchWithAuth('/api/notifications/device-token', {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, platform: nativePlatform() === 'ios' ? 'ios' : 'android' }),
-            }),
-            new Promise((resolve) => setTimeout(resolve, 2500)),
-        ]);
-    } catch { /* el logout sigue */ }
+    if (!token || !isNativeApp() || !(habiaEnvio || pendiente)) return;
+    const ok = await _borrarTokenEnServidor(token);
+    if (ok && pendiente) safeLocalStorageSet(CLAVE_APAGADA, JSON.stringify({ user: marca.user || null, pendiente: false }));
 }
 
 function _abrir(url) {
@@ -155,10 +246,15 @@ export async function iniciarPushNativa() {
         });
     } catch { /* sin listeners la push sigue llegando con la app cerrada */ }
     registrarSiHayPermiso();
+    _reintentarBorradoPendiente();
     // Tras conceder el permiso (Configuración, o al generar un plan) y tras iniciar sesión: al volver a la app y cada
     // 5 min se reintenta; `enviarToken` no hace nada si ya está al día.
+    // [P1-PLAN-LOTE-718] Con las alertas apagadas, lo único que se hace al volver es terminar un borrado pendiente.
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') { registrarSiHayPermiso(); enviarToken(); }
+        if (document.visibilityState !== 'visible') return;
+        if (pushNativaApagada()) { _reintentarBorradoPendiente(); return; }
+        registrarSiHayPermiso();
+        enviarToken();
     });
     setInterval(() => { enviarToken(); }, 5 * 60 * 1000);
 }

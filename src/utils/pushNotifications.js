@@ -26,16 +26,43 @@ export const isPushSupported = () => {
 };
 
 /**
- * Solicita permiso para mostrar notificaciones.
- * Retorna true si fue concedido, false si fue denegado.
+ * [P1-PLAN-LOTE-718 · 2026-09-28] Pide el permiso y devuelve el ESTADO, no un booleano:
+ *   'granted'      concedido;
+ *   'denied'       BLOQUEADO — el navegador ya no volverá a preguntar; solo se arregla en sus ajustes;
+ *   'default'      la persona CERRÓ el diálogo sin elegir: no está bloqueado y se puede volver a pedir;
+ *   'unsupported'  este navegador no tiene la API de notificaciones.
+ * El booleano de `requestNotificationPermission` juntaba 'denied' y 'default' en un mismo `false`, y
+ * Configuración trataba el diálogo cerrado como un bloqueo: enseñaba cómo desbloquear en los ajustes del
+ * navegador algo que no estaba bloqueado.
  */
-export const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-        return false;
+export const pedirPermisoDeNotificaciones = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
+    let permiso;
+    try {
+        permiso = await Notification.requestPermission();
+    } catch {
+        permiso = Notification.permission;
     }
-    const permission = await Notification.requestPermission();
-    return permission === 'granted';
+    return permiso === 'granted' || permiso === 'denied' ? permiso : 'default';
 };
+
+/**
+ * Solicita permiso para mostrar notificaciones.
+ * Retorna true si fue concedido, false si no (bloqueado O diálogo cerrado: para distinguirlos,
+ * `pedirPermisoDeNotificaciones`).
+ */
+export const requestNotificationPermission = async () => (await pedirPermisoDeNotificaciones()) === 'granted';
+
+/* [P1-PLAN-LOTE-718 · 2026-09-28] El plazo del Service Worker es un CÓDIGO, no una frase. Antes el
+   `reject(new Error("Service Worker timeout"))` llegaba a Configuración como `error` (el camino del
+   «mensaje del navegador») y se pintaba tal cual, en inglés, en los cinco idiomas. Semánticamente es
+   `sw_missing` —no hay Service Worker listo—, que ya tiene su copy traducido. */
+const _plazoDelServiceWorker = (ms) => new Promise((_, reject) => setTimeout(() => {
+    const e = new Error('sw_missing');
+    e.code = 'sw_missing';
+    e.motivo = 'sw_timeout';
+    reject(e);
+}, ms));
 
 /**
  * Suscribe el dispositivo y guarda el objeto de suscripción en el Backend.
@@ -62,7 +89,7 @@ export const subscribeToPushNotifications = async () => {
         if (!registration) {
             registration = await Promise.race([
                 navigator.serviceWorker.ready,
-                new Promise((_, reject) => setTimeout(() => reject(new Error("Service Worker timeout")), 3000))
+                _plazoDelServiceWorker(3000),
             ]);
         }
 
@@ -107,7 +134,14 @@ export const subscribeToPushNotifications = async () => {
         if (err.name === 'AbortError' || (err.message && err.message.includes('push service'))) {
             return { success: false, code: 'brave_blocks_push' };
         }
-        
+
+        // [P1-PLAN-LOTE-718 · 2026-09-28] `pushManager.subscribe` lanza NotAllowedError cuando el permiso
+        // no está concedido (se revocó entre pedirlo y suscribirse). Es un bloqueo, no un fallo raro: el
+        // llamador ya tiene su camino para `permiso_denegado`, con `reason` como en `activarAvisos`.
+        if (err?.name === 'NotAllowedError') {
+            return { success: false, code: 'permiso_denegado', reason: 'denied' };
+        }
+
         // Sin código conocido: se pasa el mensaje del NAVEGADOR, que no es copy nuestro
         // (lo compone el motor y suele venir ya en el idioma del sistema).
         // El codigo, si el throw lo trae, llega hasta el llamador: sin esto el copy
@@ -175,7 +209,7 @@ export const unsubscribeFromPushNotifications = async () => {
         if (!registration) {
             registration = await Promise.race([
                 navigator.serviceWorker.ready,
-                new Promise((_, reject) => setTimeout(() => reject(new Error("Service Worker timeout")), 3000))
+                _plazoDelServiceWorker(3000),
             ]);
         }
 

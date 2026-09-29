@@ -49,6 +49,11 @@ describe('[P1-PLAN-LOTE-710] piso tipográfico', () => {
                     : [
                         ...[...l.matchAll(/fontSize\s*:\s*(['"])(\d*\.?\d+)(rem|px)\1/g)].map((m) => aPx(m[2], m[3])),
                         ...[...l.matchAll(/fontSize\s*:\s*(\d+(?:\.\d+)?)(?=\s*[,}])/g)].map((m) => Number(m[1])),
+                        // [P1-PLAN-LOTE-718 · 2026-09-28] También el CSS escrito dentro de `<style>{`…`}</style>`
+                        // en JSX: se escapaba (la suscripción de Configuración tenía 10,6 px). Fuera quedan las
+                        // plantillas HTML de IMPRESIÓN (PDF de la lista), que llevan `style="…"` en la línea: en
+                        // papel 11 px es cuerpo de texto normal.
+                        ...(l.includes('style="') ? [] : [...l.matchAll(/font-size\s*:\s*(\d*\.?\d+)(rem|px)\b/g)].map((m) => aPx(m[1], m[2]))),
                     ];
                 for (const px of reglas) if (px < 12) pequenos.push(`${rel}:${i + 1} → ${px.toFixed(1)} px`);
             });

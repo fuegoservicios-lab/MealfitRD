@@ -253,7 +253,11 @@ function getFaqItems() {
         },
         {
             q: t('¿Qué pasa cuando se acaban mis créditos del mes?'),
-            a: t('Los créditos se reinician automáticamente cada mes el día de tu fecha de inicio. Si necesitas más antes, puedes hacer upgrade a un plan superior y la diferencia se prorratea.'),
+            // [P1-PLAN-LOTE-718 · 2026-09-28] Prometía dos cosas que el backend no hace. Los créditos se cuentan
+            // desde el día 1 del mes natural (`db_profiles.get_monthly_api_usage`), no desde la fecha de alta. Y no
+            // hay prorrateo: subir de plan es una suscripción NUEVA a precio completo y la anterior se cancela en
+            // ese momento sin devolver lo ya pagado (`routers/billing.py`, «Detectado Upgrade/Cambio»).
+            a: t('Tus créditos se renuevan el día 1 de cada mes. Si necesitas más antes, puedes pasarte a un plan superior y su límite se aplica al momento. El cambio es una suscripción nueva a precio completo: la anterior se cancela en ese momento, sin prorrateo ni reembolso de lo ya pagado.'),
         },
         {
             q: t('¿Ofrecen reembolsos?'),

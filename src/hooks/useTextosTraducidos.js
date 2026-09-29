@@ -45,6 +45,25 @@ function _guardar(locale) {
     safeLocalStorageSet(_clave(locale), JSON.stringify(Object.fromEntries(entradas)));
 }
 
+/**
+ * [P1-PLAN-LOTE-716 · 2026-09-28] Olvida las traducciones guardadas (memoria y dispositivo) de TODOS los idiomas.
+ * Entre esas frases están los hechos que el coach recuerda del usuario —alergias y condiciones incluidas—, en claro
+ * en `localStorage`. Nadie las borraba al cerrar sesión: en un dispositivo compartido quedaban legibles para el
+ * siguiente. Lo llama la limpieza de cachés por usuario (`_clearUserScopedCaches`).
+ */
+export function borrarTextosTraducidos() {
+    _memoria.clear();
+    _pedidas.clear();
+    try {
+        const claves = [];
+        for (let i = 0; i < window.localStorage.length; i += 1) {
+            const k = window.localStorage.key(i);
+            if (k && k.startsWith('mealfit_textos_i18n:')) claves.push(k);
+        }
+        claves.forEach((k) => window.localStorage.removeItem(k));
+    } catch { /* almacenamiento bloqueado: no hay nada que borrar */ }
+}
+
 async function _pedir(locale, faltan) {
     let hubo = false;
     for (let i = 0; i < faltan.length; i += _LOTE) {

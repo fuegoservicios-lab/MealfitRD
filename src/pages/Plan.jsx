@@ -2881,7 +2881,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 .mf-hero-num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem; }
                 .mf-num { font-family: var(--font-heading, "Outfit", sans-serif); font-weight: 300; font-size: calc(var(--mf-hero) * 0.32); line-height: 1; letter-spacing: -0.035em; color: #FFFFFF; font-variant-numeric: tabular-nums; }
                 .mf-num-unit { font-size: 0.34em; font-weight: 400; color: rgba(255,255,255,0.5); margin-left: 3px; vertical-align: top; letter-spacing: 0; }
-                .mf-hero-phase { font-size: 0.66rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.5); font-variant-numeric: tabular-nums; }
+                .mf-hero-phase { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.5); font-variant-numeric: tabular-nums; }
                 /* ── fases como puntos ── */
                 .mf-dots { list-style: none; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 0; margin: 0 auto 1.8rem; }
                 .mf-dot { position: relative; width: 6px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.18); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease; }

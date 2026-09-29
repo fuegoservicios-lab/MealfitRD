@@ -77,7 +77,9 @@ describe('[P1-WARN-BANNER-TOKENS] los avisos ámbar se adaptan al tema', () => {
         const bloque = estiloDelRecuadroCon(
             leer('pages', 'Settings.jsx'),
             'Permiso bloqueado en el navegador',
-            'role="alert"',
+            // [P1-PLAN-LOTE-718] el aviso es ahora un <button> (se abre con teclado) y el `role="alert"` vive en su
+            // texto: el recuadro se busca desde el guard que lo pinta.
+            '{isPushBlocked && (',
         );
         expect(bloque, 'no se encontró el aviso de permisos').toBeTruthy();
         expect(bloque).toMatch(/var\(--warning-bg\)/);

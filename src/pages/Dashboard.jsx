@@ -2235,6 +2235,12 @@ const DashboardInner = () => {
     //      cuando dispara, no el del momento en que se programó el timer.
     const safeUpdateHealthProfile = useCallback((overrides, { silent = false } = {}) => {
         if (!userProfile || typeof updateUserProfile !== 'function') return false;
+        // [P1-PLAN-LOTE-715 · 2026-09-28] P0: se mandaba `payload` —el formulario ENTERO de este dispositivo— en cada
+        // carga del panel (sincronización de ingredientes desactivados), al ajustar el presupuesto y al cambiar la
+        // duración de compras. El formulario solo se rellena desde el servidor cuando un campo está vacío, y el PATCH
+        // funde clave a clave: una lista de alergias vieja aquí borraba la que el coach añadió desde otro dispositivo.
+        // Ahora viaja SOLO lo que cambia (el servidor funde); `payload` se sigue calculando únicamente como guard de
+        // hidratación (null = el formulario aún se descifra).
         const payload = buildHealthProfilePayload(formDataRef.current, overrides, session);
         if (!payload) {
             // [P1-PROFILE-TOAST-SILENT · 2026-06-16] El guard de hidratación
@@ -2255,7 +2261,7 @@ const DashboardInner = () => {
             }
             return false;
         }
-        updateUserProfile({ health_profile: payload });
+        updateUserProfile({ health_profile: { ...overrides } });
         return true;
     // formDataRef.current se lee desde el ref (siempre latest) → sin dep.
      
@@ -5900,7 +5906,7 @@ const DashboardInner = () => {
                     pointer-events: none;
                 }
                 .restock-modal-chip {
-                    font-size: 0.72rem;
+                    font-size: 0.75rem;
                     color: var(--text-muted);
                     border: 1px solid var(--border);
                     border-radius: 999px;
@@ -5966,7 +5972,7 @@ const DashboardInner = () => {
                         font-size: 1.25rem !important;
                     }
                     .stat-item .stat-label {
-                        font-size: 0.7rem !important;
+                        font-size: 0.75rem !important;
                     }
                     .menu-section-header {
                         flex-direction: column;
@@ -6133,7 +6139,7 @@ const DashboardInner = () => {
                     gap: 0.4rem;
                     padding: 0.35rem 0.55rem 0.35rem 0.75rem;
                     border-radius: 9999px;
-                    font-size: 0.65rem;
+                    font-size: 0.75rem;
                     font-weight: 800;
                     letter-spacing: 0.06em;
                     text-transform: uppercase;
@@ -6314,7 +6320,7 @@ const DashboardInner = () => {
                     text-transform: none;
                     letter-spacing: 0;
                     font-weight: 700;
-                    font-size: 0.7rem;
+                    font-size: 0.75rem;
                     padding: 0.25rem 0.55rem 0.25rem 0.6rem;
                     margin-left: 0.15rem;
                     border-radius: 9999px;
@@ -6361,14 +6367,14 @@ const DashboardInner = () => {
                         gap: 0.5rem;
                         padding: 0.5rem 0.65rem 0.5rem 0.95rem;
                         min-height: 38px;
-                        font-size: 0.72rem;
+                        font-size: 0.75rem;
                     }
                     .plan-tier-badge-label {
-                        font-size: 0.74rem;
+                        font-size: 0.75rem;
                         letter-spacing: 0.07em;
                     }
                     .plan-tier-badge-cta {
-                        font-size: 0.74rem;
+                        font-size: 0.75rem;
                         padding: 0.3rem 0.6rem;
                         margin-left: 0.35rem;
                         background: rgba(255, 255, 255, 0.78);
@@ -10021,7 +10027,7 @@ const DashboardInner = () => {
                 title={t('¿Por qué quieres cambiar?')}
                 subtitle={t('Tu respuesta nos ayuda a mejorar tus futuros planes.')}
                 contextLabel={swapModal?.mealName}
-                unlimited={isPremium || typeof userPlanLimit !== 'number'}
+                unlimited={/* [P1-PLAN-LOTE-714] solo admin: los planes de pago también gastan crédito */ typeof userPlanLimit !== 'number'}
                 quota={{
                     left: typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 0,
                     total: typeof userPlanLimit === 'number' ? userPlanLimit : 0,
@@ -10162,23 +10168,23 @@ const DashboardInner = () => {
                         <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--text-muted)' }} />
                         <div>
                             {hoveredOption === 'dislike' ? (
-                                <><strong>{t('Se evitarán:')}</strong> {currentDayMeals.length > 0 ? currentDayMeals.map(m => mealDisplayName(m, _dashLocale) || m.name).join(', ') : t('los platos actuales')}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
+                                <><strong>{t('Se evitarán:')}</strong> {currentDayMeals.length > 0 ? currentDayMeals.map(m => mealDisplayName(m, _dashLocale) || m.name).join(', ') : t('los platos actuales')}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption === 'variety' ? (
-                                <><strong>{t('Variedad:')}</strong> {t('platos de diferentes cocinas y perfiles de sabor.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
+                                <><strong>{t('Variedad:')}</strong> {t('platos de diferentes cocinas y perfiles de sabor.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption === 'time' ? (
-                                <><strong>{t('Rapidez:')}</strong> {t('platos con ≤20 min de preparación aproximada.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
+                                <><strong>{t('Rapidez:')}</strong> {t('platos con ≤20 min de preparación aproximada.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption === 'cravings' ? (
-                                <><strong>{t('Antojo:')}</strong> {t('opciones más indulgentes dentro de tus objetivos.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
+                                <><strong>{t('Antojo:')}</strong> {t('opciones más indulgentes dentro de tus objetivos.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption === 'weekend' ? (
-                                <><strong>{t('Fin de semana:')}</strong> {t('platos más elaborados y experiencias premium.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
+                                <><strong>{t('Fin de semana:')}</strong> {t('platos más elaborados y experiencias premium.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption ? (
-                                <><strong>{isPlanExpired ? t('Regenerando:') : t('Actualizando:')}</strong> {isPlanExpired ? t('el menú completo del ciclo actual') : t('los platos de este día, cocinando con lo que tienes en tu Nevera')}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
+                                <><strong>{isPlanExpired ? t('Regenerando:') : t('Actualizando:')}</strong> {isPlanExpired ? t('el menú completo del ciclo actual') : t('los platos de este día, cocinando con lo que tienes en tu Nevera')}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {t('Consumirá 1 regeneración')}.</span></>
                             ) : (
-                                isPremium ? (
-                                    <>{t('Plan')} <strong>{t('Premium')}</strong>{t(': Regeneraciones ilimitadas activas.')}</>
-                                ) : (
-                                    <>{t('Te quedan')} <strong>{typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : t('ilimitadas')}</strong> {t('regeneraciones este mes.')}</>
-                                )
+                                // [P1-PLAN-LOTE-714 · 2026-09-28] Decía «Sin costo (Premium)» y «Regeneraciones
+                                // ilimitadas» a basic/plus/ultra, pero swap y regenerar-día cobran 1 crédito a TODO
+                                // usuario registrado (plans.py, P2-SWAP-CHARGE-ON-SUCCESS / regenerate_day). El
+                                // único ilimitado real es admin (centinela 'Ilimitado').
+                                <>{t('Te quedan')} <strong>{typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : t('ilimitadas')}</strong> {t('regeneraciones este mes.')}</>
                             )}
                         </div>
                     </div>
@@ -10189,7 +10195,7 @@ const DashboardInner = () => {
             <MotivoActualizarModal
                 open={showUpdatePlanModal && !isPlanExpired}
                 onClose={() => setShowUpdatePlanModal(false)}
-                unlimited={isPremium || typeof userPlanLimit !== 'number'}
+                unlimited={/* [P1-PLAN-LOTE-714] solo admin: los planes de pago también gastan crédito */ typeof userPlanLimit !== 'number'}
                 quota={{
                     left: typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 0,
                     total: typeof userPlanLimit === 'number' ? userPlanLimit : 0,

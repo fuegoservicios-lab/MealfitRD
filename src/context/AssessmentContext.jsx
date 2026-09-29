@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, us
 // [P1-8 · 2026-07-09] Estabiliza las funciones plain expuestas (identidad constante,
 // siempre closure fresco) para poder memoizar el value sin re-render storm.
 import { useStableCallback } from '../hooks/useStableCallback';
+import { fusionarPerfilEnMemoria, hidrataClaveDelPanel, limpiarRestosPorUsuario } from '../utils/perfilDelServidor';
 import PropTypes from 'prop-types';
 import { authClient } from '../authClient';
 // [P1-FIRST-PARTY-SESSION · 2026-06-16] Cookie de sesión first-party que NUESTRO
@@ -212,6 +213,7 @@ const AssessmentContext = createContext();
 // budgetCurrency hidrata cuando está vacío o cuando un formulario legacy conserva aquel default
 // DOP; el DB refleja la última elección persistida y la edición viva la protege editedFieldsRef.
 const _hydrateFieldQualifies = (k, cur, v) => {
+    const _delPanel = hidrataClaveDelPanel(k, cur, v); if (_delPanel !== null) return _delPanel;   // [P1-PLAN-LOTE-715]
     if (k === 'targetWeightAuto' || k === 'includeSupplements' || k === 'recommendSupplements') {   // +292
         return cur !== true && v === true;
     }
@@ -329,6 +331,7 @@ const _clearUserScopedCaches = () => {
     // cuenta B heredaría la Nevera apagada de A sin haber preguntado jamás al servidor.
     safeLocalStorageRemove('mealfit_nevera_activa');
     safeLocalStorageRemove('mealfit_nevera_auto_off_visto');
+    limpiarRestosPorUsuario();   // [P1-PLAN-LOTE-716] traducciones de la memoria, preferencia de registro, avatar
 };
 
 
@@ -2577,21 +2580,13 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             const { health_profile: healthProfilePatch, ...rest } = updates || {};
 
             const body = {};
-            if (
-                healthProfilePatch
-                && typeof healthProfilePatch === 'object'
-                && Object.keys(healthProfilePatch).length > 0
-            ) {
+            if (healthProfilePatch && typeof healthProfilePatch === 'object' && Object.keys(healthProfilePatch).length > 0) {
                 body.health_profile = healthProfilePatch;
+                body.health_profile_keys = Object.keys(healthProfilePatch);   // [P1-PLAN-LOTE-715] solo estas claves
             }
-            if (Object.keys(rest).length > 0) {
-                body.fields = rest;
-            }
-            if (Object.keys(body).length === 0) {
-                // Nada que actualizar — no-op (paridad con el path legacy, y
-                // evita el 400 "Nada que actualizar" del backend).
-                return { success: true };
-            }
+            if (Object.keys(rest).length > 0) body.fields = rest;
+            // Nada que actualizar — no-op (paridad con el path legacy; evita el 400 "Nada que actualizar" del backend).
+            if (Object.keys(body).length === 0) return { success: true };
 
             const resp = await fetchWithAuth('/api/profile', {
                 method: 'PATCH',
@@ -2606,7 +2601,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 throw new Error(detail);
             }
 
-            setUserProfile((prev) => ({ ...prev, ...updates }));
+            const _ok = await resp.json().catch(() => ({}));
+            setUserProfile((prev) => fusionarPerfilEnMemoria(prev, rest, body.health_profile, _ok?.ignored_keys));   // [P1-PLAN-LOTE-715]
             return { success: true };
         } catch (error) {
             console.error('Error actualizando perfil:', error);
@@ -4545,7 +4541,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
     let userPlanLimit = PLAN_LIMIT;
     if (userProfile?.plan_tier === 'basic') userPlanLimit = 50;
     else if (userProfile?.plan_tier === 'plus') userPlanLimit = 200;
-    else if (['ultra', 'admin'].includes(userProfile?.plan_tier)) userPlanLimit = 'Ilimitado';
+    else if (['ultra', 'admin'].includes(userProfile?.plan_tier)) userPlanLimit = userProfile?.plan_tier === 'ultra' ? 500 : 'Ilimitado';   // [P1-PLAN-LOTE-714] Max corta en 500 (auth._TIER_LIMITS); solo admin es ilimitado
 
     // [P1-GUEST-MODE · 2026-06-15] Para invitados los créditos vienen del
     // contador local (GUEST_PLAN_CREDITS), no del backend. `isGuest` es true

@@ -9,12 +9,13 @@
 // ADITIVO: estas señales mejoran selección/tono y excluyen por cultura/religión;
 // las alergias/condiciones/medicamentos siguen en sus campos estructurados del
 // wizard (este panel NO los toca).
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import { Loader2, X, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
-import useAutoguardado from '../../hooks/useAutoguardado';
+import useAutoguardado, { claveEstable, enviarAlIrse } from '../../hooks/useAutoguardado';
+import { useLatestRef } from '../../hooks/useLatestRef';
 import { useT } from '../../i18n';
 import styles from './SuperPersonalizationPanel.module.css';
 
@@ -92,6 +93,11 @@ const getFlavorLevels = (t) => [
 function TagInput({ label, hint, tags, placeholder, onChange }) {
     const t = useT();
     const [draft, setDraft] = useState('');
+    // [P1-PLAN-LOTE-718 · 2026-09-28] El `<label>` no apuntaba a nada: el campo no tenía
+    // nombre accesible y, con etiquetas puestas, tampoco placeholder — un lector de pantalla
+    // anunciaba «campo de edición» a secas. Ahora la etiqueta visible ES su nombre.
+    const idCampo = useId();
+    const idPista = useId();
 
     const add = () => {
         const v = draft.trim();
@@ -115,29 +121,31 @@ function TagInput({ label, hint, tags, placeholder, onChange }) {
 
     return (
         <div className={styles.field}>
-            <label className={styles.label}>{label}</label>
-            {hint && <p className={styles.hint}>{hint}</p>}
+            <label className={styles.label} htmlFor={idCampo}>{label}</label>
+            {hint && <p className={styles.hint} id={idPista}>{hint}</p>}
             <div className={styles.tagBox}>
                 {tags.map((tag) => (
                     <span key={tag} className={styles.tag}>
                         {tag}
                         <button type="button" aria-label={t('Quitar {etiqueta}', { etiqueta: tag })} onClick={() => onChange(tags.filter((x) => x !== tag))}>
-                            <X size={13} />
+                            <X size={13} aria-hidden="true" />
                         </button>
                     </span>
                 ))}
                 <input
+                    id={idCampo}
                     className={styles.tagInput}
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={onKeyDown}
                     onBlur={add}
-                    placeholder={tags.length ? '' : placeholder}
+                    aria-describedby={hint ? idPista : undefined}
+                    placeholder={tags.length ? t('Añade otro…') : placeholder}
                     maxLength={MAX_TAG_LEN}
                 />
                 {draft.trim() && (
                     <button type="button" className={styles.tagAdd} onClick={add} aria-label={t('Añadir')}>
-                        <Plus size={14} />
+                        <Plus size={14} aria-hidden="true" />
                     </button>
                 )}
             </div>
@@ -147,7 +155,23 @@ function TagInput({ label, hint, tags, placeholder, onChange }) {
 
 export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
     const t = useT();
-    const { updateData } = useAssessment();
+    const { updateData, formData } = useAssessment();
+    // [P1-PLAN-LOTE-718 · 2026-09-28] Por ref: `updateData` es una función nueva en cada
+    // render del proveedor, y `load` no puede depender de ella — su efecto de montaje se
+    // re-dispararía en bucle.
+    const updateDataRef = useLatestRef(updateData);
+    const formDataRef = useLatestRef(formData);
+    const idEquipo = useId();
+    const idEquipoPista = useId();
+    const idReligion = useId();
+    const idNivel = useId();
+    const idOtra = useId();
+    const idOtraPista = useId();
+    const idSabor = useId();
+    const idSaborPista = useId();
+    const idTexto = useId();
+    const idTextoPista = useId();
+    const idContador = useId();
     const [sp, setSp] = useState(EMPTY);
     const [loading, setLoading] = useState(true);
     // [P2-SUPERPERS-FAIL-CLOSED · 2026-07-12] Pre-fix, una carga fallida (red
@@ -177,6 +201,14 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
                 freeText: typeof payload.freeText === 'string' ? payload.freeText : '',
                 religiousRestrictionOther: typeof payload.religiousRestrictionOther === 'string' ? payload.religiousRestrictionOther : '',
             });
+            // [P1-PLAN-LOTE-718 · 2026-09-28] La copia de `formData` se pone al día con lo que
+            // acaba de decir el servidor, no solo al GUARDAR. Editado desde otro dispositivo, el
+            // formulario de aquí conservaba la versión vieja y la próxima renovación del plan la
+            // devolvía al servidor dentro del health_profile, pisando la nueva. Solo si difiere:
+            // `updateData` marca la clave como editada aquí.
+            if (claveEstable(formDataRef.current?.super_personalization ?? null) !== claveEstable(payload)) {
+                try { updateDataRef.current('super_personalization', payload); } catch { /* no-op */ }
+            }
         } catch {
             if (attempt < 1) {
                 willRetry = true;
@@ -189,8 +221,9 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
             if (!willRetry) setLoading(false);
         }
         // `t` es referencialmente estable (el motor devuelve siempre la misma
-        // función); va en las deps solo para no dejar el hook incompleto.
-    }, [t]);
+        // función); va en las deps solo para no dejar el hook incompleto. Los dos refs
+        // también son estables (useLatestRef devuelve siempre el mismo objeto).
+    }, [t, formDataRef, updateDataRef]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -228,12 +261,15 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
             flavorProfile: v.flavorProfile || {},
             freeText: (v.freeText || '').slice(0, MAX_FREETEXT),
         };
-        const res = await fetchWithAuth(ENDPOINT, {
+        const init = {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
-            ...(opciones.keepalive ? { keepalive: true } : {}),
-        });
+        };
+        // [P1-PLAN-LOTE-718 · 2026-09-28] Al irse la página, el PUT sale en ESTE tic
+        // (`enviarAlIrse`): `fetchWithAuth` espera antes un token y la página podía morir en
+        // esa espera sin que la petición llegara a salir.
+        const res = opciones.keepalive ? await enviarAlIrse(ENDPOINT, init) : await fetchWithAuth(ENDPOINT, init);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const saved = data?.super_personalization || body;
@@ -258,8 +294,8 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
 
     if (loading) {
         return (
-            <div className={styles.loading}>
-                <Loader2 size={22} className={styles.spin} />
+            <div className={styles.loading} role="status">
+                <Loader2 size={22} className={styles.spin} aria-hidden="true" />
                 <span>{t('Cargando tu súper personalización…')}</span>
             </div>
         );
@@ -270,7 +306,7 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
     if (loadFailed) {
         return (
             <div className={styles.loading}>
-                <span>{t('No pudimos cargar tu súper personalización. Revisa tu conexión.')}</span>
+                <span role="alert">{t('No pudimos cargar tu súper personalización. Revisa tu conexión.')}</span>
                 <button type="button" className={styles.save} onClick={() => load()}>
                     {t('Reintentar')}
                 </button>
@@ -304,9 +340,12 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
                 onChange={(v) => set('cuisines', v)}
             />
 
-            <div className={styles.field}>
-                <label className={styles.label}>{t('Equipo de cocina que tienes')}</label>
-                <p className={styles.hint}>{t('La IA solo usará técnicas viables con tu equipo.')}</p>
+            {/* [P1-PLAN-LOTE-718 · 2026-09-28] Un grupo de chips no es UN control: un `<label>`
+                sin `htmlFor` no nombra nada. `role="group"` + `aria-labelledby` es lo que hace
+                que el lector de pantalla diga «Equipo de cocina que tienes, grupo» al entrar. */}
+            <div className={styles.field} role="group" aria-labelledby={idEquipo} aria-describedby={idEquipoPista}>
+                <span className={styles.label} id={idEquipo}>{t('Equipo de cocina que tienes')}</span>
+                <p className={styles.hint} id={idEquipoPista}>{t('La IA solo usará técnicas viables con tu equipo.')}</p>
                 <div className={styles.chips}>
                     {getEquipmentOptions(t).map(({ value, label }) => {
                         const active = sp.kitchenEquipment.includes(value);
@@ -327,8 +366,9 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
 
             <div className={styles.row}>
                 <div className={styles.field}>
-                    <label className={styles.label}>{t('Restricción cultural / religiosa')}</label>
+                    <label className={styles.label} htmlFor={idReligion}>{t('Restricción cultural / religiosa')}</label>
                     <select
+                        id={idReligion}
                         className={styles.select}
                         value={sp.religiousRestriction || ''}
                         onChange={(e) => set('religiousRestriction', e.target.value)}
@@ -337,8 +377,9 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
                     </select>
                 </div>
                 <div className={styles.field}>
-                    <label className={styles.label}>{t('Nivel de cocina')}</label>
+                    <label className={styles.label} htmlFor={idNivel}>{t('Nivel de cocina')}</label>
                     <select
+                        id={idNivel}
                         className={styles.select}
                         value={sp.cookingSkill || ''}
                         onChange={(e) => set('cookingSkill', e.target.value)}
@@ -350,9 +391,11 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
 
             {sp.religiousRestriction === 'otra' && (
                 <div className={styles.field}>
-                    <label className={styles.label}>{t('Especifica tu restricción')}</label>
-                    <p className={styles.hint}>{t('La IA la respetará como exclusión obligatoria — nunca incluirá lo que prohíbe.')}</p>
+                    <label className={styles.label} htmlFor={idOtra}>{t('Especifica tu restricción')}</label>
+                    <p className={styles.hint} id={idOtraPista}>{t('La IA la respetará como exclusión obligatoria — nunca incluirá lo que prohíbe.')}</p>
                     <input
+                        id={idOtra}
+                        aria-describedby={idOtraPista}
                         className={styles.select}
                         style={{ cursor: 'text' }}
                         type="text"
@@ -364,14 +407,17 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
                 </div>
             )}
 
-            <div className={styles.field}>
-                <label className={styles.label}>{t('Perfil de sabor')}</label>
-                <p className={styles.hint}>{t('Cuánto te gusta cada perfil. Ajusta la condimentación.')}</p>
+            <div className={styles.field} role="group" aria-labelledby={idSabor} aria-describedby={idSaborPista}>
+                <span className={styles.label} id={idSabor}>{t('Perfil de sabor')}</span>
+                <p className={styles.hint} id={idSaborPista}>{t('Cuánto te gusta cada perfil. Ajusta la condimentación.')}</p>
                 <div className={styles.flavors}>
                     {getFlavors(t).map((f) => (
                         <div key={f.key} className={styles.flavor}>
-                            <span>{f.label}</span>
+                            {/* [P1-PLAN-LOTE-718] Era un `<span>` al lado del select: se veía como
+                                etiqueta y no lo era — los tres selects se anunciaban igual, «—». */}
+                            <label className={styles.flavorLabel} htmlFor={`${idSabor}-${f.key}`}>{f.label}</label>
                             <select
+                                id={`${idSabor}-${f.key}`}
                                 className={styles.select}
                                 value={sp.flavorProfile?.[f.key] || ''}
                                 onChange={(e) => setFlavor(f.key, e.target.value)}
@@ -384,11 +430,13 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
             </div>
 
             <div className={styles.field}>
-                <label className={styles.label}>{t('Cuéntale lo que sea a la IA')}</label>
-                <p className={styles.hint}>
+                <label className={styles.label} htmlFor={idTexto}>{t('Cuéntale lo que sea a la IA')}</label>
+                <p className={styles.hint} id={idTextoPista}>
                     {t('Tu rutina, lo que odias, cómo comes, lo que te motiva… lo que quieras que recuerde.')}
                 </p>
                 <textarea
+                    id={idTexto}
+                    aria-describedby={`${idTextoPista} ${idContador}`}
                     className={styles.textarea}
                     value={sp.freeText || ''}
                     onChange={(e) => set('freeText', e.target.value.slice(0, MAX_FREETEXT))}
@@ -397,7 +445,7 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
                     rows={5}
                     placeholder={t('Ej: Trabajo de noche y como a horas raras. Odio el cilantro. Cocino para mí y mi pareja…')}
                 />
-                <div className={styles.counter}>{(sp.freeText || '').length}/{MAX_FREETEXT}</div>
+                <div className={styles.counter} id={idContador}>{(sp.freeText || '').length}/{MAX_FREETEXT}</div>
             </div>
 
         </div>

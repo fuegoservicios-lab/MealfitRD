@@ -189,6 +189,25 @@
 .select:focus {
     border-color: var(--primary);
 }
+/* [P1-PLAN-LOTE-718 · 2026-09-28] Campo que no se pudo guardar (Perfil Clínico): el borde lo
+   señala y el mensaje de debajo dice por qué. */
+.select[aria-invalid="true"] {
+    border-color: var(--danger);
+}
+
+/* [P1-PLAN-LOTE-718 · 2026-09-28] Mensaje en línea bajo un campo. Es una región viva que se
+   pinta SIEMPRE (vacía cuando no hay nada que decir): una región que aparece junto con su
+   texto no la anuncian todos los lectores de pantalla. Vacía no ocupa sitio. */
+.fieldError {
+    margin: 0.3rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    font-weight: 600;
+    color: var(--danger-text);
+}
+.fieldError:empty {
+    margin: 0;
+}
 
 /* ---- Flavor profile ---- */
 .flavors {
@@ -204,7 +223,9 @@
     flex-direction: column;
     gap: 0.35rem;
 }
-.flavor > span {
+/* [P1-PLAN-LOTE-718 · 2026-09-28] Era `.flavor > span`: un rótulo que se veía como etiqueta
+   y no lo era. Ahora es el `<label htmlFor>` de su select, con el mismo aspecto. */
+.flavorLabel {
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-muted);
@@ -236,6 +257,10 @@
 }
 
 /* ---- Save ---- */
+/* [P1-PLAN-LOTE-718 · 2026-09-28] Hoy solo lo usa «Reintentar» de los tres paneles. El
+   degradado índigo→esmeralda dejaba el texto BLANCO sobre #10B981 en su mitad derecha
+   (≈2,5:1, suspende AA). Relleno sólido `--primary-fill`, el token que existe justo para
+   texto blanco encima (claro, oscuro y papel). */
 .save {
     display: inline-flex;
     align-items: center;
@@ -253,16 +278,14 @@
     font-weight: 700;
     letter-spacing: 0.01em;
     color: #fff;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary, #10B981) 100%);
+    background: var(--primary-fill);
     box-shadow: 0 10px 26px -10px rgba(79, 70, 229, 0.55);
     transition: box-shadow 0.2s ease, filter 0.15s ease;
 }
-/* Sin movimiento en hover — solo un glow bicolor (indigo + esmeralda, a juego
-   con el gradiente) + leve brillo. */
+/* Sin movimiento en hover — solo sombra + leve brillo. */
 .save:hover:not(:disabled) {
-    box-shadow: 0 12px 30px -8px rgba(79, 70, 229, 0.6),
-                0 0 24px -2px rgba(16, 185, 129, 0.42);
-    filter: brightness(1.06) saturate(1.04);
+    box-shadow: 0 12px 30px -8px rgba(79, 70, 229, 0.6);
+    filter: brightness(1.06);
 }
 .save:active:not(:disabled) {
     box-shadow: 0 6px 16px -8px rgba(79, 70, 229, 0.5);

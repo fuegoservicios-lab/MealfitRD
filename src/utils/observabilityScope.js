@@ -52,4 +52,10 @@ export const posthogCaptureOptions = (hostname) => ({
     capture_pageview: true,
     capture_pageleave: true,
     autocapture: !isMarketingVisit(hostname),
+    // [P1-PLAN-LOTE-716 · 2026-09-28] El autocapture manda el TEXTO del elemento pulsado. En la app eso incluye los
+    // chips de condiciones médicas y medicamentos, las alergias, los alimentos… — datos de salud, asociados al
+    // usuario tras `identify`. Configuración promete «nunca incluye tus datos de salud»: se enmascara el texto y los
+    // atributos de todos los elementos (se sigue sabiendo QUÉ pantalla y QUÉ control, no qué decía).
+    mask_all_text: true,
+    mask_all_element_attributes: true,
 });

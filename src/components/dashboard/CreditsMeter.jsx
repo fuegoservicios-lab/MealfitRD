@@ -6,7 +6,8 @@ import styles from './CreditsMeter.module.css';
    Gauge circular cuyo anillo se llena con la fracción de créditos restantes y
    cambia de color por estado. Preserva exactamente la data del badge original
    (`remainingCredits` / `userPlanLimit` / `isLimitReached`) y la semántica
-   ilimitado ('∞' / 'Ilimitado').
+   ilimitado ('∞' / 'Ilimitado') — que desde P1-PLAN-LOTE-718 es SOLO la cuenta
+   `admin`: ningún plan de pago es ilimitado (Max = 500/mes).
 
    [P2-CREDITS-METER-STATIC · 2026-06-15] El anillo se renderiza ESTÁTICO en su
    valor final — sin animación de "llenado" ni count-up. Antes usaba
@@ -54,14 +55,28 @@ const ICON = {
     guestDepleted: '#FB923C',
 };
 
+/* [P1-PLAN-LOTE-718 · 2026-09-28] Un número que llega como texto ('500') sigue siendo un número. */
+const aNumero = (v) => {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+    if (typeof v === 'string' && /^\s*\d+(\.\d+)?\s*$/.test(v)) return Number(v);
+    return null;
+};
+
 export default function CreditsMeter({ remainingCredits, userPlanLimit, isLimitReached, isGuest = false }) {
     const t = useT();
+    // [P1-PLAN-LOTE-718 · 2026-09-28] «Ilimitado» es SOLO el centinela de la cuenta `admin` (AssessmentContext:
+    // 'Ilimitado' / '∞'). Antes cualquier límite que no fuera `number` pintaba ∞ y «Créditos ilimitados»: así se veía
+    // Max, que el backend corta en 500 (`auth._TIER_LIMITS`, P1-CREDITS-LADDER) — prometía lo que no daba. Un límite
+    // numérico (o texto numérico) se pinta como número; uno ilegible cae a 0 (el anillo vacío dice «no sé cuánto
+    // queda» sin prometer nada), nunca a ∞.
+    const limiteNumerico = aNumero(userPlanLimit);
+    const restantesNumerico = aNumero(remainingCredits);
     const isUnlimited =
-        remainingCredits === '∞' ||
         userPlanLimit === 'Ilimitado' ||
-        typeof userPlanLimit !== 'number';
-    const limit = typeof userPlanLimit === 'number' ? userPlanLimit : 0;
-    const remaining = typeof remainingCredits === 'number' ? remainingCredits : 0;
+        userPlanLimit === '∞' ||
+        (remainingCredits === '∞' && limiteNumerico === null);
+    const limit = limiteNumerico ?? 0;
+    const remaining = restantesNumerico ?? 0;
     const fraction = isUnlimited
         ? 1
         : limit > 0

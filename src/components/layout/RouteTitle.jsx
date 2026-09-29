@@ -139,7 +139,7 @@ const TITULOS_APP = (t) => ({
     '/dashboard/pantry': t('Mi nevera'),
     '/dashboard/recipes': t('Recetas'),
     '/dashboard/agent': t('Asistente'),
-    '/dashboard/settings': t('Ajustes'),
+    '/dashboard/settings': t('Configuración'), // [P1-PLAN-LOTE-718] la ventana y el menú dicen «Configuración»
     '/dashboard/upgrade': t('Planes'),
     '/history': t('Historial'),
 });
