@@ -64,6 +64,7 @@ const PaymentModal = lazy(() => import('../components/dashboard/PaymentModal'));
 import { apexUrl } from '../config/site';
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../data/routeMeta';
+import { planPagado } from '../utils/regalosCuenta';
 import {
     ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_DISPLAY_NAME, tierDisplayName, periodLabel,
     creditsVsPredecessor, includesPredecessor,
@@ -351,7 +352,7 @@ const Upgrade = () => {
     const ofertaViva = isLaunchOfferActive();
     const hasStarted = !!planData;
 
-    const rawTier = (userProfile?.plan_tier || '').toLowerCase().trim();
+    const rawTier = (planPagado(userProfile) || '').toLowerCase().trim();  // [P1-PLAN-LOTE-776] lo que se PAGA
     const currentTier = ['gratis', 'basic', 'plus', 'ultra', 'admin'].includes(rawTier) ? rawTier : 'gratis';
     const currentRank = TIER_RANK[currentTier] || 1;
 
@@ -672,6 +673,14 @@ const Upgrade = () => {
                 <p className={styles.heroSubtitle}>
                     {t('Elige tu plan. Cambia cuando quieras.')}
                 </p>
+
+                {/* [P1-PLAN-LOTE-776 · 2026-09-28] Cortesía vigente: el nombre viene de `plan_tier`
+                    (efectivo); el resto de esta página decide por `planPagado` (rawTier arriba). */}
+                {userProfile?.cortesia && (
+                    <p className={styles.cortesiaNota}>
+                        {t('Tienes {nombre} de cortesía. Si te suscribes, lo conservas cuando termine.', { nombre: tierDisplayName(userProfile.cortesia.plan, t) })}
+                    </p>
+                )}
 
                 {/* [P3-UPGRADE-DESKTOP-MINIMAL · 2026-05-26] User context
                     card "TU PLAN ACTUAL · Ultra · ∞ créditos" eliminado.

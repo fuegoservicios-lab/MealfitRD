@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Bell, BellOff, X, Trash2, CheckCheck, FlaskConical, AlertTriangle, Info,
-    ChevronDown, MessageCircle, Pill, ArrowDown, ArrowUp, ArrowRight, Eye, Brain,
+    ChevronDown, MessageCircle, Pill, ArrowDown, ArrowUp, ArrowRight, Eye, Brain, Gift,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -56,6 +56,8 @@ const KIND_META = {
     quality: { Icon: AlertTriangle, tone: 'amber' },
     warning: { Icon: AlertTriangle, tone: 'amber' },
     info: { Icon: Info, tone: 'indigo' },
+    // [P1-PLAN-LOTE-776 · 2026-09-28] Regalo de la cuenta (créditos o plan de cortesía).
+    regalo: { Icon: Gift, tone: 'indigo' },
 };
 
 function metaFor(n) {

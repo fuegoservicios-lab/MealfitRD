@@ -64,7 +64,8 @@ describe('Suscripción y Pagos: escalera de planes', () => {
         expect(PANEL).toContain('new Date(`${LAUNCH_OFFER.deadlineISO}T00:00:00Z`)');
     });
     it('no hay escalera ni «Mejorar mi plan» para Max ni para administradores', () => {
-        expect(PANEL).toContain("const _canUpgrade = !_isAdmin && _tier !== 'ultra';");
+        // [P1-PLAN-LOTE-776] Max es el plan PAGADO (una cortesía Max no quita «Mejorar mi plan»: al caducar vuelve lo pagado).
+        expect(PANEL).toContain("const _canUpgrade = !_isAdmin && planPagado(userProfile) !== 'ultra';");
         expect(PANEL).toContain('const _showLadder = _canUpgrade;');
     });
 });

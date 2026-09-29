@@ -1,0 +1,398 @@
+// frontend/src/pages/AdminCuentas.jsx
+// [P1-PLAN-LOTE-775 · 2026-09-28] Panel admin · Cuentas (spec docs/superpowers/specs/2026-09-28-admin-cuentas-regalos-
+// design.md §4.2): buscar una cuenta por su correo EXACTO (no hay lista), ver su ficha y regalarle créditos o un plan
+// de cortesía, o revertir un regalo. Cada acción pide un motivo y enseña su efecto antes de aplicarse; el servidor la
+// anota antes de escribir. Interno —solo el dueño, solo español—: los textos fijos viven en TEXTOS.
+import { useId, useState } from 'react';
+import { fetchWithAuth } from '../config/api';
+import { formatDate } from '../i18n';
+import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import { ultimoDiaDeRegalo } from '../utils/regalosCuenta';
+import styles from './AdminCuentas.module.css';
+
+// [I18N-EXEMPT: panel interno del dueño, solo español]
+const TEXTOS = {
+    correo: 'Correo de la cuenta',
+    ayudaBusqueda: 'Escribe el correo completo; no hay lista de cuentas. Cada búsqueda queda anotada.',
+    buscar: 'Buscar',
+    buscando: 'Buscando…',
+    noExiste: 'No hay ninguna cuenta con ese correo.',
+    cuenta: (correo) => `Cuenta ${correo}`,
+    alta: (f) => `Alta: ${f}`,
+    plan: 'Plan',
+    paga: (p) => `paga ${p}`,
+    cortesiaHasta: (f) => `Cortesía hasta el ${f}`,
+    cortesiaSinFin: 'Cortesía sin fecha de fin',
+    suscripcion: 'Suscripción',
+    conPaypal: (estado, fin) => `PayPal · ${estado || 'sin estado'}${fin ? ` · hasta el ${fin}` : ''}`,
+    sinPaypal: 'Sin suscripción de PayPal',
+    creditos: 'Créditos de planes este mes',
+    coach: 'Mensajes del coach este mes',
+    deRegalo: (n) => `incluye +${n} de regalo`,
+    sinTope: 'Sin tope',
+    regalarCreditos: 'Regalar créditos',
+    recargar: 'Recargar al completo',
+    cortesia: 'Plan de cortesía',
+    ningunPlanMejor: 'Ya tiene el plan más alto.',
+    historial: 'Historial de regalos',
+    sinHistorial: 'Todavía no se le ha regalado nada.',
+    lineaRegalo: (estado, hasta, motivo) => `${estado} · ${hasta ? `hasta el ${hasta}` : 'sin fecha de fin'} · «${motivo}»`,
+    estado: { vigente: 'Vigente', caducado: 'Caducado', revertido: 'Revertido' },
+    revertir: 'Revertir',
+    esAdmin: 'Es una cuenta de administración: no se le regala nada.',
+    hecho: 'Cambio guardado y anotado.',
+    tituloCreditos: 'Regalar créditos',
+    tituloRecargar: 'Recargar al completo',
+    tituloCortesia: 'Dar un plan de cortesía',
+    tituloRevertir: 'Revertir un regalo',
+    medidor: 'Qué',
+    planes: 'Créditos de planes',
+    mensajes: 'Mensajes del coach',
+    cantidad: 'Cantidad',
+    validez: 'Válidos hasta',
+    finDeMes: 'fin de este mes',
+    finMesSiguiente: 'fin del mes siguiente',
+    elPlan: 'Plan',
+    hasta: 'Hasta (incluido)',
+    sinFecha: 'Sin fecha de fin',
+    motivo: 'Motivo',
+    motivoAyuda: 'Obligatorio. Queda anotado junto al cambio (p. ej., «compensación por el fallo del 27-sep»).',
+    efecto: 'Efecto',
+    nadaQueRecargar: 'Ya tiene disponible todo el cupo de su plan.',
+    hastaEl: (f) => `hasta el ${f}`,
+    sinFin: 'sin fecha de fin',
+    cancelar: 'Cancelar',
+    guardando: 'Guardando…',
+    botonCreditos: (n, coach) => `Regalar ${n} ${coach ? 'mensajes' : 'créditos'}`,
+    botonRecargar: (n) => `Recargar ${n}`,
+    botonCortesia: (p) => `Dar ${p} de cortesía`,
+    botonRevertir: 'Revertir el regalo',
+};
+
+// [I18N-EXEMPT: panel interno del dueño, solo español]
+const NOMBRE_PLAN = { gratis: 'Gratis', basic: 'Básico', plus: 'Plus', ultra: 'Max', admin: 'Administración' };
+const RANGO = { gratis: 0, basic: 1, plus: 2, ultra: 3 };
+const PLANES = ['basic', 'plus', 'ultra'];
+const CABECERA = { 'Content-Type': 'application/json', 'X-Admin-Accion': '1' };
+const FORMATO = { day: 'numeric', month: 'short', year: 'numeric' };
+
+const dia = (iso) => (iso ? formatDate(new Date(iso), FORMATO) : '—');
+// El fin de un regalo es EXCLUSIVO (1-oct 00:00 ⇒ vale hasta el 30-sep): se enseña el último día que vale, en la hora
+// de RD que fija `ultimoDiaDeRegalo` (la de la propia validez) y con el formato del panel — en el huso del dispositivo
+// salía un día tarde visto desde Europa.
+const ultimoDia = (iso) => (iso ? ultimoDiaDeRegalo(iso, (d, o) => formatDate(d, { ...FORMATO, timeZone: o.timeZone })) : '—');
+const fechaLocal = (dias) => {
+    const d = new Date();
+    d.setDate(d.getDate() + dias);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const planesMejores = (pagado) => PLANES.filter((p) => RANGO[p] > (RANGO[pagado] ?? 0));
+
+async function pedir(url, cuerpo) {
+    const opciones = cuerpo === undefined ? {} : { method: 'POST', headers: CABECERA, body: JSON.stringify(cuerpo) };
+    const r = await fetchWithAuth(url, opciones);
+    let datos = null;
+    try { datos = await r.json(); } catch { /* respuesta sin cuerpo */ }
+    if (!r.ok) throw new Error(datos && typeof datos.detail === 'string' ? datos.detail : `Error ${r.status}`);
+    return datos;
+}
+
+function Medidor({ titulo, m, esAdmin }) {
+    return (
+        <div className={styles.dato}>
+            <span className={styles.datoEtiqueta}>{titulo}</span>
+            {esAdmin ? <span className={styles.datoValor}>{TEXTOS.sinTope}</span> : (
+                <>
+                    <span className={styles.datoValor}>{m.usados}<span className={styles.de}> / {m.tope}</span></span>
+                    {m.regalo > 0 && <span className={styles.datoNota}>{TEXTOS.deRegalo(m.regalo)}</span>}
+                </>
+            )}
+        </div>
+    );
+}
+
+function Ficha({ ficha, onAccion }) {
+    const hayMejor = !ficha.es_admin && planesMejores(ficha.plan_pagado).length > 0;
+    return (
+        <article className={styles.ficha} aria-label={TEXTOS.cuenta(ficha.email)}>
+            <header className={styles.fichaCabecera}>
+                <h3 className={styles.correo}>{ficha.email}</h3>
+                <p className={styles.sub}>{[ficha.nombre, TEXTOS.alta(dia(ficha.alta))].filter(Boolean).join(' · ')}</p>
+            </header>
+            <div className={styles.datos}>
+                <div className={styles.dato}>
+                    <span className={styles.datoEtiqueta}>{TEXTOS.plan}</span>
+                    <span className={styles.datoValor}>{NOMBRE_PLAN[ficha.plan_efectivo] || ficha.plan_efectivo}</span>
+                    {ficha.cortesia && (
+                        <span className={styles.datoNota}>
+                            {`${ficha.cortesia.hasta ? TEXTOS.cortesiaHasta(ultimoDia(ficha.cortesia.hasta)) : TEXTOS.cortesiaSinFin} · ${TEXTOS.paga(NOMBRE_PLAN[ficha.plan_pagado] || ficha.plan_pagado)}`}
+                        </span>
+                    )}
+                </div>
+                <div className={styles.dato}>
+                    <span className={styles.datoEtiqueta}>{TEXTOS.suscripcion}</span>
+                    <span className={styles.datoTexto}>
+                        {ficha.suscripcion.paypal
+                            ? TEXTOS.conPaypal(ficha.suscripcion.estado, ficha.suscripcion.fin && dia(ficha.suscripcion.fin))
+                            : TEXTOS.sinPaypal}
+                    </span>
+                </div>
+                <Medidor titulo={TEXTOS.creditos} m={ficha.creditos} esAdmin={ficha.es_admin} />
+                <Medidor titulo={TEXTOS.coach} m={ficha.coach} esAdmin={ficha.es_admin} />
+            </div>
+            {ficha.es_admin ? <p className={styles.aviso}>{TEXTOS.esAdmin}</p> : (
+                <div className={styles.acciones}>
+                    <button type="button" className={styles.primario} onClick={() => onAccion({ tipo: 'creditos' })}>{TEXTOS.regalarCreditos}</button>
+                    <button type="button" className={styles.boton} onClick={() => onAccion({ tipo: 'completo' })}>{TEXTOS.recargar}</button>
+                    <button
+                        type="button"
+                        className={styles.boton}
+                        onClick={() => onAccion({ tipo: 'cortesia' })}
+                        disabled={!hayMejor}
+                        title={hayMejor ? undefined : TEXTOS.ningunPlanMejor}
+                    >
+                        {TEXTOS.cortesia}
+                    </button>
+                </div>
+            )}
+            <section className={styles.historial} aria-label={TEXTOS.historial}>
+                <h4 className={styles.historialTitulo}>{TEXTOS.historial}</h4>
+                {ficha.regalos.length === 0 ? <p className={styles.sub}>{TEXTOS.sinHistorial}</p> : (
+                    <ul className={styles.lista}>
+                        {ficha.regalos.map((r) => (
+                            <li key={r.id} className={styles.regalo} data-estado={r.estado}>
+                                <div className={styles.regaloTexto}>
+                                    <span className={styles.regaloDetalle}>{r.detalle}</span>
+                                    <span className={styles.sub}>{TEXTOS.lineaRegalo(TEXTOS.estado[r.estado] || r.estado, r.hasta && ultimoDia(r.hasta), r.motivo)}</span>
+                                </div>
+                                {r.estado === 'vigente' && !ficha.es_admin && (
+                                    <button type="button" className={styles.boton} onClick={() => onAccion({ tipo: 'revocar', regalo: r })}>{TEXTOS.revertir}</button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+        </article>
+    );
+}
+
+function Dialogo({ accion, ficha, onCerrar, onHecho }) {
+    const idTitulo = useId();
+    // [CORRECCIÓN CONTROLADOR · 2026-09-28] `idMotivo` separado de `idTitulo`: el campo Motivo
+    // necesita su propio `htmlFor`/`id` explícito (ver más abajo, y su nota junto al <textarea>).
+    const idMotivo = useId();
+    const mejores = planesMejores(ficha.plan_pagado);
+    const [medidor, setMedidor] = useState('generacion');
+    const [cantidad, setCantidad] = useState('10');
+    const [hasta, setHasta] = useState('mes');
+    const [plan, setPlan] = useState(mejores[0] || 'ultra');
+    const [fecha, setFecha] = useState('');
+    const [sinFecha, setSinFecha] = useState(false);
+    const [motivo, setMotivo] = useState('');
+    const [enviando, setEnviando] = useState(false);
+    const [error, setError] = useState('');
+
+    // [FIX ROUND 1 · 2026-09-28] SSOT a11y de modales custom (P2-CUSTOM-MODALS-A11Y): focus trap
+    // (Tab/Shift+Tab ya NO se escapa a los botones de acción de la Ficha detrás del velo — antes
+    // activaba uno y cambiaba `accion` sobre el mismo diálogo abierto), ESC, foco inicial al
+    // contenedor y restaurar foco al disparador al cerrar. Sustituye el `useEffect` de ESC a mano y
+    // el foco inicial a `primerCampo` que tenía este componente (el hook enfoca el contenedor).
+    const { containerRef } = useModalAccessibility({ isOpen: true, onClose: onCerrar, disableClose: enviando });
+
+    const m = medidor === 'coach' ? ficha.coach : ficha.creditos;
+    const n = Math.max(0, Math.trunc(Number(cantidad) || 0));
+    const aRecargar = Math.max(0, m.usados - m.regalo);
+    const motivoValido = motivo.trim().length >= 3;
+
+    let titulo;
+    let efecto;
+    let boton;
+    let valido;
+    let peticion;
+    if (accion.tipo === 'creditos') {
+        titulo = TEXTOS.tituloCreditos;
+        efecto = `${m.usados}/${m.tope} → ${m.usados}/${m.tope + n}`;
+        boton = TEXTOS.botonCreditos(n, medidor === 'coach');
+        valido = n >= 1 && n <= 1000;
+        peticion = [`/api/admin/cuentas/${ficha.user_id}/creditos`, { medidor, modo: 'sumar', cantidad: n, hasta, motivo }];
+    } else if (accion.tipo === 'completo') {
+        titulo = TEXTOS.tituloRecargar;
+        efecto = aRecargar > 0 ? `${m.usados}/${m.tope} → ${m.usados}/${m.tope + aRecargar}` : TEXTOS.nadaQueRecargar;
+        boton = TEXTOS.botonRecargar(aRecargar);
+        valido = aRecargar >= 1;
+        peticion = [`/api/admin/cuentas/${ficha.user_id}/creditos`, { medidor, modo: 'completo', hasta, motivo }];
+    } else if (accion.tipo === 'cortesia') {
+        titulo = TEXTOS.tituloCortesia;
+        const cuando = sinFecha ? TEXTOS.sinFin : (fecha ? TEXTOS.hastaEl(dia(`${fecha}T12:00:00`)) : '');
+        efecto = `${NOMBRE_PLAN[ficha.plan_efectivo]} → ${NOMBRE_PLAN[plan]} ${cuando}`.trim();
+        boton = TEXTOS.botonCortesia(NOMBRE_PLAN[plan]);
+        valido = mejores.includes(plan) && (sinFecha || Boolean(fecha));
+        peticion = [`/api/admin/cuentas/${ficha.user_id}/cortesia`, { plan, hasta: sinFecha ? null : fecha, motivo }];
+    } else {
+        titulo = TEXTOS.tituloRevertir;
+        efecto = accion.regalo.detalle;
+        boton = TEXTOS.botonRevertir;
+        valido = true;
+        peticion = [`/api/admin/regalos/${accion.regalo.id}/revocar`, { motivo }];
+    }
+
+    const enviar = async (e) => {
+        e.preventDefault();
+        if (!valido || !motivoValido || enviando) return;
+        setEnviando(true);
+        setError('');
+        try {
+            const datos = await pedir(peticion[0], peticion[1]);
+            onHecho(datos?.cuenta || null);
+        } catch (err) {
+            setError(err.message);
+            setEnviando(false);
+        }
+    };
+    const esCreditos = accion.tipo === 'creditos' || accion.tipo === 'completo';
+
+    return (
+        <div className={styles.velo} role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget && !enviando) onCerrar(); }}>
+            <form ref={containerRef} className={styles.dialogo} role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1} onSubmit={enviar}>
+                <h3 id={idTitulo} className={styles.dialogoTitulo}>{titulo}</h3>
+                {esCreditos && (
+                    <fieldset className={styles.campo}>
+                        <legend className={styles.etiqueta}>{TEXTOS.medidor}</legend>
+                        <div className={styles.opciones}>
+                            {[['generacion', TEXTOS.planes], ['coach', TEXTOS.mensajes]].map(([id, texto]) => (
+                                <label key={id} className={styles.opcion}>
+                                    <input type="radio" name="medidor" value={id} checked={medidor === id} onChange={() => setMedidor(id)} />
+                                    {texto}
+                                </label>
+                            ))}
+                        </div>
+                    </fieldset>
+                )}
+                {accion.tipo === 'creditos' && (
+                    <label className={styles.campo}>
+                        <span className={styles.etiqueta}>{TEXTOS.cantidad}</span>
+                        <input className={styles.input} type="number" min="1" max="1000" step="1" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
+                    </label>
+                )}
+                {esCreditos && (
+                    <label className={styles.campo}>
+                        <span className={styles.etiqueta}>{TEXTOS.validez}</span>
+                        <select className={styles.input} value={hasta} onChange={(e) => setHasta(e.target.value)}>
+                            <option value="mes">{TEXTOS.finDeMes}</option>
+                            <option value="mes_siguiente">{TEXTOS.finMesSiguiente}</option>
+                        </select>
+                    </label>
+                )}
+                {accion.tipo === 'cortesia' && (
+                    <>
+                        <label className={styles.campo}>
+                            <span className={styles.etiqueta}>{TEXTOS.elPlan}</span>
+                            <select className={styles.input} value={plan} onChange={(e) => setPlan(e.target.value)}>
+                                {mejores.map((p) => <option key={p} value={p}>{NOMBRE_PLAN[p]}</option>)}
+                            </select>
+                        </label>
+                        <label className={styles.campo}>
+                            <span className={styles.etiqueta}>{TEXTOS.hasta}</span>
+                            <input className={styles.input} type="date" min={fechaLocal(0)} max={fechaLocal(365)} value={fecha} disabled={sinFecha} onChange={(e) => setFecha(e.target.value)} />
+                        </label>
+                        <label className={styles.opcion}>
+                            <input type="checkbox" checked={sinFecha} onChange={(e) => setSinFecha(e.target.checked)} />
+                            {TEXTOS.sinFecha}
+                        </label>
+                    </>
+                )}
+                {/* [CORRECCIÓN CONTROLADOR · 2026-09-28] `<div>` contenedor, NO `<label>` que envuelva: un
+                    `<label>` que envuelve computa su nombre accesible con TODO su texto — incluida la ayuda—,
+                    así que `getByLabelText('Motivo')` no casaría. `htmlFor`/`id` explícitos en su lugar; la
+                    ayuda se referencia por `aria-describedby`, no por asociación de label. */}
+                <div className={styles.campo}>
+                    <label htmlFor={idMotivo} className={styles.etiqueta}>{TEXTOS.motivo}</label>
+                    <textarea
+                        id={idMotivo}
+                        className={styles.input}
+                        rows={2}
+                        maxLength={300}
+                        value={motivo}
+                        onChange={(e) => setMotivo(e.target.value)}
+                        aria-describedby={`${idMotivo}-ayuda`}
+                    />
+                    <span id={`${idMotivo}-ayuda`} className={styles.ayuda}>{TEXTOS.motivoAyuda}</span>
+                </div>
+                <p className={styles.efecto}>
+                    <span className={styles.etiqueta}>{TEXTOS.efecto}</span>
+                    <span>{efecto}</span>
+                </p>
+                {error && <p className={styles.error} role="alert">{error}</p>}
+                <div className={styles.pie}>
+                    <button type="button" className={styles.boton} onClick={onCerrar} disabled={enviando}>{TEXTOS.cancelar}</button>
+                    <button type="submit" className={styles.primario} disabled={!valido || !motivoValido || enviando}>{enviando ? TEXTOS.guardando : boton}</button>
+                </div>
+            </form>
+        </div>
+    );
+}
+
+export default function AdminCuentas() {
+    const [correo, setCorreo] = useState('');
+    const [estado, setEstado] = useState('inicio');      // inicio | buscando | nada | ficha | error
+    const [ficha, setFicha] = useState(null);
+    const [error, setError] = useState('');
+    const [accion, setAccion] = useState(null);
+    const [hecho, setHecho] = useState(false);
+
+    const buscar = async (e) => {
+        e.preventDefault();
+        if (!correo.trim()) return;
+        setEstado('buscando');
+        setError('');
+        setHecho(false);
+        try {
+            const datos = await pedir('/api/admin/cuentas/buscar', { email: correo });
+            if (datos?.cuenta) { setFicha(datos.cuenta); setEstado('ficha'); } else { setFicha(null); setEstado('nada'); }
+        } catch (err) {
+            setError(err.message);
+            setEstado('error');
+        }
+    };
+
+    const alTerminar = async (cuenta) => {
+        setAccion(null);
+        setHecho(true);
+        if (cuenta) { setFicha(cuenta); return; }
+        try {
+            const datos = await pedir(`/api/admin/cuentas/${ficha.user_id}`);
+            if (datos?.cuenta) setFicha(datos.cuenta);
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    return (
+        <section className={styles.cuentas}>
+            <form className={styles.buscador} role="search" onSubmit={buscar}>
+                <label htmlFor="admin-correo-cuenta" className={styles.etiqueta}>{TEXTOS.correo}</label>
+                <div className={styles.fila}>
+                    <input
+                        id="admin-correo-cuenta"
+                        className={styles.input}
+                        type="email"
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={correo}
+                        onChange={(e) => setCorreo(e.target.value)}
+                    />
+                    <button type="submit" className={styles.primario} disabled={estado === 'buscando'}>
+                        {estado === 'buscando' ? TEXTOS.buscando : TEXTOS.buscar}
+                    </button>
+                </div>
+                <p className={styles.ayuda}>{TEXTOS.ayudaBusqueda}</p>
+            </form>
+            {estado === 'nada' && <p className={styles.vacio}>{TEXTOS.noExiste}</p>}
+            {error && <p className={styles.error} role="alert">{error}</p>}
+            {hecho && estado === 'ficha' && <p className={styles.hecho} role="status">{TEXTOS.hecho}</p>}
+            {estado === 'ficha' && ficha && <Ficha ficha={ficha} onAccion={(a) => { setHecho(false); setAccion(a); }} />}
+            {accion && ficha && <Dialogo accion={accion} ficha={ficha} onCerrar={() => setAccion(null)} onHecho={alTerminar} />}
+        </section>
+    );
+}

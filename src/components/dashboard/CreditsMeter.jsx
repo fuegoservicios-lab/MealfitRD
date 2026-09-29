@@ -62,7 +62,7 @@ const aNumero = (v) => {
     return null;
 };
 
-export default function CreditsMeter({ remainingCredits, userPlanLimit, isLimitReached, isGuest = false }) {
+export default function CreditsMeter({ remainingCredits, userPlanLimit, isLimitReached, isGuest = false, regalo = 0 }) {
     const t = useT();
     // [P1-PLAN-LOTE-718 · 2026-09-28] «Ilimitado» es SOLO el centinela de la cuenta `admin` (AssessmentContext:
     // 'Ilimitado' / '∞'). Antes cualquier límite que no fuera `number` pintaba ∞ y «Créditos ilimitados»: así se veía
@@ -112,13 +112,17 @@ export default function CreditsMeter({ remainingCredits, userPlanLimit, isLimitR
             ? t('Créditos ilimitados')
             : t('{remaining} de {limit} créditos restantes', { remaining, limit });
 
+    // [P1-PLAN-LOTE-776] cuánto del tope es regalo: en el texto accesible y en una marca pequeña
+    const conRegalo = !isGuest && !isUnlimited && regalo > 0;
+    const etiquetaAccesible = conRegalo ? `${ariaLabel} ${t('(incluye {n} de regalo)', { n: regalo })}` : ariaLabel;
+
     return (
         <div
             className={`${styles.badge} ${styles[state]}${isLastCredit ? ` ${styles.lastCredit}` : ''}`}
             style={{ '--meter-glow': GLOW[state], '--meter-icon': ICON[state] }}
             role="img"
-            aria-label={ariaLabel}
-            title={ariaLabel}
+            aria-label={etiquetaAccesible}
+            title={etiquetaAccesible}
         >
             <div className={styles.gauge}>
                 <svg
@@ -175,6 +179,7 @@ export default function CreditsMeter({ remainingCredits, userPlanLimit, isLimitR
                             <span className={styles.limit}>/ {limit}</span>
                         </>
                     )}
+                    {conRegalo && <span className={styles.regalo} aria-hidden="true">+{regalo}</span>}
                 </div>
             </div>
         </div>

@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
+import AdminCuentas from './AdminCuentas';
 import styles from './AdminPage.module.css';
 
 const RANGOS = [7, 30, 90];
@@ -37,6 +38,9 @@ const TEXTOS = {
     actualizado: (hora) => `Actualizado a las ${hora}`,
     principales: 'Cifras principales',
     nivel: { critico: 'Crítico', aviso: 'Revisar', info: 'Informativo' },
+    secciones: 'Secciones del panel',
+    metricas: 'Métricas',
+    cuentas: 'Cuentas',
 };
 
 const MARCA_SUBFILA = /^·\s*/;
@@ -280,6 +284,7 @@ const horaDe = (iso) => {
 };
 
 export default function AdminPage() {
+    const [vista, setVista] = useState('metricas');
     const [dias, setDias] = useState(7);
     const [estado, setEstado] = useState('cargando');
     const [datos, setDatos] = useState(null);
@@ -339,54 +344,77 @@ export default function AdminPage() {
                     {TEXTOS.volver}
                 </Link>
             </header>
-            <div className={styles.barraHerramientas}>
-                <div className={styles.rangos} role="group" aria-label={TEXTOS.periodo} style={{ '--i': iActivo, '--n': RANGOS.length }}>
-                    <span className={styles.indicador} aria-hidden="true" data-indicador="" />
-                    {RANGOS.map((d) => (
+            {/* [P1-PLAN-LOTE-775] Métricas | Cuentas, con la misma pastilla deslizante que el periodo */}
+            <div className={styles.pestanas}>
+                <div className={styles.rangos} role="tablist" aria-label={TEXTOS.secciones} style={{ '--i': vista === 'cuentas' ? 1 : 0, '--n': 2 }}>
+                    <span className={styles.indicador} aria-hidden="true" />
+                    {[['metricas', TEXTOS.metricas], ['cuentas', TEXTOS.cuentas]].map(([id, texto]) => (
                         <button
-                            key={d}
+                            key={id}
                             type="button"
-                            className={d === dias ? `${styles.rango} ${styles.rangoActivo}` : styles.rango}
-                            aria-pressed={d === dias}
-                            onClick={() => elegir(d)}
+                            role="tab"
+                            aria-selected={vista === id}
+                            className={vista === id ? `${styles.rango} ${styles.rangoActivo}` : styles.rango}
+                            onClick={() => setVista(id)}
                         >
-                            {TEXTOS.dias(d)}
+                            {texto}
                         </button>
                     ))}
                 </div>
-                <div className={styles.acciones}>
-                    <span className={styles.refresco} role="status" aria-live="polite">
-                        {pendiente && <><span className={styles.girando} aria-hidden="true" />{TEXTOS.actualizando}</>}
-                        {!pendiente && fallo && estado === 'listo' && TEXTOS.errorRefresco}
-                    </span>
-                    <button type="button" className={styles.boton} onClick={recargar} disabled={ocupado}>
-                        {fallo && estado === 'listo' ? TEXTOS.reintentar : TEXTOS.actualizar}
-                    </button>
-                </div>
             </div>
-            {estado === 'cargando' && <p className={styles.estado}>{TEXTOS.cargando}</p>}
-            {estado === 'error' && (
-                <div className={styles.estado}>
-                    <p>{TEXTOS.errorCarga}</p>
-                    <button type="button" className={styles.boton} onClick={recargar}>{TEXTOS.reintentar}</button>
-                </div>
-            )}
-            {estado === 'listo' && datos && (
-                <div
-                    key={version}
-                    className={pendiente ? `${styles.contenido} ${styles.contenidoEspera}` : styles.contenido}
-                    aria-busy={pendiente ? 'true' : undefined}
-                    data-contenido=""
-                >
-                    {seccionesDe(datos.bloques).map((s, i) => (
-                        <div key={`${s.nombre}-${i}`} className={styles.seccion} data-seccion={s.nombre || undefined}>
-                            {s.nombre && <h2 className={styles.seccionTitulo}>{s.nombre}</h2>}
-                            <div className={styles.rejilla}>
-                                {s.bloques.map((b) => <Bloque key={b.id} bloque={b} />)}
-                            </div>
+            {vista === 'cuentas' && <AdminCuentas />}
+            {vista === 'metricas' && (
+                <>
+                    <div className={styles.barraHerramientas}>
+                        <div className={styles.rangos} role="group" aria-label={TEXTOS.periodo} style={{ '--i': iActivo, '--n': RANGOS.length }}>
+                            <span className={styles.indicador} aria-hidden="true" data-indicador="" />
+                            {RANGOS.map((d) => (
+                                <button
+                                    key={d}
+                                    type="button"
+                                    className={d === dias ? `${styles.rango} ${styles.rangoActivo}` : styles.rango}
+                                    aria-pressed={d === dias}
+                                    onClick={() => elegir(d)}
+                                >
+                                    {TEXTOS.dias(d)}
+                                </button>
+                            ))}
                         </div>
-                    ))}
-                </div>
+                        <div className={styles.acciones}>
+                            <span className={styles.refresco} role="status" aria-live="polite">
+                                {pendiente && <><span className={styles.girando} aria-hidden="true" />{TEXTOS.actualizando}</>}
+                                {!pendiente && fallo && estado === 'listo' && TEXTOS.errorRefresco}
+                            </span>
+                            <button type="button" className={styles.boton} onClick={recargar} disabled={ocupado}>
+                                {fallo && estado === 'listo' ? TEXTOS.reintentar : TEXTOS.actualizar}
+                            </button>
+                        </div>
+                    </div>
+                    {estado === 'cargando' && <p className={styles.estado}>{TEXTOS.cargando}</p>}
+                    {estado === 'error' && (
+                        <div className={styles.estado}>
+                            <p>{TEXTOS.errorCarga}</p>
+                            <button type="button" className={styles.boton} onClick={recargar}>{TEXTOS.reintentar}</button>
+                        </div>
+                    )}
+                    {estado === 'listo' && datos && (
+                        <div
+                            key={version}
+                            className={pendiente ? `${styles.contenido} ${styles.contenidoEspera}` : styles.contenido}
+                            aria-busy={pendiente ? 'true' : undefined}
+                            data-contenido=""
+                        >
+                            {seccionesDe(datos.bloques).map((s, i) => (
+                                <div key={`${s.nombre}-${i}`} className={styles.seccion} data-seccion={s.nombre || undefined}>
+                                    {s.nombre && <h2 className={styles.seccionTitulo}>{s.nombre}</h2>}
+                                    <div className={styles.rejilla}>
+                                        {s.bloques.map((b) => <Bloque key={b.id} bloque={b} />)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
             )}
         </main>
     );

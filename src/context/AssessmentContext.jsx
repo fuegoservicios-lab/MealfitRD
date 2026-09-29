@@ -46,6 +46,9 @@ import { pedirCuentaInvitado } from '../utils/hojaGuardarPlan';
 import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY, CHAT_CURRENT_SESSION_KEY } from '../utils/chatCacheKeys';
 import { clearAllChatDrafts } from '../utils/chatDraftStore';
 import { isApexHost } from '../config/site';
+// [P1-PLAN-LOTE-776 · 2026-09-28] Tope real (servidor) + fallback SSOT — reemplaza la copia a mano de abajo.
+import { limiteDePlanes } from '../utils/regalosCuenta';
+import { useCreditosDelServidor } from '../hooks/useCreditosDelServidor';
 // --- BASE DE DATOS LOCAL DE RECETAS (FALLBACK) ---
 //
 // [P1-I18N-MODULOS-SIN-T · 2026-08-21] Esta tabla NO se traduce, y no es un olvido.
@@ -772,7 +775,8 @@ export const AssessmentProvider = ({ children }) => {
     });
 
     // --- ESTADO PARA LOS CRÉDITOS ---
-    const [planCount, setPlanCount] = useState(0);
+    // [P1-PLAN-LOTE-776] Usados, tope real y regalos recientes: lo que dice `GET /api/user/credits`, en su hook.
+    const { planCount, creditosServidor, regalosRecientes, consultar: consultarCreditos, reiniciar: reiniciarCreditos } = useCreditosDelServidor();
     // [P1-CREDITS-LADDER · 2026-07-31] 15→10, PARIDAD con backend
     // auth._TIER_LIMITS["gratis"] (test_p1_credits_ladder.py ancla ambos lados).
     const PLAN_LIMIT = 10; // Límite del plan gratuito
@@ -1275,35 +1279,17 @@ export const AssessmentProvider = ({ children }) => {
     }, [session?.user?.id, restoreSessionData]);
 
     // --- 1. FUNCIÓN PARA CONSULTAR LÍMITE DE IA (API) ---
+    // [P1-PLAN-LOTE-776] La consulta, su lectura y su estado viven en `useCreditosDelServidor`; aquí se decide DE QUIÉN.
     const checkPlanLimit = useCallback(async (specificUserId = null) => {
-        try {
-            const userId = specificUserId || session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
-
-            if (!userId || userId === 'guest') {
-                setPlanCount(0);
-                return 0;
-            }
-
-            const response = await fetchWithAuth(`/api/user/credits/${userId}`);
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Error consultando créditos: ${response.status} - ${errorText}`);
-            }
-            const data = await response.json();
-
-            setPlanCount(data.credits || 0);
-            return data.credits || 0;
-        } catch (error) {
-            console.error("Error verificando límites de API:", error);
-            return 0;
-        }
+        const userId = specificUserId || session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
+        return consultarCreditos(userId);
         // [P5-SPEED-CTX-DEP-NARROW · 2026-06-01] dep [session]→[session?.user?.id]:
         // el cuerpo solo lee session?.user?.id; fetchWithAuth lee el token fresco
         // internamente. El objeto `session` recibe NUEVA referencia en cada
         // TOKEN_REFRESHED (~1h), lo que recreaba este callback y re-suscribía el
         // effect de auth (dep en línea ~1109) sin necesidad. Estrechar a la primitiva
         // mantiene la identidad estable salvo cambio real de usuario.
-    }, [session?.user?.id]);
+    }, [session?.user?.id, consultarCreditos]);
 
     // [P1-FORM-AUDIT-BATCH · 2026-07-03] Consume (one-shot) el stash de sensibles del
     // invitado cuando el perfil de la cuenta resuelve. Reglas de seguridad:
@@ -1814,6 +1800,7 @@ export const AssessmentProvider = ({ children }) => {
                     // likes/dislikes de A. restoreSessionData(userId) re-hidrata
                     // los de B justo después.
                     _clearUserScopedCaches();
+                    reiniciarCreditos(); // [P1-PLAN-LOTE-776] el tope y los regalos de A no son de B (aunque falle su consulta)
                     setPlanData(null);
                     safeLocalStorageRemove('mealfit_plan');
                     setLikedMeals({});
@@ -1913,7 +1900,7 @@ export const AssessmentProvider = ({ children }) => {
                     safeLocalStorageRemove('mealfit_last_form_owner');
                 }
                 setUserProfile(null);
-                setPlanCount(0);
+                reiniciarCreditos(); // [P1-PLAN-LOTE-776] usados, tope y regalos: la cuenta que entre no hereda los de esta
                 if (!_guestRefresh) {
                     setPlanData(null);
                     // [P1-XTAB-CACHE-LEAK · 2026-05-30] Esta rama es alcanzable SIN
@@ -2145,11 +2132,12 @@ export const AssessmentProvider = ({ children }) => {
             try { _clearUserScopedCaches(); } catch { /* best-effort */ }
             setSession(null);
             setUserProfile(null);
+            reiniciarCreditos(); // [P1-PLAN-LOTE-776] quien entre después no ve el tope ni los regalos de esta cuenta
             setPlanData(null);
         };
         window.addEventListener('mealfit:session-expired', onExpired);
         return () => window.removeEventListener('mealfit:session-expired', onExpired);
-    }, []);
+    }, [reiniciarCreditos]);
 
     // --- REFETCH DE PERFIL AL VOLVER A LA PESTAÑA ---
     // [P1-NEON-DB-MIGRATION · 2026-06-12] Reemplaza el canal Realtime
@@ -4375,7 +4363,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         setLikedMeals({});
         setDislikedMeals({});
         setUserProfile(null);
-        setPlanCount(0);
+        reiniciarCreditos();
         setCurrentStep(0);
         setMaxReachedStep(0);
         setLoadingData(false);
@@ -4443,7 +4431,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         setLikedMeals({});
         setDislikedMeals({});
         setUserProfile(null);
-        setPlanCount(0);
+        reiniciarCreditos();
         setCurrentStep(0);
         setMaxReachedStep(0);
         editedFieldsRef.current.clear();
@@ -4536,10 +4524,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
 
     const isPremium = ['basic', 'plus', 'admin', 'ultra'].includes(userProfile?.plan_tier);
 
-    let userPlanLimit = PLAN_LIMIT;
-    if (userProfile?.plan_tier === 'basic') userPlanLimit = 50;
-    else if (userProfile?.plan_tier === 'plus') userPlanLimit = 200;
-    else if (['ultra', 'admin'].includes(userProfile?.plan_tier)) userPlanLimit = userProfile?.plan_tier === 'ultra' ? 500 : 'Ilimitado';   // [P1-PLAN-LOTE-714] Max corta en 500 (auth._TIER_LIMITS); solo admin es ilimitado
+    // [P1-PLAN-LOTE-776] El tope lo dice el servidor (plan efectivo + regalos); `config/plans.js` solo cubre el
+    // hueco antes de que responda. Era una copia a mano (50/200) que a Ultra le decía «Ilimitado» con un tope de 500.
+    const userPlanLimit = limiteDePlanes(userProfile?.plan_tier || 'gratis', creditosServidor);
 
     // [P1-GUEST-MODE · 2026-06-15] Para invitados los créditos vienen del
     // contador local (GUEST_PLAN_CREDITS), no del backend. `isGuest` es true
@@ -4639,6 +4626,11 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             planCount: effectivePlanCount,
             PLAN_LIMIT,
             userPlanLimit: effectivePlanLimit,
+            // [P1-PLAN-LOTE-776] Regalos de la cuenta: cuánto del tope es regalo (medidor) + el
+            // rastro reciente para anunciarlos una vez por dispositivo (AvisoRegalos).
+            creditosRegalo: isGuest ? 0 : (creditosServidor?.bonus || 0),
+            regaloHasta: isGuest ? null : (creditosServidor?.bonusHasta || null),
+            regalosRecientes: isGuest ? [] : regalosRecientes,
             checkPlanLimit,
             isPremium,
             remainingCredits: effectiveRemaining,
@@ -4681,6 +4673,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         _updateData, planData, setPlanData, _saveGeneratedPlan, likedMeals, _toggleMealLike,
         dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, dayRegenIndex, mealRegenInFlight, _resetApp, _resetForNewAssessment,
         effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
+        creditosServidor, regalosRecientes,
         isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
         _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restartPlanPoll, restoreSessionData, serverGeneratingPlanId,
         setRecalcLock, withRecalcLock, esperarTraduccionDelDia,

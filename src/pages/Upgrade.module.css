@@ -157,6 +157,9 @@
     font-weight: 400;
 }
 
+/* [P1-PLAN-LOTE-776 · 2026-09-28] Aviso de cortesía vigente, bajo el subtítulo del hero. */
+.cortesiaNota { margin: 0.75rem auto 0; max-width: 34rem; font-size: 0.92rem; font-weight: 600; color: var(--primary); text-align: center; }
+
 /* User context card (créditos + plan actual) */
 .userContextCard {
     max-width: 700px;

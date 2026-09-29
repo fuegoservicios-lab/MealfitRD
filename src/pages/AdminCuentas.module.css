@@ -1,0 +1,49 @@
+/* frontend/src/pages/AdminCuentas.module.css — [P1-PLAN-LOTE-775] Panel · Cuentas: los tokens del panel (AdminPage). */
+.cuentas { display: flex; flex-direction: column; gap: 1.1rem; margin-top: 1.5rem; }
+.buscador { display: flex; flex-direction: column; gap: 0.45rem; max-width: 560px; }
+.fila { display: flex; gap: 0.6rem; }
+.etiqueta { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
+.ayuda { font-size: 0.78rem; color: var(--text-muted); margin: 0; line-height: 1.4; }
+.input { flex: 1; min-width: 0; font: inherit; font-size: 0.92rem; color: var(--text-main); background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.75rem; }
+.input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.input:disabled { opacity: 0.55; }
+.primario, .boton { font: inherit; font-size: 0.86rem; font-weight: 600; border-radius: 999px; padding: 0.5rem 1.05rem; cursor: pointer; white-space: nowrap; }
+.primario { border: 0; background: var(--primary-fill); color: #fff; }
+.boton { border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); }
+.primario:disabled, .boton:disabled { opacity: 0.5; cursor: default; }
+.primario:focus-visible, .boton:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.vacio { color: var(--text-muted); margin: 0; }
+.error { color: var(--danger-text, var(--danger)); margin: 0; font-size: 0.86rem; }
+.hecho { color: var(--success-text, var(--success)); margin: 0; font-size: 0.86rem; font-weight: 600; }
+.aviso { margin: 0; font-size: 0.86rem; color: var(--text-muted); }
+.ficha { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.25rem 1.2rem; display: flex; flex-direction: column; gap: 1rem; }
+.fichaCabecera { display: flex; flex-direction: column; gap: 0.2rem; }
+.correo { margin: 0; font-size: 1.15rem; font-weight: 800; overflow-wrap: anywhere; }
+.sub { margin: 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
+.datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.9rem 1.5rem; padding: 0.9rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.dato { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.datoEtiqueta { font-size: 0.78rem; color: var(--text-muted); }
+.datoValor { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.de { font-size: 0.9rem; font-weight: 600; color: var(--text-muted); }
+.datoTexto { font-size: 0.9rem; }
+.datoNota { font-size: 0.78rem; font-weight: 600; color: var(--primary); }
+.acciones { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.historial { display: flex; flex-direction: column; gap: 0.5rem; }
+.historialTitulo { margin: 0; font-size: 0.9rem; font-weight: 700; }
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+.regalo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.6rem 0.8rem; border-radius: 10px; border: 1px solid var(--border); }
+.regalo[data-estado="revertido"], .regalo[data-estado="caducado"] { opacity: 0.6; }
+.regaloTexto { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.regaloDetalle { font-weight: 600; font-size: 0.9rem; }
+.velo { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 1rem; background: color-mix(in srgb, #000 55%, transparent); }
+.dialogo { width: min(460px, 100%); max-height: calc(100dvh - 2rem); overflow-y: auto; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border); border-radius: 16px; padding: 1.2rem 1.3rem; display: flex; flex-direction: column; gap: 0.85rem; }
+.dialogoTitulo { margin: 0; font-size: 1.05rem; font-weight: 800; }
+.campo { display: flex; flex-direction: column; gap: 0.35rem; border: 0; padding: 0; margin: 0; }
+.opciones { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+.opcion { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.88rem; cursor: pointer; }
+.efecto { display: flex; flex-direction: column; gap: 0.2rem; margin: 0; padding: 0.6rem 0.75rem; border-radius: 10px; background: color-mix(in srgb, var(--primary) 8%, transparent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pie { display: flex; justify-content: flex-end; gap: 0.6rem; }
+@media (max-width: 640px) {
+    .fila { flex-direction: column; }
+    .regalo { flex-direction: column; align-items: flex-start; }
+}

@@ -3784,5 +3784,21 @@
   "Permitir eventos de uso": "Permitir eventos de uso",
   "No pudimos cargar esta preferencia.": "Não conseguimos carregar esta preferência.",
   "Controla si la IA aprende de tus conversaciones. Se activa o se pausa en Capacidades.": "Controla se a IA aprende com suas conversas. Ative ou pause em Capacidades.",
-  "Tus créditos se renuevan el día 1 de cada mes. Si necesitas más antes, puedes pasarte a un plan superior y su límite se aplica al momento. El cambio es una suscripción nueva a precio completo: la anterior se cancela en ese momento, sin prorrateo ni reembolso de lo ya pagado.": "Seus créditos se renovam no dia 1 de cada mês. Se precisar de mais antes, você pode mudar para um plano superior e o limite dele vale na hora. A troca é uma assinatura nova com preço cheio: a anterior é cancelada nesse momento, sem cálculo proporcional nem reembolso do que já foi pago."
+  "Tus créditos se renuevan el día 1 de cada mes. Si necesitas más antes, puedes pasarte a un plan superior y su límite se aplica al momento. El cambio es una suscripción nueva a precio completo: la anterior se cancela en ese momento, sin prorrateo ni reembolso de lo ya pagado.": "Seus créditos se renovam no dia 1 de cada mês. Se precisar de mais antes, você pode mudar para um plano superior e o limite dele vale na hora. A troca é uma assinatura nova com preço cheio: a anterior é cancelada nesse momento, sem cálculo proporcional nem reembolso do que já foi pago.",
+  "Tienes un regalo 🎁": "Você ganhou um presente 🎁",
+  "Tienes {nombre} de cortesía hasta el {fecha}.": "Você tem o {nombre} de cortesia até {fecha}.",
+  "Ahora tienes {nombre} de cortesía.": "Agora você tem o {nombre} de cortesia.",
+  "Cortesía": "Cortesia",
+  "Cortesía hasta": "Cortesia até",
+  "Incluye {n} de regalo": "Inclui {n} de presente",
+  "(incluye {n} de regalo)": "(inclui {n} de presente)",
+  "Tienes {nombre} de cortesía. Si te suscribes, lo conservas cuando termine.": "Você tem o {nombre} de cortesia. Se assinar, continua com ele quando terminar.",
+  "Te regalamos {n} créditos para crear planes, válidos hasta el {fecha}.": {
+    "one": "Você ganhou {n} crédito para criar planos, válido até {fecha}.",
+    "other": "Você ganhou {n} créditos para criar planos, válidos até {fecha}."
+  },
+  "Te regalamos {n} mensajes más con tu coach, válidos hasta el {fecha}.": {
+    "one": "Você ganhou mais {n} mensagem com seu coach, válida até {fecha}.",
+    "other": "Você ganhou mais {n} mensagens com seu coach, válidas até {fecha}."
+  }
 }
