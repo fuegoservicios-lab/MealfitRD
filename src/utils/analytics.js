@@ -141,7 +141,7 @@ export const persistAnalyticsOptOut = (optedOut) => {
     } catch {
         // Sin cookies el opt-out sigue vivo en localStorage para ESTE origen.
     }
-    _aplicarOptOutEnCaliente(optedOut);
+    _avisarAnalitica(optedOut);
 };
 
 /**
@@ -186,19 +186,54 @@ export const persistAnalyticsOptOut = (optedOut) => {
  * Aquí queda soltar la identidad: sin persistencia no hay nada que borrar del
  * dispositivo, pero el `distinct_id` de la cuenta sigue en memoria hasta el reset.
  */
-const _aplicarOptOutEnCaliente = (optedOut) => {
+const _aplicarOptOutEnCaliente = () => {
     try {
         const ph = typeof window !== 'undefined' ? window.posthog : null;
-        if (ph && optedOut) ph.reset?.(true);
+        if (ph) ph.reset?.(true);
     } catch { /* la analítica jamás rompe la app */ }
-
-    if (!optedOut) return;
     // El replay, vía la fachada. La primera versión de esta línea decía
     // `window.Sentry?.getReplay?.()` —exactamente la línea muerta contra la que
     // avisa el comentario que abre este fichero: `window.Sentry` no se asigna
     // nunca. Habría quedado un opt-out que en el papel para el replay y en la
     // práctica no toca nada.
     detenerReplaySentry();
+};
+
+/*
+ * [P1-PLAN-LOTE-847 · 2026-09-29] La analítica y el replay de Sentry, con PERMISO PREVIO (App Review 5.1.1(ii), RGPD).
+ *
+ * Antes PostHog arrancaba al abrir la app para todo el que no la hubiera apagado, y el replay se adjuntaba sin mirar
+ * nada. Ahora hace falta un permiso ANOTADO: `analytics_consent` de la cuenta, o en el invitado su registro local del
+ * permiso. Una cuenta vieja con `analytics_consent` NULL no lo tiene. Lo trae `consent/consentimientoIA.js` (perezoso,
+ * fuera del arranque) con `fijarPermisoAnalitica`; hasta que llega, no hay permiso.
+ *
+ * `analiticaPermitida()` es la ÚNICA regla: la leen el arranque de PostHog, su `before_send` y su `identify`, el replay
+ * de Sentry (main.jsx y utils/sentryReplay.js) y `trackEvent`. Un «no» del dispositivo (`isAnalyticsOptedOut`) sigue
+ * mandando sobre el permiso de la cuenta. Los ERRORES de Sentry no pasan por aquí.
+ */
+let _permisoAnotado = false;
+let _permitidaAvisada = false;
+const _oyentesAnalitica = new Set();
+
+export const analiticaPermitida = () => _permisoAnotado && !isAnalyticsOptedOut();
+
+/** Quien arranca algo con el permiso (PostHog, el replay). Recibe `true`/`false` en cada cambio; son de por vida. */
+export const alCambiarAnalitica = (fn) => { _oyentesAnalitica.add(fn); };
+
+// Retirar corta YA (sin recargar): identidad de PostHog fuera y replay parado. Conceder avisa a los oyentes, que
+// arrancan PostHog y el replay. `cortar` fuerza el corte aunque no cambie nada (apagar con nada encendido).
+const _avisarAnalitica = (cortar) => {
+    const ahora = analiticaPermitida();
+    const cambio = ahora !== _permitidaAvisada;
+    _permitidaAvisada = ahora;
+    if (!ahora && (cambio || cortar)) _aplicarOptOutEnCaliente();
+    if (cambio) _oyentesAnalitica.forEach((fn) => { try { fn(ahora); } catch { /* un oyente roto no tumba al resto */ } });
+};
+
+/** Lo llama el módulo del permiso con lo que dice la cuenta (o el registro del invitado): solo `true` es permiso. */
+export const fijarPermisoAnalitica = (anotado) => {
+    _permisoAnotado = anotado === true;
+    _avisarAnalitica(false);
 };
 
 // [P0-FRONTEND-ANALYTICS · 2026-05-12] `process.env.NODE_ENV` rompe en runtime
@@ -210,7 +245,8 @@ const _aplicarOptOutEnCaliente = (optedOut) => {
 // 'production' / 'test') con la misma semántica. Anchor: P0-FRONTEND-ANALYTICS.
 export const trackEvent = (eventName, data = {}) => {
     // [P2-PRIVACY-SETTINGS · 2026-07-04] Respeta el opt-out del usuario.
-    if (isAnalyticsOptedOut()) return;
+    // [P1-PLAN-LOTE-847] Y desde 847 exige el permiso anotado: sin él no hay eventos de uso (ni migas en Sentry).
+    if (!analiticaPermitida()) return;
 
     // Console log para debugging local
     if (import.meta.env.MODE !== 'production') {

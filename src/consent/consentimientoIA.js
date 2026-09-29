@@ -30,7 +30,7 @@ import { toast } from 'sonner';
 import { t } from '../i18n';
 import { safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet } from '../utils/safeLocalStorage';
 import { getGuestSessionId } from '../utils/guestMode';
-import { persistAnalyticsOptOut } from '../utils/analytics';
+import { fijarPermisoAnalitica, persistAnalyticsOptOut } from '../utils/analytics';
 import { AI_CONSENT_STORAGE_KEY, AI_CONSENT_VERSION } from './version';
 import { API_BASE, fijarGanchosIA } from '../config/api';
 import { cabeceraDelInvitado, permisoLocalVigente, titularDelDispositivo } from './cabecera';
@@ -112,6 +112,9 @@ function _igual(a, b) {
 
 function _emitir() {
     const nueva = _calcular();
+    // [P1-PLAN-LOTE-847] El permiso de analítica ANOTADO (cuenta o registro del invitado) llega a la regla única de
+    // `analytics.js`, que arranca o para PostHog y el replay. Solo `true` cuenta: NULL (cuenta vieja) no es permiso.
+    fijarPermisoAnalitica(nueva.analytics === true);
     if (_igual(nueva, _instantanea)) return;
     _instantanea = nueva;
     _oyentes.forEach((fn) => {
@@ -361,6 +364,24 @@ export async function retirarConsentimientoIA() {
         : { ...(_cuenta || { uid, version: null, at: null, analytics: null }), uid, vigente: false, revocadoEn: new Date().toISOString() });
     safeLocalStorageSet(CLAVE_POSPUESTA, _clavePospuesta());
     return { planPausado: !!(e && e.plan_pausado) };
+}
+
+/** [P1-PLAN-LOTE-847] Configuración → «Ayuda a mejorar». Anota la analítica donde vive el permiso: en la cuenta (el
+ *  POST lo hace `guardarAnaliticaEnServidor`, aquí se refleja en memoria) o en el registro del invitado. Devuelve
+ *  false si no hay dónde anotarla: un invitado sin registro del permiso la concede desde la hoja. */
+export function anotarAnaliticaDelPermiso(valor) {
+    const analytics = valor === true;
+    const uid = _uidDe(_titularEfectivo());
+    if (uid) {
+        _cuenta = { ...(_cuenta && _cuenta.uid === uid ? _cuenta : { uid, vigente: null, version: null, at: null, revocadoEn: null }), analytics };
+    } else {
+        const r = permisoLocalVigente();
+        const sid = r && typeof r.quien === 'string' && r.quien.startsWith('invitado:') ? r.quien.slice('invitado:'.length) : null;
+        if (!sid) return !analytics;
+        _escribirPermisoDeInvitado({ sid, at: r.at, analytics });
+    }
+    _emitir();
+    return true;
 }
 
 /** ¿Sale la hoja sola al abrir la app? Solo a una cuenta a la que aún no se le preguntó ESTA versión: ni tras

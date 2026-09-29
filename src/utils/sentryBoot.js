@@ -19,7 +19,7 @@
 // ⚠️ NOMBRADOS, nunca `import * as`. Un star-import reintroduce el namespace
 // entero dentro de ESTE chunk y anula justo el tree-shaking que el módulo existe
 // para conservar — es literalmente el bug que cerró P2-SENTRY-TREESHAKE.
-import { init, captureException, addBreadcrumb, setTag } from '@sentry/react';
+import { init, captureException, addBreadcrumb, setTag, getClient } from '@sentry/react';
 
 /**
  * Inicializa Sentry y devuelve la superficie que la fachada necesita.
@@ -35,5 +35,8 @@ import { init, captureException, addBreadcrumb, setTag } from '@sentry/react';
  */
 export async function arrancarSentry(config) {
     init(config);
-    return { captureException, addBreadcrumb, setTag };
+    // [P1-PLAN-LOTE-847 · 2026-09-29] `getReplay` faltaba: `detenerReplaySentry()` (observability.js) lo busca AQUÍ, y
+    // sin él apagar «Ayuda a mejorar» no paraba el replay en producción (solo en el test, que lo simula). Se busca por
+    // nombre en el cliente y no con `getReplay` de `@sentry/react`, que metería el replay en este trozo (el del apex).
+    return { captureException, addBreadcrumb, setTag, getReplay: () => getClient()?.getIntegrationByName?.('Replay') };
 }

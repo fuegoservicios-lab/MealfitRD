@@ -53,6 +53,7 @@ import App from './App.jsx'
 import { shouldAutoReloadForChunkError } from './utils/chunkReloadGuard'
 // [POSTHOG-ANALYTICS · 2026-07-12] Analítica de producto (gated por VITE_POSTHOG_KEY).
 import { initPostHog } from './utils/posthogClient'
+import { alCambiarAnalitica } from './utils/analytics'
 // [P1-LANDING-OBS-PAPER · 2026-08-14] Qué observabilidad corre según el host.
 import { shouldAttachSentryReplay, isMarketingVisit } from './utils/observabilityScope'
 import { safeLocalStorageGet } from './utils/safeLocalStorage';
@@ -433,16 +434,10 @@ if (typeof window !== 'undefined') {
 // paint. El dynamic import() aísla browserTracingIntegration + replayIntegration
 // (y replay es el output más pesado del SDK) en un chunk async separado del
 // entry. Si falla, la captura de errores sigue viva vía el core init de arriba.
-const _attachSentryIntegrations = async () => {
-  try {
-    const { browserTracingIntegration, replayIntegration, addIntegration } =
-      await import('@sentry/react');
-    addIntegration(browserTracingIntegration());
-    addIntegration(replayIntegration({ maskAllText: true, blockAllMedia: true }));
-  } catch (e) {
-    console.error('[Sentry] no se pudieron adjuntar integraciones diferidas', e);
-  }
-};
+// [P1-PLAN-LOTE-847 · 2026-09-29] Las dos viven en `utils/sentryIntegraciones.js` (imports nombrados, un solo import
+// dinámico) y el replay pide PERMISO: el idle adjunta solo el tracing; el replay lo enciende el aviso de
+// `alCambiarAnalitica` en cuanto hay permiso de analítica (sin recargar) y lo para `analytics.js` al retirarlo.
+const _integracionesSentry = () => _arrancarSentry().then(() => import('./utils/sentryIntegraciones'));
 // [P1-LANDING-OBS-PAPER · 2026-08-14] El landing del apex NO paga este chunk.
 //
 // `await import('@sentry/react')` trae el namespace ENTERO —browserTracing +
@@ -456,19 +451,18 @@ const _attachSentryIntegrations = async () => {
 // (P2-AUDIT-5) regula la INGESTA, y el chunk se descargaría igual.
 //
 // El orden importa: las integraciones se adjuntan DESPUÉS del arranque porque
-// `addIntegration` necesita un cliente vivo. Se programan en el mismo idle, y el
-// `await` de `_arrancarSentry` dentro de `_attachSentryIntegrations` garantiza
-// la secuencia aunque los dos callbacks se ejecuten en el mismo turno.
+// `addIntegration` necesita un cliente vivo. `_integracionesSentry` espera a
+// `_arrancarSentry` antes de cargar el módulo, así que la secuencia se cumple
+// aunque el idle y el aviso del permiso lleguen en el mismo turno.
 if (typeof window !== 'undefined' && shouldAttachSentryReplay()) {
-  const _adjuntarTrasArranque = async () => {
-    await _arrancarSentry();
-    await _attachSentryIntegrations();
-  };
+  const _adjuntarTrasArranque = () => _integracionesSentry().then((m) => m.adjuntarTracingSentry())
+    .catch((e) => console.error('[Sentry] no se pudieron adjuntar integraciones diferidas', e));
   if ('requestIdleCallback' in window) {
     window.requestIdleCallback(_adjuntarTrasArranque, { timeout: 4000 });
   } else {
     setTimeout(_adjuntarTrasArranque, 2000);
   }
+  alCambiarAnalitica((si) => { if (si) _integracionesSentry().then((m) => m.encenderReplaySentry()).catch(() => {}) })
 }
 
 // [POSTHOG-ANALYTICS · 2026-07-12] Init de PostHog en idle, mismo patrón diferido que

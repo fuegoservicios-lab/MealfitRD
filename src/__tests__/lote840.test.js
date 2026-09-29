@@ -45,6 +45,9 @@ describe('P1-PLAN-LOTE-840/842 · PostHog no registra lo que se pulsa en la app 
         });
         vi.stubEnv('VITE_POSTHOG_KEY', TOKEN);
         vi.resetModules();
+        // [P1-PLAN-LOTE-847] Desde 847 PostHog solo arranca con el permiso de analítica ANOTADO (opt-in): antes arrancaba
+        // para todo el que no lo hubiera apagado. Esta prueba mira el SDK arrancado, así que concede el permiso primero.
+        (await import('../utils/analytics')).fijarPermisoAnalitica(true);
         const cliente = await import('../utils/posthogClient');
         await cliente.initPostHog();
         window.posthog.on('eventCaptured', (ev) => eventosApp.push(ev));

@@ -87,6 +87,9 @@ describe('P1-PLAN-LOTE-794 · PostHog sin cookies ni almacenamiento (SDK real)',
 
         vi.resetModules();
         analytics = await import('../utils/analytics');
+        // [P1-PLAN-LOTE-847] Desde 847 PostHog solo arranca con el permiso de analítica ANOTADO (opt-in): antes arrancaba
+        // para todo el que no lo hubiera apagado. Esta prueba mira el SDK arrancado, así que concede el permiso primero.
+        analytics.fijarPermisoAnalitica(true);
         cliente = await import('../utils/posthogClient');
 
         // La sesión se conoce ANTES de que el SDK exista (import diferido en idle).

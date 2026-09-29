@@ -56,8 +56,7 @@
 // chips de salud, alergias y medicamentos (o `mask_all_text: true`), y entonces las dos copias de
 // la política retiran el aviso a la vez.
 // Ancla: src/__tests__/lote794.test.js (con el SDK real, no con un mock de `init`).
-import { isAnalyticsOptedOut } from './analytics';
-import { posthogCaptureOptions } from './observabilityScope';
+import { alCambiarAnalitica, analiticaPermitida } from './analytics';
 import { safeLocalStorageRemove } from './safeLocalStorage';
 import { SITE_DOMAIN, isSiteHost } from '../config/site';
 
@@ -74,7 +73,7 @@ let _usuario = null;
 // conserva igual: si el usuario vuelve a encender, `reaplicarIdentidadPostHog` lo usa.
 const _aplicarIdentidad = () => {
     try {
-        if (isAnalyticsOptedOut()) return;
+        if (!analiticaPermitida()) return;
         if (typeof window !== 'undefined' && window.posthog && _usuario) {
             window.posthog.identify(_usuario.id, _usuario.props);
         }
@@ -109,46 +108,31 @@ const _borrarRestosDelModoConCookies = (token) => {
 };
 
 // [P1-PLAN-LOTE-794] El corte del opt-out, evento a evento. Devolver null descarta.
-const _descartarSiOptOut = (evento) => (isAnalyticsOptedOut() ? null : evento);
+// [P1-PLAN-LOTE-847] Con la regla del permiso: retirarlo (aquí o en otra pestaña) corta el evento siguiente. Es el
+// corte real: `opt_out_capturing()` es no-op con `cookieless_mode: 'always'` (ver PrivacidadAnalitica.p1.test.js).
+const _descartarSiOptOut = (evento) => (analiticaPermitida() ? evento : null);
 
-export async function initPostHog() {
-    if (_initialized) return;
-    if (typeof window === 'undefined') return;
+// [P1-PLAN-LOTE-847] El permiso suele llegar DESPUÉS del idle (el perfil de la cuenta, o la hoja del permiso): al
+// concederlo, PostHog arranca en esta misma carga, sin recargar, y recupera la identidad que `reset` soltó al retirar.
+let _arranque = null;
+alCambiarAnalitica((si) => { if (si) { initPostHog(); _aplicarIdentidad(); } });
+
+export function initPostHog() {
+    if (_initialized || typeof window === 'undefined') return _arranque;
     const key = import.meta.env.VITE_POSTHOG_KEY;
-    if (!key) return;                    // gated OFF sin key → no-op total
+    if (!key) return null;               // gated OFF sin key → no-op total
     _borrarRestosDelModoConCookies(key); // [P1-PLAN-LOTE-794 · ronda 1] también con opt-out
-    if (isAnalyticsOptedOut()) return;   // respeta el opt-out del usuario
+    // [P1-PLAN-LOTE-847] Sin permiso anotado no arranca (antes: sin opt-out arrancaba).
+    if (!analiticaPermitida()) return null;
+    return _arranque || (_arranque = _arrancar(key));
+}
+
+async function _arrancar(key) {
     try {
-        const { default: posthog } = await import('posthog-js');
-        posthog.init(key, {
-            api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
-            ...posthogCaptureOptions(),
-            // Solo crea "person profile" tras identify (usuario logueado): ahorra
-            // cuota y evita perfiles de visitantes anónimos. Los pageviews anónimos
-            // IGUAL cuentan para usuarios activos (distinct_id anónimo).
-            person_profiles: 'identified_only',
-            // [P1-PLAN-LOTE-794] Sin cookies ni almacenamiento (ver cabecera, punto 3,
-            // para por qué `persistence` no es 'memory').
-            cookieless_mode: 'always',
-            disable_persistence: true,
-            persistence: 'localStorage+cookie',
-            // Encuestas, tours de producto y conversaciones escriben su propio `localStorage`
-            // fuera de la persistencia; se encienden desde el panel de PostHog, no desde aquí.
-            // [P1-PLAN-LOTE-794 · ronda 1] Conversaciones faltaba: su carga no se bloquea en
-            // modo `always` (posthog-conversations.js).
-            disable_surveys: true,
-            disable_product_tours: true,
-            disable_conversations: true,
-            // [P1-PLAN-LOTE-794 · ronda 2] Sin /flags (ni remote config). `before_send` sólo ve
-            // EVENTOS, y /flags no lo es: con la analítica apagada, el `reset(true)` de apagar
-            // en caliente y el refresco de cada 5 min (remote-config.js) seguían mandando a
-            // PostHog la URL, el referrer y —si se apagó desde otra pestaña— el `distinct_id`
-            // de la cuenta. La app no usa feature flags (su única llamada al SDK es `capture`).
-            // Lo que se pierde: los ajustes que el panel de PostHog empuja por remote config
-            // (heatmaps, web vitals, dead clicks); el autocapture sigue, decidido aquí.
-            advanced_disable_flags: true,
-            before_send: _descartarSiOptOut,
-        });
+        // [P1-PLAN-LOTE-847] El SDK y su configuración llegan juntos, perezosos: solo los descarga quien dio permiso.
+        const m = await import('./posthogConfig');
+        const posthog = m.posthog;
+        posthog.init(key, m.configPostHog(_descartarSiOptOut));
         window.posthog = posthog;
         _initialized = true;
         _aplicarIdentidad();

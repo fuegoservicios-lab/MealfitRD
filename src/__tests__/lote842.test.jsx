@@ -52,6 +52,9 @@ describe('P1-PLAN-LOTE-842 · los chips de salud no llegan a PostHog (SDK y comp
             open() {} send() {} setRequestHeader() {} abort() {}
         });
         vi.stubEnv('VITE_POSTHOG_KEY', TOKEN);
+        // [P1-PLAN-LOTE-847] Desde 847 PostHog solo arranca con el permiso de analítica ANOTADO (opt-in): antes arrancaba
+        // para todo el que no lo hubiera apagado. Esta prueba mira el SDK arrancado, así que concede el permiso primero.
+        (await import('../utils/analytics')).fijarPermisoAnalitica(true);
         const cliente = await import('../utils/posthogClient');
         await cliente.initPostHog();
         // [842, ronda 3] La app ya arranca con el autocapture APAGADO (lote840.test.js). Aquí se prueba la SEGUNDA

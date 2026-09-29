@@ -25,7 +25,7 @@ import { confirmToast } from '../utils/confirmToast';
 import { getFreshPlanCount } from '../utils/quotaCache';
 // [P1-PLAN-LOTE-133] el interruptor habla con UNA fachada: Web Push en navegador/PWA, avisos locales en la app nativa
 import { estadoDeAvisos, activarAvisos, desactivarAvisos, interruptorAlNacer, elPermisoEsDelNavegador, alarmaExactaPendiente, pedirAlarmaExacta, sincronizarAvisosLocales } from '../utils/avisosDeComida';
-import { trackEvent, isAnalyticsOptedOut, persistAnalyticsOptOut } from '../utils/analytics';
+import { trackEvent, analiticaPermitida, persistAnalyticsOptOut } from '../utils/analytics';
 // [P1-PLAN-LOTE-794 · ronda 1] Al volver a encender, la sesión de esta carga recupera su identidad.
 import { reaplicarIdentidadPostHog } from '../utils/posthogClient';
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] Helper defensivo para removeItem
@@ -82,6 +82,8 @@ import DeleteAccountSection from '../components/account/DeleteAccountSection';
 import BloqueIADeTerceros from '../consent/BloqueIADeTerceros';
 import { guardarAnaliticaEnServidor } from '../consent/apiConsentimiento';
 import { useConsentimientoIA } from '../consent/consentimientoIA';
+// [P1-PLAN-LOTE-847] «Ayuda a mejorar» se anota en el estado del permiso (línea aparte: lote844.ronda1 fija la de arriba).
+import { anotarAnaliticaDelPermiso, pedirHojaConsentimientoIA } from '../consent/consentimientoIA';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
 import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAvatars';
 import { getAvatarId, persistAvatar } from '../utils/avatarStore';
@@ -1454,7 +1456,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     useEffect(() => { setEstadosPanel({}); }, [activeSection]);
 
     // [P2-PRIVACY-SETTINGS · 2026-07-04] Toggle "Ayuda a mejorar Bioboros":
-    // opt-out REAL de analytics (trackEvent gatea en isAnalyticsOptedOut).
+    // opt-out REAL de analytics (trackEvent gatea en isAnalyticsOptedOut; desde 847 en analiticaPermitida).
     // Flag por dispositivo en localStorage — la analítica es per-device por
     // naturaleza (PostHog/GA/GTM viven en el browser).
     // [P1-LANDING-OBS-PAPER · 2026-08-14] Ese `localStorage` es POR ORIGEN, y
@@ -1462,15 +1464,20 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // aquí seguía siendo rastreado en el landing del apex, que no puede leerlo.
     // `persistAnalyticsOptOut` escribe además una cookie de `.bioboros.com`, que
     // ven los dos hosts. No vuelvas a escribir la clave a pelo.
-    const [analyticsEnabled, setAnalyticsEnabled] = useState(() => !isAnalyticsOptedOut());
+    // [P1-PLAN-LOTE-847 · 2026-09-29] El interruptor enseña la regla ÚNICA (`analiticaPermitida`): con permiso previo,
+    // una cuenta vieja (analytics_consent NULL) lo ve APAGADO aunque nunca lo apagara.
+    const [analyticsEnabled, setAnalyticsEnabled] = useState(() => analiticaPermitida());
     // [P1-PLAN-LOTE-844 · ronda 1] La hoja del permiso escribe el MISMO dato (su casilla de analítica): cuando cambia
     // el estado del permiso, el interruptor se vuelve a leer para no enseñar el valor de antes.
     const permisoIA = useConsentimientoIA();
-    useEffect(() => { setAnalyticsEnabled(!isAnalyticsOptedOut()); }, [permisoIA]);
+    useEffect(() => { setAnalyticsEnabled(analiticaPermitida()); }, [permisoIA]);
     const handleToggleAnalytics = () => {
         // [P1-PLAN-LOTE-844 · 2026-09-29] Este interruptor y la casilla de analítica de la hoja del permiso para la IA
         // son el MISMO dato: queda también en la cuenta (user_consents, con fecha). Fuera del updater de estado (en
         // StrictMode se ejecuta dos veces) y sin esperar: aquí manda el dispositivo, y un fallo no revierte nada.
+        // [P1-PLAN-LOTE-847] …y se anota también en el estado del permiso, que es lo que arranca PostHog y el replay.
+        // Un invitado sin registro del permiso no tiene dónde anotarla: la concede desde la hoja (su casilla).
+        if (!anotarAnaliticaDelPermiso(!analyticsEnabled)) { void pedirHojaConsentimientoIA(); return; }
         if (userProfile?.id) guardarAnaliticaEnServidor(!analyticsEnabled).catch(() => {});
         setAnalyticsEnabled((prev) => {
             const next = !prev;
@@ -4435,7 +4442,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.75rem' }}>{t('Preferencias')}</h3>
 
                             {/* Toggle REAL de analytics: trackEvent (Sentry breadcrumbs /
-                                PostHog / GA / GTM) gatea en isAnalyticsOptedOut. Equivalente
+                                PostHog / GA / GTM) gatea en analiticaPermitida (847: permiso previo). Equivalente
                                 Bioboros del "Ayuda a mejorar" de Claude.ai — acá NO entrena
                                 modelos: son eventos de uso del producto. */}
                             <div style={{

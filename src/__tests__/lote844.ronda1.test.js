@@ -176,7 +176,9 @@ describe('[P1-PLAN-LOTE-844 · ronda 1] la analítica y Configuración', () => {
     it('Configuración relee «Ayuda a mejorar» cuando cambia el estado del permiso', () => {
         const src = readFileSync(resolve(__dirname, '../pages/Settings.jsx'), 'utf8');
         expect(src).toContain("import { useConsentimientoIA } from '../consent/consentimientoIA';");
-        expect(src).toMatch(/const permisoIA = useConsentimientoIA\(\);\s*\n\s*useEffect\(\(\) => \{ setAnalyticsEnabled\(!isAnalyticsOptedOut\(\)\); \}, \[permisoIA\]\);/);
+        // [P1-PLAN-LOTE-847] Relee la regla única del permiso previo (`analiticaPermitida`), no el opt-out a secas: con
+        // opt-in, «sin opt-out» dejó de significar «encendido».
+        expect(src).toMatch(/const permisoIA = useConsentimientoIA\(\);\s*\n\s*useEffect\(\(\) => \{ setAnalyticsEnabled\(analiticaPermitida\(\)\); \}, \[permisoIA\]\);/);
     });
 });
 
