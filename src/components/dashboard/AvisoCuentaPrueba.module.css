@@ -155,6 +155,33 @@
     cursor: wait;
 }
 
+/* «Ahora no» [ronda 1]: la salida cuando el servidor falla. Botón de TEXTO (subrayado, sin caja): no compite con los dos
+   principales, pero conserva la altura táctil de 44 px, el texto va en --text-muted (AA en los dos temas), lo dice con
+   palabras y con subrayado (no solo con color) y el foco de teclado se dibuja con anillo propio. */
+.ahoraNo {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    margin: 0.35rem 0 0;
+    padding: 0.55rem 1rem;
+    border: 0;
+    border-radius: 0.8rem;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.ahoraNo:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 @media (max-width: 640px) {
     .capa {
         align-items: flex-end;

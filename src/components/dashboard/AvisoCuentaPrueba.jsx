@@ -6,9 +6,15 @@
 //   · «Entendido» anota `aviso_visto` (POST /api/profile/prueba/aviso-visto); «Salir del modo de prueba» sale
 //     (POST /api/profile/prueba/salir). Ni Escape ni el fondo la cierran: la decisión es de la persona;
 //   · si el servidor no anota la respuesta, la hoja SIGUE abierta con el motivo (un aviso no anotado no cuenta como
-//     visto: el contenido sigue cerrado para el equipo) y se puede reintentar;
-//   · una vez contestada, un perfil viejo que llegue después (el poll trae una copia anterior a la anotación) no la
-//     reabre en esta carga; una marca NUEVA (otra `desde`: el equipo la quitó y la volvió a poner) sí sale otra vez.
+//     visto: el contenido sigue cerrado para el equipo) y se puede reintentar. SOLO en ese estado de error aparece un
+//     tercer botón, «Ahora no»: pospone SIN llamar al servidor (no anota nada; el aviso vuelve en la próxima carga).
+//     Sin esa salida, un defecto del backend (5xx/422/429) con todas las cuentas marcadas dejaría a todo el mundo
+//     bloqueado: la hoja tapa el dashboard entero y sus dos botones necesitan al servidor;
+//   · Escape lo traga la propia hoja (captura en `window` + stopPropagation, como la hoja del permiso de la IA): sin
+//     eso llegaba al modal que haya debajo (`common/Modal.jsx` cierra con un listener de `document`) y lo cerraba;
+//   · una vez contestada o pospuesta, un perfil viejo que llegue después (el poll trae una copia anterior a la
+//     anotación) no la reabre en esta carga; una marca NUEVA (otra `desde`: el equipo la quitó y la volvió a poner)
+//     sí sale otra vez.
 // El perfil viene del contexto que ya lee la app (`userProfile.cuenta_de_prueba`, de GET /api/profile): nada nuevo
 // entra en AssessmentContext.jsx (tope de líneas). Con el interruptor del servidor apagado el perfil no trae la clave y
 // esto no pinta nada.
@@ -16,7 +22,7 @@
 // Accesibilidad con `useModalAccessibility` (foco atrapado, foco de vuelta, fondo sin scroll). Portal a <body>: fuera de
 // cualquier contenedor con `will-change`/`backdrop-filter` (una hoja `fixed` dentro de uno mide ESE nodo: lote 415), por
 // encima de todo (`--z-modal-top`). `ph-no-capture`: la analítica no graba lo que se toca aquí (lote 842).
-import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
@@ -30,7 +36,7 @@ export default function AvisoCuentaPrueba() {
     const t = useT();
     const tx = useMemo(() => textosCuentaDePrueba(t), [t]);
     const { session, userProfile, refreshProfileAndPlan } = useAssessment() || {};
-    const [respondida, setRespondida] = useState(null);   // la marca (por su fecha) cuyo aviso ya se contestó en esta carga
+    const [respondida, setRespondida] = useState(null);   // la marca (por su fecha) cuyo aviso ya se contestó o pospuso en esta carga
     const [enCurso, setEnCurso] = useState(null);   // 'visto' | 'salir' | null
     const [error, setError] = useState(null);
     const ocupada = useRef(false);
@@ -48,22 +54,51 @@ export default function AvisoCuentaPrueba() {
     const noCerrar = useCallback(() => {}, []);
     const { containerRef } = useModalAccessibility({ isOpen: visible, onClose: noCerrar, disableClose: true });
 
+    // Escape lo atiende SOLO esta hoja, y no para cerrar: la decisión es explícita. Captura en `window` + stopPropagation
+    // (el patrón de consent/ConsentimientoIASheet.jsx): abierta encima de otro modal —Configuración, el bot de ayuda, el
+    // escáner—, el Escape de ESE (un listener de `document`) también saltaba y le cerraba a la persona lo que estaba haciendo.
+    useEffect(() => {
+        if (!visible) return undefined;
+        const tragarEscape = (e) => {
+            if (e.key !== 'Escape') return;
+            e.stopPropagation();
+            e.preventDefault();
+        };
+        window.addEventListener('keydown', tragarEscape, true);
+        return () => window.removeEventListener('keydown', tragarEscape, true);
+    }, [visible]);
+
     const contestar = async (cual) => {
         if (ocupada.current) return;
         ocupada.current = true;
         const deEstaMarca = claveDeMarca;   // la marca que se contesta, aunque el perfil cambie mientras viaja la petición
         setEnCurso(cual);
         setError(null);
-        const bien = cual === 'visto' ? await anotarAvisoVisto() : (await salirDelModoDePrueba()).ok;
-        ocupada.current = false;
-        setEnCurso(null);
-        if (!bien) {
+        try {
+            const bien = cual === 'visto' ? await anotarAvisoVisto() : (await salirDelModoDePrueba()).ok;
+            if (!bien) {
+                setError(cual === 'visto' ? tx.errorGuardar : tx.errorSalir);
+                return;
+            }
+            if (cual === 'salir') toast.success(tx.salio);
+            setRespondida(deEstaMarca);
+            refrescarPerfil(refreshProfileAndPlan);
+        } catch {
+            // Nada de lo de arriba lanza, pero una hoja que tapa TODO el dashboard no puede quedarse atascada por una
+            // excepción inesperada: se trata como un fallo más (mismo motivo, y «Ahora no» disponible).
             setError(cual === 'visto' ? tx.errorGuardar : tx.errorSalir);
-            return;
+        } finally {
+            ocupada.current = false;
+            setEnCurso(null);
         }
-        if (cual === 'salir') toast.success(tx.salio);
-        setRespondida(deEstaMarca);
-        refrescarPerfil(refreshProfileAndPlan);
+    };
+
+    // «Ahora no»: la salida cuando el servidor falla (solo se pinta en el estado de error). Pospone SIN llamar al servidor:
+    // no anota nada, así que el aviso vuelve en la próxima carga. `respondida` (por la fecha de la marca) impide que un
+    // perfil viejo la reabra en ESTA carga; el error se limpia para que una marca nueva no herede el de la anterior.
+    const posponer = () => {
+        setRespondida(claveDeMarca);
+        setError(null);
     };
 
     if (!visible) return null;
@@ -115,6 +150,12 @@ export default function AvisoCuentaPrueba() {
                             {enCurso === 'visto' ? tx.guardando : tx.entendido}
                         </button>
                     </div>
+                    {/* La salida cuando el servidor falla: SOLO en el estado de error, y sin llamar a nadie (ver `posponer`). */}
+                    {error && (
+                        <button type="button" className={styles.ahoraNo} onClick={posponer} data-hover="fantasma">
+                            {tx.ahoraNo}
+                        </button>
+                    )}
                 </footer>
             </section>
         </div>

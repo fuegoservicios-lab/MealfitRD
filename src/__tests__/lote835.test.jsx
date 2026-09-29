@@ -5,10 +5,15 @@
  * DENTRO de la app —esa es la notificación que sustituye al correo (§6, «Publicación»)— y poder salir cuando quiera:
  *
  *  - El aviso sale una vez (hasta que se anota `aviso_visto`): «Entendido» lo anota, «Salir del modo de prueba» sale.
- *    Ni Escape ni el fondo lo cierran: la decisión es explícita. Si el servidor no anota la respuesta, la hoja sigue.
+ *    Ni Escape ni el fondo lo cierran: la decisión es explícita. Si el servidor no anota la respuesta, la hoja sigue con
+ *    el motivo Y con «Ahora no» (solo en ese estado): pospone SIN llamar al servidor y el aviso vuelve en la próxima
+ *    carga. Un defecto del backend no puede dejar a nadie atrapado (ronda 1).
+ *  - Escape lo traga la hoja (captura en `window`, como la del permiso de la IA) para que no llegue al modal de debajo.
  *  - Configuración → Privacidad lleva un bloque fijo con la misma explicación y «Salir…» CON confirmación; tras salir
  *    dice que el equipo ya no ve la actividad.
- *  - Los textos van en los 5 idiomas; nada nuevo entra en AssessmentContext.jsx (tope 4.692 líneas).
+ *  - La explicación nombra las FOTOS de las conversaciones (decisión del controlador, ronda 1: el aviso es la única
+ *    notificación que recibe la persona y la política publicada las lista).
+ *  - Los textos van en los 5 idiomas; nada nuevo entra en AssessmentContext.jsx (tope documentado: 4.700 líneas).
  *
  * Las pruebas negativas («no sale sin marca») se aparean con una positiva del mismo montaje: la hoja va por un portal a
  * <body>, así que mirar `container` da vacío aunque el componente esté roto (lección del lote 415).
@@ -30,6 +35,7 @@ import { toast } from 'sonner';
 import { confirmToast } from '../utils/confirmToast';
 import AvisoCuentaPrueba from '../components/dashboard/AvisoCuentaPrueba';
 import BloqueCuentaPrueba from '../components/settings/BloqueCuentaPrueba';
+import * as cuentaUtil from '../utils/cuentaDePrueba';
 import { textosCuentaDePrueba } from '../utils/cuentaDePrueba';
 
 const fuente = (ruta) => readFileSync(resolve(process.cwd(), ruta), 'utf8');
@@ -48,7 +54,8 @@ const contexto = (over = {}) => ({
 const llamadasDePrueba = () => fetchWithAuth.mock.calls.filter(([url]) => String(url).startsWith('/api/profile/prueba/'));
 const hoja = (baseElement) => baseElement.querySelector('[role="dialog"]');
 
-const TEXTO_DEL_SPEC = 'El equipo de Bioboros puede ver lo que haces en la app —tu formulario, tus comidas, tus planes y tus conversaciones con el coach, también las anteriores— para probarla y mejorarla. Puedes salir cuando quieras en Configuración → Privacidad';
+// El texto del spec §5 con UNA inserción, por decisión del controlador (ronda 1): «…con el coach con sus fotos, también las…».
+const EXPLICACION = 'El equipo de Bioboros puede ver lo que haces en la app —tu formulario, tus comidas, tus planes y tus conversaciones con el coach con sus fotos, también las anteriores— para probarla y mejorarla. Puedes salir cuando quieras en Configuración → Privacidad';
 const YA_NO_ES = 'Ya no es una cuenta de prueba: el equipo ya no ve tu actividad';
 
 beforeEach(() => {
@@ -63,11 +70,11 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('[835] el aviso a la persona (una vez)', () => {
-    it('sale con el título y el texto del spec, y los dos botones', () => {
+    it('sale con el título y la explicación (la del spec §5 más «con sus fotos»), y los dos botones', () => {
         const { baseElement } = render(<AvisoCuentaPrueba />);
         const dialogo = screen.getByRole('dialog', { name: 'Esta es una cuenta de prueba' });
         expect(dialogo).toHaveAttribute('aria-modal', 'true');
-        expect(dialogo).toHaveTextContent(TEXTO_DEL_SPEC);
+        expect(dialogo).toHaveTextContent(EXPLICACION);
         expect(screen.getByRole('button', { name: 'Entendido' })).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Salir del modo de prueba' })).toBeEnabled();
         // la analítica no graba lo que se toca aquí, y no hereda la clase de ningún contenedor (va a <body>)
@@ -257,6 +264,206 @@ describe('[835] el aviso a la persona (una vez)', () => {
     });
 });
 
+describe('[835 ronda 1] la hoja nunca deja a la persona atrapada: si el servidor falla, «Ahora no»', () => {
+    // Antes, con un 5xx/422/429 persistente los dos botones fallaban y la hoja bloqueaba TODO el dashboard: si el
+    // backend se rompe con todas las cuentas marcadas, nadie podía usar la app.
+    const AHORA_NO = { name: 'Ahora no' };
+    const botones = () => screen.getAllByRole('button').map((b) => b.textContent);
+
+    it('sin fallo no hay «Ahora no»: mientras el servidor no haya fallado, la decisión sigue siendo explícita', () => {
+        render(<AvisoCuentaPrueba />);
+        expect(screen.queryByRole('button', AHORA_NO)).toBeNull();
+        expect(botones()).toEqual(['Salir del modo de prueba', 'Entendido']);
+    });
+
+    it('tras un fallo aparece «Ahora no» como tercer botón; pulsarlo cierra la hoja SIN llamar al servidor', async () => {
+        fetchWithAuth.mockResolvedValueOnce(respuesta({}, false, 503));
+        const { baseElement } = render(<AvisoCuentaPrueba />);
+        fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+        await screen.findByRole('alert');
+        expect(botones()).toEqual(['Salir del modo de prueba', 'Entendido', 'Ahora no']);
+        expect(llamadasDePrueba()).toHaveLength(1);        // el intento que falló
+        fireEvent.click(screen.getByRole('button', AHORA_NO));
+        await waitFor(() => expect(hoja(baseElement)).toBeNull());
+        expect(llamadasDePrueba()).toHaveLength(1);        // …y ninguna más: posponer no habla con el servidor
+        expect(toast.success).not.toHaveBeenCalled();
+        expect(ctx.refreshProfileAndPlan).not.toHaveBeenCalled();
+    });
+
+    it('posponer no es contestar: en la próxima carga (otro montaje) el aviso vuelve, sin el error ni «Ahora no»', async () => {
+        fetchWithAuth.mockResolvedValueOnce(respuesta({}, false, 500));
+        const primera = render(<AvisoCuentaPrueba />);
+        fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+        await screen.findByRole('alert');
+        fireEvent.click(screen.getByRole('button', AHORA_NO));
+        await waitFor(() => expect(hoja(primera.baseElement)).toBeNull());
+        primera.unmount();
+        // la próxima carga: el servidor sigue diciendo aviso_visto = false
+        const segunda = render(<AvisoCuentaPrueba />);
+        expect(hoja(segunda.baseElement)).not.toBeNull();
+        expect(screen.queryByRole('alert')).toBeNull();
+        expect(screen.queryByRole('button', AHORA_NO)).toBeNull();
+    });
+
+    it('lo mismo tras fallar «Salir del modo de prueba» (red caída)', async () => {
+        fetchWithAuth.mockRejectedValueOnce(new Error('sin red'));
+        const { baseElement } = render(<AvisoCuentaPrueba />);
+        fireEvent.click(screen.getByRole('button', { name: 'Salir del modo de prueba' }));
+        await screen.findByRole('alert');
+        fireEvent.click(screen.getByRole('button', AHORA_NO));
+        await waitFor(() => expect(hoja(baseElement)).toBeNull());
+        expect(llamadasDePrueba().map(([url]) => url)).toEqual(['/api/profile/prueba/salir']);   // solo el que falló
+        expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it('mientras se reintenta «Ahora no» se retira (el estado de error terminó); un reintento bueno cierra la hoja de verdad', async () => {
+        fetchWithAuth.mockResolvedValueOnce(respuesta({}, false, 500));
+        const { baseElement } = render(<AvisoCuentaPrueba />);
+        fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+        await screen.findByRole('alert');
+        let soltar;
+        fetchWithAuth.mockReturnValueOnce(new Promise((r) => { soltar = r; }));
+        fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+        await screen.findByRole('button', { name: 'Guardando…' });
+        expect(screen.queryByRole('button', AHORA_NO)).toBeNull();
+        expect(screen.queryByRole('alert')).toBeNull();
+        soltar(respuesta({ ok: true }));
+        await waitFor(() => expect(hoja(baseElement)).toBeNull());
+        expect(llamadasDePrueba()).toHaveLength(2);
+    });
+
+    it('si el reintento vuelve a fallar, «Ahora no» reaparece', async () => {
+        fetchWithAuth.mockResolvedValueOnce(respuesta({}, false, 500)).mockResolvedValueOnce(respuesta({}, false, 429));
+        render(<AvisoCuentaPrueba />);
+        fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+        await screen.findByRole('alert');
+        fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+        await waitFor(() => expect(llamadasDePrueba()).toHaveLength(2));
+        await screen.findByRole('alert');
+        expect(screen.getByRole('button', AHORA_NO)).toBeTruthy();
+    });
+
+    it('un perfil viejo tras «Ahora no» no la reabre en esta carga; una marca NUEVA sí, sin el error de la anterior', async () => {
+        fetchWithAuth.mockResolvedValueOnce(respuesta({}, false, 500));
+        const { baseElement, rerender } = render(<AvisoCuentaPrueba />);
+        fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+        await screen.findByRole('alert');
+        fireEvent.click(screen.getByRole('button', AHORA_NO));
+        await waitFor(() => expect(hoja(baseElement)).toBeNull());
+        ctx = contexto();   // el poll del perfil trae la misma marca, aún sin ver
+        rerender(<AvisoCuentaPrueba />);
+        expect(hoja(baseElement)).toBeNull();
+        ctx = contexto({ userProfile: { id: UID, cuenta_de_prueba: { desde: '2026-10-05T09:00:00+00:00', aviso_visto: false } } });
+        rerender(<AvisoCuentaPrueba />);
+        expect(hoja(baseElement)).not.toBeNull();
+        expect(screen.queryByRole('alert')).toBeNull();
+        expect(screen.queryByRole('button', AHORA_NO)).toBeNull();
+    });
+
+    it('lo inesperado (una excepción al contestar) se trata como un fallo: no queda atascada, ofrece «Ahora no» y se puede reintentar', async () => {
+        const espia = vi.spyOn(cuentaUtil, 'anotarAvisoVisto').mockRejectedValueOnce(new Error('boom'));
+        try {
+            const { baseElement } = render(<AvisoCuentaPrueba />);
+            fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+            const alerta = await screen.findByRole('alert');
+            expect(alerta).toHaveTextContent('No pudimos guardar. Revisa tu conexión e inténtalo de nuevo.');
+            for (const nombre of ['Entendido', 'Salir del modo de prueba']) {
+                expect(screen.getByRole('button', { name: nombre })).not.toHaveAttribute('aria-disabled', 'true');   // sin cerrojo puesto
+            }
+            expect(screen.getByRole('button', AHORA_NO)).toBeTruthy();
+            fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));   // el reintento (el espía era de una sola vez): bien
+            await waitFor(() => expect(hoja(baseElement)).toBeNull());
+        } finally {
+            espia.mockRestore();
+        }
+    });
+
+    it('el foco sigue atrapado con el tercer botón: Tab desde «Ahora no» vuelve al primero', async () => {
+        fetchWithAuth.mockResolvedValueOnce(respuesta({}, false, 500));
+        render(<AvisoCuentaPrueba />);
+        // al abrir, el hook de accesibilidad enfoca la hoja (a los 10 ms): se espera a eso antes de mover el foco a mano
+        await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('dialog')));
+        fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+        await screen.findByRole('alert');
+        screen.getByRole('button', AHORA_NO).focus();
+        fireEvent.keyDown(document, { key: 'Tab' });
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Salir del modo de prueba' }));
+    });
+
+    it('«Ahora no» usa una clave que YA existía y está traducida en los 4 catálogos', () => {
+        const tx = textosCuentaDePrueba((k) => k);
+        expect(tx.ahoraNo).toBe('Ahora no');
+        for (const codigo of CATALOGOS) {
+            const v = catalogo(codigo)['Ahora no'];
+            expect(typeof v === 'string' && v.trim() !== '', codigo).toBe(true);
+        }
+    });
+});
+
+describe('[835 ronda 1] Escape no atraviesa la hoja (el modal de debajo no se cierra)', () => {
+    // `common/Modal.jsx` cierra con un listener de `document`; la hoja lo traga con uno de captura en `window`
+    // (el patrón de la hoja del permiso de la IA), SIN acción de cerrar: la decisión sigue siendo explícita.
+    let teclas;
+    let escuchar;
+    beforeEach(() => {
+        teclas = [];
+        escuchar = (e) => { teclas.push(e.key); };
+        document.addEventListener('keydown', escuchar);
+    });
+    afterEach(() => document.removeEventListener('keydown', escuchar));
+    const pulsar = (objetivo, key) => {
+        const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        objetivo.dispatchEvent(ev);
+        return ev;
+    };
+
+    it('con la hoja abierta, Escape no llega al modal de debajo (ni desde el body ni desde el documento), se cancela y no cierra nada', () => {
+        const { baseElement } = render(<AvisoCuentaPrueba />);
+        const desdeElBody = pulsar(document.body, 'Escape');
+        const desdeElDocumento = pulsar(document, 'Escape');
+        expect(teclas).not.toContain('Escape');
+        expect(desdeElBody.defaultPrevented).toBe(true);
+        expect(desdeElDocumento.defaultPrevented).toBe(true);
+        expect(hoja(baseElement)).not.toBeNull();
+        expect(llamadasDePrueba()).toHaveLength(0);
+    });
+
+    it('solo se traga Escape: las demás teclas siguen su camino', () => {
+        render(<AvisoCuentaPrueba />);
+        const flecha = pulsar(document.body, 'ArrowDown');
+        pulsar(document.body, 'Enter');
+        expect(teclas).toEqual(['ArrowDown', 'Enter']);
+        expect(flecha.defaultPrevented).toBe(false);
+    });
+
+    it('el silencio es solo mientras la hoja está abierta: sin marca, o ya contestada, Escape llega al modal de debajo', async () => {
+        ctx = contexto({ userProfile: { id: UID, cuenta_de_prueba: null } });
+        const sinMarca = render(<AvisoCuentaPrueba />);
+        pulsar(document.body, 'Escape');
+        expect(teclas).toEqual(['Escape']);                // sin marca no hay hoja: nadie lo traga
+        sinMarca.unmount();
+        teclas.length = 0;
+
+        ctx = contexto();
+        const { baseElement } = render(<AvisoCuentaPrueba />);
+        pulsar(document.body, 'Escape');
+        expect(teclas).toEqual([]);                        // abierta: lo traga
+        fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+        await waitFor(() => expect(hoja(baseElement)).toBeNull());
+        const libre = pulsar(document.body, 'Escape');
+        expect(teclas).toEqual(['Escape']);                // contestada: vuelve a pasar
+        expect(libre.defaultPrevented).toBe(false);
+    });
+
+    it('ancla: captura en window + stopPropagation (el patrón de consent/ConsentimientoIASheet.jsx)', () => {
+        const aviso = fuente('src/components/dashboard/AvisoCuentaPrueba.jsx');
+        expect(aviso).toContain("window.addEventListener('keydown', tragarEscape, true)");
+        expect(aviso).toContain("window.removeEventListener('keydown', tragarEscape, true)");
+        expect(aviso).toContain('e.stopPropagation()');
+        expect(fuente('src/consent/ConsentimientoIASheet.jsx')).toContain("window.addEventListener('keydown', alPulsar, true)");
+    });
+});
+
 describe('[835] Configuración → Privacidad: el bloque fijo', () => {
     it('sin marca no pinta nada; con marca, título, la misma explicación y el botón', () => {
         ctx = contexto({ userProfile: { id: UID, cuenta_de_prueba: null } });
@@ -268,7 +475,7 @@ describe('[835] Configuración → Privacidad: el bloque fijo', () => {
         render(<BloqueCuentaPrueba />);
         expect(screen.getByRole('heading', { name: 'Cuenta de prueba' })).toBeTruthy();
         const bloque = screen.getByTestId('bloque-cuenta-de-prueba');
-        expect(bloque).toHaveTextContent(TEXTO_DEL_SPEC);
+        expect(bloque).toHaveTextContent(EXPLICACION);
         expect(bloque.className).toContain('ph-no-capture');
         expect(screen.getByRole('button', { name: 'Salir del modo de prueba' })).toBeEnabled();
         // el bloque no repite el aviso: solo la explicación y la salida
@@ -324,7 +531,7 @@ describe('[835] Configuración → Privacidad: el bloque fijo', () => {
         rerender(<BloqueCuentaPrueba />);
         expect(screen.queryByText(YA_NO_ES)).toBeNull();
         expect(screen.getByRole('button', { name: 'Salir del modo de prueba' })).toBeEnabled();
-        expect(screen.getByTestId('bloque-cuenta-de-prueba')).toHaveTextContent(TEXTO_DEL_SPEC);
+        expect(screen.getByTestId('bloque-cuenta-de-prueba')).toHaveTextContent(EXPLICACION);
     });
 
     it('si el servidor no lo anota, avisa y deja el botón para reintentar', async () => {
@@ -363,10 +570,10 @@ describe('[835] Configuración → Privacidad: el bloque fijo', () => {
 describe('[835] los textos: una sola fuente, y en los 5 idiomas', () => {
     const tFalso = (k, v = {}) => k.replace(/\{(\w+)\}/g, (_, x) => String(v[x]));
 
-    it('textosCuentaDePrueba: el texto del spec, tal cual', () => {
+    it('textosCuentaDePrueba: la explicación (spec §5 + «con sus fotos»), tal cual', () => {
         const tx = textosCuentaDePrueba(tFalso);
         expect(tx.titulo).toBe('Esta es una cuenta de prueba');
-        expect(tx.explicacion).toBe(TEXTO_DEL_SPEC);
+        expect(tx.explicacion).toBe(EXPLICACION);
         expect(tx.entendido).toBe('Entendido');
         expect(tx.salir).toBe('Salir del modo de prueba');
         expect(tx.bloque).toBe('Cuenta de prueba');
@@ -377,7 +584,7 @@ describe('[835] los textos: una sola fuente, y en los 5 idiomas', () => {
         const tx = textosCuentaDePrueba((k) => k);   // la clave ES el español
         const claves = [
             tx.titulo, tx.explicacion, tx.entendido, tx.salir, tx.saliendo, tx.bloque, tx.salio,
-            tx.confirmar, tx.confirmarDetalle, tx.errorSalir, tx.errorGuardar,
+            tx.confirmar, tx.confirmarDetalle, tx.errorSalir, tx.errorGuardar, tx.ahoraNo,
         ];
         for (const codigo of CATALOGOS) {
             const cat = catalogo(codigo);
@@ -443,8 +650,8 @@ describe('[835] el montaje y los topes (anclas del código)', () => {
         expect(aviso).toContain('ph-no-capture');
     });
 
-    it('AssessmentContext.jsx no crece: tope de 4.692 líneas (wc -l)', () => {
+    it('AssessmentContext.jsx respeta su tope documentado: 4.700 líneas (wc -l)', () => {
         const lineas = (fuente('src/context/AssessmentContext.jsx').match(/\n/g) || []).length;
-        expect(lineas).toBeLessThanOrEqual(4692);
+        expect(lineas).toBeLessThanOrEqual(4700);
     });
 });

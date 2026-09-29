@@ -21,16 +21,21 @@ export const RUTA_AVISO_VISTO = '/api/profile/prueba/aviso-visto';
 export const RUTA_SALIR = '/api/profile/prueba/salir';
 
 /** Los textos de las dos superficies, ya traducidos con `t` (la clave ES el español; la marca entra como `{app}`).
- *  Una función y no una constante: un `t()` en ámbito de módulo se congelaría en español al importar. */
+ *  Una función y no una constante: un `t()` en ámbito de módulo se congelaría en español al importar.
+ *
+ *  LA EXPLICACIÓN es el texto del spec §5 con UNA inserción —«…con el coach con sus fotos, también las anteriores…»—
+ *  por decisión del controlador (ronda 1): el aviso es la ÚNICA notificación que recibe la persona (el dueño decidió
+ *  que no hay correo) y la política publicada lista las fotos adjuntadas en las conversaciones. */
 export function textosCuentaDePrueba(t) {
     return {
         titulo: t('Esta es una cuenta de prueba'),
-        explicacion: t('El equipo de {app} puede ver lo que haces en la app —tu formulario, tus comidas, tus planes y tus conversaciones con el coach, también las anteriores— para probarla y mejorarla. Puedes salir cuando quieras en Configuración → Privacidad', { app: BRAND }),
+        explicacion: t('El equipo de {app} puede ver lo que haces en la app —tu formulario, tus comidas, tus planes y tus conversaciones con el coach con sus fotos, también las anteriores— para probarla y mejorarla. Puedes salir cuando quieras en Configuración → Privacidad', { app: BRAND }),
         entendido: t('Entendido'),
         salir: t('Salir del modo de prueba'),
         saliendo: t('Saliendo…'),
         guardando: t('Guardando…'),
         cancelar: t('Cancelar'),
+        ahoraNo: t('Ahora no'),
         bloque: t('Cuenta de prueba'),
         salio: t('Ya no es una cuenta de prueba: el equipo ya no ve tu actividad'),
         confirmar: t('¿Salir del modo de prueba?'),
