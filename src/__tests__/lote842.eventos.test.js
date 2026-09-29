@@ -23,6 +23,7 @@ const SRC = path.resolve(__dirname, '..');
 const PERMITIDOS = {
     coach_voz_abierto: [],
     coach_voz_cerrado: [],
+    coach_voz_minimizado: [],   // lote 688: minimizar el modo voz a burbuja, sin propiedades
     coach_voz_turno: [],
     dashboard_initial_inventory_stale: ['reason', 'user_id'],
     locale_changed: ['a', 'de', 'resultado'],
