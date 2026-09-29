@@ -116,8 +116,7 @@ import PantryConsentModal from '../components/common/PantryConsentModal';
 // descarguen PDF. Tooltip-anchor: P2-LAZY-PDF.
 import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
 // [P1-PLAN-LOTE-844] El permiso para la IA de terceros: antes de cambiar plato, regenerar o arreglar un día.
-import { asegurarConsentimientoIA, faltaPermisoIA, pedirHojaConsentimientoIA } from '../consent/consentimientoIA';
-import { useConsentimientoIA } from '../consent/useConsentimientoIA';
+import { asegurarConsentimientoIA, faltaPermisoIA, pedirHojaConsentimientoIA, useConsentimientoIA } from '../consent/consentimientoIA';
 import { reanudarPlanes } from '../utils/planModeResume';
 // [P1-DASH-BUDGET-EDIT · 2026-06-23] Ciclo de compras (días) para el editor de presupuesto.
 // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] effectiveBudgetCurrency — la moneda REALMENTE

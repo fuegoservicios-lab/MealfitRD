@@ -12,7 +12,6 @@
 import { fetchWithAuth } from '../config/api';
 import { getLocale } from '../i18n';
 import { nativePlatform } from '../config/platform';
-import { APP_VERSION } from '../config/appVersion';
 import { AI_CONSENT_VERSION } from './version';
 
 /** El 428 de un endpoint de IA sin permiso, y el 503 de «no pudimos leer tu permiso» (este NO abre la hoja). */
@@ -29,15 +28,19 @@ export class ErrorDePermisoIA extends Error {
     }
 }
 
-/** Desde dónde se decidió: idioma, plataforma y paquete web. El backend lo guarda junto a cada decisión. */
-export function contextoDelDispositivo() {
+/** Desde dónde se decidió: idioma, plataforma y paquete web. El backend lo guarda junto a cada decisión.
+ *  `APP_VERSION` se importa al hacer falta: estático, su trozo pasaba a ser dependencia de las siete páginas que
+ *  llevan la puerta del permiso, un índice más por página en la carga inicial (techo del arranque). */
+export async function contextoDelDispositivo() {
     const plataforma = nativePlatform();
     const paquete = typeof __OTA_BUNDLE_ID__ === 'string' && __OTA_BUNDLE_ID__ ? __OTA_BUNDLE_ID__ : '';
     const locale = getLocale();
+    const version = await import('../config/appVersion').then((m) => m.APP_VERSION).catch(() => '');
+    const build = paquete ? `${version}+${paquete}` : version;
     return {
         ...(typeof locale === 'string' && locale ? { locale } : {}),
         platform: plataforma === 'ios' || plataforma === 'android' ? plataforma : 'web',
-        app_build: (paquete ? `${APP_VERSION}+${paquete}` : APP_VERSION).slice(0, 64),
+        ...(build ? { app_build: build.slice(0, 64) } : {}),
     };
 }
 
@@ -49,13 +52,15 @@ async function _leerCuerpo(res) {
     }
 }
 
+/** POST con el contexto del dispositivo añadido (`contextoDelDispositivo`). */
 async function _enviar(ruta, cuerpo) {
+    const contexto = await contextoDelDispositivo();
     let res;
     try {
         res = await fetchWithAuth(ruta, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(cuerpo),
+            body: JSON.stringify({ ...cuerpo, ...contexto }),
         });
     } catch {
         throw new ErrorDePermisoIA('red');
@@ -75,7 +80,6 @@ function _decision({ analytics, textoSha256 }) {
         ai_transfer_cn: true,
         analytics: analytics === true,
         ...(textoSha256 ? { text_sha256: textoSha256 } : {}),
-        ...contextoDelDispositivo(),
     };
 }
 
@@ -104,10 +108,10 @@ export function concederPermisoIAInvitado({ sessionId, analytics = false, textoS
 
 /** La cuenta retira el permiso de IA (el backend pausa también el generador). */
 export function retirarPermisoIA() {
-    return _enviar('/api/consents/withdraw', contextoDelDispositivo());
+    return _enviar('/api/consents/withdraw', {});
 }
 
 /** Solo la analítica («Ayuda a mejorar»): es el MISMO dato que la casilla opcional de la hoja. */
 export function guardarAnaliticaEnServidor(analytics) {
-    return _enviar('/api/consents', { version: AI_CONSENT_VERSION, analytics: analytics === true, ...contextoDelDispositivo() });
+    return _enviar('/api/consents', { version: AI_CONSENT_VERSION, analytics: analytics === true });
 }

@@ -1,7 +1,8 @@
 /**
- * [P1-PLAN-LOTE-844 · ronda 1] `fetchWithAuth` carga `consent/` al vuelo. Si esa carga falla (un chunk perdido tras un
- * despliegue, una red cortada a medias), la petición NO se cae: sale sin la cabecera del invitado, y un 428 llega tal
- * cual a su llamador (el servidor sigue siendo quien decide).
+ * [P1-PLAN-LOTE-844 · ronda 1] `fetchWithAuth` no importa nada de `consent/`: el módulo del permiso se engancha al
+ * cargarse (lo carga el host de la hoja). Si no cargó —aún no, o nunca (un chunk perdido tras un despliegue)—, la
+ * petición NO se cae: sale sin la cabecera del invitado, y un 428 llega tal cual a su llamador (el servidor sigue
+ * siendo quien decide). Aquí el módulo del permiso ni siquiera se puede importar.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchWithAuth } from '../config/api';

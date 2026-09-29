@@ -12,6 +12,16 @@ import { loadPendingOtp } from '../../utils/otpPendiente';
 import { isGuestModeActive } from '../../utils/guestMode';
 
 const HojaGuardarPlan = lazy(() => import('./HojaGuardarPlan'));
+// [P1-PLAN-LOTE-844 · ronda 1] El host de la hoja «Tus datos y la IA» (permiso para la IA de terceros) cuelga de aquí y
+// no de App.jsx: este host ya está montado en la raíz, fuera del apex, con sesión o sin ella, y es perezoso. Un
+// `lazy()` más en App.jsx escribía en el arranque su lista de trozos (techo de `scripts/presupuestos.mjs`, ya excedido
+// por otras causas); desde aquí esa lista viaja en este trozo. No depende de `hojaPedida`: se monta siempre.
+const ConsentimientoIAHost = lazy(() => import('../../consent/ConsentimientoIAHost'));
+const hostDelPermisoIA = (
+    <Suspense fallback={null}>
+        <ConsentimientoIAHost />
+    </Suspense>
+);
 
 // El código de 6 dígitos EXIGE salir de la app a leer el correo, y en iOS
 // (`display: standalone`) el sistema mata el proceso al pasar a segundo plano. El login
@@ -39,11 +49,14 @@ const HojaGuardarPlanHost = () => {
 
     const cerrar = useCallback(() => setAbierta(false), []);
 
-    if (!hojaPedida) return null;
+    if (!hojaPedida) return hostDelPermisoIA;
     return (
-        <Suspense fallback={null}>
-            <HojaGuardarPlan abierta={abierta} motivo={motivo} onClose={cerrar} />
-        </Suspense>
+        <>
+            {hostDelPermisoIA}
+            <Suspense fallback={null}>
+                <HojaGuardarPlan abierta={abierta} motivo={motivo} onClose={cerrar} />
+            </Suspense>
+        </>
     );
 };
 

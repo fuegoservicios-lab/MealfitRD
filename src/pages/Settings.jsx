@@ -81,7 +81,7 @@ import DeleteAccountSection from '../components/account/DeleteAccountSection';
 // [P1-PLAN-LOTE-844] Privacidad → «IA de terceros», y la analítica de «Ayuda a mejorar» también en la cuenta.
 import BloqueIADeTerceros from '../consent/BloqueIADeTerceros';
 import { guardarAnaliticaEnServidor } from '../consent/apiConsentimiento';
-import { useConsentimientoIA } from '../consent/useConsentimientoIA';
+import { useConsentimientoIA } from '../consent/consentimientoIA';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
 import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAvatars';
 import { getAvatarId, persistAvatar } from '../utils/avatarStore';

@@ -11,8 +11,7 @@ import { useAssessment } from '../context/AssessmentContext';
 import { formatDate, useT } from '../i18n';
 import { confirmToast } from '../utils/confirmToast';
 import { safeLocalStorageSet } from '../utils/safeLocalStorage';
-import { useConsentimientoIA } from './useConsentimientoIA';
-import { pedirHojaConsentimientoIA, refrescarConsentimientoIA, retirarConsentimientoIA } from './consentimientoIA';
+import { pedirHojaConsentimientoIA, refrescarConsentimientoIA, retirarConsentimientoIA, useConsentimientoIA } from './consentimientoIA';
 
 const FECHA = { day: 'numeric', month: 'long', year: 'numeric' };
 

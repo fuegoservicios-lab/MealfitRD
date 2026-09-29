@@ -25,13 +25,15 @@
 // (`mealfit_ai_consent`), atado a SU `session_id` —el siguiente «Probar sin cuenta» es otra persona posible y se le
 // vuelve a preguntar— y se borra en cuanto está rancio: otra versión, un 428, o al entrar la sesión (de él solo queda
 // su `session_id`, una hora, para que la adopción de su plan pase el permiso a la cuenta con su fecha).
+import { useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { t } from '../i18n';
 import { safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet } from '../utils/safeLocalStorage';
 import { getGuestSessionId } from '../utils/guestMode';
 import { persistAnalyticsOptOut } from '../utils/analytics';
 import { AI_CONSENT_STORAGE_KEY, AI_CONSENT_VERSION } from './version';
-import { permisoLocalVigente, titularDelDispositivo } from './cabecera';
+import { API_BASE, fijarGanchosIA } from '../config/api';
+import { cabeceraDelInvitado, permisoLocalVigente, titularDelDispositivo } from './cabecera';
 import {
     PERMISO_REQUERIDO,
     concederPermisoIA,
@@ -127,6 +129,13 @@ export function estadoConsentimientoIA() {
 export function suscribirConsentimientoIA(fn) {
     _oyentes.add(fn);
     return () => _oyentes.delete(fn);
+}
+
+/** Lo que se sabe del permiso, como estado de React: `vigente` true / false / null (aún no se sabe), `aceptadoEn`,
+ *  `version`, `revocadoEn`, `analytics` y `tipo` ('cuenta' | 'invitado'). Vive aquí y no en un fichero propio: un
+ *  trozo más compartido por el panel y Configuración era un nombre más en la carga inicial (techo del arranque). */
+export function useConsentimientoIA() {
+    return useSyncExternalStore(suscribirConsentimientoIA, estadoConsentimientoIA, estadoConsentimientoIA);
 }
 
 /** ¿Se SABE que falta el permiso? Síncrona: se calcula en el momento (el invitado puede haber rotado de sesión). */
@@ -441,6 +450,34 @@ export async function trasAdoptarPlanInvitado(adoptado) {
     _olvidarPermisoDeInvitado();   // la adopción solo la hace una sesión: el invitado ya no existe
     if (adoptado) await refrescarConsentimientoIA();
 }
+
+// ─────────────────────────────────────────────────────────────── los ganchos de `fetchWithAuth`
+/** Pone la cabecera del invitado en ESTA petición si toca: solo hacia nuestra API y con permiso vigente del invitado
+ *  actual (`fetchWithAuth` solo llama con peticiones SIN sesión). */
+function _cabeceraParaUrl(url, headers) {
+    if (typeof url !== 'string' || (url.startsWith('http') && !(API_BASE && url.startsWith(API_BASE)))) return;
+    const c = cabeceraDelInvitado();
+    if (c) headers.set(c[0], c[1]);
+}
+
+/** Cada petición de `fetchWithAuth`, una vez cargado este módulo: la adopción del plan del invitado lleva su
+ *  `session_id`; un 428 abre la hoja y repite UNA vez (`salio` distingue el 428 tardío de una petición que viajó antes
+ *  del permiso); la adopción, salga como salga, da por cumplido ese `session_id`. */
+async function _enviarConPermiso(url, options, unaVez) {
+    const salio = Date.now();
+    const adopcion = typeof url === 'string' && url.includes('/adopt-guest-plan');
+    const opts = adopcion ? conSesionDelPermisoInvitado(options) : options;
+    const res = await unaVez(url, opts);
+    if (res && res.status === 428) return resolverPermisoRequerido(res, () => unaVez(url, opts), salio);
+    if (adopcion && res) trasAdoptarPlanInvitado(!!res.ok).catch(() => {});
+    return res;
+}
+
+// Al cargarse, el módulo se engancha a `fetchWithAuth` (config/api.ts no importa nada de `consent/`: techo del
+// arranque). Un doble de `config/api` en un test no trae el registro: entonces no hay ganchos, como en el arranque.
+try {
+    fijarGanchosIA({ cabecera: _cabeceraParaUrl, enviar: _enviarConPermiso });
+} catch { /* sin registro: las peticiones salen tal cual */ }
 
 /** Solo tests: vuelve al estado de arranque. */
 export function _reiniciarConsentimientoIAParaTests() {

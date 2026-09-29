@@ -102,11 +102,17 @@ describe('[P1-PLAN-LOTE-844] la hoja pedida', () => {
 });
 
 describe('[P1-PLAN-LOTE-844] montado en la raíz de la app', () => {
-    it('App.jsx lo carga perezoso y lo monta fuera del apex, con sesión o sin ella', () => {
+    it('cuelga del host de la raíz (HojaGuardarPlanHost, perezoso, fuera del apex), siempre montado', () => {
         const app = readFileSync(resolve(__dirname, '../App.jsx'), 'utf8').replace(/\s+/g, ' ');
-        expect(app).toContain("const ConsentimientoIAHost = lazy(() => import('./consent/ConsentimientoIAHost'));");
-        expect(app).toContain('{!IS_APEX_HOST && ( <Suspense fallback={null}> <ConsentimientoIAHost /> </Suspense> )}');
+        // [ronda 1] No en App.jsx: un lazy() más escribía en el arranque la lista de trozos del host.
+        expect(app).not.toContain('ConsentimientoIAHost');
+        expect(app).toContain("const HojaGuardarPlanHost = lazy(() => import('./components/auth/HojaGuardarPlanHost'));");
+        expect(app).toContain('{!IS_APEX_HOST && ( <Suspense fallback={null}> <HojaGuardarPlanHost /> </Suspense> )}');
         // Fuera de las rutas: sirve igual en el formulario, /plan, el panel, el chat y el escáner.
-        expect(app.indexOf('<ConsentimientoIAHost />')).toBeLessThan(app.indexOf('<ModalAwareRoutes>'));
+        expect(app.indexOf('<HojaGuardarPlanHost />')).toBeLessThan(app.indexOf('<ModalAwareRoutes>'));
+        const host = readFileSync(resolve(__dirname, '../components/auth/HojaGuardarPlanHost.jsx'), 'utf8').replace(/\s+/g, ' ');
+        expect(host).toContain("const ConsentimientoIAHost = lazy(() => import('../../consent/ConsentimientoIAHost'));");
+        expect(host).toContain('if (!hojaPedida) return hostDelPermisoIA;');
+        expect(host).toContain('{hostDelPermisoIA} <Suspense fallback={null}> <HojaGuardarPlan');
     });
 });

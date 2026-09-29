@@ -46,9 +46,6 @@ const AvisoCuentaGoogle = lazy(() => import('./components/auth/AvisoCuentaGoogle
 // como sus vecinos: en el landing no hay invitado. Mientras el chunk viaja, `pedirCuentaInvitado` devuelve false y
 // cada llamador cae a su aviso de siempre.
 const HojaGuardarPlanHost = lazy(() => import('./components/auth/HojaGuardarPlanHost'));
-// [P1-PLAN-LOTE-844] La hoja «Tus datos y la IA» (permiso para la IA de terceros, App Review 5.1.2(i)): con sesión o de
-// invitado, web y nativo. Perezosa como sus vecinas; si alguien la pide antes de que llegue, la petición la espera.
-const ConsentimientoIAHost = lazy(() => import('./consent/ConsentimientoIAHost'));
 // [SCROLL-RESTORE-REFRESH · 2026-06-19] Restaura la posición de scroll al
 // refrescar (el landing/otras páginas viven tras ProtectedRoute + lazy chunks, y
 // el restore nativo del browser falla porque el contenido aún no tiene altura).
@@ -548,11 +545,6 @@ function App() {
         {!IS_APEX_HOST && (
           <Suspense fallback={null}>
             <HojaGuardarPlanHost />
-          </Suspense>
-        )}
-        {!IS_APEX_HOST && (
-          <Suspense fallback={null}>
-            <ConsentimientoIAHost />
           </Suspense>
         )}
         {/* [P2-8 · 2026-07-09] Banner "Sin conexión" (bottom, no-bloqueante). */}

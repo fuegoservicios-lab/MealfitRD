@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { AlertTriangle, ShieldCheck, Stethoscope } from 'lucide-react';
+import { AlertTriangle, HeartPulse, ShieldCheck } from 'lucide-react';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { useT } from '../i18n';
 import { apexUrl } from '../config/site';
@@ -135,7 +135,7 @@ export default function ConsentimientoIASheet({ onAceptar, onRechazar }) {
                     </fieldset>
 
                     <p className={styles.medico}>
-                        <Stethoscope size={16} strokeWidth={2.2} aria-hidden="true" className={styles.medicoIcono} />
+                        <HeartPulse size={16} strokeWidth={2.2} aria-hidden="true" className={styles.medicoIcono} />
                         <span>{tx.medico}</span>
                     </p>
 

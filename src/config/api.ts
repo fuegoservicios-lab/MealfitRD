@@ -1,11 +1,17 @@
 import { getBackendToken } from '../authClient';
 import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 
-// [P1-PLAN-LOTE-844] El permiso para la IA de terceros se importa al hacer falta, nunca en el arranque (techo de
-// `scripts/presupuestos.mjs`): la cabecera del invitado, solo en peticiones sin sesión; el resto, ante un 428 o una
-// adopción del plan del invitado.
-const _cabeceraIA = () => import('../consent/cabecera');
-const _permisoIA = () => import('../consent/consentimientoIA');
+// [P1-PLAN-LOTE-844] El permiso para la IA de terceros entra en el cliente por GANCHOS que registra el propio módulo
+// del permiso (`consent/consentimientoIA`) al cargarse —lo carga el host de la hoja, montado en la raíz de la app—.
+// Aquí no se importa nada de `consent/`: cada byte de este fichero viaja en el arranque, que tiene techo
+// (`scripts/presupuestos.mjs`). Sin ganchos (el módulo aún no cargó, o no cargó nunca) nada se cae: la petición sale
+// tal cual, sin la cabecera del invitado, y un 428 llega a su llamador.
+type GanchosIA = {
+    cabecera: (url: string, headers: Headers) => void;
+    enviar: (url: string, options: ApiRequestOptions, unaVez: typeof _fetchWithAuthUnaVez) => Promise<Response>;
+};
+let _ia: GanchosIA | null = null;
+export const fijarGanchosIA = (g: GanchosIA | null) => { _ia = g; };
 
 // Central API configuration
 // En desarrollo, apuntamos directamente al servidor Python local.
@@ -187,13 +193,9 @@ const _fetchWithAuthUnaVez = async (url: string, options: ApiRequestOptions = {}
     // [P1-PLAN-LOTE-844 · 2026-09-29] El permiso para la IA de terceros del INVITADO (sin él, su llamada a la IA da 428).
     // Una petición CON sesión (Bearer o X-MF-Session) nunca lo lleva: el permiso de una cuenta manda en el servidor, y
     // el backend trata un token inválido o caducado como invitado, así que una cabecera sacada del dispositivo podría
-    // colar una llamada a la IA de alguien que lo retiró en otro dispositivo. Solo hacia nuestra API.
-    if (!token && !_mfSession && (!url.startsWith('http') || (API_BASE && url.startsWith(API_BASE)))) {
-        // Si el módulo no carga, sale sin cabecera: el servidor responde 428 y se pide el permiso.
-        const m = await _cabeceraIA().catch(() => null);
-        const cabecera = m && m.cabeceraDelInvitado();
-        if (cabecera) headers.set(cabecera[0], cabecera[1]);
-    }
+    // colar una llamada a la IA de alguien que lo retiró en otro dispositivo. El gancho decide el resto (solo hacia
+    // nuestra API, solo con permiso vigente del invitado actual).
+    if (!token && !_mfSession) _ia?.cabecera(url, headers);
 
     // Envolvemos cualquier ruta relativa (ej. "/api/analyze") con API_BASE
     const finalUrl = url.startsWith('http') ? url : api(url);
@@ -239,29 +241,14 @@ const _fetchWithAuthUnaVez = async (url: string, options: ApiRequestOptions = {}
 };
 
 // [P1-PLAN-LOTE-844 · 2026-09-29] Permiso para la IA de terceros (auditoría App Store, fila 4), en EL cliente y no en
-// cada pantalla:
+// cada pantalla (lo hace el gancho `enviar`, ver `consent/consentimientoIA`):
 //   · CUALQUIER 428 `ai_consent_required` abre la hoja del permiso y, aceptada, repite la petición UNA vez. Vale también
 //     para los SSE (`/analyze/stream`, `/chat/stream`): el 428 llega con las cabeceras, antes de que haya stream. El
 //     503 `ai_consent_unavailable` («no pudimos leer tu permiso») NO la abre: pasa tal cual al llamador.
 //   · La adopción del plan del invitado lleva su `session_id`, para que su permiso pase a la cuenta con su fecha
 //     original (los dos llamadores viven en AssessmentContext, que tiene tope de líneas).
-export const fetchWithAuth = async (url: string, options: ApiRequestOptions = {}) => {
-    const adopcion = typeof url === 'string' && url.includes('/adopt-guest-plan');
-    // Un fallo al cargar `consent/` nunca tumba la petición: sale tal cual y el 428 llega a su llamador.
-    const m = adopcion ? await _permisoIA().catch(() => null) : null;
-    const opts = m ? m.conSesionDelPermisoInvitado(options) : options;
-    const salio = Date.now();   // un 428 de una petición que salió ANTES de dar el permiso es tardío
-    const res = await _fetchWithAuthUnaVez(url, opts);
-    if (res && res.status === 428) {
-        const p = await _permisoIA().catch(() => null);
-        if (p) return p.resolverPermisoRequerido(res, () => _fetchWithAuthUnaVez(url, opts), salio);
-    }
-    if (adopcion && res) {
-        const adoptado = !!res.ok;
-        _permisoIA().then((x) => x.trasAdoptarPlanInvitado(adoptado)).catch(() => {});
-    }
-    return res;
-};
+export const fetchWithAuth = (url: string, options: ApiRequestOptions = {}) =>
+    _ia ? _ia.enviar(url, options, _fetchWithAuthUnaVez) : _fetchWithAuthUnaVez(url, options);
 
 // [P1-DASHBOARD-POLLING-ABORT · 2026-05-23] options se forwardea a fetchWithAuth
 // → permite pasar `{ signal }` desde Dashboard.jsx para cancelar la fetch

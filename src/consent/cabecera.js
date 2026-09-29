@@ -1,6 +1,5 @@
-// [P1-PLAN-LOTE-844 · 2026-09-29] La cabecera del permiso del INVITADO. `fetchWithAuth` (config/api.ts) la pide solo
-// para las peticiones SIN sesión, e importa este módulo al hacer falta: el arranque tiene un techo de 148 kB gz
-// (`scripts/presupuestos.mjs`) y nada del permiso hace falta antes de pintar.
+// [P1-PLAN-LOTE-844 · 2026-09-29] La cabecera del permiso del INVITADO y quién usa el dispositivo. `fetchWithAuth`
+// (config/api.ts) la pide, por el gancho que registra `consentimientoIA`, solo para las peticiones SIN sesión.
 import { safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import { AI_CONSENT_HEADER, AI_CONSENT_STORAGE_KEY, AI_CONSENT_VERSION } from './version';
 
