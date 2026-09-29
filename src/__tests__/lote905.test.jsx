@@ -129,6 +129,14 @@ describe('useConversacionLive', () => {
         expect(result.current.error).toBe('Se agotó el saldo de la prueba de voz');
         expect(result.current.disponible).toBe(false);
     });
+
+    it('sin permiso para la IA («Ahora no» en la hoja) lo dice, y sigue ofreciéndose', async () => {
+        red.respuestas['/api/chat/live/sesion'] = { status: 428, body: { error_code: 'ai_consent_required' } };
+        const { result } = await abierto();
+        expect(result.current.estado).toBe('error');
+        expect(result.current.error).toBe('Activa la IA para usar esto');
+        expect(result.current.disponible).toBe(true);
+    });
 });
 
 describe('cableado en AgentPage', () => {

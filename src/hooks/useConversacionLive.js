@@ -19,6 +19,8 @@ export const LIVE_SONDEO_MS = 2000;
 const MOTIVOS = {
     presupuesto: i18nKey('Se agotó el saldo de la prueba de voz'),
     no_habilitado: i18nKey('La voz en vivo no está disponible'),
+    // [P1-PLAN-LOTE-844] 428: `fetchWithAuth` ya abrió la hoja del permiso y repitió; llegar aquí es «Ahora no».
+    permiso: i18nKey('Activa la IA para usar esto'),
 };
 
 export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } = {}) {
@@ -133,7 +135,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
             const d = await r.json().catch(() => ({}));
             if (!r.ok || !d?.sdp) {
                 if (d?.motivo === 'presupuesto') setDisponible(false);
-                throw Object.assign(new Error('sesion'), { motivo: d?.motivo });
+                throw Object.assign(new Error('sesion'), { motivo: r.status === 428 ? 'permiso' : d?.motivo });
             }
             if (conexionRef.current !== c) return;   // lo cerraron mientras tanto
             c.liveId = d.live_id;
