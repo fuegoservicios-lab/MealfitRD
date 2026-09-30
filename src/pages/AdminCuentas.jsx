@@ -7,7 +7,7 @@
 // pinta igual desde el primer render) va la lista de todas las cuentas (`AdminCuentasLista`, que se pide ella misma: un
 // 404 deja el panel como hoy), la ficha gana sus bloques nuevos (`AdminFichaAmpliada`) y el detalle de una cuenta de
 // prueba se abre como ESTADO de esta página (`detalle`), sin rutas nuevas: `/admin` es una ruta exacta.
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { formatDate } from '../i18n';
@@ -375,7 +375,9 @@ export default function AdminCuentas() {
     const verDetalleRef = useRef(null);
     const enfocar = useRef(null);     // a dónde va el foco tras el próximo render (la vista cambia bajo el dedo)
 
-    useEffect(() => {
+    // [P1-PLAN-LOTE-833 · 2026-09-29] Layout: el foco se mueve en el MISMO commit que pinta la vista (con useEffect
+    // un test bajo carga veía <body> un instante; el mismo arreglo que AdminPruebaDetalle).
+    useLayoutEffect(() => {
         const destino = enfocar.current;
         if (!destino) return;
         enfocar.current = null;

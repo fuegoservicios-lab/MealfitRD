@@ -40,7 +40,7 @@ const TEXTOS = {
     noEsPrueba: 'Esta cuenta ya no es de prueba.',
     noEsPruebaAyuda: 'Quitaron la marca (el equipo o la propia persona): su contenido ya no se puede ver. Los números y los ajustes siguen en la ficha.',
     noDisponible: 'Esta sección no está disponible: el interruptor de cuentas de prueba está apagado o la cuenta ya no existe.',
-    sinRastro: 'No se pudo anotar la consulta en el registro de accesos, así que no se enseña nada. Inténtalo de nuevo.',
+    sinRastro: 'No se pudo completar la consulta (el registro de accesos o la base no respondieron), así que no se enseña nada. Inténtalo de nuevo.',
     demasiadas: 'Demasiadas consultas seguidas. Espera un momento e inténtalo de nuevo.',
     errorCarga: 'No se pudo cargar esta sección.',
     si: 'Sí',

@@ -136,6 +136,8 @@ function PorAjuste({ ajustes }) {
     const id = useId();
     const grupos = [];
     for (const a of ajustes) {
+        // [P1-PLAN-LOTE-837 · 2026-09-29] Los del dispositivo ya tienen su bloque «En el dispositivo» (como en la ficha).
+        if (a.grupo === 'Dispositivo') continue;
         const nombre = a.grupo || TEXTOS.otrosAjustes;
         let g = grupos.find((x) => x.nombre === nombre);
         if (!g) { g = { nombre, ajustes: [] }; grupos.push(g); }
