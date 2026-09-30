@@ -328,7 +328,8 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         const sinArranque = () => {
             arranqueRef.current = null;
             if (id !== sesionRef.current) return;
-            avisarFalloDeVoz({ donde: 'modo_voz', codigo: 'sin_arranque', idioma: rec.lang });
+            // [P1-PLAN-LOTE-951] `fase`: en qué paso se quedó el reconocedor nativo (el del navegador no la tiene).
+            avisarFalloDeVoz({ donde: 'modo_voz', codigo: 'sin_arranque', crudo: rec.fase ? `fase:${rec.fase}` : undefined, idioma: rec.lang });
             cortarEscucha();
             if (mandarLoAcumulado()) return;
             setError(mensajeDeErrorDeDictado('start'));

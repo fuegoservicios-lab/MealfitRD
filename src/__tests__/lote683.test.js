@@ -201,8 +201,16 @@ describe('crearSintesisNativa', () => {
         const alCargarVoces = vi.fn();
         synth.addEventListener('voiceschanged', alCargarVoces);
         await esperar(); await esperar(); await esperar();
+        // [P1-PLAN-LOTE-951] Las voces se piden tras la PRIMERA locución, no al crear la voz (comparte hilo con el micro).
+        expect(p.getVoices).not.toHaveBeenCalled();
+        expect(synth.getVoices()).toEqual([]);
+        const primera = new Loc('Hola.');
+        primera.lang = 'es-US';
+        synth.speak(primera);
+        await esperar(); await esperar(); await esperar();
         expect(alCargarVoces).toHaveBeenCalled();
         expect(synth.getVoices()).toEqual([{ id: 'es-us-x-sfb-local', name: 'es-us-x-sfb-local', lang: 'es-US', default: false, localService: true }]);
+        p.oyentes.end({ utteranceId: 'u1' });
 
         const loc = new Loc('Listo, anoté dos huevos.');
         loc.lang = 'es-US';
@@ -218,17 +226,19 @@ describe('crearSintesisNativa', () => {
         expect(p.speak).toHaveBeenCalledWith(expect.objectContaining({ text: 'Listo, anoté dos huevos.', language: 'es-US', voiceId: 'es-us-x-sfb-local', queueStrategy: 'Add' }));
         expect(ev.start).toHaveBeenCalledTimes(1);
         p.oyentes.boundary({ utteranceId: 'u9', charIndex: 6 });
+        synth.cancel();                                  // con algo sonando, sí se corta en el motor
+        expect(p.cancel).toHaveBeenCalledTimes(1);
         p.oyentes.end({ utteranceId: 'u9' });
         expect(ev.palabra).toHaveBeenCalledTimes(1);
-        expect(ev.end).toHaveBeenCalledTimes(1);
+        expect(ev.end).toHaveBeenCalledTimes(0);          // cancelada: su fin ya no le llega
 
         const muda = new Loc(' ');
         muda.volume = 0;
         synth.speak(muda);                               // el desbloqueo de iOS no suena en Android
         await esperar();
-        expect(p.speak).toHaveBeenCalledTimes(1);
-        synth.cancel();
-        expect(p.cancel).toHaveBeenCalled();
+        expect(p.speak).toHaveBeenCalledTimes(2);
+        synth.cancel();                                  // [P1-PLAN-LOTE-951] sin nada sonando, no se molesta al motor
+        expect(p.cancel).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -238,10 +248,11 @@ describe('crearSintesisNativa: las voces', () => {
         p.getVoices
             .mockResolvedValueOnce({ voices: [] })
             .mockResolvedValueOnce({ voices: [{ id: 'es-us-x-esc-local', name: 'es-us-x-esc-local', language: 'es-US' }] });
-        const { speechSynthesis: synth } = crearSintesisNativa({ cargar: async () => p });
+        const { speechSynthesis: synth, SpeechSynthesisUtterance: Loc } = crearSintesisNativa({ cargar: async () => p });
         const alCargarVoces = vi.fn();
         synth.addEventListener('voiceschanged', alCargarVoces);
-        await esperar(); await esperar(); await esperar();
+        synth.speak(new Loc('Hola.'));                           // [951] la primera locución es la que pide la lista
+        await esperar(); await esperar(); await esperar(); await esperar();
         expect(alCargarVoces).not.toHaveBeenCalled();           // una lista vacía no es «ya están»
         expect(synth.getVoices()).toEqual([]);                  // …y pedirlas otra vez lanza la segunda petición
         await esperar(); await esperar();
@@ -258,8 +269,9 @@ describe('crearSintesisNativa: las voces', () => {
                 { id: 'es-us-x-esc-local', name: 'es-us-x-esc-local', language: 'es-US', isNetworkConnectionRequired: false },
             ],
         });
-        const { speechSynthesis: synth } = crearSintesisNativa({ cargar: async () => p });
-        await esperar(); await esperar(); await esperar();
+        const { speechSynthesis: synth, SpeechSynthesisUtterance: Loc } = crearSintesisNativa({ cargar: async () => p });
+        synth.speak(new Loc('Hola.'));                           // [951] la lista llega tras la primera locución
+        await esperar(); await esperar(); await esperar(); await esperar();
         expect(synth.getVoices().map((v) => [v.id, v.localService])).toEqual([
             ['es-us-x-esc-local', true],
             ['es-us-x-esf-network', false],

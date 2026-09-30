@@ -65,6 +65,9 @@ export class ReconocimientoNativo {
         this.onerror = null;
         this.onend = null;
         this.onesperandopermiso = null;    // [P1-PLAN-LOTE-909] (true/false): el vigía del arranque no cuenta ese rato
+        // [P1-PLAN-LOTE-951] En qué paso va: si el micrófono no arranca, el diagnóstico dice DÓNDE se quedó
+        // (cargando el plugin, el permiso, los oyentes, el `start()` pendiente, o arrancando sin llegar a oír).
+        this.fase = 'nuevo';
         this._cargar = cargar;
         this._subs = [];
         this._texto = '';
@@ -86,6 +89,7 @@ export class ReconocimientoNativo {
     _terminar() {
         if (this._terminado) return;
         this._terminado = true;
+        this.fase = 'terminado';
         this._soltar();
         this.onend?.();
     }
@@ -101,8 +105,10 @@ export class ReconocimientoNativo {
     }
 
     async _arrancar() {
+        this.fase = 'cargando';
         const plugin = await this._cargar();
         this._plugin = plugin;
+        this.fase = 'permiso';
         let permiso = await plugin.checkPermissions();
         if (permiso?.speechRecognition !== 'granted') {
             this.onesperandopermiso?.(true);
@@ -114,6 +120,7 @@ export class ReconocimientoNativo {
             this._terminar();
             return;
         }
+        this.fase = 'oyentes';
         this._subs.push(await plugin.addListener('partialResults', (e) => {
             const t = (e?.matches && e.matches[0]) || e?.accumulatedText || '';
             if (!t) return;
@@ -122,8 +129,10 @@ export class ReconocimientoNativo {
         }));
         this._subs.push(await plugin.addListener('listeningState', async (e) => {
             const estado = e?.state || e?.status;
+            if (estado === 'startingListening') this.fase = 'arrancando';
             if (estado === 'started' && !this._empezado) {
                 this._empezado = true;
+                this.fase = 'oyendo';
                 this.onstart?.();
             } else if (estado === 'stopped') {
                 // El último resultado puede no haber llegado como parcial: se pide antes de cerrar.
@@ -143,6 +152,7 @@ export class ReconocimientoNativo {
         // Abortado mientras se enganchaban los oyentes: soltarlos y NO abrir el micrófono.
         if (this._terminado) { this._soltar(); return; }
         this._arrancado = true;
+        this.fase = 'start';
         await plugin.start({
             language: this.lang,
             partialResults: true,
@@ -150,6 +160,8 @@ export class ReconocimientoNativo {
             maxResults: 1,
             muteRecognizerBeep: true,
         });
+        // El plugin resuelve `start()` justo después de emitir «started»: si resolvió y no llegó, el evento se perdió.
+        if (!this._empezado && !this._terminado) this.fase = 'start_resuelto_sin_started';
     }
 
     stop() {
@@ -222,12 +234,19 @@ export function crearSintesisNativa({ cargar = cargarSintesis } = {}) {
         return pidiendoVoces;
     };
 
+    // [P1-PLAN-LOTE-951 · 2026-09-30] La lista de voces se pide DESPUÉS de la primera locución, nunca al crear la voz.
+    // Capacitor corre los métodos nativos de TODOS los plugins en un único hilo, y `getVoices()` del plugin de TTS es
+    // una llamada síncrona al motor de voz del teléfono (sin comprobar siquiera que haya arrancado). El modo voz creaba
+    // esta voz y, 350 ms después, abría el micrófono: en un Xiaomi (Android 16) el `start()` del reconocedor se quedó
+    // detrás de esa llamada y nunca llegó a «started» (diagnóstico `sin_arranque` del 909, sin ningún error). La voz
+    // del coach en Android suele ser la de la nube; la del teléfono es respaldo y puede hablar sin lista (por idioma).
+    let hablado = false;
+    let enVuelo = 0;
     const listo = cargar().then(async (p) => {
         plugin = p;
         for (const tipo of ['start', 'end', 'boundary', 'error']) {
             await p.addListener(tipo, (e) => despachar(tipo, e));
         }
-        await pedirVoces(p);
         return p;
     });
 
@@ -249,6 +268,8 @@ export function crearSintesisNativa({ cargar = cargarSintesis } = {}) {
     const synth = {
         speak(loc) {
             if (!loc?.text?.trim() || loc.volume === 0) return;    // la locución muda de desbloqueo es cosa de iOS
+            hablado = true;
+            enVuelo += 1;
             listo
                 .then((p) => p.speak({
                     text: loc.text,
@@ -260,21 +281,27 @@ export function crearSintesisNativa({ cargar = cargarSintesis } = {}) {
                     queueStrategy: 'Add',
                 }))
                 .then((r) => {
+                    enVuelo -= 1;
                     const id = r?.utteranceId;
                     porId.set(id, loc);
                     const antes = adelantados.get(id) || [];
                     adelantados.delete(id);
                     for (const [tipo, e] of antes) despachar(tipo, e);
+                    if (!voces.length && plugin) pedirVoces(plugin);    // ya suena: ahora sí, la lista para la siguiente
                 })
-                .catch((err) => loc.onerror?.({ error: String(err?.message || err) }));
+                .catch((err) => { enVuelo -= 1; loc.onerror?.({ error: String(err?.message || err) }); });
         },
         cancel() {
+            const habia = porId.size > 0 || enVuelo > 0;
             porId.clear();
             adelantados.clear();
+            // Sin nada sonando ni en camino no se molesta al motor: `cancel()` es otra llamada síncrona en el hilo que
+            // comparte con el micrófono, y `escuchar()` cancela SIEMPRE antes de abrirlo.
+            if (!habia) return;
             try { Promise.resolve(plugin?.cancel?.()).catch(() => {}); } catch { /* nada que cortar */ }
         },
         getVoices() {
-            if (!voces.length && plugin) pedirVoces(plugin);    // llegaron vacías: el motor aún arrancaba
+            if (!voces.length && plugin && hablado) pedirVoces(plugin);    // llegaron vacías: el motor aún arrancaba
             return voces;
         },
         addEventListener(tipo, f) { if (tipo === 'voiceschanged') oyentesDeVoces.add(f); },
