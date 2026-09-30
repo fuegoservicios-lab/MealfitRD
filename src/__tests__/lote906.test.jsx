@@ -11,20 +11,20 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import ModoVoz from '../components/agent/ModoVoz';
-import { ajustarAlBorde, BURBUJA_ABAJO, BURBUJA_ARRIBA, BURBUJA_MARGEN, CLAVE_BURBUJA_POS } from '../hooks/useBurbujaArrastrable';
+import { encajar, BURBUJA_ABAJO, BURBUJA_ARRIBA, BURBUJA_MARGEN, CLAVE_BURBUJA_POS } from '../hooks/useBurbujaArrastrable';
 
 const leer = (rel) => readFileSync(join(__dirname, '..', rel), 'utf8');
 
-describe('ajustarAlBorde', () => {
+describe('encajar (lote 908: se queda donde se suelta)', () => {
     const base = { ancho: 140, alto: 70, vw: 400, vh: 800 };
-    it('se pega al borde más cercano', () => {
-        expect(ajustarAlBorde({ ...base, x: 20, y: 300 }).lado).toBe('izq');
-        expect(ajustarAlBorde({ ...base, x: 250, y: 300 }).lado).toBe('der');
+    it('en medio se queda en medio; el lado solo alinea el globo', () => {
+        expect(encajar({ ...base, x: 100, y: 300 })).toEqual({ lado: 'izq', x: 100, y: 300 });
+        expect(encajar({ ...base, x: 180, y: 300 })).toEqual({ lado: 'der', x: 180, y: 300 });
     });
-    it('no se sale de la franja entre la cabecera y la barra de pestañas', () => {
-        expect(ajustarAlBorde({ ...base, x: 0, y: -50 }).y).toBe(BURBUJA_ARRIBA);
-        expect(ajustarAlBorde({ ...base, x: 0, y: 5000 }).y).toBe(800 - 70 - BURBUJA_ABAJO);
-        expect(ajustarAlBorde({ ...base, x: 0, y: 333.6 }).y).toBe(334);
+    it('no se sale de la pantalla ni de la franja entre la cabecera y la barra de pestañas', () => {
+        expect(encajar({ ...base, x: -40, y: -50 })).toMatchObject({ x: BURBUJA_MARGEN, y: BURBUJA_ARRIBA });
+        expect(encajar({ ...base, x: 900, y: 5000 })).toMatchObject({ x: 400 - 140 - BURBUJA_MARGEN, y: 800 - 70 - BURBUJA_ABAJO });
+        expect(encajar({ ...base, x: 0, y: 333.6 }).y).toBe(334);
     });
 });
 
@@ -44,18 +44,39 @@ describe('la burbuja se arrastra', () => {
         <ModoVoz estado="escuchando" oido="" dicho="" minimizado onCerrar={vi.fn()} onExpandir={vi.fn()} {...props} />,
     );
 
-    it('arrastrada a la izquierda se queda pegada a ese borde y se recuerda', () => {
+    it('se queda donde la sueltas (también en medio) y se recuerda', () => {
         pintar();
         const region = screen.getByRole('region', { name: 'Modo voz' });
         const fila = region.querySelector('div');
         fireEvent.pointerDown(fila, { clientX: 300, clientY: 630, button: 0, pointerId: 1 });
-        fireEvent.pointerMove(fila, { clientX: 60, clientY: 330, pointerId: 1 });
+        fireEvent.pointerMove(fila, { clientX: 150, clientY: 330, pointerId: 1 });
         expect(region.dataset.arrastrando).toBe('1');
-        fireEvent.pointerUp(fila, { clientX: 60, clientY: 330, pointerId: 1 });
+        fireEvent.pointerUp(fila, { clientX: 150, clientY: 330, pointerId: 1 });
         expect(region.dataset.lado).toBe('izq');
-        expect(region.style.left).toBe(`${BURBUJA_MARGEN}px`);
+        expect(region.style.left).toBe('100px');
         expect(region.style.top).toBe('300px');
-        expect(JSON.parse(localStorage.getItem(CLAVE_BURBUJA_POS))).toEqual({ lado: 'izq', y: 300 });
+        expect(JSON.parse(localStorage.getItem(CLAVE_BURBUJA_POS))).toEqual({ lado: 'izq', x: 100, y: 300 });
+    });
+
+    it('iPhone: la captura del dedo va a la FILA que oye, no a la caja (si no, deja de moverse tras el primer tirón)', () => {
+        pintar();
+        const region = screen.getByRole('region', { name: 'Modo voz' });
+        const fila = region.querySelector('div');
+        const capturas = [];
+        const capturar = function (id) { capturas.push([this, id]); };
+        region.setPointerCapture = capturar;
+        fila.setPointerCapture = capturar;
+        fireEvent.pointerDown(fila.querySelector('button'), { clientX: 300, clientY: 630, button: 0, pointerId: 7 });
+        fireEvent.pointerMove(fila, { clientX: 250, clientY: 560, pointerId: 7 });
+        expect(capturas).toEqual([[fila, 7]]);
+    });
+
+    it('la posición guardada antes del 908 (solo lado y altura) sigue pegada a su borde', () => {
+        localStorage.setItem(CLAVE_BURBUJA_POS, JSON.stringify({ lado: 'izq', y: 200 }));
+        pintar();
+        const region = screen.getByRole('region', { name: 'Modo voz' });
+        expect(region.style.left).toBe(`${BURBUJA_MARGEN}px`);
+        expect(region.style.top).toBe('200px');
     });
 
     it('un arrastre no abre el modo voz (el click del final no cuenta); un toque sí', () => {

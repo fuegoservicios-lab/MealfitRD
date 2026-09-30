@@ -257,6 +257,9 @@
   padding: 4px;
   border-radius: 999px;
   touch-action: none;   /* [P1-PLAN-LOTE-906] arrastrarla no desplaza la página */
+  -webkit-user-select: none;   /* [P1-PLAN-LOTE-908] mantener el dedo no selecciona ni abre el menú de iOS */
+  user-select: none;
+  -webkit-touch-callout: none;
   cursor: grab;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-card) 90%, transparent);
