@@ -54,7 +54,7 @@ const REVISADOS = [
 // deliberado: si alguien toca uno y no el otro, el guard mide una realidad
 // distinta de la que se despliega — y el test parser-based
 // backend/tests/test_p1_apex_precache_blind.py ancla que las dos listas coincidan.
-const APP_ONLY = /(?:^|\/)(Dashboard|AgentPage|Pantry|Recipes|Settings|History|Plan|Assessment|Upgrade|Login|ResetPassword|DashboardLayout|VirtualizedMessageList|CameraViewfinder|BrandSelect|HelpChatWidget|PaymentModal|SettingsDialog)-[A-Za-z0-9_-]+\.(?:js|css)$/;
+const APP_ONLY = /(?:^|\/)(Dashboard|AgentPage|Pantry|Recipes|Settings|History|Plan|Assessment|Upgrade|Login|ResetPassword|DashboardLayout|VirtualizedMessageList|CameraViewfinder|BrandSelect|HelpChatWidget|PaymentModal|SettingsDialog|AdminPage|AdminCuentas|AdminCuentasLista|AdminFichaAmpliada|AdminPruebaDetalle|AdminAjustesResumen)-[A-Za-z0-9_-]+\.(?:js|css)$/;
 
 const swPath = path.join(DIST, 'custom-sw.js');
 if (!fs.existsSync(swPath)) {
