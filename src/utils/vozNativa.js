@@ -91,9 +91,10 @@ export class ReconocimientoNativo {
 
     start() {
         // La Web Speech API arranca sin promesa: aquí todo fallo se convierte en onerror + onend, nunca en un rechazo.
-        this._arrancar().catch(() => {
+        this._arrancar().catch((err) => {
             if (this._terminado) return;
-            this.onerror?.({ error: 'start' });
+            // [P1-PLAN-LOTE-909] `crudo`: lo que dijo el plugin, para el diagnóstico (el hook solo entiende `error`).
+            this.onerror?.({ error: 'start', crudo: `start:${String(err?.code || err?.message || err || '').slice(0, 60)}` });
             this._terminar();
         });
     }
@@ -105,7 +106,7 @@ export class ReconocimientoNativo {
         if (permiso?.speechRecognition !== 'granted') permiso = await plugin.requestPermissions();
         if (this._terminado) return;       // lo abortaron mientras se pedía el permiso
         if (permiso?.speechRecognition !== 'granted') {
-            this.onerror?.({ error: 'not-allowed' });
+            this.onerror?.({ error: 'not-allowed', crudo: `permiso:${permiso?.speechRecognition || '?'}` });
             this._terminar();
             return;
         }
@@ -133,7 +134,7 @@ export class ReconocimientoNativo {
             }
         }));
         this._subs.push(await plugin.addListener('error', (e) => {
-            this.onerror?.({ error: errorWebDesdeAndroid(e?.code) });
+            this.onerror?.({ error: errorWebDesdeAndroid(e?.code), crudo: String(e?.code || e?.message || '') });
         }));
         // Abortado mientras se enganchaban los oyentes: soltarlos y NO abrir el micrófono.
         if (this._terminado) { this._soltar(); return; }

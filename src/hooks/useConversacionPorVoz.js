@@ -25,6 +25,7 @@ import { crearVozDelCoach, rutaDeAudio, sintesisDisponible } from '../utils/vozD
 import { abrirVozEnLaNube, pedirVozEnLaNube } from '../utils/vozEnLaNube';
 import { sintesisNativa, sintesisNativaDisponible } from '../utils/vozNativa';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
+import { avisarFalloDeVoz } from '../utils/diagnosticoVoz';
 import { i18nKey } from '../i18n';
 
 /** Silencio tras la última palabra que se toma como «terminó de hablar». */
@@ -267,6 +268,8 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         rec.onerror = (evento) => {
             if (id !== sesionRef.current) return;
             const code = evento?.error;
+            // [P1-PLAN-LOTE-909] Diagnóstico anónimo (código y el original de Android, nunca lo dicho).
+            if (code !== 'aborted') avisarFalloDeVoz({ donde: 'modo_voz', codigo: code, crudo: evento?.crudo, idioma: rec.lang });
             if (code === 'language-not-supported' && idiomaRef.current < idiomas.length - 1) {
                 idiomaRef.current += 1;
                 reintentar = true;

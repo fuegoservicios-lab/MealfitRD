@@ -24,6 +24,7 @@ import {
     unirDictado,
 } from '../utils/dictado';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
+import { avisarEstadoDeVozUnaVez, avisarFalloDeVoz } from '../utils/diagnosticoVoz';
 
 /** Cuánto se queda el aviso de error a la vista (va en el placeholder de la caja). */
 export const DICTADO_ERROR_VISIBLE_MS = 4500;
@@ -32,6 +33,8 @@ export const DICTADO_CIERRE_MS = 1500;
 
 export function useDictado({ valor, alCambiar, locale, esNativa = false }) {
     const [disponible] = useState(() => dictadoDisponible({ esNativa }));
+    // [P1-PLAN-LOTE-909] Una vez por arranque de la app nativa: si el micrófono se ofrece y con qué motor.
+    useEffect(() => { avisarEstadoDeVozUnaVez({ dictadoDisponible: disponible }); }, [disponible]);
     const [escuchando, setEscuchando] = useState(false);
     const [error, setError] = useState(null);
 
@@ -138,6 +141,7 @@ export function useDictado({ valor, alCambiar, locale, esNativa = false }) {
         rec.onerror = (evento) => {
             if (id !== sesionRef.current) return;
             const code = evento?.error;
+            if (code !== 'aborted') avisarFalloDeVoz({ donde: 'dictado', codigo: code, crudo: evento?.crudo, idioma: rec.lang });
             if (code === 'language-not-supported' && idiomaRef.current < idiomas.length - 1) {
                 idiomaRef.current += 1;          // `onend` reabre con el siguiente idioma de la lista
                 huboVoz = true;
@@ -158,6 +162,8 @@ export function useDictado({ valor, alCambiar, locale, esNativa = false }) {
                 arrancarRef.current?.();
                 return;
             }
+            // [P1-PLAN-LOTE-909] Se cerró sin oír nada y sin error: el síntoma del 902 («arranca y no oye»).
+            if (!huboVoz && !detenidoRef.current) avisarFalloDeVoz({ donde: 'dictado', codigo: 'sin_resultado', idioma: rec.lang });
             cerrar();
             triggerMobileHaptic('light');
         };
