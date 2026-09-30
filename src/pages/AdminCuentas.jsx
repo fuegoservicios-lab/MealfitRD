@@ -25,6 +25,7 @@ const TEXTOS = {
     ayudaConLista: 'Si tienes el correo exacto, búscalo aquí. Cada búsqueda queda anotada.',
     volverLista: 'Volver a la lista',
     abriendo: 'Abriendo la cuenta…',
+    yaNoExiste: 'Esa cuenta ya no existe.',
     detalleDe: (correo) => `Detalle de ${correo}`,
     volverFicha: 'Volver a la ficha',
     buscar: 'Buscar',
@@ -101,6 +102,8 @@ const fechaLocal = (dias) => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 const planesMejores = (pagado) => PLANES.filter((p) => RANGO[p] > (RANGO[pagado] ?? 0));
+// [P1-PLAN-LOTE-833 · ronda 1] ¿Trae la ficha los bloques del interruptor de cuentas de prueba (contrato 3)?
+const traeBloquesNuevos = (f) => Boolean(f) && ['actividad', 'ajustes', 'prueba'].some((k) => Object.prototype.hasOwnProperty.call(f, k));
 
 async function pedir(url, cuerpo) {
     const opciones = cuerpo === undefined ? {} : { method: 'POST', headers: CABECERA, body: JSON.stringify(cuerpo) };
@@ -362,6 +365,9 @@ export default function AdminCuentas() {
     const [hayLista, setHayLista] = useState(null);
     const [versionLista, setVersionLista] = useState(0);
     const [detalle, setDetalle] = useState(null);
+    // [ronda 1] Lo que pasa al abrir una cuenta desde la lista (`{ tipo: 'abriendo' | 'error', texto }`): lo pinta la
+    // lista junto a su título, no debajo de la tabla.
+    const [apertura, setApertura] = useState(null);
     const turno = useRef(0);          // la última búsqueda o apertura gana: nunca se pinta la ficha de otra cuenta
     const seccionRef = useRef(null);
     const volverRef = useRef(null);
@@ -391,6 +397,7 @@ export default function AdminCuentas() {
         const mio = ++turno.current;
         setEstado('buscando');
         setError('');
+        setApertura(null);
         setHecho(false);
         try {
             const datos = await pedir('/api/admin/cuentas/buscar', { email: correo });
@@ -406,20 +413,26 @@ export default function AdminCuentas() {
     // [P1-PLAN-LOTE-833] Tocar un correo de la lista abre su ficha: la lista se aparta y el foco va a «Volver a la lista».
     const abrirDesdeLista = async (fila) => {
         const mio = ++turno.current;
-        setEstado('abriendo');
+        setEstado('inicio');
         setError('');
         setHecho(false);
+        setApertura({ tipo: 'abriendo', texto: TEXTOS.abriendo });
         try {
             const datos = await pedir(`/api/admin/cuentas/${fila.user_id}`);
             if (mio !== turno.current) return;
-            if (datos?.cuenta) { enfocar.current = 'volver'; setFicha(datos.cuenta); setEstado('ficha'); } else { setFicha(null); setEstado('nada'); }
+            if (!datos?.cuenta) { setApertura({ tipo: 'error', texto: TEXTOS.yaNoExiste }); return; }
+            enfocar.current = 'volver';
+            setApertura(null);
+            setFicha(datos.cuenta);
+            setEstado('ficha');
         } catch (err) {
             if (mio !== turno.current) return;
-            setError(err.message);
-            setEstado('error');
+            setApertura({ tipo: 'error', texto: err.message });
         }
     };
     const volverALista = () => {
+        turno.current += 1;           // lo que aún esté en vuelo para la ficha que se deja ya no la pinta
+        setApertura(null);
         enfocar.current = ficha ? `cuenta:${ficha.user_id}` : 'lista';
         setEstado('inicio');
         setFicha(null);
@@ -433,11 +446,17 @@ export default function AdminCuentas() {
         setAccion(null);
         setHecho(true);
         setVersionLista((v) => v + 1);   // [P1-PLAN-LOTE-833] la lista enseña plan y marca: que no se quede vieja
-        if (cuenta) { setFicha(cuenta); return; }
+        // [ronda 1] Un regalo responde con la ficha del lote 774, SIN actividad, ajustes ni prueba: si la de la vista los
+        // traía, se pide entera (mientras, la de la vista se queda; si falla, al menos los créditos nuevos).
+        if (cuenta && !(traeBloquesNuevos(ficha) && !traeBloquesNuevos(cuenta))) { setFicha(cuenta); return; }
+        const mio = turno.current;
         try {
             const datos = await pedir(`/api/admin/cuentas/${ficha.user_id}`);
+            if (mio !== turno.current) return;
             if (datos?.cuenta) setFicha(datos.cuenta);
         } catch (err) {
+            if (mio !== turno.current) return;
+            if (cuenta) setFicha(cuenta);
             setError(err.message);
         }
     };
@@ -446,9 +465,14 @@ export default function AdminCuentas() {
     const vista = (
         <section ref={seccionRef} className={styles.cuentas} hidden={Boolean(detalle)}>
             {hayLista !== false && (
-                <AdminCuentasLista version={versionLista} oculta={conFicha} onDisponible={setHayLista} onAbrir={abrirDesdeLista} />
+                <AdminCuentasLista
+                    version={versionLista}
+                    oculta={conFicha}
+                    onDisponible={setHayLista}
+                    onAbrir={abrirDesdeLista}
+                    aviso={apertura}
+                />
             )}
-            {estado === 'abriendo' && <p className={styles.vacio} role="status">{TEXTOS.abriendo}</p>}
             {conFicha && hayLista && (
                 <button ref={volverRef} type="button" className={`${styles.boton} ${styles.volver}`} onClick={volverALista}>
                     <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
@@ -471,7 +495,8 @@ export default function AdminCuentas() {
                         {estado === 'buscando' ? TEXTOS.buscando : TEXTOS.buscar}
                     </button>
                 </div>
-                <p className={styles.ayuda}>{hayLista ? TEXTOS.ayudaConLista : TEXTOS.ayudaBusqueda}</p>
+                {/* [ronda 1] La de «sin lista» solo cuando se SABE que no hay (404): mientras se pregunta, la otra. */}
+                <p className={styles.ayuda}>{hayLista === false ? TEXTOS.ayudaBusqueda : TEXTOS.ayudaConLista}</p>
             </form>
             {estado === 'nada' && <p className={styles.vacio}>{TEXTOS.noExiste}</p>}
             {error && <p className={styles.error} role="alert">{error}</p>}

@@ -73,6 +73,27 @@ export const NOMBRE_PLAN = { gratis: 'Gratis', basic: 'Básico', plus: 'Plus', u
 // [I18N-EXEMPT: panel interno del dueño, solo español]
 export const NOMBRE_MODO = { plan: 'Plan', tracking: 'Seguimiento' };
 
+/**
+ * [P1-PLAN-LOTE-833 · 2026-09-29, ronda 1] ¿La cuenta está marcada AHORA? El bloque `prueba` puede venir con
+ * `estado: "sin_marca"` (hubo marcas, ninguna viva: la quitó el equipo o salió la persona) para enseñar su historial:
+ * eso NO es una cuenta de prueba (sin etiqueta «Prueba», se puede volver a marcar).
+ */
+export const marcaViva = (prueba) => Boolean(prueba) && prueba.estado !== 'sin_marca';
+
+// [I18N-EXEMPT: panel interno del dueño, solo español] «web» es nombre común; los otros dos, propios.
+const NOMBRE_PLATAFORMA = { web: 'web', ios: 'iOS', android: 'Android' };
+// [I18N-EXEMPT: panel interno del dueño, solo español]
+const PLATAFORMA_AL_INICIO = { web: 'Web' };
+/** `["web","android"]` o `"android,web"` → «Web, Android» / «Android, web». Lo que no conoce sale tal cual. */
+export function nombresDePlataformas(valor) {
+    const lista = (Array.isArray(valor) ? valor : String(valor ?? '').split(','))
+        .map((p) => String(p).trim()).filter(Boolean);
+    return lista.map((p, i) => {
+        const k = p.toLowerCase();
+        return (i === 0 && PLATAFORMA_AL_INICIO[k]) || NOMBRE_PLATAFORMA[k] || p;
+    }).join(', ');
+}
+
 function nombreIntl(tipo, codigo) {
     if (!codigo || typeof codigo !== 'string') return null;
     try {

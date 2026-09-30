@@ -10,9 +10,15 @@
 //     dispositivo, por plataforma; el historial de cambios se pide al abrir «Ver cambios».
 // Cada bloque sale solo si la ficha lo trae: con el interruptor apagado no trae ninguno y la ficha queda idéntica a la
 // del lote 774. Interno —solo el dueño, solo español—: los textos fijos viven en TEXTOS.
+// [P1-PLAN-LOTE-833 · 2026-09-29, ronda 1] Las 10 filas del grupo «Dispositivo» que manda el backend en `ajustes` viven en
+// «Ajustes del dispositivo» (por plataforma, con SUS etiquetas): en la lista de grupos salían dos veces. Una marca
+// `sin_marca` (hubo marcas, ninguna viva) dice «Ya no es de prueba» con su historial y se puede volver a marcar. Los valores
+// crudos (`relleno`, `vista`, `android,web`, listas y objetos) se leen como texto.
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import AdminDialogoMotivo from './AdminDialogoMotivo';
-import { NOMBRE_MODO, cifra, fecha, fechaHora, nombreIdioma, nombrePais, pedirAdmin, usd } from '../utils/adminCuentas';
+import {
+    NOMBRE_MODO, cifra, fecha, fechaHora, marcaViva, nombreIdioma, nombrePais, nombresDePlataformas, pedirAdmin, usd,
+} from '../utils/adminCuentas';
 import base from './AdminCuentas.module.css';
 import styles from './AdminFichaAmpliada.module.css';
 
@@ -44,6 +50,7 @@ const TEXTOS = {
     todaviaNo: 'Todavía no',
     prueba: 'Cuenta de prueba',
     noEs: 'No es una cuenta de prueba.',
+    yaNoEs: 'Ya no es de prueba.',
     chipPrueba: 'Prueba',
     chipPendiente: 'Aviso pendiente',
     desde: (f) => `Cuenta de prueba desde el ${f}`,
@@ -54,10 +61,9 @@ const TEXTOS = {
     avisoNoVisto: 'La persona todavía no ha visto el aviso en la app.',
     historial: 'Historial de la marca',
     vigente: 'vigente',
-    tramo: (desde, hasta) => `Del ${desde} al ${hasta}`,
-    tramoVigente: (desde) => `Desde el ${desde}`,
-    salioElla: 'salió la propia persona',
-    quitadaPorEquipo: 'la quitó el equipo',
+    marcadaEl: (f, quien) => (quien ? `Marcada el ${f} por ${quien}` : `Marcada el ${f}`),
+    salioLaPersona: (f) => `salió la persona el ${f}`,
+    laQuitoElEquipo: (f) => `la quitó el equipo el ${f}`,
     motivoQuitar: (m) => `al quitarla: «${m}»`,
     marcar: 'Marcar como cuenta de prueba',
     quitar: 'Quitar marca',
@@ -89,7 +95,7 @@ const TEXTOS = {
     ajustes: 'Ajustes',
     leyenda: 'Entre paréntesis, quién hizo el último cambio: la persona (desde la app), el coach o el sistema.',
     sinAjustes: 'Sin ajustes que mostrar.',
-    estados: { encendido: 'Encendido', apagado: 'Apagado', automatico: 'Automático', sin_elegir: 'Sin elegir', relleno: 'Relleno' },
+    estados: { encendido: 'Encendido', apagado: 'Apagado', automatico: 'Automático', sin_elegir: 'Sin elegir' },
     // `app` NO es «tú»: quien lee el panel es el admin y lo tomaría por sí mismo (corrección del controlador, 29-sep).
     origenes: { app: 'la persona', coach: 'el coach', sistema: 'el sistema' },
     cambiado: (f, quien) => (quien ? `Último cambio: ${f} (${quien})` : `Último cambio: ${f}`),
@@ -97,6 +103,7 @@ const TEXTOS = {
     sinDispositivo: 'La app todavía no ha informado los ajustes de ningún dispositivo.',
     informado: (plataforma, f) => `${plataforma} · informado el ${f}`,
     nombresPlataforma: { web: 'Web', ios: 'iOS', android: 'Android' },
+    // Solo si la ficha no trae las filas «Dispositivo» del backend (que llevan SUS etiquetas, las del registro).
     claveDispositivo: {
         tema: 'Tema', notificaciones_permiso: 'Permiso de notificaciones', alertas_activadas: 'Alertas del dispositivo',
         analitica_vetada: 'Analítica vetada en el dispositivo', barra_plegada: 'Barra de pestañas plegada',
@@ -105,14 +112,23 @@ const TEXTOS = {
     },
     // El formulario siembra `ft` para todos: sin la nota, «ft» parecería una elección de la persona.
     notaDispositivo: { unidad_altura: '(por defecto ft si no la cambió)' },
-    // Valores con nombre, por clave (la de un ajuste o la del dispositivo). Lo que no esté aquí sale tal cual.
+    // Valores con nombre, por clave (la de un ajuste o la del dispositivo), con la forma que manda `ajustes_cuenta`. Lo que
+    // no esté aquí sale tal cual.
     valores: {
         plan_mode: { plan: 'Plan', tracking: 'Seguimiento' },
+        logging_preference: { auto_proxy: 'Automático', manual: 'Manual' },
         tema: { system: 'Automático (sistema)', light: 'Claro', dark: 'Oscuro' },
         notificaciones_permiso: { granted: 'Concedido', denied: 'Denegado', default: 'Sin preguntar', unsupported: 'No compatible' },
+        super_personalization: { relleno: 'Relleno' },
+        clinical_profile: { relleno: 'Relleno' },
+        invitacion_al_plan: { vista: 'La vio, sin responder', descartada: 'Respondió «Ahora no»' },
+        entro_con_apple: { 'sí': 'Sí', no: 'No' },
+        hidratacion_apagada_sola: { 'sí': 'Sí', no: 'No' },
     },
     si: 'Sí',
     no: 'No',
+    siEnFrase: 'sí',
+    noEnFrase: 'no',
     verCambios: 'Ver cambios',
     ocultarCambios: 'Ocultar cambios',
     periodoCambios: 'Periodo de los cambios',
@@ -130,11 +146,33 @@ const TEXTOS = {
 
 const ORDEN_PLATAFORMAS = ['web', 'ios', 'android'];
 const PERIODOS_CAMBIOS = [30, 90, 365];
-const MAX_TEXTO_VALOR = 80;
+const MAX_TEXTO_VALOR = 120;
+const PROFUNDIDAD_MAX = 3;
+// El backend pone en `ajustes` también los del dispositivo; su sitio es «Ajustes del dispositivo», por plataforma.
+const GRUPO_DISPOSITIVO = 'Dispositivo';
+// Claves cuyo valor es una lista de plataformas («android,web»).
+const CLAVES_DE_PLATAFORMAS = new Set(['plataformas', 'push_app']);
 // En el dispositivo, un booleano que es un interruptor (se dice encendido/apagado, con su color); el resto, Sí/No.
 const INTERRUPTORES_DISPOSITIVO = new Set(['alertas_activadas']);
 
 const nombreOrigen = (o) => (o ? TEXTOS.origenes[o] || String(o) : null);
+
+const recortar = (texto) => (texto.length > MAX_TEXTO_VALOR ? `${texto.slice(0, MAX_TEXTO_VALOR - 1)}…` : texto);
+
+/** Una lista u objeto en texto que se lee («x, 1», «activo: no, hora: 08:00»); lo anidado, entre paréntesis. */
+function textoDe(v, profundidad = 0) {
+    if (v === null || v === undefined || v === '') return '—';
+    if (typeof v === 'boolean') return v ? TEXTOS.siEnFrase : TEXTOS.noEnFrase;
+    if (typeof v === 'number') return cifra(v, 2);
+    if (typeof v === 'string') return v;
+    if (profundidad >= PROFUNDIDAD_MAX) {
+        try { return JSON.stringify(v); } catch { return String(v); }
+    }
+    const anidado = (x) => (x && typeof x === 'object' ? `(${textoDe(x, profundidad + 1)})` : textoDe(x, profundidad + 1));
+    if (Array.isArray(v)) return v.map(anidado).join(', ');
+    if (typeof v === 'object') return Object.entries(v).map(([k, x]) => `${k}: ${anidado(x)}`).join(', ');
+    return String(v);
+}
 
 /** Un valor crudo (booleano, enumerado, cifra, lista…) en texto; nunca revienta con tipos raros. */
 function valorLegible(clave, v) {
@@ -145,13 +183,16 @@ function valorLegible(clave, v) {
         if (nombres && nombres[v]) return nombres[v];
         if (clave === 'locale') return nombreIdioma(v);
         if (clave === 'country') return nombrePais(v);
-        return v;
+        if (CLAVES_DE_PLATAFORMAS.has(clave)) return nombresDePlataformas(v);
+        return recortar(v);
     }
     if (typeof v === 'number') return cifra(v, 2);
-    let texto;
-    try { texto = JSON.stringify(v); } catch { texto = String(v); }
-    return texto.length > MAX_TEXTO_VALOR ? `${texto.slice(0, MAX_TEXTO_VALOR - 1)}…` : texto;
+    return recortar(textoDe(v));
 }
+
+/** Un valor que acompaña a un estado encendido/apagado (la hora de un recordatorio, las plataformas de un aviso…).
+ *  Los recuentos no: un «2» suelto junto a «Encendido» no dice de qué. */
+const detalleDe = (v) => v !== null && v !== undefined && v !== '' && typeof v !== 'boolean' && typeof v !== 'number';
 
 function mensajeDe(err) {
     if (err?.detalle && TEXTOS.errores[err.detalle]) return TEXTOS.errores[err.detalle];
@@ -173,9 +214,7 @@ function BloqueActividad({ actividad: a }) {
     const idTitulo = useId();
     const idEmbudo = useId();
     const embudo = a.embudo && typeof a.embudo === 'object' ? a.embudo : {};
-    const plataformas = Array.isArray(a.plataformas) && a.plataformas.length > 0
-        ? a.plataformas.map((p) => TEXTOS.nombresPlataforma[p] || p).join(', ')
-        : TEXTOS.ninguna;
+    const plataformas = nombresDePlataformas(a.plataformas) || TEXTOS.ninguna;
     return (
         <section className={styles.bloque} aria-labelledby={idTitulo}>
             <h4 id={idTitulo} className={styles.titulo}>{TEXTOS.actividad}</h4>
@@ -216,12 +255,10 @@ function BloqueActividad({ actividad: a }) {
 }
 
 function EntradaHistorial({ h }) {
-    const tramo = h.hasta ? TEXTOS.tramo(fecha(h.desde), fecha(h.hasta)) : TEXTOS.tramoVigente(fecha(h.desde));
-    const partes = [tramo];
-    if (!h.hasta) partes.push(TEXTOS.vigente);
+    const partes = [TEXTOS.marcadaEl(fecha(h.desde), h.marcada_por)];
     if (h.motivo) partes.push(TEXTOS.motivo(h.motivo));
-    if (h.marcada_por) partes.push(TEXTOS.marcadaPor(h.marcada_por));
-    if (h.hasta) partes.push(h.quitada_por_la_persona ? TEXTOS.salioElla : TEXTOS.quitadaPorEquipo);
+    if (!h.hasta) partes.push(TEXTOS.vigente);
+    else partes.push(h.quitada_por_la_persona ? TEXTOS.salioLaPersona(fecha(h.hasta)) : TEXTOS.laQuitoElEquipo(fecha(h.hasta)));
     if (h.motivo_quitar) partes.push(TEXTOS.motivoQuitar(h.motivo_quitar));
     return <li className={styles.marca}>{partes.join(' · ')}</li>;
 }
@@ -234,6 +271,7 @@ function BloquePrueba({ ficha, onCambio, onVerDetalle, refVerDetalle }) {
     const enfocarTitulo = useRef(false);
     const cerrar = useCallback(() => setDialogo(null), []);
     const p = ficha.prueba;
+    const viva = marcaViva(p);
     const uid = ficha.user_id;
 
     // Tras marcar o quitar, el botón que abrió el diálogo ya no existe (cambia por el contrario): el foco va al título
@@ -271,7 +309,7 @@ function BloquePrueba({ ficha, onCambio, onVerDetalle, refVerDetalle }) {
     };
 
     let aviso = null;
-    if (p) {
+    if (viva) {
         if (p.estado === 'aviso_pendiente') aviso = <li className={styles.pendiente}>{TEXTOS.avisoPendiente}</li>;
         else if (p.aviso_visto_at) aviso = <li>{TEXTOS.avisoVisto(fecha(p.aviso_visto_at))}</li>;
         else aviso = <li>{TEXTOS.avisoNoVisto}</li>;
@@ -281,9 +319,11 @@ function BloquePrueba({ ficha, onCambio, onVerDetalle, refVerDetalle }) {
     return (
         <section className={styles.bloque} aria-labelledby={idTitulo}>
             <h4 id={idTitulo} ref={tituloRef} tabIndex={-1} className={styles.titulo}>{TEXTOS.prueba}</h4>
-            {!p ? (
+            {!viva ? (
                 <>
-                    <p className={styles.texto}>{TEXTOS.noEs}</p>
+                    {/* Nunca marcada, o marcada y quitada (`sin_marca`: el historial dice quién y cuándo). Volver a
+                        marcar a quien salió pasa por la confirmación aparte de `salio_ella`. */}
+                    <p className={styles.texto}>{p ? TEXTOS.yaNoEs : TEXTOS.noEs}</p>
                     <div className={styles.acciones}>
                         <button type="button" className={base.boton} onClick={() => setDialogo({ tipo: 'marcar' })}>{TEXTOS.marcar}</button>
                     </div>
@@ -311,14 +351,14 @@ function BloquePrueba({ ficha, onCambio, onVerDetalle, refVerDetalle }) {
                         </button>
                         <button type="button" className={base.boton} onClick={() => setDialogo({ tipo: 'quitar' })}>{TEXTOS.quitar}</button>
                     </div>
-                    {historial.length > 0 && (
-                        <>
-                            <h5 id={idHistorial} className={styles.subtitulo}>{TEXTOS.historial}</h5>
-                            <ul className={styles.historial} aria-labelledby={idHistorial}>
-                                {historial.map((h, i) => <EntradaHistorial key={`${h.desde}-${i}`} h={h} />)}
-                            </ul>
-                        </>
-                    )}
+                </>
+            )}
+            {historial.length > 0 && (
+                <>
+                    <h5 id={idHistorial} className={styles.subtitulo}>{TEXTOS.historial}</h5>
+                    <ul className={styles.historial} aria-labelledby={idHistorial}>
+                        {historial.map((h, i) => <EntradaHistorial key={`${h.desde}-${i}`} h={h} />)}
+                    </ul>
                 </>
             )}
             {dialogo?.tipo === 'marcar' && (
@@ -347,11 +387,18 @@ function BloquePrueba({ ficha, onCambio, onVerDetalle, refVerDetalle }) {
 
 function Estado({ ajuste: a }) {
     if (a.estado !== 'valor' && TEXTOS.estados[a.estado]) {
-        return <span className={styles.chip} data-estado={a.estado}>{TEXTOS.estados[a.estado]}</span>;
+        const chip = <span className={styles.chip} data-estado={a.estado}>{TEXTOS.estados[a.estado]}</span>;
+        if (!detalleDe(a.valor)) return chip;
+        return (
+            <span className={styles.estadoConDetalle}>
+                {chip}
+                <span className={styles.detalle} data-valor="">{valorLegible(a.clave, a.valor)}</span>
+            </span>
+        );
     }
     // Un valor (enumerado, cifra…) o un estado que el panel aún no conoce: se enseña tal cual, sin color.
     const texto = a.estado === 'valor' ? valorLegible(a.clave, a.valor) : String(a.estado ?? '—');
-    return <span className={styles.valor} data-estado="valor">{texto}</span>;
+    return <span className={styles.valor} data-estado="valor" data-valor="">{texto}</span>;
 }
 
 function GrupoAjustes({ nombre, ajustes }) {
@@ -383,11 +430,12 @@ function valorDispositivo(clave, v) {
     return <span className={styles.valor}>{valorLegible(clave, v)}</span>;
 }
 
-function Plataforma({ plataforma, ajustes }) {
+function Plataforma({ plataforma, ajustes, etiquetas }) {
     const id = useId();
     const nombre = TEXTOS.nombresPlataforma[plataforma] || plataforma;
     const conocidas = Object.keys(TEXTOS.claveDispositivo).filter((k) => k in ajustes);
     const otras = Object.keys(ajustes).filter((k) => k !== 'at' && !(k in TEXTOS.claveDispositivo));
+    const etiqueta = (k) => etiquetas[k] || TEXTOS.claveDispositivo[k] || k;
     return (
         <section className={styles.plataforma} aria-labelledby={id}>
             <h6 id={id} className={styles.plataformaTitulo}>{ajustes.at ? TEXTOS.informado(nombre, fecha(ajustes.at)) : nombre}</h6>
@@ -395,7 +443,7 @@ function Plataforma({ plataforma, ajustes }) {
                 {[...conocidas, ...otras].map((k) => (
                     <li key={k} className={styles.fila}>
                         <span className={styles.filaEtiqueta}>
-                            {TEXTOS.claveDispositivo[k] || k}
+                            {etiqueta(k)}
                             {TEXTOS.notaDispositivo[k] && <span className={styles.notaEnLinea}>{` ${TEXTOS.notaDispositivo[k]}`}</span>}
                         </span>
                         {valorDispositivo(k, ajustes[k])}
@@ -406,7 +454,7 @@ function Plataforma({ plataforma, ajustes }) {
     );
 }
 
-function AjustesDispositivo({ dispositivo }) {
+function AjustesDispositivo({ dispositivo, etiquetas }) {
     const id = useId();
     const plataformas = Object.keys(dispositivo)
         .filter((k) => dispositivo[k] && typeof dispositivo[k] === 'object')
@@ -420,7 +468,7 @@ function AjustesDispositivo({ dispositivo }) {
             <h5 id={id} className={styles.subtitulo}>{TEXTOS.dispositivo}</h5>
             {plataformas.length === 0 ? <p className={styles.texto}>{TEXTOS.sinDispositivo}</p> : (
                 <div className={styles.plataformas}>
-                    {plataformas.map((p) => <Plataforma key={p} plataforma={p} ajustes={dispositivo[p]} />)}
+                    {plataformas.map((p) => <Plataforma key={p} plataforma={p} ajustes={dispositivo[p]} etiquetas={etiquetas} />)}
                 </div>
             )}
         </section>
@@ -495,8 +543,14 @@ function CambiosAjustes({ userId }) {
 function BloqueAjustes({ ficha }) {
     const idTitulo = useId();
     const grupos = [];
+    const etiquetasDispositivo = {};
     for (const a of ficha.ajustes) {
         if (!a || typeof a !== 'object') continue;
+        if (a.grupo === GRUPO_DISPOSITIVO) {
+            // Su sitio es la sección por plataforma (aquí salían dos veces); de la fila solo se toma la etiqueta.
+            if (a.clave && a.etiqueta) etiquetasDispositivo[a.clave] = a.etiqueta;
+            continue;
+        }
         const nombre = a.grupo || TEXTOS.ajustes;
         let g = grupos.find((x) => x.nombre === nombre);
         if (!g) { g = { nombre, ajustes: [] }; grupos.push(g); }
@@ -512,7 +566,7 @@ function BloqueAjustes({ ficha }) {
                     {grupos.map((g) => <GrupoAjustes key={g.nombre} nombre={g.nombre} ajustes={g.ajustes} />)}
                 </div>
             )}
-            <AjustesDispositivo dispositivo={dispositivo} />
+            <AjustesDispositivo dispositivo={dispositivo} etiquetas={etiquetasDispositivo} />
             <CambiosAjustes userId={ficha.user_id} />
         </section>
     );

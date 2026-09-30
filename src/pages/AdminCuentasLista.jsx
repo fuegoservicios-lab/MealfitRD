@@ -6,11 +6,15 @@
 // mismos filtros. Tocar un correo abre su ficha (`onAbrir`). La pide ella misma al montarse: con el interruptor
 // apagado el servidor responde 404, no pinta nada y avisa con `onDisponible(false)` para que el panel quede como hoy.
 // Interno —solo el dueño, solo español—: los textos fijos viven en TEXTOS.
+// [P1-PLAN-LOTE-833 · 2026-09-29, ronda 1] Una marca `sin_marca` no es de prueba (`marcaViva`); `onDisponible` va en una
+// ref (un callback nuevo en cada render ya no vuelve a pedir la lista); una página que dejó de existir se corrige sola; tras
+// marcar varias el foco va al resumen; y «Abriendo la cuenta…» o su fallo (`aviso`) salen junto al título.
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { fetchWithAuth } from '../config/api';
 import AdminDialogoMotivo from './AdminDialogoMotivo';
 import {
-    NOMBRE_MODO, NOMBRE_PLAN, cifra, fecha, nombreCsvDeHoy, nombreDeArchivo, pedirAdmin, urlCsvCuentas, urlCuentas, usd,
+    NOMBRE_MODO, NOMBRE_PLAN, cifra, fecha, marcaViva, nombreCsvDeHoy, nombreDeArchivo, pedirAdmin, urlCsvCuentas, urlCuentas,
+    usd,
 } from '../utils/adminCuentas';
 import base from './AdminCuentas.module.css';
 import styles from './AdminCuentasLista.module.css';
@@ -91,6 +95,7 @@ function mensajeLote(err) {
 
 function FilaCuenta({ c, elegida, onElegir, onAbrir }) {
     const a = c.actividad || {};
+    const viva = marcaViva(c.prueba);
     const sub = [c.nombre, NOMBRE_PLAN[c.plan_efectivo] || c.plan_efectivo, NOMBRE_MODO[c.modo], c.pais].filter(Boolean).join(' · ');
     return (
         <tr data-cuenta={c.user_id}>
@@ -99,7 +104,7 @@ function FilaCuenta({ c, elegida, onElegir, onAbrir }) {
                     <input
                         type="checkbox"
                         checked={elegida}
-                        disabled={Boolean(c.prueba)}
+                        disabled={viva}
                         onChange={() => onElegir(c)}
                         aria-label={TEXTOS.seleccionar(c.email)}
                     />
@@ -108,10 +113,10 @@ function FilaCuenta({ c, elegida, onElegir, onAbrir }) {
             <td className={styles.celdaCuenta}>
                 <button type="button" className={styles.correo} data-abrir-cuenta={c.user_id} onClick={() => onAbrir(c)}>{c.email}</button>
                 {sub && <span className={styles.sub}>{sub}</span>}
-                {(c.prueba || c.es_admin) && (
+                {(viva || c.es_admin) && (
                     <span className={styles.etiquetas}>
-                        {c.prueba && <span className={styles.chip} data-tono="prueba">{TEXTOS.prueba}</span>}
-                        {c.prueba?.estado === 'aviso_pendiente' && <span className={styles.chip} data-tono="pendiente">{TEXTOS.avisoPendiente}</span>}
+                        {viva && <span className={styles.chip} data-tono="prueba">{TEXTOS.prueba}</span>}
+                        {viva && c.prueba.estado === 'aviso_pendiente' && <span className={styles.chip} data-tono="pendiente">{TEXTOS.avisoPendiente}</span>}
                         {c.es_admin && <span className={styles.chip} data-tono="admin">{TEXTOS.admin}</span>}
                     </span>
                 )}
@@ -131,7 +136,7 @@ function FilaCuenta({ c, elegida, onElegir, onAbrir }) {
     );
 }
 
-export default function AdminCuentasLista({ version = 0, oculta = false, onDisponible, onAbrir }) {
+export default function AdminCuentasLista({ version = 0, oculta = false, onDisponible, onAbrir, aviso = null }) {
     const idTitulo = useId();
     const idBuscar = useId();
     const idFiltro = useId();
@@ -152,6 +157,12 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
     const [descargando, setDescargando] = useState(false);
     const [errorCsv, setErrorCsv] = useState('');
     const refTodas = useRef(null);
+    const resumenRef = useRef(null);
+    const enfocarResumen = useRef(false);
+    // En una ref: un `onDisponible` escrito en línea cambia en cada render del padre y, en las dependencias del efecto,
+    // volvía a pedir la lista en bucle (cada respuesta avisa, el padre se pinta, el callback es otro…).
+    const onDisponibleRef = useRef(onDisponible);
+    useEffect(() => { onDisponibleRef.current = onDisponible; });
 
     // La búsqueda espera 300 ms a que se deje de escribir: una petición por ráfaga, no una por tecla.
     useEffect(() => {
@@ -173,21 +184,25 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                 const r = await fetchWithAuth(urlCuentas({ buscar, orden, filtro, pagina }));
                 if (!vivo) return;
                 // 404: interruptor apagado (o no admin). El panel sigue como hoy.
-                if (r.status === 404 || r.status === 401) { setEstado('fuera'); onDisponible?.(false); return; }
+                if (r.status === 404 || r.status === 401) { setEstado('fuera'); onDisponibleRef.current?.(false); return; }
                 if (!r.ok) throw new Error(`Error ${r.status}`);
                 const cuerpo = await r.json();
                 if (!vivo) return;
+                // La lista encogió por debajo de la página pedida (se marcaron cuentas, cambió el filtro en otra pestaña):
+                // se pide la última que existe en vez de dejar una página vacía sin forma de volver.
+                const ultima = Math.max(1, Math.ceil((Number(cuerpo?.total) || 0) / (Number(cuerpo?.por_pagina) || 50)));
+                if (pagina > ultima) { setPagina(ultima); return; }
                 setDatos(cuerpo);
                 // Lo seleccionado que ya no se puede elegir (se marcó desde su ficha, o ya no sale) deja de estarlo.
                 const elegiblesAhora = new Set((Array.isArray(cuerpo?.cuentas) ? cuerpo.cuentas : [])
-                    .filter((c) => !c.prueba).map((c) => c.user_id));
+                    .filter((c) => !marcaViva(c.prueba)).map((c) => c.user_id));
                 setSeleccion((s) => ([...s.keys()].every((id) => elegiblesAhora.has(id))
                     ? s
                     : new Map([...s].filter(([id]) => elegiblesAhora.has(id)))));
                 setPendiente(false);
                 setFallo(false);
                 setEstado('lista');
-                onDisponible?.(true);
+                onDisponibleRef.current?.(true);
             } catch {
                 if (!vivo) return;
                 setPendiente(false);
@@ -196,16 +211,23 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
             }
         })();
         return () => { vivo = false; };
-    }, [buscar, orden, filtro, pagina, version, intento, onDisponible]);
+    }, [buscar, orden, filtro, pagina, version, intento]);
 
     const cuentas = Array.isArray(datos?.cuentas) ? datos.cuentas : [];
-    const elegibles = cuentas.filter((c) => !c.prueba);
+    const elegibles = cuentas.filter((c) => !marcaViva(c.prueba));
     const todas = elegibles.length > 0 && elegibles.every((c) => seleccion.has(c.user_id));
     const algunas = elegibles.some((c) => seleccion.has(c.user_id));
 
     // `indeterminate` no es un atributo: solo se pone por JS.
     useEffect(() => {
         if (refTodas.current) refTodas.current.indeterminate = algunas && !todas;
+    });
+    // Tras marcar varias, el botón que abrió el diálogo queda desactivado (ya no hay selección) y el hook no puede
+    // devolverle el foco: va al resumen, que dice qué pasó con cada una.
+    useEffect(() => {
+        if (!enfocarResumen.current || !resumenRef.current) return;
+        enfocarResumen.current = false;
+        resumenRef.current.focus();
     });
 
     const cerrarDialogo = useCallback(() => setDialogo(false), []);
@@ -249,6 +271,7 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
             if (Object.prototype.hasOwnProperty.call(cuenta, r.resultado)) cuenta[r.resultado] += 1;
             if (r.resultado === 'salio_ella') salieron.push({ user_id: r.user_id, email: correos.get(r.user_id) || r.user_id });
         }
+        enfocarResumen.current = true;
         setResultado({ cuenta, salieron });
         setDialogo(false);
         reconsultar();
@@ -302,6 +325,9 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                 <div>
                     <h2 id={idTitulo} className={styles.titulo} tabIndex={-1} data-titulo-lista="">{TEXTOS.titulo}</h2>
                     <p className={styles.meta}>{TEXTOS.total(total)}</p>
+                    {/* Junto al título, no debajo de la tabla: abrir una cuenta de la fila 40 dice aquí qué pasa. */}
+                    <p className={styles.meta} role="status">{aviso?.tipo === 'abriendo' ? aviso.texto : ''}</p>
+                    {aviso?.tipo === 'error' && <p className={styles.error} role="alert">{aviso.texto}</p>}
                 </div>
                 <button type="button" className={base.boton} onClick={descargar} aria-disabled={descargando || undefined}>
                     {descargando ? TEXTOS.descargando : TEXTOS.descargar}
@@ -349,7 +375,7 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                 )}
             </div>
             {resultado && (
-                <div className={styles.resultado} role="status">
+                <div ref={resumenRef} className={styles.resultado} role="status" tabIndex={-1}>
                     <p className={styles.resultadoLinea}>{TEXTOS.resumenLote(resultado.cuenta)}</p>
                     {resultado.salieron.length > 0 && (
                         <>

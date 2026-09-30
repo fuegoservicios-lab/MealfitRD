@@ -36,7 +36,7 @@
 .chip[data-estado="encendido"] { color: var(--success-text); background: var(--success-bg); border-color: var(--success-border); }
 .chip[data-estado="apagado"] { color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 10%, var(--bg-card)); }
 .chip[data-estado="apagado"]::before { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
-.chip[data-estado="automatico"], .chip[data-estado="relleno"] { color: var(--info-text); background: var(--info-bg); border-color: var(--info-border); }
+.chip[data-estado="automatico"] { color: var(--info-text); background: var(--info-bg); border-color: var(--info-border); }
 .chip[data-estado="sin_elegir"] { color: var(--text-muted); border-style: dashed; }
 .chip[data-estado="sin_elegir"]::before { display: none; }
 .chip[data-tono="prueba"] { color: var(--info-text); background: var(--info-bg); border-color: var(--info-border); }
@@ -53,6 +53,9 @@
 .filaNota { grid-column: 1 / -1; font-size: 0.78rem; color: var(--text-muted); }
 .notaEnLinea { font-size: 0.78rem; color: var(--text-muted); }
 .valor { font-size: 0.86rem; font-weight: 700; text-align: right; overflow-wrap: anywhere; max-width: 14rem; }
+/* un estado con su detalle al lado (la hora de un recordatorio, las plataformas de un aviso) */
+.estadoConDetalle { display: inline-flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.3rem 0.45rem; }
+.detalle { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); overflow-wrap: anywhere; }
 .plataformas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem; }
 .plataforma { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.7rem 0.85rem; border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
 .plataformaTitulo { margin: 0; font-size: 0.84rem; font-weight: 700; }

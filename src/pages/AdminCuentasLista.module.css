@@ -26,6 +26,8 @@
 /* el resumen del lote: qué pasó con cada cuenta */
 .resultado { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid var(--success-border); background: var(--success-bg); color: var(--text-main); font-size: 0.88rem; }
 .resultadoLinea { margin: 0; font-weight: 700; color: var(--success-text, var(--text-main)); }
+.resultado:focus { outline: none; }
+.resultado:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .resultadoNota { margin: 0; line-height: 1.45; }
 .resultadoCorreos { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; }
 .resultadoPie { display: flex; justify-content: flex-end; }

@@ -5,15 +5,22 @@
 // Ajustes con su historial, Cuenta de prueba con marcar/quitar) y el paso al detalle como estado de la página. Con el
 // interruptor apagado el servidor responde 404 a la lista y el panel se queda como el del lote 775.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act, configure } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { useState } from 'react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+// [ronda 1] Esperas de hasta 4 s (no de 1): con otro gate pesado corriendo en la máquina, «Ver detalle» (el test más largo:
+// filtro, ficha, detalle de 5 pestañas y vuelta) agotó el segundo por defecto 1 de ~25 veces. Solo alarga la espera de lo
+// que sí aparece; lo que falta sigue fallando.
+configure({ asyncUtilTimeout: 4000 });
+
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 import { fetchWithAuth } from '../config/api';
 import AdminPage from '../pages/AdminPage';
+import AdminCuentasLista from '../pages/AdminCuentasLista';
 
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
@@ -71,19 +78,43 @@ const fichaAmpliada = (extra = {}) => fichaBase({
         },
         modo: 'tracking', idioma: 'es-DO', pais: 'DO',
     },
+    // [ronda 1] Con la FORMA del backend (`ajustes_cuenta.REGISTRO`): `plan_mode` es un interruptor (plan = encendido),
+    // `relleno` e `invitacion` llegan como `valor`, y los 10 del grupo «Dispositivo» llegan TAMBIÉN aquí (su sitio en la
+    // ficha es la sección por plataforma: salen una sola vez).
     ajustes: [
-        { clave: 'plan_mode', etiqueta: 'Modo de uso', grupo: 'Uso', estado: 'valor', valor: 'tracking',
+        { clave: 'plan_mode', etiqueta: 'Generación de planes', grupo: 'Uso', estado: 'apagado', valor: 'tracking',
           cambiado_at: '2026-09-10T12:00:00+00:00', origen: 'app' },
+        { clave: 'locale', etiqueta: 'Idioma', grupo: 'Uso', estado: 'valor', valor: 'es-DO', cambiado_at: null, origen: null },
         { clave: 'avisos_comida', etiqueta: 'Avisos de comida', grupo: 'Avisos', estado: 'apagado', valor: false,
           cambiado_at: '2026-09-21T10:00:00+00:00', origen: 'app' },
+        { clave: 'avisos_por_comida.desayuno', etiqueta: 'Recordatorio: Desayuno', grupo: 'Avisos', estado: 'encendido',
+          valor: '08:00', cambiado_at: null, origen: null },
+        { clave: 'push_app', etiqueta: 'Notificaciones de la app', grupo: 'Avisos', estado: 'encendido',
+          valor: 'android,ios', cambiado_at: null, origen: null },
         { clave: 'water_tracker_enabled', etiqueta: 'Hidratación', grupo: 'Capacidades', estado: 'encendido',
           valor: true, cambiado_at: '2026-09-20T10:00:00+00:00', origen: 'coach' },
         { clave: 'nevera_enabled', etiqueta: 'Nevera', grupo: 'Capacidades', estado: 'automatico', valor: null,
           cambiado_at: '2026-09-22T10:00:00+00:00', origen: 'sistema' },
         { clave: 'analytics_consent', etiqueta: 'Analítica', grupo: 'Privacidad', estado: 'sin_elegir', valor: null,
           cambiado_at: '2026-09-23T10:00:00+00:00', origen: 'migracion' },
+        { clave: 'super_personalization', etiqueta: 'Súper Personalización', grupo: 'Plan', estado: 'valor',
+          valor: 'relleno', cambiado_at: '2026-09-05T10:00:00+00:00', origen: null },
+        { clave: 'invitacion_al_plan', etiqueta: 'Invitación al plan («Ahora no»)', grupo: 'Plan', estado: 'valor',
+          valor: 'vista', cambiado_at: '2026-09-06T10:00:00+00:00', origen: null },
+        { clave: 'plataformas', etiqueta: 'Plataformas', grupo: 'Dispositivo', estado: 'valor', valor: 'android,web', cambiado_at: null, origen: null },
+        { clave: 'pwa', etiqueta: 'App instalada (PWA)', grupo: 'Dispositivo', estado: 'encendido', valor: true, cambiado_at: '2026-09-29T08:00:00+00:00', origen: null },
+        { clave: 'app_build', etiqueta: 'Versión de la app', grupo: 'Dispositivo', estado: 'valor', valor: 'web-240', cambiado_at: '2026-09-29T08:00:00+00:00', origen: null },
+        { clave: 'tema', etiqueta: 'Tema de la aplicación', grupo: 'Dispositivo', estado: 'valor', valor: 'dark', cambiado_at: '2026-09-29T08:00:00+00:00', origen: null },
+        { clave: 'notificaciones_permiso', etiqueta: 'Permiso de notificaciones del sistema', grupo: 'Dispositivo', estado: 'valor', valor: 'granted', cambiado_at: '2026-09-29T08:00:00+00:00', origen: null },
+        { clave: 'alertas_activadas', etiqueta: 'Alertas del dispositivo', grupo: 'Dispositivo', estado: 'encendido', valor: true, cambiado_at: '2026-09-29T08:00:00+00:00', origen: null },
+        { clave: 'analitica_vetada', etiqueta: 'Analítica vetada en el dispositivo', grupo: 'Dispositivo', estado: 'sin_elegir', valor: null, cambiado_at: null, origen: null },
+        { clave: 'barra_plegada', etiqueta: 'Barra de navegación plegada', grupo: 'Dispositivo', estado: 'sin_elegir', valor: null, cambiado_at: null, origen: null },
+        { clave: 'unidad_altura', etiqueta: 'Unidad de altura', grupo: 'Dispositivo', estado: 'valor', valor: 'ft', cambiado_at: '2026-09-29T08:00:00+00:00', origen: null },
+        { clave: 'avatar_elegido', etiqueta: 'Avatar elegido', grupo: 'Dispositivo', estado: 'sin_elegir', valor: null, cambiado_at: null, origen: null },
         { clave: 'avisos_siesta', etiqueta: 'avisos_siesta', grupo: 'Otros ajustes', estado: 'valor',
           valor: ['x', 1], cambiado_at: null, origen: null },
+        { clave: 'avisos_raros', etiqueta: 'avisos_raros', grupo: 'Otros ajustes', estado: 'valor',
+          valor: { activo: false, hora: '08:00' }, cambiado_at: null, origen: null },
     ],
     ajustes_dispositivo: {
         web: { tema: 'dark', notificaciones_permiso: 'granted', alertas_activadas: true, pwa: true,
@@ -139,6 +170,8 @@ describe('[833] /admin · Cuentas: la lista de todas las cuentas', () => {
         // El test del 775 busca el campo SÍNCRONAMENTE tras pulsar la pestaña: tiene que estar, y a la vista, en el
         // primer render (por rol: un campo oculto no cuenta).
         expect(screen.getByRole('textbox', { name: 'Correo de la cuenta' })).toBeInTheDocument();
+        // [ronda 1] Mientras no se sabe si hay lista, la ayuda es la de «con lista»; solo un 404 la devuelve a la de hoy.
+        expect(screen.getByText('Si tienes el correo exacto, búscalo aquí. Cada búsqueda queda anotada.')).toBeInTheDocument();
         await waitFor(() => expect(pedidasDeLista().length).toBe(1));
         await act(async () => { await new Promise((ok) => setTimeout(ok, 0)); });
         expect(screen.queryByRole('table')).toBeNull();
@@ -185,7 +218,7 @@ describe('[833] /admin · Cuentas: la lista de todas las cuentas', () => {
         expect(ultimaLista().get('filtro')).toBe('prueba');
         const campo = screen.getByLabelText('Buscar por correo o nombre');
         fireEvent.change(campo, { target: { value: 'an' } });
-        await act(async () => { await new Promise((ok) => setTimeout(ok, 120)); });   // una pausa corta al teclear
+        await act(async () => { await new Promise((ok) => setTimeout(ok, 50)); });    // una pausa corta al teclear
         expect(ultimaLista().get('buscar')).toBe('');                            // todavía esperando
         fireEvent.change(campo, { target: { value: 'ana 50%' } });
         expect(ultimaLista().get('buscar')).toBe('');
@@ -246,6 +279,8 @@ describe('[833] /admin · Cuentas: la lista de todas las cuentas', () => {
         expect(within(nota).getByRole('button', { name: 'dani@correo.com' })).toBeInTheDocument();
         await waitFor(() => expect(pedidasDeLista().length).toBeGreaterThan(antes));   // la lista se refresca
         expect(screen.getByText('0 seleccionadas')).toBeInTheDocument();
+        // [ronda 1] El botón que abrió el diálogo queda desactivado (no hay selección): el foco va al resumen.
+        expect(document.activeElement).toBe(screen.getByText('1 marcada · 1 salió ella misma').closest('[role="status"]'));
     });
 
     it('«Seleccionar todas las de esta página» coge solo las que no están marcadas', async () => {
@@ -286,6 +321,93 @@ describe('[833] /admin · Cuentas: la lista de todas las cuentas', () => {
         expect(dani).not.toBeChecked();
         expect(screen.getByText('0 seleccionadas')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Marcar seleccionadas como prueba' })).toBeDisabled();
+    });
+
+    it('una fila cuya marca ya se quitó («sin_marca») no lleva «Prueba» y se puede elegir', async () => {
+        servidor([[RUTA_LISTA, async () => respuesta(lista({ cuentas: [fila({ prueba: { estado: 'sin_marca', desde: null } })], total: 1 }))]]);
+        await abrirCuentas();
+        const ana = filaDe(await tabla(), 'ana@correo.com');
+        expect(within(ana).queryByText('Prueba')).toBeNull();
+        expect(within(ana).getByRole('checkbox')).toBeEnabled();
+    });
+
+    it('si la página pedida ya no existe (la lista encogió), vuelve a la última que sí existe', async () => {
+        servidor([[RUTA_LISTA, async (url) => {
+            const pagina = Number(new URL(url, 'http://panel').searchParams.get('pagina'));
+            if (pagina === 3) return respuesta(lista({ cuentas: [], total: 60, pagina: 3 }));   // encogió: 2 páginas
+            return respuesta(lista({ total: 120, pagina }));
+        }]]);
+        await abrirCuentas();
+        await tabla();
+        fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+        await waitFor(() => expect(ultimaLista().get('pagina')).toBe('2'));
+        expect(await screen.findByText('Página 2 de 3')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+        await waitFor(() => expect(pedidasDeLista().map((q) => q.get('pagina'))).toEqual(['1', '2', '3', '2']));
+        expect(await tabla()).toBeInTheDocument();
+        expect(screen.queryByText('Ninguna cuenta coincide.')).toBeNull();
+    });
+
+    it('una respuesta lenta de la página 1 no pisa la página 2 que ya llegó', async () => {
+        let soltarUna = null;
+        let unas = 0;
+        servidor([[RUTA_LISTA, (url) => {
+            const q = new URL(url, 'http://panel').searchParams;
+            if (q.get('pagina') === '2') {
+                return Promise.resolve(respuesta(lista({ total: 120, pagina: 2, cuentas: [fila({ user_id: 'p2', email: 'pagina2@correo.com' })] })));
+            }
+            unas += 1;
+            if (unas === 1) return Promise.resolve(respuesta(lista({ total: 120 })));
+            return new Promise((ok) => { soltarUna = () => ok(respuesta(lista({ total: 120 }))); });
+        }]]);
+        await abrirCuentas();
+        await tabla();
+        fireEvent.change(screen.getByLabelText('Orden'), { target: { value: 'gasto' } });     // la 1 otra vez, lenta
+        await waitFor(() => expect(soltarUna).not.toBeNull());
+        fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));                   // la 2, rápida
+        expect(await screen.findByRole('button', { name: 'pagina2@correo.com' })).toBeInTheDocument();
+        await act(async () => { soltarUna(); });
+        expect(screen.getByRole('button', { name: 'pagina2@correo.com' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'ana@correo.com' })).toBeNull();
+        expect(screen.getByText('Página 2 de 3')).toBeInTheDocument();
+    });
+
+    it('un «onDisponible» nuevo en cada render no vuelve a pedir la lista (va en una ref)', async () => {
+        servidor([[RUTA_LISTA, async () => respuesta(lista())]]);
+        function Envoltorio() {
+            const [avisos, setAvisos] = useState(0);
+            return (
+                <>
+                    <span>{`avisos ${avisos}`}</span>
+                    <AdminCuentasLista onDisponible={() => setAvisos((n) => n + 1)} onAbrir={() => {}} />
+                </>
+            );
+        }
+        render(<Envoltorio />);
+        await tabla();
+        await act(async () => { await new Promise((ok) => setTimeout(ok, 60)); });
+        expect(pedidasDeLista()).toHaveLength(1);
+        expect(screen.getByText('avisos 1')).toBeInTheDocument();
+    });
+
+    it('«Abriendo la cuenta…» y el fallo al abrirla salen junto al título de la lista, no debajo de todo', async () => {
+        let soltar;
+        servidor([
+            [`/api/admin/cuentas/${A}`, () => new Promise((ok) => { soltar = () => ok(respuesta({ detail: 'No se pudo anotar la vista; no se enseña nada.' }, 503)); })],
+            [RUTA_LISTA, async () => respuesta(lista())],
+        ]);
+        await abrirCuentas();
+        const t = await tabla();
+        const titulo = screen.getByRole('heading', { name: 'Todas las cuentas' });
+        fireEvent.click(within(t).getByRole('button', { name: 'ana@correo.com' }));
+        expect(screen.getByText('Abriendo la cuenta…').parentElement).toBe(titulo.parentElement);
+        await act(async () => { soltar(); });
+        const alerta = await screen.findByRole('alert');
+        expect(alerta).toHaveTextContent('No se pudo anotar la vista; no se enseña nada.');
+        expect(alerta.parentElement).toBe(titulo.parentElement);
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+        expect(screen.queryByText('Abriendo la cuenta…')).toBeNull();
+        expect(screen.getByRole('table', { name: 'Todas las cuentas' })).toBeInTheDocument();   // la lista sigue ahí
     });
 
     it('el diálogo del lote atrapa el foco, ESC lo cierra y el foco vuelve al botón', async () => {
@@ -417,6 +539,37 @@ describe('[833] /admin · Cuentas: la ficha ampliada', () => {
         expect(screen.queryByRole('article', { name: 'Cuenta ana@correo.com' })).toBeNull();
     });
 
+    it('tras un regalo (responde con la ficha SIN los bloques nuevos) se vuelve a pedir la ficha entera, sin perder los bloques', async () => {
+        let vistas = 0;
+        let soltarSegunda;
+        const conRegalo = { creditos: { usados: 3, plan: 10, regalo: 20, tope: 30 } };
+        servidor([
+            [`/api/admin/cuentas/${A}/creditos`, async () => respuesta({ ok: true, cuenta: fichaBase(conRegalo) })],
+            [`/api/admin/cuentas/${A}`, () => {
+                vistas += 1;
+                if (vistas === 1) return Promise.resolve(respuesta({ cuenta: fichaAmpliada() }));
+                return new Promise((ok) => { soltarSegunda = () => ok(respuesta({ cuenta: fichaAmpliada(conRegalo) })); });
+            }],
+            [RUTA_LISTA, async () => respuesta(lista())],
+        ]);
+        await abrirCuentas();
+        const ficha = await abrirFicha();
+        fireEvent.click(within(ficha).getByRole('button', { name: 'Regalar créditos' }));
+        const dialogo = screen.getByRole('dialog', { name: 'Regalar créditos' });
+        fireEvent.change(within(dialogo).getByLabelText('Cantidad'), { target: { value: '20' } });
+        fireEvent.change(within(dialogo).getByLabelText('Motivo'), { target: { value: 'compensación' } });
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Regalar 20 créditos' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        await waitFor(() => expect(vistas).toBe(2));
+        // Mientras llega la ficha entera, la de la vista NO se cambia por la reducida.
+        expect(within(screen.getByRole('article', { name: 'Cuenta ana@correo.com' })).getByRole('region', { name: 'Actividad' })).toBeInTheDocument();
+        await act(async () => { soltarSegunda(); });
+        const nueva = screen.getByRole('article', { name: 'Cuenta ana@correo.com' });
+        expect(within(nueva).getByText('incluye +20 de regalo')).toBeInTheDocument();
+        expect(within(nueva).getByRole('region', { name: 'Actividad' })).toBeInTheDocument();
+        expect(within(nueva).getByRole('region', { name: 'Cuenta de prueba' })).toBeInTheDocument();
+    });
+
     it('Actividad: los números de la cuenta y el embudo con sus fechas (o «Todavía no»)', async () => {
         servidor([
             [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: fichaAmpliada() })],
@@ -450,7 +603,8 @@ describe('[833] /admin · Cuentas: la ficha ampliada', () => {
         const ficha = await abrirFicha();
         const ajustes = within(ficha).getByRole('region', { name: 'Ajustes' });
         const grupos = within(ajustes).getAllByRole('heading', { level: 5 }).map((h) => h.textContent);
-        expect(grupos).toEqual(['Uso', 'Avisos', 'Capacidades', 'Privacidad', 'Otros ajustes', 'Ajustes del dispositivo']);
+        // «Dispositivo» NO es un grupo más: sus 10 filas viven en «Ajustes del dispositivo», por plataforma.
+        expect(grupos).toEqual(['Uso', 'Avisos', 'Capacidades', 'Privacidad', 'Plan', 'Otros ajustes', 'Ajustes del dispositivo']);
         const capacidades = within(ajustes).getByRole('region', { name: 'Capacidades' });
         const hidratacion = within(capacidades).getByText('Hidratación').closest('li');
         const estado = hidratacion.querySelector('[data-estado]');
@@ -469,20 +623,43 @@ describe('[833] /admin · Cuentas: la ficha ampliada', () => {
         const analitica = within(privacidad).getByText('Analítica').closest('li');
         expect(analitica.querySelector('[data-estado]')).toHaveTextContent('Sin elegir');
         expect(analitica).toHaveTextContent('(migracion)');                  // un origen que el panel no conoce, tal cual
-        expect(within(within(ajustes).getByRole('region', { name: 'Uso' })).getByText('Seguimiento')).toBeInTheDocument();
-        expect(within(within(ajustes).getByRole('region', { name: 'Otros ajustes' })).getByText('avisos_siesta')).toBeInTheDocument();
+        const uso = within(ajustes).getByRole('region', { name: 'Uso' });
+        expect(within(uso).getByText('Generación de planes').closest('li').querySelector('[data-estado]')).toHaveTextContent('Apagado');
         for (const chip of ajustes.querySelectorAll('[data-estado]')) expect(chip.textContent.trim()).not.toBe('');
-        // Ajustes del dispositivo, por plataforma.
+        // Ajustes del dispositivo, por plataforma, con las etiquetas del registro del backend.
         const dispositivo = within(ajustes).getByRole('region', { name: 'Ajustes del dispositivo' });
         const web = within(dispositivo).getByRole('heading', { name: /^Web/ }).closest('section');
-        expect(within(web).getByText('Tema').closest('li')).toHaveTextContent('Oscuro');
-        expect(within(web).getByText('Permiso de notificaciones').closest('li')).toHaveTextContent('Concedido');
+        expect(within(web).getByText('Tema de la aplicación').closest('li')).toHaveTextContent('Oscuro');
+        expect(within(web).getByText('Permiso de notificaciones del sistema').closest('li')).toHaveTextContent('Concedido');
         expect(within(web).getByText('Alertas del dispositivo').closest('li')).toHaveTextContent('Encendido');
         expect(within(web).getByText('Versión de la app').closest('li')).toHaveTextContent('web-240');
-        // El formulario siembra `ft` para todos: el panel lo avisa junto al valor.
+        // Ni una fila del grupo «Dispositivo» del backend repetida fuera de su sección.
+        expect(within(ajustes).getAllByText(/^Unidad de altura/)).toHaveLength(1);
+        expect(within(ajustes).getAllByText('Tema de la aplicación')).toHaveLength(1);
+        expect(within(ajustes).queryByText('Barra de navegación plegada')).toBeNull();   // sin informe: no sale
+        // El formulario siembra `ft` para todos: el panel lo avisa junto al valor, en su ÚNICA aparición.
         const altura = within(web).getByText(/^Unidad de altura/).closest('li');
         expect(altura).toHaveTextContent('Unidad de altura (por defecto ft si no la cambió)');
         expect(altura.lastElementChild).toHaveTextContent('ft');
+    });
+
+    it('los valores crudos del backend se leen: relleno, invitación, idioma, horas, plataformas y listas u objetos', async () => {
+        servidor([
+            [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: fichaAmpliada() })],
+            [RUTA_LISTA, async () => respuesta(lista())],
+        ]);
+        await abrirCuentas();
+        const ficha = await abrirFicha();
+        const ajustes = within(ficha).getByRole('region', { name: 'Ajustes' });
+        const valor = (etiqueta) => within(ajustes).getByText(etiqueta).closest('li').querySelector('[data-valor]');
+        expect(valor('Súper Personalización')).toHaveTextContent(/^Relleno$/);
+        expect(valor('Invitación al plan («Ahora no»)')).toHaveTextContent(/^La vio, sin responder$/);
+        expect(valor('Idioma')).toHaveTextContent(/^español \(República Dominicana\)$/);
+        expect(valor('Recordatorio: Desayuno')).toHaveTextContent(/^08:00$/);             // el detalle junto al estado
+        expect(valor('Notificaciones de la app')).toHaveTextContent(/^Android, iOS$/);
+        expect(valor('avisos_siesta')).toHaveTextContent(/^x, 1$/);                        // una lista, legible
+        expect(valor('avisos_raros')).toHaveTextContent(/^activo: no, hora: 08:00$/);      // un objeto, legible
+        expect(within(ficha).getByRole('region', { name: 'Actividad' })).toHaveTextContent('Web, Android');
     });
 
     it('«Ver cambios» pide el historial de ajustes al abrirlo (90 días) y lo pinta en un panel plegable', async () => {
@@ -630,7 +807,7 @@ describe('[833] /admin · Cuentas: la cuenta de prueba en la ficha', () => {
         const entradas = within(historial).getAllByRole('listitem');
         expect(entradas).toHaveLength(2);
         expect(entradas[0]).toHaveTextContent('vigente');
-        expect(entradas[1]).toHaveTextContent('salió la propia persona');
+        expect(entradas[1]).toHaveTextContent(/salió la persona el \d/);
         fireEvent.click(within(bloque).getByRole('button', { name: 'Quitar marca' }));
         const dialogo = screen.getByRole('dialog', { name: 'Quitar la marca de prueba' });
         fireEvent.change(within(dialogo).getByLabelText('Motivo'), { target: { value: 'terminó la prueba' } });
@@ -640,6 +817,58 @@ describe('[833] /admin · Cuentas: la cuenta de prueba en la ficha', () => {
         expect(JSON.parse(p.opciones.body)).toEqual({ motivo: 'terminó la prueba' });
         expect(p.opciones.headers['X-Admin-Accion']).toBe('1');
         expect(await screen.findByText('No es una cuenta de prueba.')).toBeInTheDocument();
+    });
+
+    it('con la marca quitada («sin_marca») dice «Ya no es de prueba», quién la quitó y cuándo, y se puede volver a marcar', async () => {
+        const quitada = fichaAmpliada({ prueba: { estado: 'sin_marca', desde: null, motivo: null, marcada_por: null, aviso_visto_at: null, historial: [
+            { desde: '2026-09-02T10:00:00+00:00', hasta: '2026-09-15T10:00:00+00:00', motivo: 'primera ronda', motivo_quitar: null,
+              quitada_por_la_persona: true, marcada_por: 'dueno@bioboros.com' },
+            { desde: '2026-08-01T10:00:00+00:00', hasta: '2026-08-10T10:00:00+00:00', motivo: 'piloto', motivo_quitar: 'terminó el piloto',
+              quitada_por_la_persona: false, marcada_por: 'dueno@bioboros.com' },
+        ] } });
+        servidor([
+            [`/api/admin/cuentas/${A}/prueba`, async (url, op) => (JSON.parse(op.body).confirmar_vuelta
+                ? respuesta({ ok: true, cuenta: fichaAmpliada({ prueba: pruebaViva({ estado: 'aviso_pendiente', aviso_visto_at: null }) }) })
+                : respuesta({ detail: 'salio_ella' }, 409))],
+            [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: quitada })],
+            [RUTA_LISTA, async () => respuesta(lista())],
+        ]);
+        await abrirCuentas();
+        const ficha = await abrirFicha();
+        const bloque = within(ficha).getByRole('region', { name: 'Cuenta de prueba' });
+        expect(within(bloque).getByText('Ya no es de prueba.')).toBeInTheDocument();
+        expect(within(bloque).queryByText('Prueba')).toBeNull();
+        expect(within(bloque).queryByText('No es una cuenta de prueba.')).toBeNull();
+        expect(within(bloque).queryByRole('button', { name: 'Ver detalle' })).toBeNull();
+        expect(within(bloque).queryByRole('button', { name: 'Quitar marca' })).toBeNull();
+        const entradas = within(within(bloque).getByRole('list', { name: 'Historial de la marca' })).getAllByRole('listitem');
+        expect(entradas).toHaveLength(2);
+        expect(entradas[0]).toHaveTextContent(/salió la persona el \d/);
+        expect(entradas[1]).toHaveTextContent(/la quitó el equipo el \d/);
+        expect(entradas[1]).toHaveTextContent('al quitarla: «terminó el piloto»');
+        fireEvent.click(within(bloque).getByRole('button', { name: 'Marcar como cuenta de prueba' }));
+        const primero = screen.getByRole('dialog', { name: 'Marcar como cuenta de prueba' });
+        fireEvent.change(within(primero).getByLabelText('Motivo'), { target: { value: 'volvió a pedirlo' } });
+        fireEvent.click(within(primero).getByRole('button', { name: 'Marcar como prueba' }));
+        const segundo = await screen.findByRole('dialog', { name: 'Esta persona salió ella misma del modo de prueba' });
+        fireEvent.click(within(segundo).getByLabelText('La persona me pidió volver'));
+        fireEvent.click(within(segundo).getByRole('button', { name: 'Volver a marcarla' }));
+        expect(await screen.findByText('Esperando a que vea el aviso en la app.')).toBeInTheDocument();
+    });
+
+    it('un «sin_marca» del servidor al quitar se explica dentro del diálogo', async () => {
+        servidor([
+            [`/api/admin/cuentas/${A}/prueba/quitar`, async () => respuesta({ detail: 'sin_marca' }, 409)],
+            [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: fichaAmpliada({ prueba: pruebaViva() }) })],
+            [RUTA_LISTA, async () => respuesta(lista())],
+        ]);
+        await abrirCuentas();
+        const ficha = await abrirFicha();
+        fireEvent.click(within(ficha).getByRole('button', { name: 'Quitar marca' }));
+        const dialogo = screen.getByRole('dialog', { name: 'Quitar la marca de prueba' });
+        fireEvent.change(within(dialogo).getByLabelText('Motivo'), { target: { value: 'terminó la prueba' } });
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Quitar la marca' }));
+        expect(await within(dialogo).findByRole('alert')).toHaveTextContent('Esta cuenta ya no tenía la marca.');
     });
 
     it('con el aviso pendiente lo dice: «Esperando a que vea el aviso en la app»', async () => {
