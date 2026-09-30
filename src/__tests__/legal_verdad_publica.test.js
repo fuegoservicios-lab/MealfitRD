@@ -303,7 +303,8 @@ const EXIGIDAS = [
     { frase: 'Puede salir del modo de prueba en cualquier momento desde Configuración → Privacidad', porque: 'la persona sale de una cuenta de prueba cuando quiere y el equipo pierde el acceso en ese momento (Privacidad §5)' },
     { frase: 'y desde que usted ve ese aviso', porque: 'el acceso completo empieza cuando la persona VE el aviso en la app, no cuando se marca la cuenta (Privacidad §5)' },
     { frase: '(<code>ajustes_cambios</code>)', porque: 'el historial de cambios de ajustes (Privacidad §2, viñeta «Ajustes de la app»)' },
-    { frase: 'solo en las cuentas de prueba (avisadas en la app), para probar y mejorar el servicio', porque: 'la finalidad ampliada de los datos de salud, limitada a las cuentas de prueba (Protección de Datos §5)' },
+    { frase: 'solo en las cuentas de prueba (avisadas en la app), para probar y mejorar el servicio', porque: 'la finalidad ampliada de los datos de salud, limitada a las cuentas de prueba (Protección de Datos §5)' },    // [P1-PLAN-LOTE-909 · 2026-09-30] La exigida nueva del landing (`diagnostico-voz-privacidad`), en esta copia.
+    { frase: 'nunca su voz ni lo que dijo. Lo usamos solo para arreglar fallos y se borra a los 30 días', porque: 'el diagnóstico de la voz sin la cuenta y su plazo de 30 días (Privacidad §2, viñeta «Diagnóstico de la voz»)' },
 ];
 
 // [FUSIÓN 0f + 6d · ronda 3 · 2026-09-29] La FAQ de Investigación también existe dos veces:
