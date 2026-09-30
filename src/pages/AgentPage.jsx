@@ -6180,6 +6180,17 @@ const AgentPage = () => {
                         }}>
                             <Wordmark /> <span style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', letterSpacing: 'normal', color: 'var(--text-muted)', fontSize: '0.8em' }}>1</span>
                         </span>
+                        {/* [P1-PLAN-LOTE-935 · 2026-09-30] En el teléfono el aviso «El coach es una IA…» (Apple 1.4.1,
+                            lote 846) no va bajo la caja de escribir: subía con el teclado y robaba una línea al chat.
+                            Aquí ocupa el centro de la franja, donde el rótulo está oculto en móvil; en escritorio
+                            este span no se muestra y sigue el de abajo. */}
+                        <span className="chat-aviso-ia-cabecera" data-testid="chat-aviso-ia-cabecera" style={{
+                            position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+                            maxWidth: 'calc(100% - 7.5rem)', textAlign: 'center', fontSize: '0.75rem', lineHeight: 1.3,
+                            color: 'var(--text-muted)', pointerEvents: 'none',
+                        }}>
+                            {t('El coach es una IA y puede equivocarse.')}
+                        </span>
 
                         {/* Right: 3-dot nav menu (mobile) */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -6708,6 +6719,9 @@ const AgentPage = () => {
                     display: none;
                 }
 
+                /* [P1-PLAN-LOTE-935] el aviso corto de la cabecera es solo del teléfono */
+                .chat-aviso-ia-cabecera { display: none; }
+
                 /* ====== MOBILE REDESIGN ====== */
                 @media (max-width: 1024px) {
                     /* [P1-KB-HUECO-SIN-PINTAR · 2026-08-23] EL glitch del cierre, visto en la
@@ -6789,6 +6803,10 @@ const AgentPage = () => {
                     /* El rótulo «Bioboros 1» no informa de nada dentro de la app y ocupaba el centro de la franja.
                        Sigue en escritorio, donde el espacio no escasea. */
                     .agent-header-title { display: none !important; }
+                    /* [P1-PLAN-LOTE-935] el aviso del coach pasa de la caja de escribir (subía con el teclado) al
+                       centro de la franja, en el hueco del rótulo. */
+                    .chat-aviso-ia-cabecera { display: block !important; }
+                    .chat-aviso-ia { display: none !important; }
                     /* Los botones, como fichas: sobre una franja opaca bastaba el icono; flotando sobre el texto del
                        chat necesitan su propio fondo para leerse. Los márgenes negativos alineaban ÓPTICAMENTE un
                        icono sin contorno con el borde; una ficha con contorno se alinea por su caja. */

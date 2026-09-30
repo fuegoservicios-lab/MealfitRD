@@ -524,6 +524,7 @@
   "Entendido, salir": "Got it, leave",
   "Me equivoqué al escribir mi edad": "I entered my age wrong",
   "El coach es una IA: puede equivocarse y no sustituye el consejo médico.": "The coach is an AI: it can make mistakes and is not a substitute for medical advice.",
+  "El coach es una IA y puede equivocarse.": "The coach is an AI and can make mistakes.",
   "{app} no sustituye el consejo médico. Consulta a tu médico antes de cambiar tu alimentación.": "{app} is not a substitute for medical advice. Talk to your doctor before changing your diet.",
   "Consulta a tu profesional de salud antes de seguir este plan.": "Check with your health professional before following this plan.",
   "Ver aviso": "View notice",
