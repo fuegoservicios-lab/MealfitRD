@@ -289,7 +289,8 @@ describe('P1-PLAN-LOTE-794 · la Política de Privacidad dice lo que hace el có
     });
 
     it('la fecha de la política se movió con el cambio', () => {
-        expect(privacidad).toContain('lastUpdated="28 de Septiembre, 2026"');
+        // [P1-PLAN-LOTE-836 · 2026-09-29] Movida del 28 al 29 (acceso del equipo, cuentas de prueba, §9 con plazo).
+        expect(privacidad).toContain('lastUpdated="29 de Septiembre, 2026"');
     });
 
     // [P1-PLAN-LOTE-794 · ronda 1] (revisión, defecto 7) La copia React y la del landing (rama

@@ -218,6 +218,19 @@ const REFUTADAS = [
         frase: 'Política de Privacidad (Secciones 7 y 8)',
         porque: 'la voz y el dictado viven en Privacidad §2: Protección de Datos §5 tiene que remitir también a ella',
     },
+    // [P1-PLAN-LOTE-836 · 2026-09-29] Las prohibidas nuevas del landing (verdad-publica.json), en esta copia.
+    {
+        frase: 'Desde ese panel no se ven sus conversaciones con el asistente, sus fotos ni su perfil de salud.',
+        porque: 'absoluta y falsa desde las cuentas de prueba (avisadas en la app): ahí el personal SÍ revisa las conversaciones, las fotos que se adjuntaron en ellas y el formulario; la promesa cierta lleva la salvedad «salvo en las cuentas de prueba» (Privacidad §5)',
+    },
+    {
+        frase: 'se conserva aunque usted elimine su cuenta',
+        porque: 'el rastro del equipo se purga a los 24 meses y, al borrar la cuenta, pierde el identificador y los motivos (el seudónimo del lote 841): ya no sobrevive «aunque» se elimine (Privacidad §9)',
+    },
+    {
+        frase: 'se conserva aunque borre su cuenta (ver Sección 9)',
+        porque: 'la misma afirmación en la viñeta «Regalos en su cuenta» de Privacidad §2: lo que se conserva es el registro sin el identificador de la cuenta ni el motivo',
+    },
 ];
 
 // [P1-PLAN-LOTE-794 · ronda 2] Lo que la copia TIENE que decir, igual que las `exigidas` del landing. Sin
@@ -244,7 +257,7 @@ const EXIGIDAS = [
     { frase: 'a Bioboros sólo llega el texto transcrito', porque: 'el dictado convierte la voz en texto en el dispositivo (Privacidad §2)' },
     { frase: 'se usa la voz de su dispositivo', porque: 'el respaldo del modo voz es la voz del dispositivo o del navegador (Privacidad §2)' },
     { frase: 'Cada cambio queda registrado con quién lo hizo, cuándo y por qué, y cada consulta, con quién la hizo y cuándo.', porque: 'acceso del equipo de Bioboros (P1-PLAN-LOTE-771, Privacidad §5): cada acción del panel queda en admin_access_log' },
-    { frase: 'Desde ese panel no se ven sus conversaciones con el asistente, sus fotos ni su perfil de salud.', porque: 'lo que el panel de soporte NO ve (Privacidad §5), acotado al panel' },
+    { frase: 'Desde ese panel no se ven el contenido de sus registros, sus conversaciones con el asistente, sus fotos ni su perfil de salud, salvo en las cuentas de prueba', porque: 'lo que el panel de soporte NO ve (Privacidad §5), acotado al panel y con la salvedad de las cuentas de prueba (P1-PLAN-LOTE-836)' },
     // [FUSIÓN 0f + 6d · ronda 2 · 2026-09-28] Las exigidas nuevas del landing, en esta copia.
     { frase: 'puede generarse en servidores de su fabricante (por ejemplo, Google en Chrome)', porque: 'el respaldo de la voz puede ser de red (Privacidad §2 y Uso de IA §1)' },
     { frase: 'las lee la voz de su navegador o dispositivo', porque: 'lo mismo en Protección de Datos §5' },
@@ -257,8 +270,9 @@ const EXIGIDAS = [
     { frase: 'Las fotos que usted envía al chat del coach sí se guardan', porque: 'chat_attachments (Privacidad §2)' },
     { frase: 'Las fotos que envías al chat del coach sí se guardan', porque: 'lo mismo en la Política de IA §1' },
     { frase: '<strong>Fotos de sus comidas (<code>IndexedDB</code>):</strong>', porque: 'la copia de la foto en el dispositivo (fotosDeComidas.js, P1-PLAN-LOTE-721), en Privacidad §13' },
-    { frase: 'y los regalos que ha recibido, con su motivo', porque: 'lo que el panel de soporte muestra (admin_cuentas.ficha, Privacidad §5)' },
-    { frase: 'se conserva aunque usted elimine su cuenta', porque: 'admin_access_log no tiene FK: el registro del equipo sobrevive al borrado (Privacidad §9)' },
+    { frase: 'los regalos que ha recibido, con su motivo', porque: 'lo que el panel de soporte muestra (admin_cuentas.ficha, Privacidad §5)' },
+    { frase: 'se conserva 24 meses como constancia de esos accesos y después se borra', porque: 'el registro del equipo (admin_access_log) se purga a los 24 meses (Privacidad §9, P1-PLAN-LOTE-841)' },
+    { frase: 'de ese registro se borran el identificador de su cuenta y esos motivos', porque: 'al borrar la cuenta el registro pierde el identificador y los motivos: queda sólo qué hizo el equipo y cuándo, sin poder asociarse a la persona (Privacidad §9, seudónimo del 841)' },
     { frase: 'lo que se conserva después, y por qué, está en la Política de Privacidad (Sección 9)', porque: 'Protección de Datos §4 remite a lo que sobrevive al borrado' },
     { frase: 'aparece en la exportación de sus datos', porque: 'los regalos de cuenta (account_grants) salen en la exportación (Privacidad §2)' },
     { frase: 'genera días de su plan', porque: 'OpenAI genera días del plan en todos los planes, no sólo revisa los de pago (Privacidad §4)' },
@@ -284,6 +298,12 @@ const EXIGIDAS = [
     { frase: 'para estimar sus macros (sólo a DeepSeek)', porque: 'las listas de lo que se envía (Privacidad §4 y Política de IA §2)' },
     { frase: 'estima las macros de las comidas que anotas por escrito', porque: 'DeepSeek en la Política de IA §2' },
     { frase: 'Política de Privacidad (Secciones 2, 7 y 8)', porque: 'Protección de Datos §5 remite a donde viven la voz y el dictado' },
+    // [P1-PLAN-LOTE-836 · 2026-09-29] Las exigidas nuevas del landing (verdad-publica.json), en esta copia. Las de arriba
+    // que cambiaron de redacción (panel de soporte, regalos, rastro de 24 meses) ya están puestas en su sitio.
+    { frase: 'Puede salir del modo de prueba en cualquier momento desde Configuración → Privacidad', porque: 'la persona sale de una cuenta de prueba cuando quiere y el equipo pierde el acceso en ese momento (Privacidad §5)' },
+    { frase: 'y desde que usted ve ese aviso', porque: 'el acceso completo empieza cuando la persona VE el aviso en la app, no cuando se marca la cuenta (Privacidad §5)' },
+    { frase: '(<code>ajustes_cambios</code>)', porque: 'el historial de cambios de ajustes (Privacidad §2, viñeta «Ajustes de la app»)' },
+    { frase: 'solo en las cuentas de prueba (avisadas en la app), para probar y mejorar el servicio', porque: 'la finalidad ampliada de los datos de salud, limitada a las cuentas de prueba (Protección de Datos §5)' },
 ];
 
 // [FUSIÓN 0f + 6d · ronda 3 · 2026-09-29] La FAQ de Investigación también existe dos veces:
@@ -317,6 +337,12 @@ describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
             `LegalPages.jsx ya no dice «${frase}» (${porque}). El landing lo exige en su copia `
             + `(verdad-publica.json): sin ello las dos políticas vuelven a decir cosas distintas.`,
         ).toBe(true);
+    });
+
+    // [P1-PLAN-LOTE-836 · 2026-09-29] Cambió el fondo de estas dos políticas (acceso del equipo, cuentas de prueba, plazo
+    // del rastro, finalidad de prueba): Privacidad §14 promete publicar el cambio con su nueva fecha, la misma del apex.
+    it.each(['Política de Privacidad', 'Política de Protección de Datos'])('«%s» lleva la fecha del cambio (29 de Septiembre, 2026)', (titulo) => {
+        expect(texto).toContain(`title="${titulo}" lastUpdated="29 de Septiembre, 2026"`);
     });
 
     // Sin esta comprobación, borrar la sección entera dejaría el test en verde: el
