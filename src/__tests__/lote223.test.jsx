@@ -75,6 +75,21 @@ describe('lote 223 · el panel pinta lo que dice el servidor', () => {
         expect(screen.queryByRole('button', { name: 'Volver a las horas normales' })).toBeNull();
     });
 
+    it('tocar Cambiar hora abre el selector y permite editar si el navegador no lo admite', async () => {
+        await montar();
+        const input = hora('Desayuno');
+        const showPicker = vi.fn();
+        input.showPicker = showPicker;
+        fireEvent.click(screen.getAllByText('Cambiar hora')[0]);
+        expect(showPicker).toHaveBeenCalledTimes(1);
+        showPicker.mockImplementation(() => { throw new Error('No disponible'); });
+        expect(() => fireEvent.click(input)).not.toThrow();
+        fireEvent.change(input, { target: { value: '09:30' } });
+        fireEvent.blur(input);
+        await waitFor(() => expect(patches()).toHaveLength(1));
+        expect(patches()[0].health_profile.avisos_por_comida.desayuno.hora).toBe('09:30');
+    });
+
     it('un servidor anterior al lote (sin `comidas`) no pinta nada: el interruptor general sigue arriba', async () => {
         fetchWithAuth.mockImplementation(async () => respuesta({ enabled: true, reminders: [] }));
         const { container } = render(<RecordatoriosPorComida claseInterruptor="sw" claseDeslizador="sl" />);
