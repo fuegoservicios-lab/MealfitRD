@@ -12,9 +12,12 @@ export const CABECERA_ACCION = { 'Content-Type': 'application/json', 'X-Admin-Ac
 /**
  * GET sin cuerpo; POST con él y la cabecera de acción. Un fallo lanza un `Error` con `status` y `detalle` (el código
  * del servidor, p. ej. `salio_ella`); su mensaje es el `detail` si es texto.
+ * [P1-PLAN-LOTE-834 · 2026-09-29] `signal` opcional: el detalle de prueba aborta la petición de la pestaña o del rango
+ * que se deja atrás (sin él, las llamadas de siempre van igual).
  */
-export async function pedirAdmin(url, cuerpo) {
+export async function pedirAdmin(url, cuerpo, { signal } = {}) {
     const opciones = cuerpo === undefined ? {} : { method: 'POST', headers: CABECERA_ACCION, body: JSON.stringify(cuerpo) };
+    if (signal) opciones.signal = signal;
     const r = await fetchWithAuth(url, opciones);
     let datos = null;
     try { datos = await r.json(); } catch { /* respuesta sin cuerpo */ }

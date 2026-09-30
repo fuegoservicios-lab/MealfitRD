@@ -1,0 +1,154 @@
+/* frontend/src/pages/AdminPruebaDetalle.module.css — [P1-PLAN-LOTE-834 · 2026-09-29] El detalle de una cuenta de
+   prueba, con los tokens del panel (AdminCuentas / AdminFichaAmpliada). Pestañas que en el teléfono se parten en dos
+   líneas (nunca scroll de página), tarjetas en vez de tablas, el texto del chat con sus saltos de línea y el JSON crudo
+   desplazándose DENTRO de su caja. Un estado se dice en PALABRA; el color solo acompaña. Nada por debajo de 12 px. */
+.detalle { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.cabecera { display: flex; flex-direction: column; gap: 0.25rem; }
+.titulo { margin: 0; font-size: 1.15rem; font-weight: 800; overflow-wrap: anywhere; }
+.sub { margin: 0; font-size: 0.8rem; line-height: 1.45; color: var(--text-muted); }
+
+/* pestañas: la elegida va RELLENA (forma y contraste, no solo tono) */
+.pestanas { display: flex; flex-wrap: wrap; gap: 0.4rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+.pestana { font: inherit; font-size: 0.86rem; font-weight: 600; border-radius: 999px; padding: 0.45rem 0.95rem; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); cursor: pointer; white-space: nowrap; transition: border-color 160ms ease; }
+.pestana:hover:not([aria-selected="true"]) { border-color: color-mix(in srgb, var(--primary) 55%, var(--border)); }
+.pestana[aria-selected="true"] { background: var(--primary-fill); border-color: var(--primary-fill); color: #fff; }
+.pestana:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.panel { min-width: 0; }
+.panel[hidden] { display: none; }
+.panel:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 8px; }
+
+/* estados de una sección */
+.estado { margin: 0; font-size: 0.88rem; color: var(--text-muted); }
+.aviso { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.85rem 1rem; border-radius: 12px; border: 1px solid var(--warning-border); background: var(--warning-bg); }
+.aviso[data-aviso="no_es_prueba"] { border-color: var(--border); background: color-mix(in srgb, var(--text-muted) 8%, var(--bg-card)); }
+.avisoTitulo { margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--warning-text); }
+.aviso[data-aviso="no_es_prueba"] .avisoTitulo { color: var(--text-main); }
+.avisoTexto { margin: 0; font-size: 0.86rem; line-height: 1.45; color: var(--text-main); }
+.fallo { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+.falloTexto { margin: 0; font-size: 0.88rem; color: var(--danger-text, var(--danger)); }
+.vacio { margin: 0; font-size: 0.88rem; color: var(--text-muted); }
+.dentro { padding: 0 0.8rem 0.7rem; }
+
+/* piezas comunes */
+.contenido { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+.bloque { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
+.subtitulo { margin: 0; font-size: 1rem; font-weight: 700; }
+.subtitulo:focus { outline: none; }
+.nota { margin: 0; font-size: 0.8rem; line-height: 1.4; color: var(--text-muted); overflow-wrap: anywhere; }
+.meta { margin: 0; font-size: 0.82rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.atenuado { opacity: 0.55; }
+.chip { display: inline-flex; align-items: center; font-size: 0.75rem; font-weight: 700; line-height: 1.25; padding: 0.12rem 0.5rem; border-radius: 999px; border: 1px solid var(--border); color: var(--text-main); background: var(--bg-card); white-space: nowrap; }
+.chip[data-tono="bueno"] { color: var(--success-text); background: var(--success-bg); border-color: var(--success-border); }
+.chip[data-tono="aviso"] { color: var(--warning-text); background: var(--warning-bg); border-color: var(--warning-border); }
+.chip[data-tono="malo"] { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
+.chip[data-tono="info"] { color: var(--info-text); background: var(--info-bg); border-color: var(--info-border); }
+.herramientas { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem 1.25rem; }
+.campoFiltro { display: flex; flex-direction: column; gap: 0.3rem; min-width: 12rem; }
+.campoFiltro select { width: 100%; }
+.lista { display: flex; flex-direction: column; gap: 1.1rem; min-width: 0; transition: opacity 180ms ease; }
+.lista[aria-busy="true"] { opacity: 0.55; }
+.plegable { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); min-width: 0; }
+.resumenPlegable { cursor: pointer; padding: 0.55rem 0.8rem; font-size: 0.86rem; font-weight: 600; overflow-wrap: anywhere; }
+.resumenPlegable:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 8px; }
+
+/* Formulario */
+/* dos columnas como mucho: con cuatro, un valor largo (condiciones, medicamentos) se partía palabra a palabra; `min()`
+   deja una sola columna en el teléfono sin desbordar */
+.grupos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1rem 1.75rem; }
+.grupo { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.grupoTitulo { margin: 0; font-size: 0.86rem; font-weight: 700; color: var(--text-muted); }
+.campos { margin: 0; display: flex; flex-direction: column; }
+.campo { display: grid; grid-template-columns: minmax(0, 10rem) minmax(0, 1fr); gap: 0.15rem 0.85rem; padding: 0.4rem 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.campo:last-child { border-bottom: 0; }
+.campoEtiqueta { font-size: 0.82rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.campoValor { margin: 0; font-size: 0.9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* el JSON crudo: su propio desplazamiento, nunca el de la página */
+.json { margin: 0; padding: 0.75rem 0.9rem; max-width: 100%; max-height: 24rem; overflow-x: auto; overflow-y: auto; border-top: 1px solid var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.78rem; line-height: 1.5; white-space: pre; }
+.memoria { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.recuerdo { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.55rem 0.75rem; border-radius: 10px; border: 1px solid var(--border); }
+.recuerdoTexto { font-size: 0.9rem; overflow-wrap: anywhere; }
+
+/* Comidas y Actividad: días con sus tarjetas */
+.dia { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.diaTitulo { margin: 0; font-size: 0.9rem; font-weight: 700; }
+.diaTitulo::first-letter { text-transform: uppercase; }
+.tarjetas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.tarjeta { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-card); min-width: 0; }
+.cabezaTarjeta { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem; }
+.hora { font-size: 0.82rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-muted); white-space: nowrap; }
+.kcal { margin-left: auto; font-size: 0.86rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.plato { margin: 0; font-size: 0.95rem; font-weight: 700; overflow-wrap: anywhere; }
+.ingredientes { margin: 0; font-size: 0.84rem; overflow-wrap: anywhere; }
+
+/* Planes */
+.planes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.85rem; }
+.plan { display: flex; flex-direction: column; gap: 0.55rem; padding: 0.9rem 1rem; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-card); min-width: 0; }
+.cabezaPlan { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; }
+.planNombre { margin: 0; font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
+.bloques { margin: 0; font-size: 0.86rem; }
+.listaBloques { list-style: none; margin: 0; padding: 0 0.8rem 0.75rem; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.84rem; }
+.bloqueFila { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.35rem 0.6rem; border-left: 3px solid var(--border); overflow-wrap: anywhere; }
+.bloqueFila[data-estado-bloque="failed"] { border-left-color: var(--danger); }
+.motivo { color: var(--danger-text, var(--danger)); }
+.diasPlan { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.diasPlan[hidden] { display: none; }
+.listaDias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.comidasPlan { list-style: none; margin: 0; padding: 0 0.8rem 0.8rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.comidaPlan { display: flex; flex-direction: column; gap: 0.3rem; padding-top: 0.6rem; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); min-width: 0; }
+.etiquetaLista { margin: 0.2rem 0 0; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
+.listaTexto { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.86rem; overflow-wrap: anywhere; }
+
+/* Conversaciones: la lista */
+.sesiones { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.sesion { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.65rem 0.85rem; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-card); min-width: 0; }
+.sesionBoton { font: inherit; display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; min-width: 0; padding: 0; border: 0; background: none; color: var(--text-main); text-align: left; cursor: pointer; }
+.sesionBoton:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 6px; }
+.sesionFecha { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
+.sesionPrimer { font-size: 0.92rem; font-weight: 600; color: var(--primary); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; overflow-wrap: anywhere; }
+
+/* Conversaciones: el hilo. Quién habla va en PALABRA («La persona» / «El coach»); el lado y el tinte solo acompañan. */
+.hilo { display: flex; flex-direction: column; gap: 0.85rem; min-width: 0; }
+.mensajes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.mensaje { display: flex; min-width: 0; }
+.mensaje[data-rol="persona"] { justify-content: flex-end; }
+.burbuja { max-width: min(38rem, 88%); min-width: 0; display: flex; flex-direction: column; gap: 0.35rem; padding: 0.65rem 0.85rem; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-card); }
+.mensaje[data-rol="persona"] .burbuja { background: color-mix(in srgb, var(--primary) 9%, var(--bg-card)); border-color: color-mix(in srgb, var(--primary) 32%, var(--border)); border-bottom-right-radius: 4px; }
+.mensaje[data-rol="coach"] .burbuja { border-bottom-left-radius: 4px; }
+.quien { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.6rem; }
+.rol { font-size: 0.8rem; font-weight: 700; }
+/* el mensaje tal cual: con sus saltos de línea y sin interpretar markdown ni HTML */
+.texto { margin: 0; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fotos { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.foto { display: block; max-width: 100%; max-height: 20rem; border-radius: 10px; border: 1px solid var(--border); object-fit: contain; background: var(--bg-page); }
+.fotoNota { margin: 0; font-size: 0.8rem; color: var(--text-muted); }
+.feedback { margin: 0; font-size: 0.8rem; font-weight: 700; }
+.feedback[data-feedback="up"] { color: var(--success-text, var(--success)); }
+.feedback[data-feedback="down"] { color: var(--danger-text, var(--danger)); }
+
+/* Actividad */
+.tipos { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.casillas { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; }
+.casilla { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 2rem; font-size: 0.86rem; cursor: pointer; }
+.botonTexto { align-self: flex-start; font: inherit; font-size: 0.84rem; font-weight: 600; color: var(--text-muted); background: none; border: 0; padding: 0.3rem 0.2rem; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.botonTexto:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+.resumenActividad { display: flex; flex-direction: column; gap: 0.15rem; }
+.gasto { margin: 0; font-size: 0.95rem; font-weight: 700; }
+/* la hora cabe en su columna («12:30 p. m.» se partía en dos líneas) y el tipo no se estira a lo ancho */
+.evento { display: grid; grid-template-columns: minmax(5.5rem, auto) auto minmax(0, 1fr); align-items: baseline; gap: 0.3rem 0.65rem; padding: 0.5rem 0.75rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); min-width: 0; }
+.evento > .chip { justify-self: start; }
+.eventoTexto { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.eventoTitulo { font-size: 0.88rem; font-weight: 600; overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: reduce) {
+    .pestana, .lista { transition: none; }
+}
+
+@media (max-width: 640px) {
+    .pestana { padding: 0.45rem 0.8rem; }
+    .campoFiltro { min-width: 0; width: 100%; }
+    .campo { grid-template-columns: minmax(0, 1fr); }
+    .kcal { margin-left: 0; }
+    .burbuja { max-width: 100%; }
+    .evento { grid-template-columns: auto minmax(0, 1fr); }
+    .eventoTexto { grid-column: 1 / -1; }
+}

@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
+import AdminAjustesResumen from './AdminAjustesResumen';
 import AdminCuentas from './AdminCuentas';
 import styles from './AdminPage.module.css';
 
@@ -414,6 +415,10 @@ export default function AdminPage() {
                             ))}
                         </div>
                     )}
+                    {/* [P1-PLAN-LOTE-834 · 2026-09-29] «Ajustes de la gente», con el periodo ya elegido; fuera del bloque
+                        con `key` para que cambiar de periodo no lo desmonte. Un 404 (interruptor apagado) no pinta nada.
+                        «Actualizar» también lo refresca. */}
+                    {estado === 'listo' && datos && <AdminAjustesResumen dias={dias} version={intento} />}
                 </>
             )}
         </main>

@@ -15,6 +15,7 @@ import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { ultimoDiaDeRegalo } from '../utils/regalosCuenta';
 import AdminCuentasLista from './AdminCuentasLista';
 import AdminFichaAmpliada from './AdminFichaAmpliada';
+import AdminPruebaDetalle from './AdminPruebaDetalle';
 import styles from './AdminCuentas.module.css';
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
@@ -504,9 +505,10 @@ export default function AdminCuentas() {
                     <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
                     {TEXTOS.volverFicha}
                 </button>
-                {/* [P1-PLAN-LOTE-833 · 2026-09-29] Hueco del detalle de prueba: aquí monta la Task 7 (lote 834) su
-                    AdminPruebaDetalle con `detalle.user_id` (pestañas Formulario · Comidas · Planes · Conversaciones ·
-                    Actividad, cada una pedida al abrirla). */}
+                {/* [P1-PLAN-LOTE-834 · 2026-09-29] El detalle de la cuenta de prueba: pestañas Formulario · Comidas ·
+                    Planes · Conversaciones · Actividad, cada una pedida al abrirla. Se desmonta al volver a la ficha:
+                    aborta lo que esté en vuelo y libera las fotos. */}
+                <AdminPruebaDetalle userId={detalle.user_id} email={detalle.email} />
             </section>
         </>
     );

@@ -1,0 +1,69 @@
+/* frontend/src/pages/AdminAjustesResumen.module.css — [P1-PLAN-LOTE-834 · 2026-09-29] «Ajustes de la gente» en
+   Métricas. Los bloques, títulos y tablas son los de AdminPage.module.css; aquí van la barra apilada, su leyenda y las
+   cifras. La barra acompaña (el dato va en el texto): tramos finos con un hueco de 2 px, extremos redondeados, y
+   «sin elegir» con trama a 135° para no depender del color. Los tonos son los de los estados de la ficha (lote 833);
+   en oscuro «apagado» y «sin elegir» bajan un paso para separarse del celeste de «automático». Nada por debajo de
+   12 px. */
+.raiz {
+    --tramo-valor: var(--primary);
+    --tramo-encendido: var(--success);
+    --tramo-automatico: var(--info);
+    --tramo-apagado: var(--text-muted);
+    --tramo-sin-elegir: color-mix(in srgb, var(--text-muted) 28%, var(--bg-card));
+}
+:global(html[data-theme="dark"]) .raiz {
+    --tramo-apagado: color-mix(in srgb, var(--text-muted) 60%, var(--bg-card));
+    --tramo-sin-elegir: color-mix(in srgb, var(--text-muted) 25%, var(--bg-card));
+}
+.base { margin: -0.35rem 0 0.85rem; font-size: 0.82rem; color: var(--text-muted); }
+.espera { opacity: 0.5; transition: opacity 180ms ease; }
+.fallo { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; margin: 0 0 0.85rem; }
+.falloTexto { margin: 0; font-size: 0.86rem; color: var(--danger-text, var(--danger)); }
+.vacio { margin: 0; font-size: 0.86rem; color: var(--text-muted); }
+
+/* leyenda: cada estado con su palabra */
+.leyenda { list-style: none; margin: 0 0 0.9rem; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; font-size: 0.8rem; color: var(--text-main); }
+.leyendaItem { display: inline-flex; align-items: center; gap: 0.4rem; }
+.muestra { width: 0.9rem; height: 0.6rem; border-radius: 3px; flex: none; }
+
+/* por ajuste */
+.grupos { display: flex; flex-direction: column; gap: 1rem; }
+.grupo { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.grupoTitulo { margin: 0; font-size: 0.86rem; font-weight: 700; color: var(--text-muted); }
+.filas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.fila { display: grid; grid-template-columns: minmax(8rem, 15rem) minmax(0, 1fr); align-items: center; gap: 0.3rem 1rem; padding: 0.55rem 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent); }
+.fila:last-child { border-bottom: 0; }
+.etiqueta { font-size: 0.9rem; overflow-wrap: anywhere; }
+.barra { display: flex; gap: 2px; height: 0.75rem; border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--border) 70%, transparent); }
+.tramo { flex: 0 1 0; min-width: 3px; }
+.tramo[data-segmento="valor"], .muestra[data-segmento="valor"] { background: var(--tramo-valor); }
+.tramo[data-segmento="encendido"], .muestra[data-segmento="encendido"] { background: var(--tramo-encendido); }
+.tramo[data-segmento="automatico"], .muestra[data-segmento="automatico"] { background: var(--tramo-automatico); }
+.tramo[data-segmento="apagado"], .muestra[data-segmento="apagado"] { background: var(--tramo-apagado); }
+.tramo[data-segmento="sin_elegir"], .muestra[data-segmento="sin_elegir"] {
+    background: repeating-linear-gradient(135deg, var(--tramo-sin-elegir) 0 3px, color-mix(in srgb, var(--tramo-sin-elegir) 45%, var(--bg-card)) 3px 6px);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-muted) 35%, transparent);
+}
+/* un estado que el panel aún no conoce: neutro, con su nombre en el texto */
+.tramo:not([data-segmento="valor"]):not([data-segmento="encendido"]):not([data-segmento="automatico"]):not([data-segmento="apagado"]):not([data-segmento="sin_elegir"]) { background: var(--border); }
+.cifras { grid-column: 2; margin: 0; display: flex; flex-wrap: wrap; gap: 0.15rem 0.85rem; font-size: 0.82rem; color: var(--text-main); font-variant-numeric: tabular-nums; }
+/* sin `nowrap`: un valor largo (el servidor manda un objeto como JSON) se parte antes que ensanchar la página; los
+   cortos pasan enteros a la línea siguiente porque la fila envuelve por elementos */
+.cifra { min-width: 0; overflow-wrap: anywhere; }
+.total { font-weight: 700; }
+
+/* dispositivo */
+.dispositivo { margin: 0; display: flex; flex-direction: column; gap: 0.65rem; }
+.dispositivoFila { display: flex; flex-direction: column; gap: 0.2rem; }
+.dispositivoClave { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+.valores { margin: 0; display: flex; flex-wrap: wrap; gap: 0.15rem 0.85rem; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+    .espera { transition: none; }
+}
+
+@media (max-width: 640px) {
+    /* etiqueta, barra y cifras una debajo de otra */
+    .fila { grid-template-columns: minmax(0, 1fr); gap: 0.35rem; }
+    .cifras { grid-column: 1; }
+}
