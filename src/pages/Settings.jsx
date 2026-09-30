@@ -3887,6 +3887,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         <div className={styles.preferenceCardText}>
                                             <div className={styles.preferenceCardTitle}>
                                                 {t('Generación de planes')}
+                                                {/* [P1-PLAN-LOTE-926] el generador de planes sale como Beta; el contador es lo principal */}
+                                                <span data-testid="plan-mode-beta" style={{ marginLeft: '0.5rem', padding: '0.05rem 0.5rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 600, verticalAlign: 'middle', border: '1px solid var(--border)', color: 'var(--text-main)' }}>
+                                                    {t('Beta')}
+                                                </span>
                                             </div>
                                             <div className={styles.preferenceCardDesc}>
                                                 {planModeState === 'plan'
