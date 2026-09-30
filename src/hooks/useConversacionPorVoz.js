@@ -46,6 +46,9 @@ export const VOZ_SIN_VOZ_MS = 8000;
 export const VOZ_TOPE_ESCUCHA_MS = 45000;
 /** Respiro entre que el coach calla y el micrófono se abre (que no se oiga la cola de su propia voz). */
 export const VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS = 350;
+// [P1-PLAN-LOTE-909] Si el reconocedor no dice «ya oigo» (`onstart`) en este tiempo, no se espera más: en Android se
+// quedaba en «Pensando…» para siempre. El tiempo en que el teléfono pide el permiso del micrófono no cuenta.
+export const VOZ_ARRANQUE_MS = 8000;
 
 /** Estados: 'cerrado' | 'escuchando' | 'pensando' | 'hablando' | 'pausa' | 'error'. */
 // Palabras tras las que una frase NO puede haber terminado: conectores, artículos, muletillas y cantidades («con dos»).
@@ -118,9 +121,10 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
     const ultimaVozRef = useRef(0);    // cuándo llegó la última palabra
     const inicioTurnoRef = useRef(0);
     const terminarRef = useRef(null);  // el `terminar` de la sesión viva
+    const arranqueRef = useRef(null);  // [P1-PLAN-LOTE-909] vigía del arranque del micrófono
 
     const soltarTemporizadores = () => {
-        for (const r of [finFraseRef, sinVozRef, topeRef, reanudarRef]) {
+        for (const r of [finFraseRef, sinVozRef, topeRef, reanudarRef, arranqueRef]) {
             if (r.current) clearTimeout(r.current);
             r.current = null;
         }
@@ -247,6 +251,7 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
 
         rec.onstart = () => {
             if (id !== sesionRef.current) return;
+            if (arranqueRef.current) { clearTimeout(arranqueRef.current); arranqueRef.current = null; }
             setEstado('escuchando');
             if (!continuar) triggerMobileHaptic('light');
             sinVozRef.current = setTimeout(() => { if (!oidoRef.current) terminar(); }, VOZ_SIN_VOZ_MS);
@@ -319,9 +324,30 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
             else setEstado('pausa');
         };
 
+        // [P1-PLAN-LOTE-909] El vigía del arranque: sin `onstart` a tiempo, se corta, se avisa y se ofrece el toque.
+        const sinArranque = () => {
+            arranqueRef.current = null;
+            if (id !== sesionRef.current) return;
+            avisarFalloDeVoz({ donde: 'modo_voz', codigo: 'sin_arranque', idioma: rec.lang });
+            cortarEscucha();
+            if (mandarLoAcumulado()) return;
+            setError(mensajeDeErrorDeDictado('start'));
+            setEstado('pausa');
+        };
+        const armarArranque = () => {
+            if (arranqueRef.current) clearTimeout(arranqueRef.current);
+            arranqueRef.current = setTimeout(sinArranque, VOZ_ARRANQUE_MS);
+        };
+        rec.onesperandopermiso = (esperando) => {
+            if (id !== sesionRef.current) return;
+            if (!esperando) { armarArranque(); return; }
+            if (arranqueRef.current) { clearTimeout(arranqueRef.current); arranqueRef.current = null; }
+        };
+
         recRef.current = rec;
         try {
             rec.start();
+            armarArranque();
         } catch {
             recRef.current = null;
             if (mandarLoAcumulado()) return;

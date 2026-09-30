@@ -64,6 +64,7 @@ export class ReconocimientoNativo {
         this.onresult = null;
         this.onerror = null;
         this.onend = null;
+        this.onesperandopermiso = null;    // [P1-PLAN-LOTE-909] (true/false): el vigía del arranque no cuenta ese rato
         this._cargar = cargar;
         this._subs = [];
         this._texto = '';
@@ -103,7 +104,10 @@ export class ReconocimientoNativo {
         const plugin = await this._cargar();
         this._plugin = plugin;
         let permiso = await plugin.checkPermissions();
-        if (permiso?.speechRecognition !== 'granted') permiso = await plugin.requestPermissions();
+        if (permiso?.speechRecognition !== 'granted') {
+            this.onesperandopermiso?.(true);
+            try { permiso = await plugin.requestPermissions(); } finally { this.onesperandopermiso?.(false); }
+        }
         if (this._terminado) return;       // lo abortaron mientras se pedía el permiso
         if (permiso?.speechRecognition !== 'granted') {
             this.onerror?.({ error: 'not-allowed', crudo: `permiso:${permiso?.speechRecognition || '?'}` });
