@@ -270,6 +270,141 @@ describe('[834] el detalle de prueba: pestañas', () => {
         fireEvent.click(pestana('Planes'));
         expect(signal.aborted).toBe(true);
     });
+
+    // [ronda 1] Alt+← es «Atrás» del navegador, Ctrl+Inicio/Fin desplazan la página, Mayús+flecha selecciona: no son de las
+    // pestañas y el manejador no debe tragárselas con `preventDefault` (ni mover el foco).
+    it('las teclas con Alt, Ctrl, Cmd o Mayús no se tragan: son del navegador y no mueven el foco', async () => {
+        servidor([[BASE, async () => respuesta({})]]);
+        montarDetalle();
+        await waitFor(() => expect(delDetalle()).toHaveLength(1));
+        const tabs = screen.getAllByRole('tab');
+        tabs[0].focus();
+        for (const modificador of ['altKey', 'ctrlKey', 'metaKey', 'shiftKey']) {
+            for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End']) {
+                // `fireEvent` devuelve false si algún manejador llamó a preventDefault.
+                expect(fireEvent.keyDown(tabs[0], { key, [modificador]: true })).toBe(true);
+                expect(document.activeElement).toBe(tabs[0]);
+            }
+        }
+        // Sin modificador, la misma tecla sí es de las pestañas.
+        expect(fireEvent.keyDown(tabs[0], { key: 'ArrowRight' })).toBe(false);
+        expect(document.activeElement).toBe(tabs[1]);
+    });
+});
+
+// [ronda 1] Lo que un HIJO de la pestaña (el hilo de una conversación, los días de un plan) oye del servidor sobre la
+// CUENTA vale para el detalle entero: si ya no es de prueba (403) o la persona aún no vio el aviso (409), el detalle deja de
+// enseñar lo que había —la lista con sus vistas previas, los planes— y pinta el aviso en su lugar.
+describe('[834] el detalle de prueba: un 403/409 de un hijo invalida el detalle entero', () => {
+    const abrirHilo = async () => {
+        fireEvent.click(pestana('Conversaciones'));
+        fireEvent.click(await within(panel()).findByRole('button', { name: /Hola, ¿qué ceno hoy\?/ }));
+    };
+    const abrirDiasDelPlan = async () => {
+        fireEvent.click(pestana('Planes'));
+        const plan = (await within(panel()).findByRole('heading', { name: 'Plan de septiembre' })).closest('[data-plan]');
+        fireEvent.click(within(plan).getByRole('button', { name: 'Ver los días' }));
+    };
+    const sinContenido = () => {
+        // Ni la lista de conversaciones con sus vistas previas, ni el hilo, ni los planes.
+        expect(screen.queryByText('Hola, ¿qué ceno hoy?')).toBeNull();
+        expect(screen.queryByText('Buenos días')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Volver a las conversaciones' })).toBeNull();
+        expect(screen.queryByRole('heading', { name: /^Conversación del / })).toBeNull();
+        expect(screen.queryByRole('heading', { name: 'Plan de septiembre' })).toBeNull();
+        expect(screen.queryByRole('heading', { name: 'Plan viejo' })).toBeNull();
+        expect(screen.queryByRole('list')).toBeNull();
+    };
+
+    it('403 al abrir una conversación: la lista y sus vistas previas desaparecen y sale «Esta cuenta ya no es de prueba»', async () => {
+        servidor([
+            [`${BASE}/conversaciones/s1`, async () => respuesta({ detail: 'no_es_prueba' }, 403)],
+            [`${BASE}/conversaciones`, async () => respuesta(SESIONES)],
+            [BASE, async () => respuesta({})],
+        ]);
+        montarDetalle();
+        await abrirHilo();
+        expect(await within(panel()).findByText('Esta cuenta ya no es de prueba.')).toBeInTheDocument();
+        expect(within(panel()).getByText(/Quitaron la marca/)).toBeInTheDocument();
+        sinContenido();
+        // Es el detalle entero: en otra pestaña, el mismo aviso (sin pedir nada nuevo), y ninguna pestaña deja contenido.
+        const antes = delDetalle().length;
+        fireEvent.click(pestana('Planes'));
+        expect(within(panel()).getByText('Esta cuenta ya no es de prueba.')).toBeInTheDocument();
+        fireEvent.click(pestana('Conversaciones'));
+        expect(within(panel()).getByText('Esta cuenta ya no es de prueba.')).toBeInTheDocument();
+        expect(delDetalle()).toHaveLength(antes);
+        sinContenido();
+        // Un 403 no ofrece «Comprobar otra vez»: para volver a mirar se reabre el detalle desde la ficha.
+        expect(within(panel()).queryByRole('button')).toBeNull();
+    });
+
+    it('403 al pedir los días de un plan: la lista de planes se va y sale el mismo aviso', async () => {
+        servidor([
+            [`${BASE}/planes/p1`, async () => respuesta({ detail: 'no_es_prueba' }, 403)],
+            [`${BASE}/planes`, async () => respuesta(PLANES)],
+            [BASE, async () => respuesta({})],
+        ]);
+        montarDetalle();
+        await abrirDiasDelPlan();
+        expect(await within(panel()).findByText('Esta cuenta ya no es de prueba.')).toBeInTheDocument();
+        sinContenido();
+        expect(screen.queryByRole('button', { name: 'Ver los días' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Ocultar los días' })).toBeNull();
+    });
+
+    it('409 «aviso_pendiente» en un hilo: «Esperando a que vea el aviso en la app» en lugar de todo; «Comprobar otra vez» vuelve a pedir la pestaña', async () => {
+        servidor([
+            [`${BASE}/conversaciones/s1`, async () => respuesta({ detail: 'aviso_pendiente' }, 409)],
+            [`${BASE}/conversaciones`, async () => respuesta(SESIONES)],
+            [BASE, async () => respuesta({})],
+        ]);
+        montarDetalle();
+        await abrirHilo();
+        expect(await within(panel()).findByText('Esperando a que vea el aviso en la app.')).toBeInTheDocument();
+        sinContenido();
+        expect(within(panel()).queryByRole('button', { name: 'Reintentar' })).toBeNull();   // esperar no es un fallo
+        expect(exactas(`${BASE}/conversaciones`)).toHaveLength(1);
+        fireEvent.click(within(panel()).getByRole('button', { name: 'Comprobar otra vez' }));
+        // El aviso se suelta y la pestaña se pide otra vez desde cero: vuelve la lista de conversaciones.
+        expect(await within(panel()).findByRole('button', { name: /Hola, ¿qué ceno hoy\?/ })).toBeInTheDocument();
+        expect(exactas(`${BASE}/conversaciones`)).toHaveLength(2);
+        expect(screen.queryByText('Esperando a que vea el aviso en la app.')).toBeNull();
+    });
+
+    it('un 404 del hilo NO invalida nada: sigue diciendo que esa conversación no existe y se puede volver a la lista', async () => {
+        servidor([
+            [`${BASE}/conversaciones/s1`, async () => respuesta({ detail: 'Not Found' }, 404)],
+            [`${BASE}/conversaciones`, async () => respuesta(SESIONES)],
+            [BASE, async () => respuesta({})],
+        ]);
+        montarDetalle();
+        await abrirHilo();
+        expect(await within(panel()).findByText('Esta conversación no es de esta cuenta o ya no existe.')).toBeInTheDocument();
+        expect(screen.queryByText('Esta cuenta ya no es de prueba.')).toBeNull();
+        fireEvent.click(within(panel()).getByRole('button', { name: 'Volver a las conversaciones' }));
+        expect(within(panel()).getByRole('button', { name: /Hola, ¿qué ceno hoy\?/ })).toBeInTheDocument();
+    });
+
+    // [ronda 1] El aviso se decide por el CÓDIGO del servidor; el estado HTTP es el respaldo si el código falta.
+    it('el aviso se decide por el código del servidor antes que por el estado HTTP (y por el estado si el código falta)', async () => {
+        let respuestaDe = () => respuesta({ detail: 'aviso_pendiente' }, 423);
+        servidor([[BASE, async () => respuestaDe()]]);
+        montarDetalle();
+        expect(await within(panel()).findByText('Esperando a que vea el aviso en la app.')).toBeInTheDocument();
+        respuestaDe = () => respuesta({ detail: 'no_es_prueba' }, 410);
+        fireEvent.click(pestana('Comidas'));
+        expect(await within(panel()).findByText('Esta cuenta ya no es de prueba.')).toBeInTheDocument();
+        respuestaDe = () => respuesta({}, 403);                                   // sin código: manda el estado
+        fireEvent.click(pestana('Planes'));
+        expect(await within(panel()).findByText('Esta cuenta ya no es de prueba.')).toBeInTheDocument();
+        respuestaDe = () => respuesta({}, 409);
+        fireEvent.click(pestana('Actividad'));
+        expect(await within(panel()).findByText('Esperando a que vea el aviso en la app.')).toBeInTheDocument();
+        respuestaDe = () => respuesta({ detail: 'otra_cosa' }, 500);              // un fallo cualquiera sigue siendo un fallo
+        fireEvent.click(pestana('Formulario'));
+        expect(await within(panel()).findByRole('alert')).toHaveTextContent('No se pudo cargar esta sección.');
+    });
 });
 
 describe('[834] el detalle de prueba: contenido de cada pestaña', () => {

@@ -8,6 +8,10 @@
 //   · Activación MANUAL (patrón ARIA de pestañas): las flechas, Inicio y Fin mueven el foco; el clic, Intro o Espacio
 //     abren. Pasar por una pestaña con el teclado no la consulta (ni deja una fila en el registro).
 //   · 409 `aviso_pendiente` ⇒ «Esperando a que vea el aviso en la app» (§13.4); 403 ⇒ «Esta cuenta ya no es de prueba».
+//     [ronda 1] Se decide por el CÓDIGO del servidor (`aviso_pendiente` / `no_es_prueba`) y, si falta, por el estado HTTP.
+//     Si lo dice un HIJO de la pestaña (el hilo de una conversación, los días de un plan) no se queda dentro de él: sube al
+//     detalle entero, que desmonta los paneles —con su lista y sus vistas previas— y pinta ese mismo aviso en todas las
+//     pestañas. Vale hasta «Comprobar otra vez» (409) o hasta volver a la ficha y reabrir el detalle.
 //   · Lo que manda el servidor se pinta SIEMPRE como texto: los mensajes del chat traen markdown o HTML y se enseñan
 //     tal cual, con sus saltos de línea; el formulario crudo va plegado, como JSON.
 //   · Las fotos del chat se piden al endpoint de adjuntos con la sesión (`fetchWithAuth`: el token nunca va en un
@@ -15,7 +19,7 @@
 //   · La petición de la pestaña, del rango o del hilo que se deja atrás se aborta: una respuesta vieja nunca pinta
 //     sobre la nueva.
 // Solo lectura. Interno —solo el dueño, solo español—: los textos fijos viven en TEXTOS y en las tablas de abajo.
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { formatDate } from '../i18n';
@@ -352,9 +356,33 @@ function usePedido(url) {
 
 const Cargando = () => <p className={styles.estado} role="status">{TEXTOS.cargando}</p>;
 
-/** 409: la persona aún no vio el aviso. 403: ya no es de prueba. 404: no existe (o no es de esta cuenta). Lo demás, fallo. */
+/**
+ * Lo que el servidor dice de la CUENTA entera: `aviso_pendiente` (la persona aún no vio el aviso) o `no_es_prueba` (ya no
+ * es de prueba). Manda el CÓDIGO del servidor (`error.detalle`); si falta, el estado HTTP (409 / 403). Cualquier otro
+ * fallo (404, 429, 503…) es de esa sección y no dice nada de la cuenta: `null`.
+ */
+function avisoDeLaCuenta(error) {
+    if (error.detalle === 'aviso_pendiente' || error.detalle === 'no_es_prueba') return error.detalle;
+    if (error.status === 409) return 'aviso_pendiente';
+    if (error.status === 403) return 'no_es_prueba';
+    return null;
+}
+
+/**
+ * Un HIJO de la pestaña (un hilo, los días de un plan) que oye un aviso de la cuenta lo sube al detalle (`onInvalido`).
+ * Va en un efecto de LAYOUT: el detalle cambia antes de pintar y nunca se ve, ni un fotograma, el aviso del hijo con su
+ * botón de «Volver» (que dejaría entrar de nuevo a la lista).
+ */
+function useAvisoAlDetalle(error, onInvalido) {
+    useLayoutEffect(() => {
+        if (error && avisoDeLaCuenta(error)) onInvalido(error);
+    }, [error, onInvalido]);
+}
+
+/** Aviso de la cuenta (ver `avisoDeLaCuenta`). 404: no existe (o no es de esta cuenta). Lo demás, fallo de la sección. */
 function Aviso({ error, onReintentar, noEncontrado = TEXTOS.noDisponible }) {
-    if (error.status === 409) {
+    const cuenta = avisoDeLaCuenta(error);
+    if (cuenta === 'aviso_pendiente') {
         return (
             <div className={styles.aviso} data-aviso="aviso_pendiente">
                 <p className={styles.avisoTitulo} role="status">{TEXTOS.avisoPendiente}</p>
@@ -363,7 +391,7 @@ function Aviso({ error, onReintentar, noEncontrado = TEXTOS.noDisponible }) {
             </div>
         );
     }
-    if (error.status === 403) {
+    if (cuenta === 'no_es_prueba') {
         return (
             <div className={styles.aviso} data-aviso="no_es_prueba">
                 <p className={styles.avisoTitulo} role="status">{TEXTOS.noEsPrueba}</p>
@@ -545,8 +573,9 @@ function ComidaDelPlan({ c }) {
     );
 }
 
-function DiasDelPlan({ raiz, planId }) {
+function DiasDelPlan({ raiz, planId, onInvalido }) {
     const { datos, error, recargar } = usePedido(`${raiz}/planes/${encodeURIComponent(planId)}`);
+    useAvisoAlDetalle(error, onInvalido);
     if (error) return <Aviso error={error} onReintentar={recargar} noEncontrado={TEXTOS.planNoEncontrado} />;
     if (!datos) return <Cargando />;
     const dias = objetos(datos.dias);
@@ -574,7 +603,7 @@ function DiasDelPlan({ raiz, planId }) {
     );
 }
 
-function Plan({ raiz, plan: p }) {
+function Plan({ raiz, plan: p, onInvalido }) {
     const idDias = useId();
     const [abierto, setAbierto] = useState(false);
     const conteo = p.bloques && typeof p.bloques === 'object' && !Array.isArray(p.bloques) ? p.bloques : {};
@@ -618,7 +647,7 @@ function Plan({ raiz, plan: p }) {
                     </div>
                     {/* los días se piden al abrirlos (y se sueltan al cerrarlos) */}
                     <div id={idDias} className={styles.diasPlan} hidden={!abierto}>
-                        {abierto && <DiasDelPlan raiz={raiz} planId={p.id} />}
+                        {abierto && <DiasDelPlan raiz={raiz} planId={p.id} onInvalido={onInvalido} />}
                     </div>
                 </>
             )}
@@ -626,7 +655,7 @@ function Plan({ raiz, plan: p }) {
     );
 }
 
-function PanelPlanes({ raiz }) {
+function PanelPlanes({ raiz, onInvalido }) {
     const { datos, error, recargar } = usePedido(`${raiz}/planes`);
     if (error) return <Aviso error={error} onReintentar={recargar} />;
     if (!datos) return <Cargando />;
@@ -634,7 +663,7 @@ function PanelPlanes({ raiz }) {
     if (planes.length === 0) return <p className={styles.vacio}>{TEXTOS.sinPlanes}</p>;
     return (
         <ul className={styles.planes}>
-            {planes.map((p, i) => <Plan key={p.id ?? i} raiz={raiz} plan={p} />)}
+            {planes.map((p, i) => <Plan key={p.id ?? i} raiz={raiz} plan={p} onInvalido={onInvalido} />)}
         </ul>
     );
 }
@@ -705,10 +734,11 @@ function Mensaje({ raiz, m }) {
     );
 }
 
-function Hilo({ raiz, sesion, onCerrar }) {
+function Hilo({ raiz, sesion, onCerrar, onInvalido }) {
     const idTitulo = useId();
     const tituloRef = useRef(null);
     const { datos, error, recargar } = usePedido(`${raiz}/conversaciones/${encodeURIComponent(texto(sesion.id))}`);
+    useAvisoAlDetalle(error, onInvalido);
     // Al abrir el hilo, el foco va a su título (el botón que lo abrió ya no está en pantalla).
     useEffect(() => { tituloRef.current?.focus(); }, []);
     const mensajes = objetos(datos?.mensajes);
@@ -735,7 +765,7 @@ function Hilo({ raiz, sesion, onCerrar }) {
     );
 }
 
-function PanelConversaciones({ raiz }) {
+function PanelConversaciones({ raiz, onInvalido }) {
     const { datos, error, recargar } = usePedido(`${raiz}/conversaciones`);
     const [abierta, setAbierta] = useState(null);           // la sesión cuyo hilo se ve
     const listaRef = useRef(null);
@@ -749,7 +779,7 @@ function PanelConversaciones({ raiz }) {
     });
     // El hilo se desmonta al cerrarlo: aborta lo que esté en vuelo y libera sus fotos. La lista no se vuelve a pedir.
     const cerrar = () => { volverA.current = texto(abierta?.id); setAbierta(null); };
-    if (abierta) return <Hilo raiz={raiz} sesion={abierta} onCerrar={cerrar} />;
+    if (abierta) return <Hilo raiz={raiz} sesion={abierta} onCerrar={cerrar} onInvalido={onInvalido} />;
     if (error) return <Aviso error={error} onReintentar={recargar} />;
     if (!datos) return <Cargando />;
     const sesiones = objetos(datos.sesiones).filter((s) => s.id !== null && s.id !== undefined && s.id !== '');
@@ -875,6 +905,9 @@ export default function AdminPruebaDetalle({ userId, email }) {
     const [pestana, setPestana] = useState('formulario');
     const [diasComidas, setDiasComidas] = useState(30);
     const [filtroActividad, setFiltroActividad] = useState({ dias: 7, tipos: [] });
+    // [ronda 1] El aviso de la cuenta (`{ status, detalle }`) que subió un HIJO de la pestaña (un hilo, los días de un
+    // plan): mientras esté, ningún panel está montado y en su lugar va ese aviso.
+    const [invalido, setInvalido] = useState(null);
     const botones = useRef([]);
     const raiz = `/api/admin/cuentas/${encodeURIComponent(userId)}/prueba`;
     const idPestana = (id) => `${idBase}-pestana-${id}`;
@@ -882,6 +915,9 @@ export default function AdminPruebaDetalle({ userId, email }) {
 
     // Flechas, Inicio y Fin mueven el foco entre pestañas (con vuelta); no abren ninguna.
     const teclas = (e) => {
+        // Con Alt, Ctrl, Cmd o Mayús no son de las pestañas: Alt+← es «Atrás» del navegador, Ctrl+Inicio/Fin desplazan la
+        // página, Mayús+flecha selecciona. Ni se les hace `preventDefault` ni se mueve el foco.
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
         const i = PESTANAS.findIndex(([id]) => id === e.target?.dataset?.pestana);
         if (i < 0) return;
         const n = PESTANAS.length;
@@ -898,8 +934,8 @@ export default function AdminPruebaDetalle({ userId, email }) {
     const panelDe = (id) => {
         if (id === 'formulario') return <PanelFormulario raiz={raiz} />;
         if (id === 'comidas') return <PanelComidas raiz={raiz} dias={diasComidas} onDias={setDiasComidas} />;
-        if (id === 'planes') return <PanelPlanes raiz={raiz} />;
-        if (id === 'conversaciones') return <PanelConversaciones raiz={raiz} />;
+        if (id === 'planes') return <PanelPlanes raiz={raiz} onInvalido={setInvalido} />;
+        if (id === 'conversaciones') return <PanelConversaciones raiz={raiz} onInvalido={setInvalido} />;
         return <PanelActividad raiz={raiz} filtro={filtroActividad} onFiltro={setFiltroActividad} />;
     };
 
@@ -938,7 +974,9 @@ export default function AdminPruebaDetalle({ userId, email }) {
                     tabIndex={0}
                     className={styles.panel}
                 >
-                    {pestana === id && panelDe(id)}
+                    {pestana === id && (invalido
+                        ? <Aviso error={invalido} onReintentar={() => setInvalido(null)} />
+                        : panelDe(id))}
                 </div>
             ))}
         </div>

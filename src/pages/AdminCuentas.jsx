@@ -361,7 +361,7 @@ export default function AdminCuentas() {
     const [hecho, setHecho] = useState(false);
     // [P1-PLAN-LOTE-833 · 2026-09-29] `hayLista`: null mientras se pregunta, false si la lista respondió 404 (el panel
     // sigue como hoy). `versionLista` sube tras cada cambio para que la lista se refresque. `detalle`: la cuenta de
-    // prueba cuyo detalle se ve (`{ user_id, email }`) — la Task 7 (lote 834) lo monta en el hueco de abajo.
+    // prueba cuyo detalle se ve (`{ user_id, email }`); `AdminPruebaDetalle` (lote 834) se monta con él al final.
     const [hayLista, setHayLista] = useState(null);
     const [versionLista, setVersionLista] = useState(0);
     const [detalle, setDetalle] = useState(null);
