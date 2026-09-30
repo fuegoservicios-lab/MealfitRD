@@ -179,7 +179,8 @@ describe('lote 166 · textos del formulario que prometían otra cosa', () => {
     it('el cierre del contador ya no dice «dashboard» ni que se pregunta todo otra vez', () => {
         const s = leer('src/components/assessment/questions/QTrackingFinish.jsx');
         expect(s).not.toContain('lo enciendes desde el mismo dashboard');
-        expect(s).toContain('lo enciendes desde tu panel o desde Configuración, y solo te preguntamos lo que falte.');
+        // [P1-PLAN-LOTE-926] texto más llano; sigue sin «dashboard» y sin prometer que se pregunta todo otra vez
+        expect(s).toContain('lo activas desde tu panel o en Configuración, y solo te preguntamos lo que falte.');
     });
     it('«Tres respuestas rápidas» solo cuando son tres', () => {
         const s = leer('src/components/assessment/questions/QShoppingHabits.jsx');

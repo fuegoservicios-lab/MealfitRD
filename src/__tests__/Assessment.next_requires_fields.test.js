@@ -17,7 +17,7 @@ describe('wizard: «Siguiente Paso» no deja pasar un paso obligatorio vacío', 
         expect(btn).toContain('disabled={Array.isArray(currentStepConfig.fields) && currentStepConfig.fields.length > 0 && !stepFieldsFilled}');
     });
     it('los pasos «(Opcional)» no declaran fields: el botón sigue libre ahí', () => {
-        for (const title of ['Tu compra y tu cocina (Opcional)', 'Tus básicos de siempre (Opcional)', 'Suplementación (Opcional)']) {
+        for (const title of ['Tu compra y tu cocina (Opcional)', 'Tus básicos de siempre (Opcional)', 'Suplementos (opcional)']) {
             const i = FLOW.indexOf(`title: t('${title}')`);
             expect(i, title).toBeGreaterThan(0);
             const step = FLOW.slice(i, FLOW.indexOf('component:', i));

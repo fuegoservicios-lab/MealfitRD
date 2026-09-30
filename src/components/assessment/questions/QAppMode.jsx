@@ -32,21 +32,16 @@ export const QAppMode = ({ onAutoAdvance }) => {
 
     const set = (v) => updateData('appMode', v);
 
+    // [P1-PLAN-LOTE-926 · 2026-09-30] Decisión del dueño para salir a la App Store: el contador es la forma PRINCIPAL y
+    // recomendada (va primero, con «Recomendado»); el plan generado por IA sigue disponible como «Beta».
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <RadioCard
-                name="appMode" value="plan" icon={CalendarRange}
-                label={t('Plan de comidas completo')}
-                desc={t('La IA te arma el menú de cada día, con recetas y lista de compras.')}
-                checked={value === 'plan'}
-                onChange={(e) => { set(e.target.value); onAutoAdvance(); }}
-                onClick={() => { if (value === 'plan') onAutoAdvance(); }}
-            />
-            <RadioCard
                 name="appMode" value="tracking" icon={Gauge}
-                label={t('Solo contar lo que como')}
+                label={t('Contar lo que como')}
+                badge={t('Recomendado')} badgeTone="accent"
                 desc={isAuth
-                    ? t('Tus metas de calorías y macros, tu diario y el coach. Sin plan generado — lo enciendes cuando quieras.')
+                    ? t('Anota tus comidas con una foto o un texto. Te decimos cuántas calorías y proteínas llevas, y el coach te ayuda.')
                     : t('Requiere cuenta: tu diario vive en tu perfil. Inicia sesión para usar este modo.')}
                 checked={value === 'tracking'}
                 // [P1-PLANSOURCE-DEAD-CONTROL] Sin cuenta, la tarjeta responde AL TOQUE
@@ -65,6 +60,15 @@ export const QAppMode = ({ onAutoAdvance }) => {
                     }
                     if (value === 'tracking') onAutoAdvance();
                 }}
+            />
+            <RadioCard
+                name="appMode" value="plan" icon={CalendarRange}
+                label={t('Plan de comidas con IA')}
+                badge={t('Beta')}
+                desc={t('La IA te arma el menú de cada día, con recetas y lista de compras.')}
+                checked={value === 'plan'}
+                onChange={(e) => { set(e.target.value); onAutoAdvance(); }}
+                onClick={() => { if (value === 'plan') onAutoAdvance(); }}
             />
         </div>
     );

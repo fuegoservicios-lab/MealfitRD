@@ -407,38 +407,38 @@ const InteractiveAssessmentFlow = () => {
             // y por delante de las dos opciones, para que la duda «¿esta también es
             // con IA?» no llegue a nacer. El subtítulo nombra el único eje real.
             title: <>{t('¿Cómo quieres que la IA arme tu plan?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: t('Las dos opciones las diseña la IA. La diferencia es si parte de cero o de lo que ya hay en tu Nevera.'),
+            subtitle: t('La IA puede empezar de cero o usar lo que ya tienes en tu Nevera.'),
             fields: ['planSource'],
             component: <QPlanSource onAutoAdvance={handleAutoAdvance} />
         },
         {
             title: <>{t('¿Eres hombre o mujer?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: t('Las necesidades nutricionales varían según tu sexo biológico.'),
+            subtitle: t('Tu cuerpo necesita cantidades distintas según tu sexo.'),
             fields: ['gender'],
             component: <QGender onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>{t('Tus Medidas')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: t('Ingresa tu edad, altura y peso para calcular tus macros con precisión.'),
+            title: <>{t('Tu edad, altura y peso')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Con esto calculamos cuánto te conviene comer cada día.'),
             hasInternalNext: true,
             fields: ['age', 'height', 'weight', 'weightUnit'],
             component: <QMeasurements onManualAdvance={nextStep} onMenorDeEdad={bloquearPorEdad} />
         },
         {
-            title: <>{t('¿Cuál es tu nivel de actividad física?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: t('Considera tanto tu trabajo como tus entrenamientos.'),
+            title: <>{t('¿Cuánto te mueves en un día normal?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Cuenta tu trabajo y el ejercicio que haces.'),
             fields: ['activityLevel'],
             component: <QActivityLevel onAutoAdvance={handleAutoAdvance} />
         },
         {
             title: <>{t('¿Cómo es tu horario cotidiano?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: t('Adaptaremos los horarios de tus comidas a tu reloj biológico.'),
+            subtitle: t('Así ponemos tus comidas a las horas que te convienen.'),
             fields: ['scheduleType'],
             component: <QSchedule onAutoAdvance={handleAutoAdvance} />
         },
         {
             title: <>{t('¿Cuántas horas duermes?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: t('La calidad de tu sueño afecta directamente tu metabolismo.'),
+            subtitle: t('Dormir poco cambia cómo tu cuerpo usa la comida.'),
             fields: ['sleepHours'],
             component: <QSleep onAutoAdvance={handleAutoAdvance} />
         },
@@ -459,7 +459,7 @@ const InteractiveAssessmentFlow = () => {
             // (findFirstIncompleteField solo cubre REQUIRED_FORM_FIELDS) — contradicción
             // UI↔contrato. El gate lineal del NextButton interno se mantiene intacto.
             title: <>{t('Tus hábitos de consumo')}</>,
-            subtitle: t('Alcohol, tabaco, cafeína y agua cambian cómo calibramos tu plan.'),
+            subtitle: t('El alcohol, el tabaco, el café y el agua cambian lo que te conviene comer.'),
             hasInternalNext: true,
             id: 'habits',
             component: <QHabits onManualAdvance={nextStep} />
@@ -498,7 +498,7 @@ const InteractiveAssessmentFlow = () => {
         // que cada movimiento lo paga una vez.
         ...(COUNTRY_SYSTEM_UI ? [{
             title: <>{t('¿En qué país haces la compra?')}</>,
-            subtitle: t('Aquí compras: de esto salen tus medidas y, donde ya los tenemos, los precios del súper.'),
+            subtitle: t('Usamos las medidas y, cuando los tenemos, los precios del súper de tu país.'),
             fields: ['country'],
             component: <QCountry onAutoAdvance={handleAutoAdvance} />
         }] : []),
@@ -589,7 +589,7 @@ const InteractiveAssessmentFlow = () => {
         // backend defaultea a `balanced` para clientes viejos.
         ...(PLAN_POLICY_FORM_UI ? [{
             title: <>{t('¿Cómo prefieres organizar tus comidas durante la semana?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: t('Con esto el plan sabe si repetir es un acierto o un defecto.'),
+            subtitle: t('Así sabemos si prefieres repetir platos o variar cada día.'),
             fields: ['mealOrganization'],
             component: <QMealOrganization onAutoAdvance={handleAutoAdvance} />
         }] : []),
@@ -610,7 +610,7 @@ const InteractiveAssessmentFlow = () => {
             // engañosa puede ser un riesgo de seguridad médica si el LLM
             // no la respeta. El asterisco rojo señala "respuesta requerida"
             // (no "tienes que tener una condición").
-            title: <>{t('Condiciones Médicas')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>{t('¿Tienes alguna condición de salud?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             // [P1-MEDICAL-SCOPE-GATE · 2026-08-09] Decía «escribe otras» y el
             // input de texto libre se ELIMINÓ el 2026-08-01
             // (P1-MEDICAL-CONDITIONS-CAP): el enunciado invitaba a hacer algo
@@ -623,8 +623,8 @@ const InteractiveAssessmentFlow = () => {
             component: <QMedical onManualAdvance={nextStep} />
         },
         {
-            title: <>{t('¿Cuál es tu objetivo PRINCIPAL?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: t('Define la meta que quieres lograr con este plan.'),
+            title: <>{t('¿Qué quieres lograr?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Elige tu meta principal.'),
             fields: ['mainGoal'],
             component: <QMainGoal onAutoAdvance={handleAutoAdvance} />
         },
@@ -637,7 +637,7 @@ const InteractiveAssessmentFlow = () => {
             // [P1-FORM-AUDIT-BATCH · 2026-07-03] SIN asterisco rojo (mismo racional que
             // QHabits: el * prometía enforcement que skip/submit no aplican).
             title: <>{t('Tu meta de peso')}</>,
-            subtitle: t('Cuantificar la meta nos deja calibrar el ritmo del plan a tu medida — o déjala en manos de la IA.'),
+            subtitle: t('Si nos dices cuánto quieres pesar, ajustamos el ritmo del plan. Si no, lo decide la IA.'),
             hasInternalNext: true,
             id: 'goalTarget',
             component: <QGoalTarget onManualAdvance={nextStep} />
@@ -649,7 +649,7 @@ const InteractiveAssessmentFlow = () => {
             // vacío silenciosamente; el LLM perdía el contexto de coaching
             // personalizado. Ahora 1 click ("Ninguno" si no aplica) confirma
             // la respuesta y desbloquea el botón.
-            title: <>{t('Mayores Obstáculos')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>{t('¿Qué se te hace más difícil?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: t('Marca los que apliquen, escribe otros, o marca "Ninguno" si no identificas obstáculos específicos.'),
             hasInternalNext: true,
             fields: ['struggles'],
@@ -664,7 +664,7 @@ const InteractiveAssessmentFlow = () => {
         },
         {
             // [P1-PLAN-LOTE-292] «¿qué tomas?» + «¿te recomendamos?» (ver QSupplements)
-            title: t('Suplementación (Opcional)'),
+            title: t('Suplementos (opcional)'),
             subtitle: t('Lo que ya tomas va a tu Alacena y al plan; si quieres, te recomendamos lo que tiene respaldo.'),
             hasInternalNext: true,
             // [P1-PANTRY-WIZARD-STEP · 2026-07-11] En modo pantry este step ya NO es el
@@ -714,7 +714,7 @@ const InteractiveAssessmentFlow = () => {
         // abajo ya gateaba «Siguiente»; el contrato cubre al usuario que REGRESA
         // y salta (canSkip) sin haberla contestado jamás (cuentas pre-P1-PLAN-MODE).
         title: <>{t('¿Qué quieres que haga {app} por ti?', { app: BRAND })}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-        subtitle: t('Las dos cosas usan la misma IA. La diferencia es si te genera el menú o solo te acompaña a contar.'),
+        subtitle: t('Puedes cambiarlo cuando quieras en Configuración.'),
         fields: ['appMode'],
         component: <QAppMode onAutoAdvance={handleAutoAdvance} />
     };
@@ -735,7 +735,7 @@ const InteractiveAssessmentFlow = () => {
             const _gt = _byComponent(QGoalTarget);
             return _gt && {
                 ..._gt,
-                subtitle: t('Cuantificar la meta nos deja calibrar tus calorías y macros a tu medida.'),
+                subtitle: t('Si nos dices cuánto quieres pesar, ajustamos tus calorías a tu ritmo.'),
             };
         })(),
         _byField('dietType'),
@@ -759,7 +759,7 @@ const InteractiveAssessmentFlow = () => {
         ...(COUNTRY_SYSTEM_UI
             ? [_byField('country')].filter(Boolean).map((_s) => ({
                 ..._s,
-                subtitle: t('Adapta las sugerencias del coach y cómo se leen los alimentos que registras.'),
+                subtitle: t('Así el coach entiende los platos y alimentos de tu país.'),
             }))
             : []),
         {
@@ -768,15 +768,15 @@ const InteractiveAssessmentFlow = () => {
             // fallar. El título nombra el paso; el «listo» lo declara el toast
             // de éxito, que sí sabe si lo está.
             // [P1-PLAN-LOTE-292] también en modo contador: lo que toma va a su Alacena y el coach lo conoce.
-            title: t('Suplementación (Opcional)'),
-            subtitle: t('Lo que ya tomas va a tu Alacena: el coach lo usa para registrar tus scoops.'),
+            title: t('Suplementos (opcional)'),
+            subtitle: t('Anota lo que ya tomas, como proteína en polvo o vitaminas. El coach lo tendrá en cuenta al anotar lo que comes.'),
             hasInternalNext: true,
             id: 'supplements',
             component: <QSupplements modoContador onFinish={() => nextStep()} finishLabel={t('Siguiente')} />
         },
         {
-            title: <>{t('Último paso: tu contador')}</>,
-            subtitle: t('Sin plan generado, sin gastar créditos. Lo enciendes cuando quieras.'),
+            title: <>{t('Último paso')}</>,
+            subtitle: t('Empezarás a anotar lo que comes. Si luego quieres un plan de comidas, lo activas en Configuración.'),
             hasInternalNext: true,
             id: 'trackingFinish',
             component: <QTrackingFinish onMenorDeEdad={bloquearPorEdad} />

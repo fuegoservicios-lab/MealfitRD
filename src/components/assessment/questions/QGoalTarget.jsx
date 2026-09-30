@@ -109,7 +109,7 @@ export const QGoalTarget = ({ onManualAdvance }) => {
                         ))}
                     </div>
                     <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                        {t('Gradual prioriza sostenibilidad; Decidido es más exigente y requiere más constancia. Nunca usamos ritmos extremos que comprometan tu salud.')}
+                        {t('Gradual es más fácil de sostener. Decidido va más rápido, pero exige más constancia. Nunca usamos ritmos que pongan en riesgo tu salud.')}
                     </div>
                 </div>
             )}

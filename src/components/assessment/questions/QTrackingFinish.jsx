@@ -57,7 +57,7 @@ export const QTrackingFinish = ({ onMenorDeEdad } = {}) => {
             const ok = await confirmToast(
                 t('¿Pausar la generación de planes?'),
                 {
-                    description: t('La app pasa a modo contador (macros y diario). Tu plan no se pierde: queda guardado en tu Historial y puedes reanudarlo cuando quieras — retoma exactamente donde quedó.'),
+                    description: t('La app pasa a modo contador (calorías y diario). Tu plan no se pierde: queda guardado en tu Historial y puedes reanudarlo cuando quieras — retoma exactamente donde quedó.'),
                     confirmLabel: t('Pausar planes'),
                     cancelLabel: t('Volver'),
                 },
@@ -184,7 +184,7 @@ export const QTrackingFinish = ({ onMenorDeEdad } = {}) => {
                 saltadas «se preguntan ahí»: desde el lote 164 encender el plan pregunta SOLO lo que falta, y se hace desde
                 la tarjeta del panel o desde Configuración. */}
             <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: 1.55 }}>
-                {t('Con lo que respondiste calculamos tus calorías y macros diarios. Tu panel será tu contador: anota lo que comes, mira tu progreso y pregúntale al coach. Si algún día quieres el plan completo con recetas y lista de compras, lo enciendes desde tu panel o desde Configuración, y solo te preguntamos lo que falte.')}
+                {t('Con tus respuestas calculamos cuántas calorías y proteínas te tocan cada día. En tu panel anotas lo que comes, ves tu progreso y le preguntas al coach. Si algún día quieres un plan de comidas con recetas y lista de compras, lo activas desde tu panel o en Configuración, y solo te preguntamos lo que falte.')}
             </p>
             <button
                 type="button"

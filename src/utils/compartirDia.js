@@ -154,12 +154,13 @@ const _base64 = (blob) => new Promise((resolve, reject) => {
     lector.readAsDataURL(blob);
 });
 
-async function _compartirNativo({ archivo, texto }) {
+async function _compartirNativo({ archivo, texto, titulo = null, tituloHoja = null }) {
     const [{ Share }, { Filesystem, Directory }] = await Promise.all([
         import('@capacitor/share'), import('@capacitor/filesystem'),
     ]);
     // [P1-PLAN-LOTE-386] con imagen, la imagen SOLA (el texto pegado debajo «se ve raro», dijo el dueño)
-    const opciones = { title: t('Mi día'), dialogTitle: t('Compartir tu día'), ...(archivo ? {} : { text: texto }) };
+    // [P1-PLAN-LOTE-927] la lista de compras reutiliza esta salida con su propio título
+    const opciones = { title: titulo || t('Mi día'), dialogTitle: tituloHoja || t('Compartir tu día'), ...(archivo ? {} : { text: texto }) };
     if (archivo) {
         const { uri } = await Filesystem.writeFile({
             path: archivo.name || 'mi-dia-bioboros.png', data: await _base64(archivo), directory: Directory.Cache,
@@ -171,10 +172,10 @@ async function _compartirNativo({ archivo, texto }) {
 }
 
 /** 'compartido' | 'cancelado' (el usuario cerró la hoja) | 'fallo' (no hay Web Share o el sistema lo rechazó). */
-export async function compartir({ archivo, texto }) {
+export async function compartir({ archivo, texto, titulo = null, tituloHoja = null }) {
     if (puedeCompartirNativo()) {
         try {
-            return await _compartirNativo({ archivo, texto });
+            return await _compartirNativo({ archivo, texto, titulo, tituloHoja });
         } catch (e) {
             if (/cancel/i.test(String(e?.message || e?.code || ''))) return 'cancelado';
             // sin la imagen (o sin plugin a mitad), cae a la Web Share de abajo

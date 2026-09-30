@@ -19,8 +19,8 @@ export const QMainGoal = ({ onAutoAdvance }) => {
                 // (flecha SUBIENDO) contradecía "Perder Grasa".
                 { val: "lose_fat", label: t('Perder Grasa'), icon: Flame, color: "#ef4444" },
                 { val: "gain_muscle", label: t('Ganar Músculo'), icon: BicepsFlexed, color: "#3b82f6" },
-                { val: "maintenance", label: t('Mantenimiento'), icon: Scale, color: "#10b981" },
-                { val: "performance", label: t('Rendimiento'), icon: Gauge, color: "#8b5cf6" }
+                { val: "maintenance", label: t('Mantener mi peso'), icon: Scale, color: "#10b981" },
+                { val: "performance", label: t('Rendir más en mi deporte'), icon: Gauge, color: "#8b5cf6" }
             ].map(opt => (
                 <GoalCard
                     key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} color={opt.color}

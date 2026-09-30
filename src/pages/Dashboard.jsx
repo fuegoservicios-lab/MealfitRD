@@ -30,6 +30,7 @@ import StatusNotice from '../components/dashboard/StatusNotice';
 import { formatCurrencyName, formatDate, formatNumber, i18nKey, t, tn, useI18n, useT, compareText } from '../i18n';
 import { WORDMARK_TEXT } from '../config/brand';
 import { pdfFileName } from '../utils/pdfFileName';
+import { esImagenMovil, LAYOUT_IMAGEN_MOVIL, guardarListaComoImagen } from '../utils/listaComoImagen';
 // [P1-DASH-BUDGET-CURRENCY · 2026-08-21] `COUNTRY_SYSTEM_UI` se suma a este import ya existente.
 // Sin el símbolo, `currencyOptionsForCountry(pais, COUNTRY_SYSTEM_UI)` NO habría fallado:
 // `undefined` es falsy, así que habría devuelto [DOP, USD] en silencio — el bug intacto con
@@ -4027,7 +4028,9 @@ const DashboardInner = () => {
             // tiene sustancia y el ciclo se separa de veras de la compra de hoy; con 1 ítem de RD$375 y
             // un «ciclo» de RD$1,607 el dueño leyó un error de suma. Umbral: >2 ítems y >15 % de diferencia.
             const _showCycleCost = duration !== 'weekly' && totalItems > 2 && _fullCycleCostFinal > _shopTotalCostFinal * 1.15;
-            const layout = computePdfLayoutDensity(totalItems);
+            // [P1-PLAN-LOTE-927] en el teléfono, imagen en una columna con la letra cómoda (no el A4 apretado)
+            const _imagenMovil = esImagenMovil();
+            const layout = _imagenMovil ? LAYOUT_IMAGEN_MOVIL : computePdfLayoutDensity(totalItems);
             const { isDense, isUltraDense, isHyperDense, multiPage, columnCount, showInventoryNotes } = layout;
 
             // [P1-PDF-3] Telemetría operacional: el sweet-spot de la heurística
@@ -4694,9 +4697,13 @@ const DashboardInner = () => {
                     reject(_timeoutErr);
                 }, _pdfRenderTimeoutMs);
             });
+            let _resultadoImagen = null;
             try {
                 await Promise.race([
-                    html2pdf().set(opt).from(element).save(),
+                    _imagenMovil
+                        ? guardarListaComoImagen({ html2pdf, element, nombre: opt.filename.replace(/\.pdf$/i, '') + '.png' })
+                            .then((r) => { _resultadoImagen = r; })
+                        : html2pdf().set(opt).from(element).save(),
                     _pdfTimeoutPromise,
                 ]);
             } finally {
@@ -4704,7 +4711,11 @@ const DashboardInner = () => {
             }
 
             toast.dismiss(loadingToast);
-            toast.success(t('Lista PDF descargada exitosamente'), { icon: '📄', position: 'top-center' });
+            if (!_imagenMovil) {
+                toast.success(t('Lista PDF descargada exitosamente'), { icon: '📄', position: 'top-center' });
+            } else if (_resultadoImagen === 'descargado') {
+                toast.success(t('Tu lista de compras se guardó como imagen'), { icon: '🖼️', position: 'top-center' });
+            }
 
             // [P3-SHOPPING-4 · 2026-05-14] Telemetría de éxito. Antes solo
             // emitíamos `pdf_stale_inventory_fallback` (path degradado);
@@ -7365,7 +7376,8 @@ const DashboardInner = () => {
                                 }}
                             >
                                 <ShoppingCart size={18} />
-                                <span style={{ fontSize: '0.85rem' }}>PDF</span>
+                                {/* [P1-PLAN-LOTE-927] en el teléfono la lista sale como imagen */}
+                                <span style={{ fontSize: '0.85rem' }}>{esImagenMovil() ? t('Guardar lista') : 'PDF'}</span>
                             </button>
                         </div>
 

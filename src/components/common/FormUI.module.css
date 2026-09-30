@@ -204,6 +204,27 @@
     line-height: 1.3;
 }
 
+/* [P1-PLAN-LOTE-926] etiqueta junto al título de la tarjeta: «Recomendado» (acento) y «Beta» (neutra) */
+.radioBadge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    vertical-align: middle;
+    color: var(--text-main);
+    background: var(--bg-muted, rgba(127, 127, 127, 0.14));
+    border: 1px solid var(--border-color, rgba(127, 127, 127, 0.3));
+}
+
+.radioBadgeAccent {
+    color: #fff;
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
 /* [FORM-VISUAL-V2 · 2026-07-02] Antes display:none — un input display:none sale
    del tab order y el Checkbox era INOPERABLE por teclado. Mismo patrón
    visually-hidden que .radioHidden: invisible pero enfocable. */

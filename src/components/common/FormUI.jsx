@@ -31,7 +31,7 @@ export const Select = ({ children, ...props }) => (
 // el toque en silencio es indistinguible de una rota. `aria-disabled` en vez de quitar
 // el control del árbol: el lector de pantalla debe poder ANUNCIAR que existe y que no
 // está disponible, y el `onClick` del contenedor sigue vivo para explicar por qué.
-export const RadioCard = ({ name, value, checked, onChange, onClick, label, icon: Icon, desc, disabled = false }) => (
+export const RadioCard = ({ name, value, checked, onChange, onClick, label, icon: Icon, desc, disabled = false, badge = null, badgeTone = 'neutral' }) => (
     <label
         className={`${styles.radioCard} ${checked ? styles.checked : ''}`}
         onClick={onClick}
@@ -56,7 +56,11 @@ export const RadioCard = ({ name, value, checked, onChange, onClick, label, icon
             </span>
         )}
         <div className={styles.radioTextContent}>
-            <span className={styles.radioLabel}>{label}</span>
+            {/* [P1-PLAN-LOTE-926] `badge` opcional junto al título («Recomendado», «Beta») */}
+            <span className={styles.radioLabel}>
+                {label}
+                {badge && <span className={`${styles.radioBadge} ${badgeTone === 'accent' ? styles.radioBadgeAccent : ''}`}>{badge}</span>}
+            </span>
             {desc && <span className={styles.radioDesc}>{desc}</span>}
         </div>
     </label>
