@@ -3856,12 +3856,10 @@
   "Si nos dices cuánto quieres pesar, ajustamos el ritmo del plan. Si no, lo decide la IA.": "If you tell us the weight you want to reach, we adjust the plan's pace. If not, the AI decides.",
   "¿Tienes alguna condición de salud?": "Do you have any health condition?",
   "¿Qué se te hace más difícil?": "What do you find hardest?",
-  "Así el coach entiende los platos y alimentos de tu país.": "This helps the coach understand the dishes and foods from your country.",
   "Suplementos (opcional)": "Supplements (optional)",
   "Anota lo que ya tomas, como proteína en polvo o vitaminas. El coach lo tendrá en cuenta al anotar lo que comes.": "Add what you already take, like protein powder or vitamins. The coach will keep it in mind when logging what you eat.",
   "Último paso": "Last step",
   "Empezarás a anotar lo que comes. Si luego quieres un plan de comidas, lo activas en Configuración.": "You'll start logging what you eat. If you want a meal plan later, you can turn it on in Settings.",
-  "La IA puede empezar de cero o usar lo que ya tienes en tu Nevera.": "The AI can start from scratch or use what's already in your Fridge.",
   "Así ponemos tus comidas a las horas que te convienen.": "So we can set your meals at the times that suit you.",
   "Dormir poco cambia cómo tu cuerpo usa la comida.": "Sleeping too little changes how your body uses food.",
   "El alcohol, el tabaco, el café y el agua cambian lo que te conviene comer.": "Alcohol, tobacco, coffee and water change what's best for you to eat.",
@@ -3878,5 +3876,7 @@
   "Guardar lista": "Save list",
   "Guardar o compartir tu lista": "Save or share your list",
   "Tu lista de compras se guardó como imagen": "Your shopping list was saved as an image",
-  "Lista de compras": "Shopping list"
+  "Lista de compras": "Shopping list",
+  "Así el coach entiende las comidas y los alimentos de tu país.": "This helps the coach understand the meals and foods from your country.",
+  "Las dos opciones son con IA: empieza de cero o usa lo que ya tienes en tu Nevera.": "Both options use AI: start from scratch or use what's already in your Fridge."
 }

@@ -221,8 +221,8 @@
 
 .radioBadgeAccent {
     color: #fff;
-    background: var(--primary);
-    border-color: var(--primary);
+    background: var(--primary-fill);
+    border-color: var(--primary-fill);
 }
 
 /* [FORM-VISUAL-V2 · 2026-07-02] Antes display:none — un input display:none sale

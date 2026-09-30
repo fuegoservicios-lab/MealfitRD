@@ -407,7 +407,7 @@ const InteractiveAssessmentFlow = () => {
             // y por delante de las dos opciones, para que la duda «¿esta también es
             // con IA?» no llegue a nacer. El subtítulo nombra el único eje real.
             title: <>{t('¿Cómo quieres que la IA arme tu plan?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: t('La IA puede empezar de cero o usar lo que ya tienes en tu Nevera.'),
+            subtitle: t('Las dos opciones son con IA: empieza de cero o usa lo que ya tienes en tu Nevera.'),
             fields: ['planSource'],
             component: <QPlanSource onAutoAdvance={handleAutoAdvance} />
         },
@@ -759,7 +759,7 @@ const InteractiveAssessmentFlow = () => {
         ...(COUNTRY_SYSTEM_UI
             ? [_byField('country')].filter(Boolean).map((_s) => ({
                 ..._s,
-                subtitle: t('Así el coach entiende los platos y alimentos de tu país.'),
+                subtitle: t('Así el coach entiende las comidas y los alimentos de tu país.'),
             }))
             : []),
         {

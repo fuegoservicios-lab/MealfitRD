@@ -3856,12 +3856,10 @@
   "Si nos dices cuánto quieres pesar, ajustamos el ritmo del plan. Si no, lo decide la IA.": "Si vous nous dites quel poids vous visez, nous ajustons le rythme du plan. Sinon, l'IA décide.",
   "¿Tienes alguna condición de salud?": "Avez-vous un problème de santé ?",
   "¿Qué se te hace más difícil?": "Qu'est-ce qui vous est le plus difficile ?",
-  "Así el coach entiende los platos y alimentos de tu país.": "Ainsi, le coach comprend les plats et les aliments de votre pays.",
   "Suplementos (opcional)": "Compléments (facultatif)",
   "Anota lo que ya tomas, como proteína en polvo o vitaminas. El coach lo tendrá en cuenta al anotar lo que comes.": "Indiquez ce que vous prenez déjà, comme de la protéine en poudre ou des vitamines. Le coach en tiendra compte en notant ce que vous mangez.",
   "Último paso": "Dernière étape",
   "Empezarás a anotar lo que comes. Si luego quieres un plan de comidas, lo activas en Configuración.": "Vous allez commencer à noter ce que vous mangez. Si vous voulez un plan de repas plus tard, activez-le dans Réglages.",
-  "La IA puede empezar de cero o usar lo que ya tienes en tu Nevera.": "L'IA peut partir de zéro ou utiliser ce que vous avez déjà dans votre Frigo.",
   "Así ponemos tus comidas a las horas que te convienen.": "Ainsi, nous plaçons vos repas aux heures qui vous conviennent.",
   "Dormir poco cambia cómo tu cuerpo usa la comida.": "Mal dormir change la façon dont votre corps utilise la nourriture.",
   "El alcohol, el tabaco, el café y el agua cambian lo que te conviene comer.": "L'alcool, le tabac, le café et l'eau changent ce qu'il vous convient de manger.",
@@ -3878,5 +3876,7 @@
   "Guardar lista": "Enregistrer la liste",
   "Guardar o compartir tu lista": "Enregistrer ou partager votre liste",
   "Tu lista de compras se guardó como imagen": "Votre liste de courses a été enregistrée en image",
-  "Lista de compras": "Liste de courses"
+  "Lista de compras": "Liste de courses",
+  "Así el coach entiende las comidas y los alimentos de tu país.": "Ainsi, le coach comprend les repas et les aliments de votre pays.",
+  "Las dos opciones son con IA: empieza de cero o usa lo que ya tienes en tu Nevera.": "Les deux options utilisent l'IA : partir de zéro ou utiliser ce que vous avez déjà dans votre Frigo."
 }

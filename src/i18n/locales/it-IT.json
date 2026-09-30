@@ -3856,12 +3856,10 @@
   "Si nos dices cuánto quieres pesar, ajustamos el ritmo del plan. Si no, lo decide la IA.": "Se ci dici quanto vuoi pesare, adattiamo il ritmo del piano. Altrimenti decide l'IA.",
   "¿Tienes alguna condición de salud?": "Hai qualche condizione di salute?",
   "¿Qué se te hace más difícil?": "Cosa ti risulta più difficile?",
-  "Así el coach entiende los platos y alimentos de tu país.": "Così il coach capisce i piatti e gli alimenti del tuo paese.",
   "Suplementos (opcional)": "Integratori (facoltativo)",
   "Anota lo que ya tomas, como proteína en polvo o vitaminas. El coach lo tendrá en cuenta al anotar lo que comes.": "Indica ciò che prendi già, come proteine in polvere o vitamine. Il coach ne terrà conto quando registra ciò che mangi.",
   "Último paso": "Ultimo passo",
   "Empezarás a anotar lo que comes. Si luego quieres un plan de comidas, lo activas en Configuración.": "Inizierai a registrare ciò che mangi. Se poi vuoi un piano pasti, lo attivi in Impostazioni.",
-  "La IA puede empezar de cero o usar lo que ya tienes en tu Nevera.": "L'IA può partire da zero o usare ciò che hai già nel Frigo.",
   "Así ponemos tus comidas a las horas que te convienen.": "Così mettiamo i tuoi pasti agli orari che ti vanno bene.",
   "Dormir poco cambia cómo tu cuerpo usa la comida.": "Dormire poco cambia il modo in cui il corpo usa il cibo.",
   "El alcohol, el tabaco, el café y el agua cambian lo que te conviene comer.": "Alcol, tabacco, caffè e acqua cambiano ciò che ti conviene mangiare.",
@@ -3878,5 +3876,7 @@
   "Guardar lista": "Salva lista",
   "Guardar o compartir tu lista": "Salva o condividi la tua lista",
   "Tu lista de compras se guardó como imagen": "La tua lista della spesa è stata salvata come immagine",
-  "Lista de compras": "Lista della spesa"
+  "Lista de compras": "Lista della spesa",
+  "Así el coach entiende las comidas y los alimentos de tu país.": "Così il coach capisce i pasti e gli alimenti del tuo paese.",
+  "Las dos opciones son con IA: empieza de cero o usa lo que ya tienes en tu Nevera.": "Entrambe le opzioni usano l'IA: parti da zero o usa ciò che hai già nel Frigo."
 }

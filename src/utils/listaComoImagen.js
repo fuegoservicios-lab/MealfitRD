@@ -64,7 +64,7 @@ function _descargar(blob, nombre) {
 export async function guardarListaComoImagen({ html2pdf, element, nombre = 'lista-de-compras.png' }) {
     element.style.width = `${ANCHO_IMAGEN_PX}px`;
     const canvas = await html2pdf()
-        .set({ html2canvas: { scale: 3, useCORS: true, windowWidth: ANCHO_IMAGEN_PX, backgroundColor: '#ffffff' } })
+        .set({ html2canvas: { scale: 3, useCORS: true, windowWidth: ANCHO_IMAGEN_PX } })
         .from(element)
         .toCanvas()
         .get('canvas');

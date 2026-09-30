@@ -3856,12 +3856,10 @@
   "Si nos dices cuánto quieres pesar, ajustamos el ritmo del plan. Si no, lo decide la IA.": "Se você nos disser quanto quer pesar, ajustamos o ritmo do plano. Se não, a IA decide.",
   "¿Tienes alguna condición de salud?": "Você tem alguma condição de saúde?",
   "¿Qué se te hace más difícil?": "O que é mais difícil para você?",
-  "Así el coach entiende los platos y alimentos de tu país.": "Assim o coach entende os pratos e alimentos do seu país.",
   "Suplementos (opcional)": "Suplementos (opcional)",
   "Anota lo que ya tomas, como proteína en polvo o vitaminas. El coach lo tendrá en cuenta al anotar lo que comes.": "Anote o que você já toma, como proteína em pó ou vitaminas. O coach vai levar isso em conta ao registrar o que você come.",
   "Último paso": "Último passo",
   "Empezarás a anotar lo que comes. Si luego quieres un plan de comidas, lo activas en Configuración.": "Você vai começar a registrar o que come. Se depois quiser um plano de refeições, é só ativar em Configurações.",
-  "La IA puede empezar de cero o usar lo que ya tienes en tu Nevera.": "A IA pode começar do zero ou usar o que você já tem na sua Geladeira.",
   "Así ponemos tus comidas a las horas que te convienen.": "Assim colocamos suas refeições nos horários que combinam com você.",
   "Dormir poco cambia cómo tu cuerpo usa la comida.": "Dormir pouco muda como seu corpo usa a comida.",
   "El alcohol, el tabaco, el café y el agua cambian lo que te conviene comer.": "Álcool, tabaco, café e água mudam o que é melhor você comer.",
@@ -3878,5 +3876,7 @@
   "Guardar lista": "Salvar lista",
   "Guardar o compartir tu lista": "Salvar ou compartilhar sua lista",
   "Tu lista de compras se guardó como imagen": "Sua lista de compras foi salva como imagem",
-  "Lista de compras": "Lista de compras"
+  "Lista de compras": "Lista de compras",
+  "Así el coach entiende las comidas y los alimentos de tu país.": "Assim o coach entende as refeições e os alimentos do seu país.",
+  "Las dos opciones son con IA: empieza de cero o usa lo que ya tienes en tu Nevera.": "As duas opções usam IA: comece do zero ou use o que você já tem na sua Geladeira."
 }
