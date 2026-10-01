@@ -107,7 +107,7 @@ describe('siguienteTrozoParaVoz', () => {
         expect(ap).toMatch(/while \(largo > 0\)/);
     });
     it('[686] el silencio que da el turno por terminado ya no es 1,1 s fijo (cortaba cada pausa)', () => {
-        expect(VOZ_FIN_DE_FRASE_MS).toBe(1800);
+        expect(VOZ_FIN_DE_FRASE_MS).toBeGreaterThanOrEqual(3800);
     });
     it('sin espacio antes de la puntuación al quitar el formato', () => {
         expect(textoParaHablar('Listo, anoté **2 huevos**.')).toBe('Listo, anoté 2 huevos.');

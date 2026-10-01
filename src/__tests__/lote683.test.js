@@ -87,7 +87,7 @@ describe('elegir la voz nativa: solo en Android y solo si el binario trae los do
 describe('ReconocimientoNativo', () => {
     it('traduce los eventos del plugin a los de la Web Speech API', async () => {
         const p = reconocedorFalso();
-        const rec = new ReconocimientoNativo({ cargar: async () => p });
+        const rec = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: p }) });
         rec.lang = 'es-DO';
         const ev = { start: vi.fn(), result: [], end: vi.fn() };
         rec.onstart = ev.start;
@@ -107,7 +107,7 @@ describe('ReconocimientoNativo', () => {
 
     it('sin permiso de micrófono: not-allowed y fin, sin arrancar', async () => {
         const p = reconocedorFalso({ permiso: 'denied' });
-        const rec = new ReconocimientoNativo({ cargar: async () => p });
+        const rec = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: p }) });
         const errores = [];
         rec.onerror = (e) => errores.push(e.error);
         rec.onend = vi.fn();
@@ -124,7 +124,7 @@ describe('ReconocimientoNativo', () => {
         expect(errorWebDesdeAndroid('NETWORK_TIMEOUT')).toBe('network');
         expect(errorWebDesdeAndroid('UNKNOWN_12')).toBe('language-not-supported');
         const p = reconocedorFalso();
-        const rec = new ReconocimientoNativo({ cargar: async () => p });
+        const rec = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: p }) });
         rec.onend = vi.fn();
         rec.start();
         await esperar(); await esperar(); await esperar();
@@ -139,7 +139,7 @@ describe('ReconocimientoNativo: cancelar a mitad del arranque', () => {
         const p = reconocedorFalso({ permiso: 'prompt' });
         let conceder;
         p.requestPermissions.mockImplementation(() => new Promise((r) => { conceder = r; }));
-        const rec = new ReconocimientoNativo({ cargar: async () => p });
+        const rec = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: p }) });
         rec.onend = vi.fn();
         rec.onerror = vi.fn();
         rec.start();
@@ -156,7 +156,7 @@ describe('ReconocimientoNativo: cancelar a mitad del arranque', () => {
 
     it('abortado mientras se enganchaban los oyentes: se sueltan TODOS y no se abre el micrófono', async () => {
         const p = reconocedorFalso();
-        const rec = new ReconocimientoNativo({ cargar: async () => p });
+        const rec = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: p }) });
         const enganchar = p.addListener.getMockImplementation();
         p.addListener.mockImplementation(async (ev, f) => {
             const h = await enganchar(ev, f);
@@ -174,7 +174,7 @@ describe('ReconocimientoNativo: cancelar a mitad del arranque', () => {
 
     it('stop() antes de oír no se pierde: termina sin abrir el micrófono', async () => {
         const p = reconocedorFalso();
-        const rec = new ReconocimientoNativo({ cargar: async () => p });
+        const rec = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: p }) });
         rec.onend = vi.fn();
         rec.start();
         rec.stop();                                             // el plugin aún se estaba cargando
@@ -185,7 +185,7 @@ describe('ReconocimientoNativo: cancelar a mitad del arranque', () => {
 
     it('al cerrar la sesión, sus oyentes se sueltan (no oyen la siguiente)', async () => {
         const p = reconocedorFalso();
-        const rec = new ReconocimientoNativo({ cargar: async () => p });
+        const rec = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: p }) });
         rec.start();
         await esperar(); await esperar(); await esperar();
         await p.oyentes.listeningState({ state: 'stopped', reason: 'silence' });
@@ -197,7 +197,7 @@ describe('ReconocimientoNativo: cancelar a mitad del arranque', () => {
 describe('crearSintesisNativa', () => {
     it('cada locución habla con su id y recibe su inicio, palabras y fin (aunque lleguen antes que el id)', async () => {
         const p = sintesisFalsa();
-        const { speechSynthesis: synth, SpeechSynthesisUtterance: Loc } = crearSintesisNativa({ cargar: async () => p });
+        const { speechSynthesis: synth, SpeechSynthesisUtterance: Loc } = crearSintesisNativa({ cargar: async () => ({ SpeechSynthesis: p }) });
         const alCargarVoces = vi.fn();
         synth.addEventListener('voiceschanged', alCargarVoces);
         await esperar(); await esperar(); await esperar();
@@ -248,7 +248,7 @@ describe('crearSintesisNativa: las voces', () => {
         p.getVoices
             .mockResolvedValueOnce({ voices: [] })
             .mockResolvedValueOnce({ voices: [{ id: 'es-us-x-esc-local', name: 'es-us-x-esc-local', language: 'es-US' }] });
-        const { speechSynthesis: synth, SpeechSynthesisUtterance: Loc } = crearSintesisNativa({ cargar: async () => p });
+        const { speechSynthesis: synth, SpeechSynthesisUtterance: Loc } = crearSintesisNativa({ cargar: async () => ({ SpeechSynthesis: p }) });
         const alCargarVoces = vi.fn();
         synth.addEventListener('voiceschanged', alCargarVoces);
         synth.speak(new Loc('Hola.'));                           // [951] la primera locución es la que pide la lista
@@ -269,7 +269,7 @@ describe('crearSintesisNativa: las voces', () => {
                 { id: 'es-us-x-esc-local', name: 'es-us-x-esc-local', language: 'es-US', isNetworkConnectionRequired: false },
             ],
         });
-        const { speechSynthesis: synth, SpeechSynthesisUtterance: Loc } = crearSintesisNativa({ cargar: async () => p });
+        const { speechSynthesis: synth, SpeechSynthesisUtterance: Loc } = crearSintesisNativa({ cargar: async () => ({ SpeechSynthesis: p }) });
         synth.speak(new Loc('Hola.'));                           // [951] la lista llega tras la primera locución
         await esperar(); await esperar(); await esperar(); await esperar();
         expect(synth.getVoices().map((v) => [v.id, v.localService])).toEqual([

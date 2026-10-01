@@ -1,6 +1,6 @@
 // [P1-PLAN-LOTE-682 · 2026-09-28] Modo voz del coach: el bucle de la conversación.
 //
-//   escuchando → (calla ~1,5 s) → pensando → hablando (frase a frase mientras llega) → escuchando…
+//   escuchando → (calla ~3,8 s) → pensando → hablando (frase a frase mientras llega) → escuchando…
 //
 // Reglas, y por qué:
 //   · El micrófono y la voz NUNCA a la vez: el coach se oiría a sí mismo y se contestaría. Interrumpir es tocar el
@@ -33,11 +33,11 @@ import { i18nKey } from '../i18n';
 // corte de manera muy natural». El reconocedor le entregó «Yo me comí un plátano maduro con dos» (seguía con
 // «huevos revueltos»): 1,1 s fijo (684) cortaba cada pausa para pensar. Ahora el silencio depende de CÓMO queda la
 // frase: `silencioParaTerminar`.
-export const VOZ_FIN_DE_FRASE_MS = 1800;
+export const VOZ_FIN_DE_FRASE_MS = 3800;
 /** La frase quedó colgando («con dos», «y…», «eh…»): se espera más. */
-export const VOZ_FIN_A_MEDIAS_MS = 3000;
+export const VOZ_FIN_A_MEDIAS_MS = 5000;
 /** Una o dos palabras («Hoy…», «Comí…»): suele venir más detrás. */
-export const VOZ_FIN_CORTA_MS = 2400;
+export const VOZ_FIN_CORTA_MS = 4400;
 /** Reaperturas del micrófono por turno cuando el reconocedor se corta solo (Android lo hace en cada pausa). */
 export const VOZ_MAX_REAPERTURAS = 8;
 /** Micrófono abierto sin una sola palabra: se pausa. */

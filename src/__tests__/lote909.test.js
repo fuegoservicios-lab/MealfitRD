@@ -70,7 +70,7 @@ describe('el adaptador de Android conserva el código original', () => {
             addListener: async (ev, f) => { oyentes[ev] = f; return { remove() {} }; },
             start: async () => {},
         };
-        const rec = new ReconocimientoNativo({ cargar: async () => plugin });
+        const rec = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: plugin }) });
         const errores = [];
         rec.onerror = (e) => errores.push(e);
         rec.start();
@@ -84,7 +84,7 @@ describe('el adaptador de Android conserva el código original', () => {
             checkPermissions: async () => ({ speechRecognition: 'prompt' }),
             requestPermissions: async () => ({ speechRecognition: 'denied' }),
         };
-        const rec = new ReconocimientoNativo({ cargar: async () => plugin });
+        const rec = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: plugin }) });
         const errores = [];
         rec.onerror = (e) => errores.push(e);
         rec.start();

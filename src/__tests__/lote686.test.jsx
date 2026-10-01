@@ -2,7 +2,7 @@
  * [P1-PLAN-LOTE-686] Que el modo voz te deje hablar. El dueño: «me corta rápido cuando dejo de hablar; quiero que me
  * deje hablar y que se corte de manera muy natural». El reconocedor le entregó «Yo me comí un plátano maduro con dos»:
  * 1,1 s fijo cortaba cada pausa para pensar.
- *  · El silencio depende de cómo queda la frase: colgando (3 s), corta (2,4 s) o completa (1,8 s).
+ *  · El silencio depende de cómo queda la frase: colgando (5 s), corta (4,4 s) o completa (3,8 s).
  *  · Si el reconocedor se corta SOLO a media frase (Android en cada pausa), se reabre y se sigue sumando.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -78,6 +78,18 @@ describe('silencioParaTerminar', () => {
 });
 
 describe('dejar hablar', () => {
+    it('deja pensar tres segundos y reinicia la espera al continuar, sin mandar dos mensajes', async () => {
+        const enviar = vi.fn(() => new Promise(() => {}));
+        await abrirYEscuchar(enviar);
+        act(() => ReconocimientoFalso.ultimo.decir('me comí dos huevos revueltos'));
+        await avanzar(3000);
+        expect(enviar).not.toHaveBeenCalled();
+        act(() => ReconocimientoFalso.ultimo.decir('me comí dos huevos revueltos y tostadas'));
+        await avanzar(3000);
+        expect(enviar).not.toHaveBeenCalled();
+        await avanzar(810);
+        expect(enviar).toHaveBeenCalledExactlyOnceWith('me comí dos huevos revueltos y tostadas');
+    });
     it('una pausa tras «con dos» no corta: espera el resto y manda la frase entera', async () => {
         const enviar = vi.fn(() => new Promise(() => {}));
         await abrirYEscuchar(enviar);

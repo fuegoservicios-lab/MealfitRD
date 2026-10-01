@@ -100,7 +100,7 @@ describe('las fases del reconocedor nativo', () => {
             stop: async () => { oyentes.listeningState({ state: 'stopped' }); },
             getLastPartialResult: async () => ({ available: false }),
         };
-        const r = new ReconocimientoNativo({ cargar: async () => plugin });
+        const r = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: plugin }) });
         expect(r.fase).toBe('nuevo');
         const vistas = [];
         r.onstart = () => vistas.push(r.fase);
@@ -118,7 +118,7 @@ describe('las fases del reconocedor nativo', () => {
             addListener: async () => ({ remove() {} }),
             start: async () => {},
         };
-        const r = new ReconocimientoNativo({ cargar: async () => plugin });
+        const r = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: plugin }) });
         r.start();
         await vi.waitFor(() => expect(r.fase).toBe('start_resuelto_sin_started'));
     });

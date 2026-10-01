@@ -45,7 +45,9 @@ export function errorWebDesdeAndroid(code) {
     return 'start';
 }
 
-const cargarReconocedor = () => import('@capgo/capacitor-speech-recognition').then((m) => m.SpeechRecognition);
+// Capacitor devuelve Proxy con un método `then`: resolver una promesa con el plugin la deja colgada.
+// Se espera el módulo (un objeto normal) y se extrae el plugin fuera de la cadena de promesas.
+const cargarReconocedor = () => import('@capgo/capacitor-speech-recognition');
 
 /** Un resultado con la forma que lee `leerResultados` (utils/dictado.js). */
 const resultados = (texto, final) => {
@@ -106,7 +108,7 @@ export class ReconocimientoNativo {
 
     async _arrancar() {
         this.fase = 'cargando';
-        const plugin = await this._cargar();
+        const { SpeechRecognition: plugin } = await this._cargar();
         this._plugin = plugin;
         this.fase = 'permiso';
         let permiso = await plugin.checkPermissions();
@@ -178,7 +180,7 @@ export class ReconocimientoNativo {
     }
 }
 
-const cargarSintesis = () => import('@capgo/capacitor-speech-synthesis').then((m) => m.SpeechSynthesis);
+const cargarSintesis = () => import('@capgo/capacitor-speech-synthesis');
 
 /**
  * La voz nativa con la forma de `speechSynthesis` + `SpeechSynthesisUtterance`, para `crearVozDelCoach`.
@@ -242,12 +244,11 @@ export function crearSintesisNativa({ cargar = cargarSintesis } = {}) {
     // del coach en Android suele ser la de la nube; la del teléfono es respaldo y puede hablar sin lista (por idioma).
     let hablado = false;
     let enVuelo = 0;
-    const listo = cargar().then(async (p) => {
+    const listo = cargar().then(async ({ SpeechSynthesis: p }) => {
         plugin = p;
         for (const tipo of ['start', 'end', 'boundary', 'error']) {
             await p.addListener(tipo, (e) => despachar(tipo, e));
         }
-        return p;
     });
 
     class LocucionNativa {
@@ -271,7 +272,7 @@ export function crearSintesisNativa({ cargar = cargarSintesis } = {}) {
             hablado = true;
             enVuelo += 1;
             listo
-                .then((p) => p.speak({
+                .then(() => plugin.speak({
                     text: loc.text,
                     language: loc.lang || undefined,
                     voiceId: loc.voice?.id || undefined,
