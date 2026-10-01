@@ -5268,15 +5268,12 @@ const AgentPage = () => {
                                         onTouchEnd={handleMicTouchEnd}
                                         onClick={handleMicClick}
                                     >
-                                        {/* [P1-PLAN-LOTE-725 · 2026-09-28] El micrófono SIEMPRE es un micrófono: escuchando se pone
-                                            rojo de «grabando». Antes pintaba ondas moradas en un círculo morado y, al lado del
-                                            botón del modo voz (ondas, degradado), eran el mismo botón (el dueño: «tienen que
-                                            verse visualmente diferente»). */}
-                                        <Mic className="chat-mic-icon" size={21} strokeWidth={2.1} aria-hidden="true" />
-                                        {isListening && (
+                                        {isListening ? (
                                             <span className="chat-mic-activity" aria-hidden="true">
                                                 <i /><i /><i />
                                             </span>
+                                        ) : (
+                                            <Mic size={21} strokeWidth={2.1} aria-hidden="true" />
                                         )}
                                     </button>
                                 )}
@@ -5709,7 +5706,7 @@ const AgentPage = () => {
                     outline: none;
                     -webkit-tap-highlight-color: transparent;
                 }
-                /* El dictado conserva el micrófono; las barras indican que está escuchando. */
+                /* El dictado muestra micrófono en reposo y solo barras mientras escucha. */
                 .chat-mic-btn {
                     position: relative;
                     background: transparent;
@@ -5736,28 +5733,25 @@ const AgentPage = () => {
                     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
                     box-shadow: 0 6px 18px -6px rgba(220, 38, 38, 0.7);
                 }
-                .chat-mic-btn.escuchando .chat-mic-icon { transform: translateX(-5px); }
                 .chat-mic-activity {
-                    position: absolute;
-                    right: 7px;
-                    top: 50%;
-                    transform: translateY(-50%);
                     display: flex;
                     align-items: center;
-                    gap: 1px;
-                    height: 14px;
+                    justify-content: center;
+                    gap: 3px;
+                    width: 21px;
+                    height: 21px;
                     pointer-events: none;
                 }
                 .chat-mic-activity i {
                     display: block;
-                    width: 2px;
-                    height: 8px;
+                    width: 3px;
+                    height: 12px;
                     border-radius: 2px;
                     background: currentColor;
                     animation: chat-mic-actividad 0.9s ease-in-out infinite;
                 }
-                .chat-mic-activity i:nth-child(2) { height: 14px; animation-delay: -0.3s; }
-                .chat-mic-activity i:nth-child(3) { height: 10px; animation-delay: -0.6s; }
+                .chat-mic-activity i:nth-child(2) { height: 21px; animation-delay: -0.3s; }
+                .chat-mic-activity i:nth-child(3) { height: 15px; animation-delay: -0.6s; }
                 @keyframes chat-mic-actividad {
                     0%, 100% { transform: scaleY(0.45); }
                     50% { transform: scaleY(1); }
