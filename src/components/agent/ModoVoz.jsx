@@ -105,7 +105,7 @@ export default function ModoVoz({
                     data-fijo={globoFijo ? '1' : '0'}
                     aria-live="polite"
                 >
-                    {bocadillo}
+                    <span className={styles.bocadilloTexto}>{bocadillo}</span>
                 </p>
                 <div className={styles.burbujaFila} {...manejadoresBurbuja}>
                     <button type="button" className={styles.burbujaAccion} onClick={onExpandir} aria-label={t('Abrir el modo voz')}>

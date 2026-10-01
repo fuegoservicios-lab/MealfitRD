@@ -243,9 +243,15 @@
   font-weight: 600;
   line-height: 1.35;
   overflow-wrap: anywhere;
+  overflow: hidden;
+}
+
+/* Recortar dentro del globo: el padding del contenedor no debe dejar asomar otra línea en WebKit. */
+.bocadilloTexto {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  max-height: 2.7em;
   overflow: hidden;
 }
 
