@@ -244,5 +244,26 @@ export async function vincularFotosDelChat(userId, {
         })
         .filter((f) => ahora - Number(f.t) < VENTANA_MS + MISMO_TURNO_MS && (Number(f.turnos) || 0) <= MAX_TURNOS_DESPUES);
     _escribir(userId, final);
+    // A photo may confirm yesterday's already-correct meal without a correction tool call.
+    // Recover the server's owned, explicit day/slot links, including photos sent before this fix.
+    try {
+        const data = await fetchJson(`/api/diary/chat-photos?tzOffset=${new Date().getTimezoneOffset()}`);
+        const presentes = await idsConFoto(userId);
+        for (const enlace of Array.isArray(data?.photos) ? data.photos : []) {
+            if (!UUID_RE.test(enlace?.meal_id) || !UUID_RE.test(enlace?.attachment_id)
+                || presentes.has(enlace.meal_id)
+                || typeof enlace.image_url !== 'string'
+                || !(enlace.image_url === `/api/chat/attachments/${enlace.attachment_id}`
+                    || enlace.image_url.startsWith(`/api/chat/attachments/${enlace.attachment_id}?`))) continue;
+            let blob = _blobs.get(enlace.attachment_id) || null;
+            if (!blob) {
+                try { blob = await fetchBlob(enlace.image_url); } catch { continue; }
+            }
+            if (blob instanceof Blob && await guardarFotoDeComida(userId, enlace.meal_id, blob)) {
+                guardadas += 1;
+                presentes.add(enlace.meal_id);
+            }
+        }
+    } catch { /* private photo unavailable; retry when the diary opens */ }
     return guardadas;
 }

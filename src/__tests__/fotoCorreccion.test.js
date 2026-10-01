@@ -57,3 +57,37 @@ it('replaces an older picture only for the server-confirmed corrected meal', asy
     expect(await vincularFotosDelChat(UID, servidor())).toBe(1);
     expect(guardarFotoDeComida).toHaveBeenCalledWith(UID, MID, expect.any(Blob));
 });
+
+const PHOTO = '22222222-2222-4222-8222-222222222222';
+const enlace = { meal_id: MID, attachment_id: PHOTO, image_url: `/api/chat/attachments/${PHOTO}?sig=owned` };
+it('recovers yesterday’s unchanged breakfast photo, even after local pending photos expired', async () => {
+    const fetchJson = vi.fn(async url => url.startsWith('/api/diary/chat-photos?') ? { photos: [enlace] } : null);
+    const fetchBlob = vi.fn(async () => blob());
+    expect(await vincularFotosDelChat(UID, { fetchJson, fetchBlob, ahora: NOW })).toBe(1);
+    expect(fetchBlob).toHaveBeenCalledWith(enlace.image_url);
+    expect(guardarFotoDeComida).toHaveBeenCalledWith(UID, MID, expect.any(Blob));
+});
+it('keeps an existing local picture and rejects untrusted photo URLs or malformed IDs', async () => {
+    vi.mocked(idsConFoto).mockResolvedValue(new Set([MID]));
+    const fetchJson = vi.fn(async () => ({ photos: [enlace] }));
+    const fetchBlob = vi.fn(async () => blob());
+    expect(await vincularFotosDelChat(UID, { fetchJson, fetchBlob })).toBe(0);
+    vi.mocked(idsConFoto).mockResolvedValue(new Set());
+    fetchJson.mockResolvedValue({ photos: [{ ...enlace, image_url: 'https://untrusted.test/image' },
+        { ...enlace, meal_id: 'bad' }, { ...enlace, image_url: `/api/chat/attachments/${MID}?sig=wrong-image` }] });
+    expect(await vincularFotosDelChat(UID, { fetchJson, fetchBlob })).toBe(0);
+    expect(fetchBlob).not.toHaveBeenCalled();
+});
+it('retries a failed historical photo download the next time the diary opens', async () => {
+    const fetchJson = vi.fn(async () => ({ photos: [enlace] }));
+    const fetchBlob = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(blob());
+    expect(await vincularFotosDelChat(UID, { fetchJson, fetchBlob })).toBe(0);
+    expect(await vincularFotosDelChat(UID, { fetchJson, fetchBlob })).toBe(1);
+});
+it('one unavailable historical photo does not prevent recovering another meal', async () => {
+    const otro = { ...enlace, meal_id: '33333333-3333-4333-8333-333333333333' };
+    const fetchJson = vi.fn(async () => ({ photos: [otro, enlace] }));
+    const fetchBlob = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(blob());
+    expect(await vincularFotosDelChat(UID, { fetchJson, fetchBlob })).toBe(1);
+    expect(guardarFotoDeComida).toHaveBeenCalledWith(UID, MID, expect.any(Blob));
+});

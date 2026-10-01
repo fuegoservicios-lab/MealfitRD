@@ -92,10 +92,11 @@ describe('recordar y enlazar', () => {
         expect(await vincularFotosDelChat(UID, { ...s, ahora: T0 + 90000 })).toBe(0);
     });
 
-    it('sin fotos recientes no pregunta nada al servidor', async () => {
+    it('sin fotos recientes solo consulta enlaces históricos confirmados', async () => {
         const s = servidor([]);
         expect(await vincularFotosDelChat(UID, { ...s, ahora: T0 })).toBe(0);
-        expect(s.fetchJson).not.toHaveBeenCalled();
+        expect(s.fetchJson).toHaveBeenCalledTimes(1);
+        expect(s.fetchJson).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/diary\/chat-photos\?tzOffset=/));
     });
 });
 
