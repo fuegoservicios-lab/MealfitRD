@@ -90,8 +90,12 @@ export function leerResultados(results) {
     let provisional = '';
     for (let i = 0; i < (results?.length || 0); i += 1) {
         const trozo = results[i]?.[0]?.transcript || '';
-        if (results[i]?.isFinal) finales += trozo;
-        else provisional += trozo;
+        // Each result is a recognition segment, not a token delta. Some engines omit the boundary space.
+        // Preserve punctuation and existing spaces, but never merge "arroz" + "con pollo" into "arrozcon pollo".
+        const unirSegmento = (antes) => antes && trozo && !/\s$/.test(antes)
+            && !/^[\s,.;:!?…)}\]]/.test(trozo) ? `${antes} ${trozo}` : `${antes}${trozo}`;
+        if (results[i]?.isFinal) finales = unirSegmento(finales);
+        else provisional = unirSegmento(provisional);
     }
     return { finales, provisional };
 }

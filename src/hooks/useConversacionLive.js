@@ -15,6 +15,7 @@ import { fetchWithAuth } from '../config/api';
 import { i18nKey } from '../i18n';
 import { sonarModoVoz, DURACION_SONIDO_VOZ_MS } from '../utils/sonidosModoVoz';
 import { crearVigiaDeSilencio, hayActividadDeAudio } from '../utils/cierreVozPorSilencio';
+import { capturarMicrofonoDeVoz } from '../utils/capturaMicrofono';
 
 export const LIVE_SONDEO_MS = 2000;
 
@@ -147,7 +148,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
         const inicioSonido = Date.now();
         sonarModoVoz('abrir');
         try {
-            c.micro = await navigator.mediaDevices.getUserMedia({ audio: true });
+            c.micro = await capturarMicrofonoDeVoz();
             if (conexionRef.current !== c || !abiertoRef.current) { soltar(c); return; }
             c.micro.getTracks().forEach((tr) => { tr.enabled = false; });
             // iOS: una llamada (oír y hablar a la vez) por el altavoz, no bajito por el auricular.

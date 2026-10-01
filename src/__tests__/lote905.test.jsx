@@ -129,6 +129,11 @@ describe('useConversacionLive', () => {
         expect(result.current.abierto).toBe(true);
         expect(sonarModoVoz.mock.calls).toEqual([['abrir']]);
         expect(pista.enabled).toBe(true);
+        expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+            audio: { channelCount: { ideal: 1 }, echoCancellation: { ideal: true },
+                noiseSuppression: { ideal: true }, autoGainControl: { ideal: true } }, video: false,
+        });
+        expect(PeerFalso.ultimo.pistas).toContain(pista);
     });
 
     it('los eventos de la sesión mueven el círculo: oye, piensa (delega), habla', async () => {
@@ -153,7 +158,6 @@ describe('useConversacionLive', () => {
         await abierto({ alNovedad });
         await act(async () => { vi.advanceTimersByTime(LIVE_SONDEO_MS + 10); await Promise.resolve(); await Promise.resolve(); });
         expect(alNovedad).toHaveBeenCalledWith(expect.objectContaining({ ajustes_de_app: { hidratacion: true } }));
-        const ultima = red.pedidas.filter((p) => p.url.includes('/novedades')).at(-1);
         await act(async () => { vi.advanceTimersByTime(LIVE_SONDEO_MS + 10); await Promise.resolve(); });
         expect(red.pedidas.filter((p) => p.url.includes('/novedades')).at(-1).url).toContain('desde=1');
         expect(red.pedidas.find((p) => p.url.includes('/novedades')).url).toContain('desde=0');
