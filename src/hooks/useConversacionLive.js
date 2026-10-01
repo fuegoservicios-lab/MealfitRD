@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchWithAuth } from '../config/api';
 import { i18nKey } from '../i18n';
 import { sonarModoVoz, DURACION_SONIDO_VOZ_MS } from '../utils/sonidosModoVoz';
+import { crearVigiaDeSilencio, hayActividadDeAudio } from '../utils/cierreVozPorSilencio';
 
 export const LIVE_SONDEO_MS = 2000;
 
@@ -32,6 +33,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
     const [error, setError] = useState(null);
     const [pulso, setPulso] = useState(0);
     const conexionRef = useRef(null);   // { pc, dc, micro, audio, liveId, sondeo, visto }
+    const cierreRef = useRef(null);
     const abiertoRef = useRef(false);
     const avisarCierre = useCallback(() => {
         if (!abiertoRef.current) return;
@@ -56,6 +58,8 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
         if (conexionRef.current === c) conexionRef.current = null;
         if (!c) return;
         c.soltada = true;
+        c.silencio?.detener();
+        clearTimeout(c.vigiaAudio);
         clearTimeout(c.sondeo);
         c.pedidos?.forEach((ctrl) => ctrl.abort());
         try { c.micro?.getTracks().forEach((tr) => tr.stop()); } catch { /* ya parado */ }
@@ -81,6 +85,8 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
                 if (!Number.isInteger(n.n) || n.n <= c.visto) continue;
                 c.visto = n.n;
                 nuevas += 1;
+                if (n.turno_completo === true && !n.aviso_diario) c.silencio?.esperar();
+                if (n.aviso_diario) c.silencio?.actividad();
                 try { alNovedadRef.current?.(n); } catch { /* una novedad rota no para las demás */ }
             }
             if (d.cerrada && conexionRef.current === c) { soltar(); avisarCierre(); setEstado('cerrado'); }
@@ -104,12 +110,15 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
         const tipo = ev?.type || '';
         const texto = typeof ev?.delta === 'string' ? ev.delta : (typeof ev?.text === 'string' ? ev.text : '');
         if (tipo === 'session.input_transcript.delta') {
+            conexionRef.current?.silencio?.actividad();
             setDicho('');
             setOido((o) => `${o}${texto}`.slice(-400));
             setEstado('escuchando');
         } else if (tipo === 'session.delegation.created') {
+            conexionRef.current?.silencio?.ocuparse();
             setEstado('pensando');
         } else if (tipo === 'session.output_transcript.delta') {
+            conexionRef.current?.silencio?.actividad();
             setOido('');
             setDicho((d) => `${d}${texto}`.slice(-400));
             setPulso((p) => p + 1);
@@ -132,6 +141,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
         setDicho('');
         setEstado('pensando');
         const c = { pc: null, dc: null, micro: null, audio: null, liveId: null, sondeo: null, visto: 0, pedidos: new Set() };
+        c.silencio = crearVigiaDeSilencio(() => { if (conexionRef.current === c) cierreRef.current?.(); });
         conexionRef.current = c;
         abiertoRef.current = true;
         const inicioSonido = Date.now();
@@ -178,6 +188,18 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
             if (restante > 0) await new Promise((r) => setTimeout(r, restante));
             if (conexionRef.current !== c || !abiertoRef.current) return;
             c.micro.getTracks().forEach((tr) => { tr.enabled = true; });
+            c.silencio.esperar();
+            const muestras = new Map();
+            const medirAudio = async () => {
+                if (conexionRef.current !== c || c.soltada) return;
+                try {
+                    const stats = await c.pc.getStats();
+                    if (conexionRef.current !== c || c.soltada) return;
+                    if (hayActividadDeAudio(stats, muestras)) c.silencio.actividad();
+                } catch { /* los transcriptos también mantienen el plazo */ }
+                if (conexionRef.current === c && !c.soltada) c.vigiaAudio = setTimeout(medirAudio, 250);
+            };
+            medirAudio();
             vigilar(c);
             setEstado('escuchando');
         } catch (e) {
@@ -191,6 +213,8 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
 
     const cerrar = useCallback(() => {
         const c = conexionRef.current;
+        c?.silencio?.detener();
+        clearTimeout(c?.vigiaAudio);
         if (c?.dc?.readyState === 'open') {
             try { c.dc.send(JSON.stringify({ type: 'session.close' })); } catch { /* ya cerrado */ }
         }
@@ -208,10 +232,13 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
         setDicho('');
     }, [soltar, sondear, avisarCierre]);
 
+    useEffect(() => { cierreRef.current = cerrar; }, [cerrar]);
+
     useEffect(() => () => soltar(), [soltar]);
 
     const tocar = useCallback(() => { /* full-duplex: se habla sin tocar; interrumpir es hablar encima */ }, []);
     const hablar = useCallback(() => { /* la voz la pone GPT-Live-1, no el stream del chat */ }, []);
+    const notificarBorrado = useCallback(() => { conexionRef.current?.silencio?.actividad(); }, []);
 
-    return { disponible, abierto: estado !== 'cerrado', estado, oido, dicho, error, pulso, abrir, cerrar, tocar, hablar };
+    return { disponible, abierto: estado !== 'cerrado', estado, oido, dicho, error, pulso, abrir, cerrar, tocar, hablar, notificarBorrado };
 }

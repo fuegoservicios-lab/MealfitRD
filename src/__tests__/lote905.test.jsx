@@ -68,6 +68,45 @@ async function abierto(opts = {}) {
 }
 
 describe('useConversacionLive', () => {
+    async function abrirConReloj() {
+        vi.useFakeTimers();
+        const hook=renderHook(()=>useConversacionLive({sessionId:'chat-1'}));
+        await act(async()=>{await Promise.resolve();});
+        expect(hook.result.current.disponible).toBe(true);
+        await act(async()=>{
+            const abierta=hook.result.current.abrir();
+            await vi.advanceTimersByTimeAsync(200);
+            await abierta;
+        });
+        return hook;
+    }
+
+    it('cierra al cumplir diez segundos de silencio y libera el micrófono, con un solo tono', async()=>{
+        const {result}=await abrirConReloj();
+        act(()=>result.current.notificarBorrado());
+        await act(async()=>{await vi.advanceTimersByTimeAsync(9999);});
+        expect(result.current.abierto).toBe(true);
+        await act(async()=>{await vi.advanceTimersByTimeAsync(1);});
+        expect(result.current.abierto).toBe(false);
+        expect(pista.stop).toHaveBeenCalled();
+        expect(CanalFalso.ultimo.enviados).toContainEqual({type:'session.close'});
+        expect(sonarModoVoz.mock.calls).toEqual([['abrir'],['cerrar']]);
+    });
+
+    it('no corta una delegación lenta ni el audio real del agente aunque la última transcripción haya llegado antes', async()=>{
+        const {result}=await abrirConReloj();
+        act(()=>CanalFalso.ultimo.emitir({type:'session.delegation.created'}));
+        await act(async()=>{await vi.advanceTimersByTimeAsync(20000);});
+        expect(result.current.abierto).toBe(true);
+        let level=.1;
+        PeerFalso.ultimo.getStats=async()=>new Map([['remote',{id:'remote',type:'inbound-rtp',kind:'audio',audioLevel:level}]]);
+        red.respuestas['/api/chat/live/live_1/novedades'].body={novedades:[{n:1,turno_completo:true}],cerrada:false};
+        await act(async()=>{await vi.advanceTimersByTimeAsync(14000);});
+        expect(result.current.abierto).toBe(true);
+        level=0;
+        await act(async()=>{await vi.advanceTimersByTimeAsync(10001);});
+        expect(result.current.abierto).toBe(false);
+    });
     it('sin habilitar en el servidor no está disponible (y el modo voz de siempre sigue)', async () => {
         red.respuestas['/api/chat/live/disponible'] = { status: 200, body: { disponible: false } };
         const { result } = renderHook(() => useConversacionLive({ sessionId: 'chat-1' }));

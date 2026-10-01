@@ -28,6 +28,7 @@ import { triggerMobileHaptic } from '../utils/mobileHaptics';
 import { sonarModoVoz } from '../utils/sonidosModoVoz';
 import { avisarFalloDeVoz } from '../utils/diagnosticoVoz';
 import { i18nKey } from '../i18n';
+import { crearVigiaDeSilencio } from '../utils/cierreVozPorSilencio';
 
 /** Silencio tras la última palabra que se toma como «terminó de hablar». */
 // [P1-PLAN-LOTE-686] El dueño, probándolo: «me corta rápido cuando dejo de hablar; quiero que me deje hablar y que se
@@ -88,9 +89,17 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
     const [dicho, setDicho] = useState('');
     const [error, setError] = useState(null);
     const [pulso, setPulso] = useState(0);
+    const cierreRef = useRef(null);
+    const [silencio] = useState(() => crearVigiaDeSilencio(() => cierreRef.current?.()));
 
     const estadoRef = useRef('cerrado');
-    const setEstado = useCallback((e) => { estadoRef.current = e; setEstadoVisible(e); }, []);
+    const setEstado = useCallback((e) => {
+        estadoRef.current = e;
+        setEstadoVisible(e);
+        if (e === 'cerrado') silencio.detener();
+        else if (e === 'pensando' || e === 'hablando') silencio.ocuparse();
+        else silencio.esperar();
+    }, [silencio]);
     const enviarRef = useRef(enviar);
     const localeRef = useRef(locale);
     const saludoRef = useRef(saludo);
@@ -123,6 +132,7 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
     const inicioTurnoRef = useRef(0);
     const terminarRef = useRef(null);  // el `terminar` de la sesión viva
     const arranqueRef = useRef(null);  // [P1-PLAN-LOTE-909] vigía del arranque del micrófono
+    const avisosRef = useRef([]);
 
     const soltarTemporizadores = () => {
         for (const r of [finFraseRef, sinVozRef, topeRef, reanudarRef, arranqueRef]) {
@@ -133,6 +143,12 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
 
     // Solo toca refs y setters estables: las devoluciones de la voz se crean una vez y no pueden quedarse viejas.
     const programarEscucha = () => {
+        if (estadoRef.current !== 'cerrado' && avisosRef.current.length) {
+            const aviso = avisosRef.current.shift();
+            setEstado('hablando');
+            voz().encolar(aviso);
+            return;
+        }
         if (reanudarRef.current) clearTimeout(reanudarRef.current);
         reanudarRef.current = setTimeout(() => {
             reanudarRef.current = null;
@@ -264,6 +280,7 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         };
         rec.onresult = (evento) => {
             if (id !== sesionRef.current) return;
+            silencio.actividad();
             const { finales, provisional } = leerResultados(evento.results);
             oidoRef.current = `${acumuladoRef.current} ${finales} ${provisional}`.replace(/\s+/g, ' ').trim();
             setOido(oidoRef.current);
@@ -430,6 +447,7 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
     const cerrar = useCallback(() => {
         const estabaAbierto = estadoRef.current !== 'cerrado';
         setEstado('cerrado');
+        avisosRef.current = [];
         soltarTemporizadores();
         cortarEscucha();
         vozRef.current?.cancelar();
@@ -438,6 +456,19 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         setDicho('');
         setError(null);
     }, [setEstado]);
+
+    useEffect(() => { cierreRef.current = cerrar; }, [cerrar]);
+    useEffect(() => () => silencio.detener(), [silencio]);
+
+    const notificarBorrado = useCallback((texto) => {
+        if (estadoRef.current === 'cerrado' || !texto) return;
+        avisosRef.current.push(texto);
+        if (turnoRef.current || estadoRef.current === 'hablando' || (estadoRef.current === 'escuchando' && oidoRef.current)) return;
+        soltarTemporizadores();
+        cortarEscucha();
+        programarEscucha();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Chrome carga las voces tarde: pedirlas ya hace que estén cuando el usuario abra el modo voz.
     useEffect(() => {
@@ -467,5 +498,5 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         };
     }, [setEstado]);
 
-    return { disponible, abierto: estado !== 'cerrado', estado, oido, dicho, error, pulso, abrir, cerrar, tocar, hablar };
+    return { disponible, abierto: estado !== 'cerrado', estado, oido, dicho, error, pulso, abrir, cerrar, tocar, hablar, notificarBorrado };
 }

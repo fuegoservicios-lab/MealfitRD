@@ -361,7 +361,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             if (!res.ok || !data?.success) throw new Error(data?.detail || data?.message || 'delete failed');
             setVersion((v) => v + 1);
             try {
-                window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'diary-history', date: selected } }));
+                window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'diary-history', date: selected, userId, deletedMeal: { id: meal.id, name: meal.meal_name } } }));
             } catch { /* best-effort */ }
             borrarFotoDeComidaEnSegundoPlano(userId, meal.id);
             toast.success(t('"{nombre}" eliminada del diario.', { nombre: meal.meal_name }));

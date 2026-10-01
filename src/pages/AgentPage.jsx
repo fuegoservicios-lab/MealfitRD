@@ -2067,7 +2067,7 @@ const AgentPage = () => {
         locale: getLocale(),
         alNovedad: (n) => {
             if (n?.turno_completo !== false) {
-                trackEvent('coach_voz_live_turno');
+                if (!n?.aviso_diario) trackEvent('coach_voz_live_turno');
                 try { fetchSessionMessagesRef.current?.(currentSessionIdRef.current); } catch { /* el próximo */ }
             }
             const _uidVoz = session?.user?.id || userProfile?.id;
@@ -2098,6 +2098,18 @@ const AgentPage = () => {
     });
     const vozCoach = vozEnVivo.disponible ? vozEnVivo : vozDelTelefono;
     const isCallModeActive = vozCoach.abierto;
+    const avisarBorrado = vozCoach.notificarBorrado;
+    const usuarioDeVoz = session?.user?.id || userProfile?.id;
+    useEffect(() => {
+        if (!isCallModeActive) return undefined;
+        const borrado = (e) => {
+            const d = e.detail;
+            if (!d?.deletedMeal?.id || d.userId !== usuarioDeVoz) return;
+            avisarBorrado(t('"{nombre}" eliminada del diario.', { nombre: d.deletedMeal.name }));
+        };
+        window.addEventListener('mealfit:diary-changed', borrado);
+        return () => window.removeEventListener('mealfit:diary-changed', borrado);
+    }, [isCallModeActive, avisarBorrado, usuarioDeVoz, t]);
     const callModeRef = useRef(false);
     useEffect(() => { callModeRef.current = isCallModeActive; }, [isCallModeActive]);
 
