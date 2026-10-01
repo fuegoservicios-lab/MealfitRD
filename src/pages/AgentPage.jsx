@@ -5173,6 +5173,7 @@ const AgentPage = () => {
                             ya respeta esto). */}
                         <textarea
                             ref={chatInputRef}
+                            className="chat-composer-input"
                             rows={1}
                             value={input}
                             // [P2-AGENT-413-NO-RETRY · 2026-05-30] Cap cliente
@@ -6667,6 +6668,16 @@ const AgentPage = () => {
                     50% { transform: rotate(10deg); }
                     60% { transform: rotate(0deg); }
                     100% { transform: rotate(0deg); }
+                }
+
+                /* Oculta la barra interna junto al micrófono, conservando el scroll del texto. */
+                .chat-composer-input {
+                    scrollbar-width: none;
+                }
+                .chat-composer-input::-webkit-scrollbar {
+                    display: none;
+                    width: 0;
+                    height: 0;
                 }
 
                 /* --- Scrollbar clásica (Sidebar & PC Chat) ---
