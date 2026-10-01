@@ -3,12 +3,13 @@
 // El PDF está pensado para una hoja A4: con muchas líneas baja la letra a 6,5-8 px para que quepa en una página
 // (`computePdfLayoutDensity`), y en un teléfono se abre en un visor donde hay que hacer zoom para leerla. El dueño lo
 // pidió: «si es mejor quiero que sea una imagen lo de la lista de compras móvil». En el teléfono la MISMA plantilla se
-// dibuja en una columna, con la letra cómoda y sin límite de alto (una imagen larga se desliza en la galería), y se
-// comparte con la hoja del sistema (app nativa: plugins Share + Filesystem; web: Web Share) o se descarga.
+// dibuja en una columna con letra cómoda, dividida en páginas cortas que se previsualizan antes de compartir.
+// Cada página se comparte con la hoja del sistema (app nativa: Share + Filesystem; web: Web Share) o se descarga.
 // El escritorio sigue con el PDF.
-import { archivoDeImagen, compartir } from './compartirDia';
+import { archivoDeImagen, compartir, puedeCompartirImagenes, puedeCompartirNativo } from './compartirDia';
 import { isNativeApp } from '../config/platform';
 import { t } from '../i18n';
+import { paginarListaMovil } from './paginasListaMovil';
 
 /** Ancho CSS del dibujo: el de un teléfono, para que la letra de la plantilla se lea a tamaño real. */
 export const ANCHO_IMAGEN_PX = 400;
@@ -57,18 +58,37 @@ function _descargar(blob, nombre) {
     }
 }
 
-/**
- * Dibuja `element` (la plantilla de la lista) como PNG y lo comparte; si no se puede compartir, lo descarga.
- * Devuelve 'compartido' | 'cancelado' | 'descargado'. Lanza si el dibujo falla (el llamador ya muestra el error).
- */
-export async function guardarListaComoImagen({ html2pdf, element, nombre = 'lista-de-compras.png' }) {
-    element.style.width = `${ANCHO_IMAGEN_PX}px`;
-    const canvas = await html2pdf()
-        .set({ html2canvas: { scale: 3, useCORS: true, windowWidth: ANCHO_IMAGEN_PX } })
-        .from(element)
-        .toCanvas()
-        .get('canvas');
-    const blob = await _blobDe(canvas);
+/** Prepare short readable images. Sharing happens later, from a fresh tap in the preview. */
+export async function guardarListaComoImagen({ html2pdf, element, nombre = 'lista-de-compras.png', signal }) {
+    const host = document.createElement('div');
+    host.style.cssText = 'position:absolute;left:-10000px;top:0;width:400px;pointer-events:none;';
+    document.body.appendChild(host);
+    const comprobar = () => { if (signal?.aborted) throw new DOMException('Aborted', 'AbortError'); };
+    try {
+        if (document.fonts?.ready) await document.fonts.ready;
+        comprobar();
+        const paginas = paginarListaMovil(element, host);
+        const imagenes = [];
+        for (const [i, pagina] of paginas.entries()) {
+            comprobar();
+            const canvas = await html2pdf()
+                .set({ margin: 0, jsPDF: { unit: 'px', format: [ANCHO_IMAGEN_PX, pagina.scrollHeight],
+                    orientation: 'portrait', hotfixes: ['px_scaling'] },
+                    html2canvas: { scale: 2, useCORS: true, windowWidth: ANCHO_IMAGEN_PX }, pagebreak: { mode: [] } })
+                .from(pagina).toCanvas().get('canvas');
+            try {
+                const blob = await _blobDe(canvas);
+                comprobar();
+                imagenes.push({ blob, nombre: paginas.length > 1
+                    ? nombre.replace(/\.png$/i, '') + `-${i + 1}-${paginas.length}.png` : nombre });
+            } finally { canvas.width = 0; canvas.height = 0; }
+        }
+        return imagenes;
+    } finally { host.remove(); }
+}
+
+/** Share one prepared page; cancellation keeps the preview, unsupported sharing downloads the image. */
+export async function guardarPaginaLista({ blob, nombre }) {
     const r = await compartir({
         archivo: archivoDeImagen(blob, nombre), texto: '',
         titulo: t('Lista de compras'), tituloHoja: t('Guardar o compartir tu lista'),
@@ -77,3 +97,15 @@ export async function guardarListaComoImagen({ html2pdf, element, nombre = 'list
     _descargar(blob, nombre);
     return 'descargado';
 }
+
+export function puedeCompartirLista(imagenes) {
+    return puedeCompartirNativo() || puedeCompartirImagenes(imagenes.map(({ blob, nombre }) => archivoDeImagen(blob, nombre)));
+}
+
+export function compartirPaginasLista(imagenes) {
+    const archivos = imagenes.map(({ blob, nombre }) => archivoDeImagen(blob, nombre));
+    if (!archivos.length || !archivos.every(Boolean)) return Promise.resolve('fallo');
+    return compartir({ archivos, texto: '', titulo: t('Lista de compras'), tituloHoja: t('Guardar o compartir tu lista') });
+}
+
+export function descargarPaginaLista({ blob, nombre }) { _descargar(blob, nombre); }

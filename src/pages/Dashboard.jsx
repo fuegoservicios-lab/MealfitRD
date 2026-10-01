@@ -31,6 +31,7 @@ import { formatCurrencyName, formatDate, formatNumber, i18nKey, t, tn, useI18n, 
 import { WORDMARK_TEXT } from '../config/brand';
 import { pdfFileName } from '../utils/pdfFileName';
 import { esImagenMovil, LAYOUT_IMAGEN_MOVIL, guardarListaComoImagen } from '../utils/listaComoImagen';
+import ListaImagenPreview from '../components/dashboard/ListaImagenPreview';
 // [P1-DASH-BUDGET-CURRENCY · 2026-08-21] `COUNTRY_SYSTEM_UI` se suma a este import ya existente.
 // Sin el símbolo, `currencyOptionsForCountry(pais, COUNTRY_SYSTEM_UI)` NO habría fallado:
 // `undefined` es falsy, así que habría devuelto [DOP, USD] en silencio — el bug intacto con
@@ -2239,6 +2240,7 @@ const DashboardInner = () => {
     // `setLiveInventory`/`setInventoryStale` y se descargaban dos PDFs
     // idénticos con telemetría duplicada (`pdf_stale_inventory_fallback`).
     const pdfLock = useRef(false);
+    const [listaImagenes, setListaImagenes] = useState(null);
     const disabledSyncTimer = useRef(null);
     const formDataRef = useRef(formData);
     useEffect(() => { formDataRef.current = formData; }, [formData]);
@@ -4229,7 +4231,7 @@ const DashboardInner = () => {
                     const catHeaderPadding = isHyperDense ? '3px 6px' : isUltraDense ? '4px 8px' : (isDense ? '6px 10px' : '8px 12px');
                     const catTitleFont = isHyperDense ? '8px' : isUltraDense ? '9.5px' : '11px';
                     innerHtml += `
-                    <div style="background-color: #ffffff; border: 1px solid #f3f4f6; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); margin-bottom: ${catMargin}; ${cardStyle}">
+                    <div data-lista-categoria style="background-color: #ffffff; border: 1px solid #f3f4f6; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); margin-bottom: ${catMargin}; ${cardStyle}">
                         <div style="background-color: #f8fafc; padding: ${catHeaderPadding}; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 6px;">
                             ${icon}
                             <h3 style="margin: 0; font-size: ${catTitleFont}; font-weight: 800; color: #1f2937; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(glossShoppingCategory(cat, t))}</h3>
@@ -4611,7 +4613,7 @@ const DashboardInner = () => {
             // Cierra el bug "2ª hoja vacía": `avoid-all` igual paginaba cuando el contenido pasaba la A4 por
             // unos mm (el footer/micros caía a una pág. 2 casi en blanco). Fit-to-content. Fail-safe → A4.
             // El caso multi-página REAL (30 días / hyper-dense ≥60 ítems) NO se toca: necesita varias hojas.
-            if (!paginateFormally) {
+            if (!_imagenMovil && !paginateFormally) {
                 try {
                     // Fuentes listas → la altura medida coincide con la que renderiza html2canvas.
                     if (document.fonts && document.fonts.ready) { await document.fonts.ready; }
@@ -4698,23 +4700,25 @@ const DashboardInner = () => {
                 }, _pdfRenderTimeoutMs);
             });
             let _resultadoImagen = null;
+            const _imagenAbort = new AbortController();
             try {
                 await Promise.race([
                     _imagenMovil
-                        ? guardarListaComoImagen({ html2pdf, element, nombre: opt.filename.replace(/\.pdf$/i, '') + '.png' })
-                            .then((r) => { _resultadoImagen = r; })
+                        ? guardarListaComoImagen({ html2pdf, element, nombre: opt.filename.replace(/\.pdf$/i, '') + '.png', signal: _imagenAbort.signal })
+                            .then((r) => { if (!_imagenAbort.signal.aborted) _resultadoImagen = r; })
                         : html2pdf().set(opt).from(element).save(),
                     _pdfTimeoutPromise,
                 ]);
             } finally {
+                _imagenAbort.abort();
                 if (_pdfTimeoutHandle) clearTimeout(_pdfTimeoutHandle);
             }
 
             toast.dismiss(loadingToast);
             if (!_imagenMovil) {
                 toast.success(t('Lista PDF descargada exitosamente'), { icon: '📄', position: 'top-center' });
-            } else if (_resultadoImagen === 'descargado') {
-                toast.success(t('Tu lista de compras se guardó como imagen'), { icon: '🖼️', position: 'top-center' });
+            } else if (_resultadoImagen?.length) {
+                setListaImagenes(_resultadoImagen);
             }
 
             // [P3-SHOPPING-4 · 2026-05-14] Telemetría de éxito. Antes solo
@@ -9745,6 +9749,7 @@ const DashboardInner = () => {
                 Sin X a propósito: es el recordatorio que no depende de que el usuario haya declarado nada. */}
             <NotaAvisoMedico />
 
+            {listaImagenes && <ListaImagenPreview imagenes={listaImagenes} onClose={() => setListaImagenes(null)} />}
             {/* MODAL DE ONBOARDING WEB PUSH (Alertas Inteligentes) */}
             <AnimatePresence>
                 {showPushOnboarding && (

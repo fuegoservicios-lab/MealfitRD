@@ -7,10 +7,11 @@ const compartirMock = vi.fn();
 vi.mock('../utils/compartirDia', () => ({
     archivoDeImagen: (blob, nombre) => ({ blob, name: nombre }),
     compartir: (...a) => compartirMock(...a),
+    puedeCompartirImagenes: () => true, puedeCompartirNativo: () => false,
 }));
 vi.mock('../config/platform', () => ({ isNativeApp: () => false }));
 
-const { esImagenMovil, guardarListaComoImagen, LAYOUT_IMAGEN_MOVIL } = await import('../utils/listaComoImagen');
+const { esImagenMovil, guardarListaComoImagen, guardarPaginaLista, LAYOUT_IMAGEN_MOVIL } = await import('../utils/listaComoImagen');
 
 function html2pdfFalso() {
     const canvas = { toBlob: (cb) => cb(new Blob(['png'], { type: 'image/png' })) };
@@ -33,15 +34,20 @@ describe('lote 927 · lista de compras como imagen en el teléfono', () => {
         expect(LAYOUT_IMAGEN_MOVIL.columnCount).toBe(1);
     });
 
-    it('comparte la imagen; si no se puede, la descarga', async () => {
+    it('prepara la imagen antes de compartir desde un toque nuevo; si no se puede, la descarga', async () => {
         const el = document.createElement('div');
+        el.innerHTML = '<div><h1>Lista de compras</h1><div data-lista-categoria><h3>Frutas</h3><ul><li><span>Manzanas</span></li></ul></div></div>';
+        const [imagen] = await guardarListaComoImagen({ html2pdf: html2pdfFalso(), element: el, nombre: 'l.png' });
+        expect(imagen.nombre).toBe('l.png');
+        expect(compartirMock).not.toHaveBeenCalled();
         compartirMock.mockResolvedValue('compartido');
-        expect(await guardarListaComoImagen({ html2pdf: html2pdfFalso(), element: el, nombre: 'l.png' })).toBe('compartido');
-        expect(el.style.width).toBe('400px');
+        expect(await guardarPaginaLista(imagen)).toBe('compartido');
         globalThis.URL.createObjectURL = vi.fn(() => 'blob:x');
         globalThis.URL.revokeObjectURL = vi.fn();
         compartirMock.mockResolvedValue('fallo');
-        expect(await guardarListaComoImagen({ html2pdf: html2pdfFalso(), element: el, nombre: 'l.png' })).toBe('descargado');
+        expect(await guardarPaginaLista(imagen)).toBe('descargado');
+        compartirMock.mockResolvedValue('cancelado');
+        expect(await guardarPaginaLista(imagen)).toBe('cancelado');
     });
 
     it('el panel usa la imagen en el teléfono y el PDF en el escritorio', () => {

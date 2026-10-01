@@ -122,9 +122,13 @@ export function archivoDeImagen(blob, nombre = 'mi-dia-bioboros.png') {
 }
 
 export function puedeCompartirImagen(archivo) {
+    return puedeCompartirImagenes(archivo ? [archivo] : []);
+}
+
+export function puedeCompartirImagenes(archivos) {
     try {
-        return !!(archivo && typeof navigator !== 'undefined' && typeof navigator.canShare === 'function'
-            && navigator.canShare({ files: [archivo] }));
+        return !!(archivos?.length && archivos.every(Boolean) && typeof navigator !== 'undefined' && typeof navigator.canShare === 'function'
+            && navigator.canShare({ files: archivos }));
     } catch { return false; }
 }
 
@@ -154,28 +158,32 @@ const _base64 = (blob) => new Promise((resolve, reject) => {
     lector.readAsDataURL(blob);
 });
 
-async function _compartirNativo({ archivo, texto, titulo = null, tituloHoja = null }) {
+async function _compartirNativo({ archivos, texto, titulo = null, tituloHoja = null }) {
     const [{ Share }, { Filesystem, Directory }] = await Promise.all([
         import('@capacitor/share'), import('@capacitor/filesystem'),
     ]);
     // [P1-PLAN-LOTE-386] con imagen, la imagen SOLA (el texto pegado debajo «se ve raro», dijo el dueño)
     // [P1-PLAN-LOTE-927] la lista de compras reutiliza esta salida con su propio título
-    const opciones = { title: titulo || t('Mi día'), dialogTitle: tituloHoja || t('Compartir tu día'), ...(archivo ? {} : { text: texto }) };
-    if (archivo) {
-        const { uri } = await Filesystem.writeFile({
-            path: archivo.name || 'mi-dia-bioboros.png', data: await _base64(archivo), directory: Directory.Cache,
-        });
-        opciones.files = [uri];
+    const opciones = { title: titulo || t('Mi día'), dialogTitle: tituloHoja || t('Compartir tu día'), ...(archivos.length ? {} : { text: texto }) };
+    if (archivos.length) {
+        opciones.files = [];
+        for (const archivo of archivos) {
+            const { uri } = await Filesystem.writeFile({
+                path: archivo.name || 'mi-dia-bioboros.png', data: await _base64(archivo), directory: Directory.Cache,
+            });
+            opciones.files.push(uri);
+        }
     }
     await Share.share(opciones);
     return 'compartido';
 }
 
 /** 'compartido' | 'cancelado' (el usuario cerró la hoja) | 'fallo' (no hay Web Share o el sistema lo rechazó). */
-export async function compartir({ archivo, texto, titulo = null, tituloHoja = null }) {
+export async function compartir({ archivo, archivos = null, texto, titulo = null, tituloHoja = null }) {
+    const imagenes = archivos || (archivo ? [archivo] : []);
     if (puedeCompartirNativo()) {
         try {
-            return await _compartirNativo({ archivo, texto, titulo, tituloHoja });
+            return await _compartirNativo({ archivos: imagenes, texto, titulo, tituloHoja });
         } catch (e) {
             if (/cancel/i.test(String(e?.message || e?.code || ''))) return 'cancelado';
             // sin la imagen (o sin plugin a mitad), cae a la Web Share de abajo
@@ -183,9 +191,9 @@ export async function compartir({ archivo, texto, titulo = null, tituloHoja = nu
     }
     try {
         // [P1-PLAN-LOTE-386] con imagen, solo la imagen; y si no se puede, 'fallo' (no se cambia en silencio por texto)
-        if (archivo) {
-            if (!puedeCompartirImagen(archivo)) return 'fallo';
-            await navigator.share({ files: [archivo] });
+        if (imagenes.length) {
+            if (!puedeCompartirImagenes(imagenes)) return 'fallo';
+            await navigator.share({ files: imagenes });
             return 'compartido';
         }
         if (puedeCompartirTexto()) { await navigator.share({ text: texto }); return 'compartido'; }

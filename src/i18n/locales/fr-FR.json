@@ -3888,5 +3888,7 @@
   "Ya no es una cuenta de prueba: el equipo ya no ve tu actividad": "Ce n'est plus un compte de test : l'équipe ne voit plus votre activité",
   "¿Salir del modo de prueba?": "Quitter le mode test ?",
   "El equipo de {app} dejará de ver tu formulario, tus comidas, tus planes y tus conversaciones con el coach.": "L'équipe de {app} ne verra plus votre formulaire, vos repas, vos plans ni vos conversations avec le coach.",
-  "No pudimos sacar tu cuenta del modo de prueba. Revisa tu conexión e inténtalo de nuevo.": "Impossible de sortir votre compte du mode test. Vérifiez votre connexion et réessayez."
+  "No pudimos sacar tu cuenta del modo de prueba. Revisa tu conexión e inténtalo de nuevo.": "Impossible de sortir votre compte du mode test. Vérifiez votre connexion et réessayez.",
+  "Compartir lista completa": "Partager toute la liste",
+  "No se pudo compartir la lista. Puedes descargar cada imagen.": "Impossible de partager la liste. Vous pouvez télécharger chaque image."
 }

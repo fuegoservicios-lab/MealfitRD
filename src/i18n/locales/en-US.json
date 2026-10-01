@@ -3888,5 +3888,7 @@
   "Ya no es una cuenta de prueba: el equipo ya no ve tu actividad": "This is no longer a test account: the team can no longer see your activity",
   "¿Salir del modo de prueba?": "Leave test mode?",
   "El equipo de {app} dejará de ver tu formulario, tus comidas, tus planes y tus conversaciones con el coach.": "The {app} team will no longer see your form, your meals, your plans or your conversations with the coach.",
-  "No pudimos sacar tu cuenta del modo de prueba. Revisa tu conexión e inténtalo de nuevo.": "We couldn't take your account out of test mode. Check your connection and try again."
+  "No pudimos sacar tu cuenta del modo de prueba. Revisa tu conexión e inténtalo de nuevo.": "We couldn't take your account out of test mode. Check your connection and try again.",
+  "Compartir lista completa": "Share complete list",
+  "No se pudo compartir la lista. Puedes descargar cada imagen.": "Could not share the list. You can download each image."
 }
