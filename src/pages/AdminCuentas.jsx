@@ -7,7 +7,7 @@
 // pinta igual desde el primer render) va la lista de todas las cuentas (`AdminCuentasLista`, que se pide ella misma: un
 // 404 deja el panel como hoy), la ficha gana sus bloques nuevos (`AdminFichaAmpliada`) y el detalle de una cuenta de
 // prueba se abre como ESTADO de esta página (`detalle`), sin rutas nuevas: `/admin` es una ruta exacta.
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { formatDate } from '../i18n';
@@ -17,6 +17,7 @@ import AdminCuentasLista from './AdminCuentasLista';
 import AdminFichaAmpliada from './AdminFichaAmpliada';
 import AdminPruebaDetalle from './AdminPruebaDetalle';
 import styles from './AdminCuentas.module.css';
+import { useAdminLoading, useAdminNavigationState } from '../hooks/useAdminNavigation';
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
 const TEXTOS = {
@@ -353,7 +354,11 @@ function Dialogo({ accion, ficha, onCerrar, onHecho }) {
 }
 
 export default function AdminCuentas() {
-    const [correo, setCorreo] = useState('');
+    const [correo, setCorreo] = useAdminNavigationState('cuentas:correo', '');
+    const [cuentaId, setCuentaId] = useAdminNavigationState('cuentas:id', '');
+    const [enDetalle, setEnDetalle] = useAdminNavigationState('cuentas:detalle', false);
+    const [restaurando, setRestaurando] = useState(Boolean(cuentaId));
+    useAdminLoading(restaurando);
     const [estado, setEstado] = useState('inicio');      // inicio | buscando | nada | ficha | error
     const [ficha, setFicha] = useState(null);
     const [error, setError] = useState('');
@@ -393,10 +398,37 @@ export default function AdminCuentas() {
         el?.focus();
     });
 
+    useEffect(() => {
+        if (!cuentaId) return undefined;
+        let vivo = true;
+        const mio = ++turno.current;
+        (async () => {
+            try {
+                const datos = await pedir(`/api/admin/cuentas/${encodeURIComponent(cuentaId)}`);
+                if (!vivo || mio !== turno.current) return;
+                if (!datos?.cuenta) { setCuentaId(''); setEnDetalle(false); return; }
+                setFicha(datos.cuenta);
+                setEstado('ficha');
+                if (enDetalle) setDetalle({ user_id: datos.cuenta.user_id, email: datos.cuenta.email });
+            } catch (err) {
+                if (!vivo || mio !== turno.current) return;
+                setError(err.message);
+                setCuentaId('');
+                setEnDetalle(false);
+            } finally { if (vivo) setRestaurando(false); }
+        })();
+        return () => { vivo = false; };
+        // Restore only on mount; subsequent account openings already fetch fresh data.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const buscar = async (e) => {
         e.preventDefault();
         if (!correo.trim()) return;
         const mio = ++turno.current;
+        setRestaurando(false);
+        setCuentaId('');
+        setEnDetalle(false);
         setEstado('buscando');
         setError('');
         setApertura(null);
@@ -404,7 +436,7 @@ export default function AdminCuentas() {
         try {
             const datos = await pedir('/api/admin/cuentas/buscar', { email: correo });
             if (mio !== turno.current) return;
-            if (datos?.cuenta) { setFicha(datos.cuenta); setEstado('ficha'); } else { setFicha(null); setEstado('nada'); }
+            if (datos?.cuenta) { setCuentaId(datos.cuenta.user_id); setFicha(datos.cuenta); setEstado('ficha'); } else { setFicha(null); setEstado('nada'); }
         } catch (err) {
             if (mio !== turno.current) return;
             setError(err.message);
@@ -415,6 +447,9 @@ export default function AdminCuentas() {
     // [P1-PLAN-LOTE-833] Tocar un correo de la lista abre su ficha: la lista se aparta y el foco va a «Volver a la lista».
     const abrirDesdeLista = async (fila) => {
         const mio = ++turno.current;
+        setRestaurando(false);
+        setCuentaId('');
+        setEnDetalle(false);
         setEstado('inicio');
         setError('');
         setHecho(false);
@@ -425,6 +460,7 @@ export default function AdminCuentas() {
             if (!datos?.cuenta) { setApertura({ tipo: 'error', texto: TEXTOS.yaNoExiste }); return; }
             enfocar.current = 'volver';
             setApertura(null);
+            setCuentaId(datos.cuenta.user_id);
             setFicha(datos.cuenta);
             setEstado('ficha');
         } catch (err) {
@@ -434,6 +470,8 @@ export default function AdminCuentas() {
     };
     const volverALista = () => {
         turno.current += 1;           // lo que aún esté en vuelo para la ficha que se deja ya no la pinta
+        setCuentaId('');
+        setEnDetalle(false);
         setApertura(null);
         enfocar.current = ficha ? `cuenta:${ficha.user_id}` : 'lista';
         setEstado('inicio');
@@ -441,8 +479,8 @@ export default function AdminCuentas() {
         setHecho(false);
         setError('');
     };
-    const verDetalle = (d) => { enfocar.current = 'detalle'; setDetalle(d); };
-    const cerrarDetalle = () => { enfocar.current = 'ficha'; setDetalle(null); };
+    const verDetalle = (d) => { setEnDetalle(true); enfocar.current = 'detalle'; setDetalle(d); };
+    const cerrarDetalle = () => { setEnDetalle(false); enfocar.current = 'ficha'; setDetalle(null); };
 
     const alTerminar = async (cuenta) => {
         setAccion(null);

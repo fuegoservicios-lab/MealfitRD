@@ -26,6 +26,7 @@ import { formatDate } from '../i18n';
 import { cifra, fecha, fechaHora, pedirAdmin, usd } from '../utils/adminCuentas';
 import comun from './AdminCuentas.module.css';
 import styles from './AdminPruebaDetalle.module.css';
+import { useAdminLoading, useAdminNavigationState } from '../hooks/useAdminNavigation';
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
 const TEXTOS = {
@@ -346,6 +347,7 @@ function usePedido(url) {
         return () => ctrl.abort();
     }, [url, intento]);
     const actual = res !== null && res.clave === clave;
+    useAdminLoading(!actual);
     return {
         cargando: !actual,
         datos: res && !res.error ? res.datos : null,
@@ -354,7 +356,7 @@ function usePedido(url) {
     };
 }
 
-const Cargando = () => <p className={styles.estado} role="status">{TEXTOS.cargando}</p>;
+const Cargando = () => <p className={styles.estado} role="status" data-admin-loading="">{TEXTOS.cargando}</p>;
 
 /**
  * Lo que el servidor dice de la CUENTA entera: `aviso_pendiente` (la persona aún no vio el aviso) o `no_es_prueba` (ya no
@@ -605,7 +607,7 @@ function DiasDelPlan({ raiz, planId, onInvalido }) {
 
 function Plan({ raiz, plan: p, onInvalido }) {
     const idDias = useId();
-    const [abierto, setAbierto] = useState(false);
+    const [abierto, setAbierto] = useAdminNavigationState(`${raiz}:plan:${p.id}`, false);
     const conteo = p.bloques && typeof p.bloques === 'object' && !Array.isArray(p.bloques) ? p.bloques : {};
     const partes = partesBloques(conteo);
     const detalle = objetos(p.bloques_detalle);
@@ -740,7 +742,7 @@ function Hilo({ raiz, sesion, onCerrar, onInvalido }) {
     const { datos, error, recargar } = usePedido(`${raiz}/conversaciones/${encodeURIComponent(texto(sesion.id))}`);
     useAvisoAlDetalle(error, onInvalido);
     // Al abrir el hilo, el foco va a su título (el botón que lo abrió ya no está en pantalla).
-    useEffect(() => { tituloRef.current?.focus(); }, []);
+    useEffect(() => { tituloRef.current?.focus({ preventScroll: true }); }, []);
     const mensajes = objetos(datos?.mensajes);
     let cuerpo;
     if (error) cuerpo = <Aviso error={error} onReintentar={recargar} noEncontrado={TEXTOS.hiloNoEncontrado} />;
@@ -767,7 +769,7 @@ function Hilo({ raiz, sesion, onCerrar, onInvalido }) {
 
 function PanelConversaciones({ raiz, onInvalido }) {
     const { datos, error, recargar } = usePedido(`${raiz}/conversaciones`);
-    const [abierta, setAbierta] = useState(null);           // la sesión cuyo hilo se ve
+    const [abierta, setAbierta] = useAdminNavigationState(`${raiz}:conversacion`, null, (v) => v === null || (typeof v?.id === 'string' && typeof v?.inicio === 'string'));           // la sesión cuyo hilo se ve
     const listaRef = useRef(null);
     const volverA = useRef(null);                          // al cerrar el hilo, el foco vuelve a SU conversación
     useEffect(() => {
@@ -795,7 +797,7 @@ function PanelConversaciones({ raiz, onInvalido }) {
                 ].filter(Boolean).join(' · ');
                 return (
                     <li key={texto(s.id)} className={styles.sesion}>
-                        <button type="button" className={styles.sesionBoton} data-sesion={texto(s.id)} onClick={() => setAbierta(s)}>
+                        <button type="button" className={styles.sesionBoton} data-sesion={texto(s.id)} onClick={() => setAbierta({ id: texto(s.id), inicio: texto(s.inicio) })}>
                             <span className={styles.sesionFecha}>{fechaHora(s.inicio)}</span>
                             <span className={styles.sesionPrimer}>{texto(s.primer_mensaje) || TEXTOS.sinTexto}</span>
                         </button>
@@ -902,9 +904,9 @@ function PanelActividad({ raiz, filtro, onFiltro }) {
  */
 export default function AdminPruebaDetalle({ userId, email }) {
     const idBase = useId();
-    const [pestana, setPestana] = useState('formulario');
-    const [diasComidas, setDiasComidas] = useState(30);
-    const [filtroActividad, setFiltroActividad] = useState({ dias: 7, tipos: [] });
+    const [pestana, setPestana] = useAdminNavigationState(`prueba:${userId}:pestana`, 'formulario', (v) => PESTANAS.some(([id]) => id === v));
+    const [diasComidas, setDiasComidas] = useAdminNavigationState(`prueba:${userId}:diasComidas`, 30, (v) => PERIODOS_COMIDAS.includes(v));
+    const [filtroActividad, setFiltroActividad] = useAdminNavigationState(`prueba:${userId}:actividad`, { dias: 7, tipos: [] }, (v) => PERIODOS_ACTIVIDAD.includes(v?.dias) && Array.isArray(v?.tipos) && v.tipos.every((tipo) => TIPOS_EVENTO.some(([id]) => tipo === id)));
     // [ronda 1] El aviso de la cuenta (`{ status, detalle }`) que subió un HIJO de la pestaña (un hilo, los días de un
     // plan): mientras esté, ningún panel está montado y en su lugar va ese aviso.
     const [invalido, setInvalido] = useState(null);

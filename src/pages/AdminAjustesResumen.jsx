@@ -16,6 +16,7 @@ import { compareText } from '../i18n';
 import { cifra, nombreIdioma, nombrePais, pedirAdmin } from '../utils/adminCuentas';
 import pagina from './AdminPage.module.css';
 import styles from './AdminAjustesResumen.module.css';
+import { useAdminLoading } from '../hooks/useAdminNavigation';
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
 const TEXTOS = {
@@ -236,6 +237,7 @@ export default function AdminAjustesResumen({ dias, version = 0 }) {
     const [intento, setIntento] = useState(0);
     const [res, setRes] = useState(null);                   // { clave, dias, datos, fallo, fuera }
     const clave = `${d}#${version}#${intento}`;
+    useAdminLoading(!res || res.clave !== clave);
 
     useEffect(() => {
         const ctrl = new AbortController();

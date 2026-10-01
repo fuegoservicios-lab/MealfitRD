@@ -21,6 +21,7 @@ import { fetchWithAuth } from '../config/api';
 import AdminAjustesResumen from './AdminAjustesResumen';
 import AdminCuentas from './AdminCuentas';
 import styles from './AdminPage.module.css';
+import { AdminNavigationProvider, useAdminLoading, useAdminNavigationState } from '../hooks/useAdminNavigation';
 
 const RANGOS = [7, 30, 90];
 
@@ -285,8 +286,12 @@ const horaDe = (iso) => {
 };
 
 export default function AdminPage() {
-    const [vista, setVista] = useState('metricas');
-    const [dias, setDias] = useState(7);
+    return <AdminNavigationProvider><AdminPanel /></AdminNavigationProvider>;
+}
+
+function AdminPanel() {
+    const [vista, setVista] = useAdminNavigationState('vista', 'metricas', (v) => ['metricas', 'cuentas'].includes(v));
+    const [dias, setDias] = useAdminNavigationState('dias', 7, (v) => RANGOS.includes(v));
     const [estado, setEstado] = useState('cargando');
     const [datos, setDatos] = useState(null);
     const [intento, setIntento] = useState(0);
@@ -296,6 +301,7 @@ export default function AdminPage() {
     const [pendiente, setPendiente] = useState(false);
     const [fallo, setFallo] = useState(false);
     const [version, setVersion] = useState(0);
+    useAdminLoading(vista === 'metricas' && estado === 'cargando');
 
     useEffect(() => {
         fetchWithAuth('/api/admin/yo').catch(() => {});

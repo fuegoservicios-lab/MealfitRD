@@ -72,7 +72,7 @@ export default function ScrollRestoration() {
             document.removeEventListener('visibilitychange', onVisibility);
             persist(); // captura la posición saliente al cambiar de URL
         };
-    }, [storageKey]);
+    }, [storageKey, location.pathname]);
 
     // --- Restaurar SOLO en la primera carga (refresh / entrada directa) ---
     const triedRef = useRef(false);
@@ -80,7 +80,7 @@ export default function ScrollRestoration() {
         if (triedRef.current || didInitialRestore) return undefined;
         triedRef.current = true;
         didInitialRestore = true;
-        if (typeof window === 'undefined') return undefined;
+        if (typeof window === 'undefined' || location.pathname === '/admin') return undefined;
 
         let target = 0;
         try {
@@ -130,7 +130,7 @@ export default function ScrollRestoration() {
             cancelled = true;
             teardown();
         };
-    }, [storageKey]);
+    }, [storageKey, location.pathname]);
 
     return null;
 }

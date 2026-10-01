@@ -18,6 +18,7 @@ import {
 } from '../utils/adminCuentas';
 import base from './AdminCuentas.module.css';
 import styles from './AdminCuentasLista.module.css';
+import { useAdminLoading, useAdminNavigationState } from '../hooks/useAdminNavigation';
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
 const TEXTOS = {
@@ -141,14 +142,15 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
     const idBuscar = useId();
     const idFiltro = useId();
     const idOrden = useId();
-    const [texto, setTexto] = useState('');
-    const [buscar, setBuscar] = useState('');
-    const [filtro, setFiltro] = useState('todas');
-    const [orden, setOrden] = useState('actividad');
-    const [pagina, setPagina] = useState(1);
+    const [texto, setTexto] = useAdminNavigationState('lista:texto', '');
+    const [buscar, setBuscar] = useState(() => texto.trim());
+    const [filtro, setFiltro] = useAdminNavigationState('lista:filtro', 'todas', (v) => FILTROS.some(([id]) => id === v));
+    const [orden, setOrden] = useAdminNavigationState('lista:orden', 'actividad', (v) => ORDENES.some(([id]) => id === v));
+    const [pagina, setPagina] = useAdminNavigationState('lista:pagina', 1, (v) => Number.isInteger(v) && v > 0);
     const [intento, setIntento] = useState(0);
     const [estado, setEstado] = useState('cargando');   // cargando | lista | error | fuera
     const [datos, setDatos] = useState(null);
+    useAdminLoading(!oculta && estado === 'cargando');
     const [pendiente, setPendiente] = useState(false);
     const [fallo, setFallo] = useState(false);
     const [seleccion, setSeleccion] = useState(() => new Map());   // user_id → correo, en el orden en que se marcan
@@ -175,7 +177,7 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
             setPendiente(true);
         }, ESPERA_BUSQUEDA_MS);
         return () => clearTimeout(t);
-    }, [texto, buscar]);
+    }, [texto, buscar, setPagina]);
 
     useEffect(() => {
         let vivo = true;
@@ -211,7 +213,7 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
             }
         })();
         return () => { vivo = false; };
-    }, [buscar, orden, filtro, pagina, version, intento]);
+    }, [buscar, orden, filtro, pagina, version, intento, setPagina]);
 
     const cuentas = Array.isArray(datos?.cuentas) ? datos.cuentas : [];
     const elegibles = cuentas.filter((c) => !marcaViva(c.prueba));
