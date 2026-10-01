@@ -27,6 +27,7 @@
 //  - el cierre relee la lista antes de escribir: una foto subida mientras se enlazaba no se pierde.
 //
 // Nada de esto lanza hacia la interfaz: si algo falla, la comida sale sin foto, como antes.
+// Las correcciones se enlazan por el ID que confirma el servidor, aunque la fila sea anterior a la foto.
 import { guardarFotoDeComida, idsConFoto } from './fotosDeComidas';
 import { fetchWithAuth } from '../config/api';
 
@@ -35,6 +36,8 @@ export const MISMO_TURNO_MS = 2 * 60 * 1000;
 export const MAX_TURNOS_DESPUES = 2;
 const TIPOS_DE_COMIDA = new Set(['plato', 'items']);
 const CLAVE = (userId) => `mealfit_fotos_del_chat:${userId}`;
+const CLAVE_CORRECCIONES = (userId) => `mealfit_fotos_corregidas:${userId}`;
+const UUID_RE = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
 const MAX = 6;
 const _blobs = new Map();   // attachmentId -> Blob (solo mientras la página viva)
 
@@ -131,17 +134,66 @@ const _textoDeLaComida = (meal) => [meal?.meal_name || '']
     .concat((meal?.ingredientes?.lineas || []).map((l) => l?.texto || ''))
     .join(' ');
 
-/** Enlaza las comidas que el coach registró tras una foto. Devuelve cuántas fotos guardó. `fetchJson(url)` y
+function _leerCorrecciones(userId) {
+    try {
+        const lista = JSON.parse(window.localStorage.getItem(CLAVE_CORRECCIONES(userId)) || '[]');
+        return Array.isArray(lista) ? lista : [];
+    } catch { return []; }
+}
+
+function _escribirCorrecciones(userId, lista) {
+    try { window.localStorage.setItem(CLAVE_CORRECCIONES(userId), JSON.stringify(lista.slice(-20))); } catch { /* cuota */ }
+}
+
+/** Enlaza comidas nuevas o corregidas con su foto. Devuelve cuántas fotos guardó. `fetchJson(url)` y
  *  `fetchBlob(url)` se inyectan en las pruebas (por defecto, sobre `fetchWithAuth`). `cierraTurnoDe` = el chat cuyo
  *  turno acaba de terminar: sus fotos cuentan un turno más (el panel enlaza sin cerrar turnos). */
 export async function vincularFotosDelChat(userId, {
-    fetchJson = _fetchJson, fetchBlob = _fetchBlob, ahora = Date.now(), cierraTurnoDe = null,
+    fetchJson = _fetchJson, fetchBlob = _fetchBlob, ahora = Date.now(), cierraTurnoDe = null, idsCorregidos = [],
 } = {}) {
     if (!_valido(userId) || typeof fetchJson !== 'function') return 0;
     const vigente = (f) => ahora - Number(f.t) < VENTANA_MS + MISMO_TURNO_MS && (Number(f.turnos) || 0) <= MAX_TURNOS_DESPUES;
     let fotos = _leer(userId).filter(vigente);
     const enlaces = new Map();   // id de foto -> instante de la comida a la que se dio
     let guardadas = 0;
+    // A correction keeps created_at and may target an older day or a manually logged meal.
+    // These IDs come from successful server tool receipts, never from the assistant's prose.
+    let correcciones = _leerCorrecciones(userId).filter((c) => UUID_RE.test(c.id) && ahora - Number(c.t) < VENTANA_MS);
+    if (cierraTurnoDe && fotos.some((f) => f.ses === cierraTurnoDe)) {
+        for (const id of Array.isArray(idsCorregidos) ? idsCorregidos : []) {
+            if (typeof id !== 'string' || !UUID_RE.test(id)) continue;
+            correcciones = correcciones.filter((c) => c.id !== id);
+            correcciones.push({ id, ses: cierraTurnoDe, t: ahora });
+        }
+    }
+    _escribirCorrecciones(userId, correcciones);
+    const completadas = new Set();
+    for (const c of correcciones) {
+        let detalle = null;
+        try { detalle = await fetchJson(`/api/diary/meal/${c.id}`); } catch { /* retry when the panel opens */ }
+        if (detalle?.meal?.id !== c.id) continue; // Owned endpoint: no deleted/missing/foreign meal.
+        const candidatas = fotos.filter((f) => f.ses === c.ses
+            && Number(f.t) <= Number(c.t) + 5000 && Number(c.t) - Number(f.t) <= VENTANA_MS
+            && (f.enlazadaEn == null || Math.abs(Number(c.t) - Number(f.enlazadaEn)) <= MISMO_TURNO_MS))
+            .sort((a, b) => Number(b.t) - Number(a.t));
+        const coincidentes = candidatas.filter((f) => hablanDeLoMismo(f.desc, _textoDeLaComida(detalle.meal)));
+        const foto = coincidentes[0] || (candidatas.length === 1 && !Number(candidatas[0].turnos) ? candidatas[0] : null);
+        if (!foto) continue;
+        let blob = _blobs.get(foto.id) || null;
+        if (!blob && foto.url && typeof fetchBlob === 'function') {
+            try { blob = await fetchBlob(foto.url); } catch { /* retry */ }
+        }
+        if (!(blob instanceof Blob)) continue;
+        if (await guardarFotoDeComida(userId, c.id, blob)) {
+            guardadas += 1;
+            completadas.add(`${c.id}:${c.t}`);
+            enlaces.set(foto.id, Number(c.t));
+            fotos = fotos.map((f) => f.id === foto.id ? { ...f, enlazadaEn: Number(c.t) } : f);
+        }
+    }
+    // Preserve receipts arriving during these asynchronous reads; retain failed saves for a retry.
+    _escribirCorrecciones(userId, _leerCorrecciones(userId).filter((c) => !completadas.has(`${c.id}:${c.t}`)
+        && ahora - Number(c.t) < VENTANA_MS));
     if (fotos.length) {
         const desde = Math.min(...fotos.map((f) => Number(f.t))) - 5000;
         const tz = new Date().getTimezoneOffset();
@@ -186,7 +238,7 @@ export async function vincularFotosDelChat(userId, {
     const final = _leer(userId)
         .map((f) => {
             let g = f;
-            if (enlaces.has(f.id) && g.enlazadaEn == null) g = { ...g, enlazadaEn: enlaces.get(f.id) };
+            if (enlaces.has(f.id)) g = { ...g, enlazadaEn: enlaces.get(f.id) };
             if (cerrada(g)) g = { ...g, turnos: (Number(g.turnos) || 0) + 1 };
             return g;
         })

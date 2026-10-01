@@ -219,8 +219,16 @@ export async function guardarFotoDeComida(userId, mealId, archivo) {
         reducirImagen(archivo, LADO_MINI, CALIDAD_MINI, true),
     ]);
     if (!foto || !mini) return false;
+    // Store bytes rather than Blob objects: some WebKit environments fail the IndexedDB Blob write.
+    // Reads below continue to support pictures saved with the previous format.
+    let fotoGuardada, miniGuardada;
+    try {
+        const [fotoBytes, miniBytes] = await Promise.all([foto.arrayBuffer(), mini.arrayBuffer()]);
+        fotoGuardada = { bytes: fotoBytes, type: foto.type };
+        miniGuardada = { bytes: miniBytes, type: mini.type };
+    } catch { return false; }
     const ok = await _conAlmacen('readwrite', (s) => s.put({
-        clave: _clave(userId, mealId), userId, mealId, foto, mini, creada: Date.now(),
+        clave: _clave(userId, mealId), userId, mealId, foto: fotoGuardada, mini: miniGuardada, creada: Date.now(),
     }));
     if (ok === null) return false;
     await _podar();
@@ -234,7 +242,8 @@ export async function leerFotoDeComida(userId, mealId, tipo = 'foto') {
     const reg = (await _conAlmacen('readonly', (s) => s.get(_clave(userId, mealId))))?.valor;
     if (!reg || reg.userId !== userId) return null;
     const blob = tipo === 'mini' ? reg.mini : reg.foto;
-    return blob instanceof Blob ? blob : null;
+    if (blob instanceof Blob) return blob;
+    return blob?.bytes instanceof ArrayBuffer ? new Blob([blob.bytes], { type: blob.type || 'image/jpeg' }) : null;
 }
 
 /** Los `mealId` de este usuario que tienen foto en el dispositivo (solo claves: no carga imágenes). */
@@ -256,6 +265,10 @@ export async function borrarFotoDeComida(userId, mealId) {
 /** Al borrar la cuenta: todas las fotos de ese usuario en este dispositivo. */
 export async function borrarFotosDelUsuario(userId) {
     if (!_valido(userId)) return;
+    try {
+        window.localStorage.removeItem(`mealfit_fotos_del_chat:${userId}`);
+        window.localStorage.removeItem(`mealfit_fotos_corregidas:${userId}`);
+    } catch { /* almacenamiento no disponible */ }
     const claves = (await _conAlmacen('readonly', (s) => s.index('userId').getAllKeys(userId)))?.valor;
     if (!Array.isArray(claves) || !claves.length) return;
     await _conAlmacen('readwrite', (s) => {

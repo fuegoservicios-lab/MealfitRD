@@ -4208,7 +4208,9 @@ const AgentPage = () => {
                                         // foto de comida, la foto va a su ficha (en este teléfono); y el turno de ESTE chat cuenta para sus fotos.
                                         // Fuego y olvido: no toca el turno.
                                         const _uidVinculo = session?.user?.id || userProfile?.id;
-                                        cargarFotosDelChat().then((m) => m.vincularFotosDelChat(_uidVinculo, { cierraTurnoDe: currentSessionId })).catch(() => {});
+                                        cargarFotosDelChat().then((m) => m.vincularFotosDelChat(_uidVinculo, {
+                                            cierraTurnoDe: currentSessionId, idsCorregidos: dataObj.diary_corrected_meal_ids,
+                                        })).catch(() => {});
                                         _sawDone = true; // [P2-CHAT-FRONT-AUDIT] el turno terminó bien
                                         setIsLoading(false);
                                         setStreamingStatus(null);

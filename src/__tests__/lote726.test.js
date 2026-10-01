@@ -105,7 +105,7 @@ describe('enganches en el chat', () => {
         expect(ap).toContain("const cargarFotosDelChat = () => import('../utils/fotosDelChat');");
         expect(ap).toContain('m.recordarFotosDelChat(_uidFotos, uploadedAttachments, { sesion: _sesionFotos })');
         const done = ap.indexOf("} else if (dataObj.type === 'done') {");
-        expect(ap.slice(done, done + 2000)).toContain('m.vincularFotosDelChat(_uidVinculo, { cierraTurnoDe: currentSessionId })');
+        expect(ap.slice(done, done + 2300)).toContain('idsCorregidos: dataObj.diary_corrected_meal_ids');
         expect(ap).not.toMatch(/^import .*fotosDelChat/m);
     });
 });
