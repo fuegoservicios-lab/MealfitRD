@@ -20,7 +20,7 @@ export function sonarModoVoz(tipo) {
             tono.type = 'sine';
             tono.frequency.setValueAtTime(frecuencia, t);
             volumen.gain.setValueAtTime(0, t);
-            volumen.gain.linearRampToValueAtTime(0.045, t + 0.008);
+            volumen.gain.linearRampToValueAtTime(0.18, t + 0.008);
             volumen.gain.linearRampToValueAtTime(0, t + 0.065);
             tono.connect(volumen);
             volumen.connect(ctx.destination);

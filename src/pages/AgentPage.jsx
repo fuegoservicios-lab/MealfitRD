@@ -5272,7 +5272,12 @@ const AgentPage = () => {
                                             rojo de «grabando». Antes pintaba ondas moradas en un círculo morado y, al lado del
                                             botón del modo voz (ondas, degradado), eran el mismo botón (el dueño: «tienen que
                                             verse visualmente diferente»). */}
-                                        <Mic size={21} strokeWidth={2.1} aria-hidden="true" />
+                                        <Mic className="chat-mic-icon" size={21} strokeWidth={2.1} aria-hidden="true" />
+                                        {isListening && (
+                                            <span className="chat-mic-activity" aria-hidden="true">
+                                                <i /><i /><i />
+                                            </span>
+                                        )}
                                     </button>
                                 )}
                                 {/* [P1-PLAN-LOTE-682] El modo voz: conversar hablando, con el coach contestando en voz alta.
@@ -5704,8 +5709,7 @@ const AgentPage = () => {
                     outline: none;
                     -webkit-tap-highlight-color: transparent;
                 }
-                /* [P1-PLAN-LOTE-125] El microfono del chat. En reposo es un boton fantasma (no compite con ENVIAR);
-                   escuchando se llena, late con dos anillos y cambia el icono por cuatro barras que se mueven. */
+                /* El dictado conserva el micrófono; las barras indican que está escuchando. */
                 .chat-mic-btn {
                     position: relative;
                     background: transparent;
@@ -5731,6 +5735,32 @@ const AgentPage = () => {
                     color: #fff;
                     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
                     box-shadow: 0 6px 18px -6px rgba(220, 38, 38, 0.7);
+                }
+                .chat-mic-btn.escuchando .chat-mic-icon { transform: translateX(-5px); }
+                .chat-mic-activity {
+                    position: absolute;
+                    right: 7px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    display: flex;
+                    align-items: center;
+                    gap: 1px;
+                    height: 14px;
+                    pointer-events: none;
+                }
+                .chat-mic-activity i {
+                    display: block;
+                    width: 2px;
+                    height: 8px;
+                    border-radius: 2px;
+                    background: currentColor;
+                    animation: chat-mic-actividad 0.9s ease-in-out infinite;
+                }
+                .chat-mic-activity i:nth-child(2) { height: 14px; animation-delay: -0.3s; }
+                .chat-mic-activity i:nth-child(3) { height: 10px; animation-delay: -0.6s; }
+                @keyframes chat-mic-actividad {
+                    0%, 100% { transform: scaleY(0.45); }
+                    50% { transform: scaleY(1); }
                 }
                 .chat-mic-btn.escuchando::before,
                 .chat-mic-btn.escuchando::after {
@@ -5791,6 +5821,7 @@ const AgentPage = () => {
                 }
                 @media (prefers-reduced-motion: reduce) {
                     .chat-mic-btn { transition: none; }
+                    .chat-mic-activity i { animation: none; }
                     .chat-mic-btn.escuchando::before,
                     .chat-mic-btn.escuchando::after { animation: none; opacity: 0.45; transform: scale(1.18); }
                     .chat-mic-btn.escuchando::after { display: none; }
