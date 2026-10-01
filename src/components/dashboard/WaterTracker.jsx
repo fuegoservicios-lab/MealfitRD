@@ -94,6 +94,7 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
     // y para revertir al ultimo valor confirmado por el servidor.
     const glassesRef = useRef(_cachedState?.glasses ?? 0);
     const lastSavedRef = useRef(_cachedState?.glasses ?? 0);
+    const cargaRef = useRef(0);
     // [P3-4 · 2026-07-09] Hook SSOT useLatestRef (antes mirror manual en
     // effect). Init equivalente: `goal` ya arranca de _cachedState?.goal.
     const goalRef = useLatestRef(goal);
@@ -119,6 +120,7 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
     // (visibilitychange). Vive aquí y en flushPersist — si renombras alguna,
     // reapuntar test_p3_supabase_transient_retry.py.
     const loadIntake = useCallback(async (dateStr) => {
+        const carga = ++cargaRef.current;
         const url = `/api/plans/water-intake?date=${encodeURIComponent(dateStr)}`;
         const attemptOnce = async () => {
             try { return { res: await fetchWithAuth(url), networkError: null }; }
@@ -130,6 +132,7 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
             ({ res, networkError } = await attemptOnce());
         }
         try {
+            if (carga !== cargaRef.current) return;
             if (networkError || !res.ok) {
                 if (res && res.status !== 401) console.error('[WaterTracker] GET failed', res.status);
                 setGlasses(0); glassesRef.current = 0; lastSavedRef.current = 0;
@@ -137,6 +140,7 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
                 return;
             }
             const data = await res.json();
+            if (carga !== cargaRef.current) return;
             // [P3-WATER-HALF-GLASS] glasses puede ser fraccionario (0.5).
             const g = typeof data?.glasses === 'number' ? data.glasses : 0;
             setGlasses(g); glassesRef.current = g; lastSavedRef.current = g;
@@ -156,7 +160,7 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
                 toast(avisoApagadoRef.current.titulo, { description: avisoApagadoRef.current.cuerpo, duration: 6000 });
             }
         } finally {
-            setLoading(false);
+            if (carga === cargaRef.current) setLoading(false);
         }
     }, [avisoApagadoRef]);   // [P1-PLAN-LOTE-640] el ref de `useLatestRef` es estable: declararlo no re-crea nada
 
@@ -194,10 +198,13 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
         document.addEventListener('visibilitychange', onVisibility);
         window.addEventListener('storage', onStorage);
         window.addEventListener('mealfit:refresh-hydration', onAgentRefresh);
+        // También si el coach confirma el registro sin emitir una etiqueta UI_ACTION.
+        window.addEventListener('mealfit:chat-turn-done', onAgentRefresh);
         return () => {
             document.removeEventListener('visibilitychange', onVisibility);
             window.removeEventListener('storage', onStorage);
             window.removeEventListener('mealfit:refresh-hydration', onAgentRefresh);
+            window.removeEventListener('mealfit:chat-turn-done', onAgentRefresh);
         };
     }, [enabled, loadIntake]);
 

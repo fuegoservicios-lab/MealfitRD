@@ -55,7 +55,9 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
     const soltar = useCallback((c = conexionRef.current) => {
         if (conexionRef.current === c) conexionRef.current = null;
         if (!c) return;
-        clearInterval(c.sondeo);
+        c.soltada = true;
+        clearTimeout(c.sondeo);
+        c.pedidos?.forEach((ctrl) => ctrl.abort());
         try { c.micro?.getTracks().forEach((tr) => tr.stop()); } catch { /* ya parado */ }
         try { c.dc?.close(); } catch { /* ya cerrado */ }
         try { c.pc?.close(); } catch { /* ya cerrado */ }
@@ -63,20 +65,40 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
         try { if (!conexionRef.current && navigator.audioSession) navigator.audioSession.type = 'auto'; } catch { /* sin API */ }
     }, []);
 
-    const sondear = useCallback(async () => {
-        const c = conexionRef.current;
-        if (!c?.liveId) return;
+    const sondear = useCallback(async (c = conexionRef.current, esperar = 0) => {
+        if (!c?.liveId || c.soltada) return null;
+        const ctrl = new AbortController();
+        c.pedidos.add(ctrl);
         try {
-            const r = await fetchWithAuth(`/api/chat/live/${c.liveId}/novedades?desde=${c.visto}`);
-            if (!r.ok) return;
+            const r = await fetchWithAuth(`/api/chat/live/${c.liveId}/novedades?desde=${c.visto}&esperar_s=${esperar}`, {
+                signal: ctrl.signal, timeout: 30000,
+            });
+            if (!r.ok) return null;
             const d = await r.json();
-            for (const n of d.novedades || []) {
-                c.visto = Math.max(c.visto, n.n);
+            if (c.soltada) return null;
+            let nuevas = 0;
+            for (const n of [...(d.novedades || [])].sort((a, b) => a.n - b.n)) {
+                if (!Number.isInteger(n.n) || n.n <= c.visto) continue;
+                c.visto = n.n;
+                nuevas += 1;
                 try { alNovedadRef.current?.(n); } catch { /* una novedad rota no para las demás */ }
             }
             if (d.cerrada && conexionRef.current === c) { soltar(); avisarCierre(); setEstado('cerrado'); }
-        } catch { /* sin red: el próximo sondeo */ }
+            return { ...d, nuevas };
+        } catch { return null; /* sin red: se reconecta */ }
+        finally { c.pedidos.delete(ctrl); }
     }, [soltar, avisarCierre]);
+
+    const vigilar = useCallback((c) => {
+        const siguiente = async () => {
+            const inicio = Date.now();
+            const d = await sondear(c, 20); // El servidor responde en cuanto hay un cambio, sin esperar al siguiente tic.
+            if (conexionRef.current !== c || c.soltada) return;
+            const espera = d?.nuevas ? 0 : Math.max(0, LIVE_SONDEO_MS - (Date.now() - inicio));
+            c.sondeo = setTimeout(siguiente, d ? espera : LIVE_SONDEO_MS);
+        };
+        siguiente();
+    }, [sondear]);
 
     const alEvento = useCallback((ev) => {
         const tipo = ev?.type || '';
@@ -109,7 +131,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
         setOido('');
         setDicho('');
         setEstado('pensando');
-        const c = { pc: null, dc: null, micro: null, audio: null, liveId: null, sondeo: null, visto: 0 };
+        const c = { pc: null, dc: null, micro: null, audio: null, liveId: null, sondeo: null, visto: 0, pedidos: new Set() };
         conexionRef.current = c;
         abiertoRef.current = true;
         const inicioSonido = Date.now();
@@ -156,7 +178,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
             if (restante > 0) await new Promise((r) => setTimeout(r, restante));
             if (conexionRef.current !== c || !abiertoRef.current) return;
             c.micro.getTracks().forEach((tr) => { tr.enabled = true; });
-            c.sondeo = setInterval(sondear, LIVE_SONDEO_MS);
+            vigilar(c);
             setEstado('escuchando');
         } catch (e) {
             if (conexionRef.current !== c || !abiertoRef.current) return;
@@ -165,7 +187,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
             setError(MOTIVOS[motivo] || (e?.name === 'NotAllowedError' ? i18nKey('Permite el micrófono para dictar') : i18nKey('No se pudo conectar la voz en vivo')));
             setEstado('error');
         }
-    }, [disponible, alEvento, soltar, sondear]);
+    }, [disponible, alEvento, soltar, vigilar]);
 
     const cerrar = useCallback(() => {
         const c = conexionRef.current;
@@ -174,6 +196,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
         }
         // Lo que el coach hizo en el último turno se aplica aunque se cierre ya.
         if (c?.liveId) sondear();
+        clearTimeout(c?.sondeo);
         // Cortar el audio antes del tono: no enviarlo al agente ni mezclarlo con su respuesta.
         try { c?.micro?.getTracks().forEach((tr) => tr.stop()); } catch { /* ya parado */ }
         if (c?.audio) c.audio.srcObject = null;

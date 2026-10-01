@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] SSOT del alto del textarea.
 import { useAutosizeTextarea, CHAT_TEXTAREA_MAX_HEIGHT_PX } from '../utils/autosizeTextarea';
+import { aplicarCambiosDeVoz } from '../utils/cambiosDeVoz';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] SSOT del modo (perfil → espejo local).
@@ -2065,10 +2066,15 @@ const AgentPage = () => {
         sessionId: currentSessionId,
         locale: getLocale(),
         alNovedad: (n) => {
-            trackEvent('coach_voz_live_turno');
-            try { fetchSessionMessagesRef.current?.(currentSessionIdRef.current); } catch { /* el próximo */ }
-            try { window.dispatchEvent(new CustomEvent('mealfit:chat-turn-done')); } catch { /* best-effort */ }
-            if (n?.nevera) { try { window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory')); } catch { /* best-effort */ } }
+            if (n?.turno_completo !== false) {
+                trackEvent('coach_voz_live_turno');
+                try { fetchSessionMessagesRef.current?.(currentSessionIdRef.current); } catch { /* el próximo */ }
+            }
+            const _uidVoz = session?.user?.id || userProfile?.id;
+            aplicarCambiosDeVoz(n, {
+                refrescarPerfil: refreshProfileAndPlan,
+                restaurarPlan: () => (_uidVoz ? restoreSessionData(_uidVoz) : null),
+            });
             if (n?.ajustes_de_app) {
                 const _uid = session?.user?.id || userProfile?.id;
                 aplicarAjustesDelCoach(n.ajustes_de_app, {

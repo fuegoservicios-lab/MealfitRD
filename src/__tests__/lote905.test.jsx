@@ -4,7 +4,7 @@
  * FALSOS aquí: se prueba el contrato (cuándo está disponible, qué se manda, cómo se ven los eventos, qué se aplica).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -21,6 +21,8 @@ vi.mock('../config/api', () => ({
 
 import { useConversacionLive, LIVE_SONDEO_MS } from '../hooks/useConversacionLive';
 import { sonarModoVoz } from '../utils/sonidosModoVoz';
+import WaterTracker from '../components/dashboard/WaterTracker';
+import { aplicarCambiosDeVoz } from '../utils/cambiosDeVoz';
 vi.mock('../utils/sonidosModoVoz', () => ({ sonarModoVoz: vi.fn(), DURACION_SONIDO_VOZ_MS: 160 }));
 
 class CanalFalso {
@@ -41,6 +43,7 @@ class PeerFalso {
 const pista = { stop: vi.fn() };
 
 beforeEach(() => {
+    localStorage.clear();
     sonarModoVoz.mockClear();
     pista.stop.mockClear();
     red.respuestas = {
@@ -114,7 +117,72 @@ describe('useConversacionLive', () => {
         const ultima = red.pedidas.filter((p) => p.url.includes('/novedades')).at(-1);
         await act(async () => { vi.advanceTimersByTime(LIVE_SONDEO_MS + 10); await Promise.resolve(); });
         expect(red.pedidas.filter((p) => p.url.includes('/novedades')).at(-1).url).toContain('desde=1');
-        expect(ultima.url).toContain('desde=0');
+        expect(red.pedidas.find((p) => p.url.includes('/novedades')).url).toContain('desde=0');
+        expect(alNovedad).toHaveBeenCalledTimes(1);
+    });
+
+    it('el agua confirmada por voz se ve en la tarjeta sin recargar ni esperar otro sondeo', async () => {
+        let entregar;
+        let vasos = 0;
+        red.respuestas['/api/plans/water-intake'] = {
+            status: 200, body: () => ({ glasses: vasos, goal: 8, enabled: true }),
+        };
+        red.respuestas['/api/chat/live/live_1/novedades'] = {
+            status: 200, body: () => new Promise((r) => { entregar = r; }),
+        };
+        render(<WaterTracker userId="u-duenio" />);
+        await screen.findByText('0 / 8');
+        await abierto({ alNovedad: aplicarCambiosDeVoz });
+        expect(red.pedidas.some((p) => p.url.includes('esperar_s=20'))).toBe(true);
+        vasos = 1; // La herramienta ya escribió el vaso en el servidor.
+        await act(async () => { entregar({ novedades: [{ n: 1, agua: true, diario: true, turno_completo: false }], cerrada: false }); });
+        expect(screen.getByText('1 / 8')).toBeInTheDocument();
+        const agua = red.pedidas.filter((p) => p.url.startsWith('/api/plans/water-intake'));
+        expect(agua.every((p) => !p.opts.method || p.opts.method === 'GET')).toBe(true);
+    });
+
+    it('el modo habitual refresca el agua incluso si el LLM no devuelve etiquetas UI_ACTION', async () => {
+        let vasos = 0;
+        red.respuestas['/api/plans/water-intake'] = {
+            status: 200, body: () => ({ glasses: vasos, goal: 8, enabled: true }),
+        };
+        render(<WaterTracker userId="u-duenio" />);
+        await screen.findByText('0 / 8');
+        vasos = 0.5;
+        await act(async () => { window.dispatchEvent(new CustomEvent('mealfit:chat-turn-done')); });
+        expect(screen.getByText(/0[.,]5 \/ 8/)).toBeInTheDocument();
+    });
+
+    it('una respuesta pendiente después de soltar la sesión no aplica cambios', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        let entregar;
+        red.respuestas['/api/chat/live/live_1/novedades'] = {
+            status: 200, body: () => new Promise((r) => { entregar = r; }),
+        };
+        const alNovedad = vi.fn();
+        const { result } = await abierto({ alNovedad });
+        const signal = red.pedidas.find(p => p.url.includes('/novedades')).opts.signal;
+        act(() => result.current.cerrar());
+        await act(async () => { vi.advanceTimersByTime(1600); });
+        expect(signal.aborted).toBe(true);
+        await act(async () => { entregar({ novedades: [{ n: 1, agua: true }] }); });
+        expect(alNovedad).not.toHaveBeenCalled();
+    });
+
+    it('un GET antiguo no borra el vaso que acaba de registrarse por voz', async () => {
+        let entregarAnterior;
+        let llamadas = 0;
+        red.respuestas['/api/plans/water-intake'] = {
+            status: 200, body: () => llamadas++ === 0
+                ? new Promise((r) => { entregarAnterior = r; })
+                : { glasses: 1, goal: 8, enabled: true },
+        };
+        render(<WaterTracker userId="u-duenio" />);
+        await waitFor(() => expect(entregarAnterior).toBeTypeOf('function'));
+        await act(async () => { window.dispatchEvent(new CustomEvent('mealfit:chat-turn-done')); });
+        expect(screen.getByText('1 / 8')).toBeInTheDocument();
+        await act(async () => { entregarAnterior({ glasses: 0, goal: 8, enabled: true }); });
+        expect(screen.getByText('1 / 8')).toBeInTheDocument();
     });
 
     it('cerrar pide el cierre a OpenAI y suelta el micrófono', async () => {
