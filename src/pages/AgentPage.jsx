@@ -5183,7 +5183,7 @@ const AgentPage = () => {
                             onPaste={handlePaste}
                             // [P1-PLAN-LOTE-688] con el modo voz activo (minimizado) no se escribe: se habla
                             readOnly={isCallModeActive}
-                            placeholder={isListening ? t('Te escucho…') : (pistaDeRespuesta || micErrorMsg || (isCallModeActive ? t('Modo voz activo · habla o toca la burbuja') : t("Pregúntale a {app}", { app: BRAND })))}
+                            placeholder={isListening ? t('Te escucho…') : (pistaDeRespuesta || micErrorMsg || (isCallModeActive ? t('Modo voz activo') : t("Pregúntale a {app}", { app: BRAND })))}
                             onFocus={() => { if (isMobile) setTimeout(scrollToBottom, 300); }}  // [P2-CHAT-ANCHOR-SENT-TOP] en PC no salta
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se
@@ -5211,7 +5211,8 @@ const AgentPage = () => {
                                 minWidth: 0,
                                 maxWidth: '100%',
                                 resize: 'none',
-                                overflow: 'auto',
+                                overflow: isCallModeActive ? 'hidden' : 'auto',
+                                whiteSpace: isCallModeActive ? 'nowrap' : 'pre-wrap',
                                 maxHeight: `${CHAT_TEXTAREA_MAX_HEIGHT_PX}px`,
                                 overflowWrap: 'break-word',
                                 wordBreak: 'break-word'
