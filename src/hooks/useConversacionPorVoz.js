@@ -25,6 +25,7 @@ import { crearVozDelCoach, rutaDeAudio, sintesisDisponible } from '../utils/vozD
 import { abrirVozEnLaNube, pedirVozEnLaNube } from '../utils/vozEnLaNube';
 import { sintesisNativa, sintesisNativaDisponible } from '../utils/vozNativa';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
+import { sonarModoVoz } from '../utils/sonidosModoVoz';
 import { avisarFalloDeVoz } from '../utils/diagnosticoVoz';
 import { i18nKey } from '../i18n';
 
@@ -377,6 +378,7 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         soloConToqueRef.current = false;
         const v = voz();
         v.desbloquear();
+        sonarModoVoz('abrir');
         triggerMobileHaptic('medium');
         const s = saludoRef.current;
         // [P1-PLAN-LOTE-685] Con la voz de la nube, sin saludo hablado: su audio tardaría ~2 s tras el toque y
@@ -426,10 +428,12 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
     }, [escuchar, setEstado]);
 
     const cerrar = useCallback(() => {
+        const estabaAbierto = estadoRef.current !== 'cerrado';
         setEstado('cerrado');
         soltarTemporizadores();
         cortarEscucha();
         vozRef.current?.cancelar();
+        if (estabaAbierto) sonarModoVoz('cerrar');
         setOido('');
         setDicho('');
         setError(null);

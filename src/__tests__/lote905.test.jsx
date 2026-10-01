@@ -20,6 +20,8 @@ vi.mock('../config/api', () => ({
 }));
 
 import { useConversacionLive, LIVE_SONDEO_MS } from '../hooks/useConversacionLive';
+import { sonarModoVoz } from '../utils/sonidosModoVoz';
+vi.mock('../utils/sonidosModoVoz', () => ({ sonarModoVoz: vi.fn(), DURACION_SONIDO_VOZ_MS: 160 }));
 
 class CanalFalso {
     constructor() { this.readyState = 'open'; this.enviados = []; this.onmessage = null; CanalFalso.ultimo = this; }
@@ -39,6 +41,8 @@ class PeerFalso {
 const pista = { stop: vi.fn() };
 
 beforeEach(() => {
+    sonarModoVoz.mockClear();
+    pista.stop.mockClear();
     red.respuestas = {
         '/api/chat/live/disponible': { status: 200, body: { disponible: true } },
         '/api/chat/live/sesion': { status: 200, body: { live_id: 'live_1', sdp: 'RESPUESTA' } },
@@ -68,6 +72,7 @@ describe('useConversacionLive', () => {
         expect(result.current.disponible).toBe(false);
         await act(async () => { await result.current.abrir(); });
         expect(red.pedidas.some((p) => p.url === '/api/chat/live/sesion')).toBe(false);
+        expect(sonarModoVoz).not.toHaveBeenCalled();
     });
 
     it('abrir: micrófono → oferta por NUESTRO servidor → respuesta de OpenAI; canal oai-events', async () => {
@@ -80,6 +85,8 @@ describe('useConversacionLive', () => {
         expect(PeerFalso.ultimo.remota).toEqual({ type: 'answer', sdp: 'RESPUESTA' });
         expect(result.current.estado).toBe('escuchando');
         expect(result.current.abierto).toBe(true);
+        expect(sonarModoVoz.mock.calls).toEqual([['abrir']]);
+        expect(pista.enabled).toBe(true);
     });
 
     it('los eventos de la sesión mueven el círculo: oye, piensa (delega), habla', async () => {
@@ -115,6 +122,10 @@ describe('useConversacionLive', () => {
         const { result } = await abierto();
         const canal = CanalFalso.ultimo;
         act(() => result.current.cerrar());
+        expect(pista.stop).toHaveBeenCalled();
+        expect(pista.stop.mock.invocationCallOrder[0]).toBeLessThan(sonarModoVoz.mock.invocationCallOrder.at(-1));
+        act(() => result.current.cerrar());
+        expect(sonarModoVoz.mock.calls).toEqual([['abrir'], ['cerrar']]);
         expect(canal.enviados).toContainEqual({ type: 'session.close' });
         expect(result.current.estado).toBe('cerrado');
         await act(async () => { vi.advanceTimersByTime(1600); });
@@ -128,6 +139,35 @@ describe('useConversacionLive', () => {
         expect(result.current.estado).toBe('error');
         expect(result.current.error).toBe('Se agotó el saldo de la prueba de voz');
         expect(result.current.disponible).toBe(false);
+    });
+
+    it('cerrar y volver a abrir no deja que el cierre anterior corte la sesión nueva', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        const { result } = await abierto();
+        const anterior = PeerFalso.ultimo;
+        act(() => result.current.cerrar());
+        await act(async () => { await result.current.abrir(); });
+        const nuevo = PeerFalso.ultimo;
+        await act(async () => { vi.advanceTimersByTime(1600); });
+        expect(anterior.cerrado).toBe(true);
+        expect(nuevo.cerrado).toBe(false);
+        expect(result.current.estado).toBe('escuchando');
+        expect(sonarModoVoz.mock.calls).toEqual([['abrir'], ['cerrar'], ['abrir']]);
+    });
+
+    it('cerrar mientras se pide el micrófono suelta el permiso tardío sin abrir la sesión', async () => {
+        let resolver;
+        navigator.mediaDevices.getUserMedia.mockImplementation(() => new Promise((r) => { resolver = r; }));
+        const { result } = renderHook(() => useConversacionLive({ sessionId: 'chat-1' }));
+        await waitFor(() => expect(result.current.disponible).toBe(true));
+        let apertura;
+        act(() => { apertura = result.current.abrir(); });
+        act(() => result.current.cerrar());
+        await act(async () => { resolver({ getTracks: () => [pista] }); await apertura; });
+        expect(pista.stop).toHaveBeenCalled();
+        expect(result.current.estado).toBe('cerrado');
+        expect(red.pedidas.some((p) => p.url === '/api/chat/live/sesion')).toBe(false);
+        expect(sonarModoVoz.mock.calls).toEqual([['abrir'], ['cerrar']]);
     });
 
     it('sin permiso para la IA («Ahora no» en la hoja) lo dice, y sigue ofreciéndose', async () => {

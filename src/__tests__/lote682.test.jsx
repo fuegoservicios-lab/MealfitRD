@@ -16,6 +16,8 @@ import {
     silencioParaTerminar,
 } from '../hooks/useConversacionPorVoz';
 import ModoVoz from '../components/agent/ModoVoz';
+import { sonarModoVoz } from '../utils/sonidosModoVoz';
+vi.mock('../utils/sonidosModoVoz', () => ({ sonarModoVoz: vi.fn() }));
 
 // ── dobles ──────────────────────────────────────────────────────────────────────────────────────────────────────
 let habladas = [];
@@ -55,6 +57,7 @@ beforeEach(() => {
     ultimaLocucion = null;
     ReconocimientoFalso.ultimo = null;
     sintesisFalsa.cancel.mockClear();
+    sonarModoVoz.mockClear();
     window.speechSynthesis = sintesisFalsa;
     window.SpeechSynthesisUtterance = LocucionFalsa;
     window.webkitSpeechRecognition = ReconocimientoFalso;
@@ -124,6 +127,8 @@ describe('useConversacionPorVoz', () => {
 
         act(() => result.current.abrir());
         expect(result.current.abierto).toBe(true);
+        act(() => result.current.abrir());
+        expect(sonarModoVoz.mock.calls).toEqual([['abrir']]);
         await avanzar(20);
         expect(habladas).toEqual(['Te escucho.']);
         await avanzar(VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS + 10);
@@ -146,6 +151,9 @@ describe('useConversacionPorVoz', () => {
         expect(result.current.estado).toBe('escuchando');
         act(() => result.current.cerrar());
         expect(result.current.abierto).toBe(false);
+        expect(sintesisFalsa.cancel.mock.invocationCallOrder.at(-1)).toBeLessThan(sonarModoVoz.mock.invocationCallOrder.at(-1));
+        act(() => result.current.cerrar());
+        expect(sonarModoVoz.mock.calls).toEqual([['abrir'], ['cerrar']]);
     });
 
     it('sin oír nada se pausa, y un turno sin respuesta no vuelve a abrir el micrófono', async () => {
