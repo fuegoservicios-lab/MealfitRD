@@ -26,6 +26,20 @@ beforeEach(()=>{
 afterEach(()=>{cleanup();vi.useRealTimers();vi.restoreAllMocks();});
 
 describe('avisos operativos y refresco del administrador',()=>{
+    it('al resolver un aviso lo muestra en el historial con fecha, sin quedar en problemas activos',async()=>{
+        const closed=structuredClone(data);
+        const item=closed.bloques[0].items[0];
+        Object.assign(item,{grupo:'historial',nivel:'info',estado:'resuelto',momento:'Resuelto: 02/10/2026 10:00 (RD)'});
+        await mount();
+        fetchWithAuth.mockResolvedValue(response(closed));
+        await act(async()=>{await vi.advanceTimersByTimeAsync(30000);});
+        expect(screen.queryByRole('region',{name:'Problemas activos (1)'})).not.toBeInTheDocument();
+        const row=screen.getByText('Catálogo pendiente').closest('li');
+        expect(row).toHaveAttribute('data-estado-aviso','resuelto');
+        expect(row.closest('details')).not.toBeNull();
+        expect(screen.getByText('Resuelto')).toBeInTheDocument();
+        expect(screen.getByText('Resuelto: 02/10/2026 10:00 (RD)')).toBeInTheDocument();
+    });
     it('separa activo, revisión y espera; el historial empieza plegado',async()=>{
         await mount();
         expect(screen.getByRole('region',{name:'Problemas activos (1)'})).toBeInTheDocument();

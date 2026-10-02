@@ -115,6 +115,8 @@
 .avisoDetalle { color: var(--text-muted); font-size: 0.8rem; line-height: 1.4; }
 .avisoValor { font-weight: 800; font-variant-numeric: tabular-nums; }
 .aviso[data-nivel-aviso="info"] .avisoTitulo { font-weight: 500; color: var(--text-muted); }
+.aviso[data-estado-aviso="resuelto"] { border-left-color: var(--success); background: color-mix(in srgb, var(--success) 7%, transparent); }
+.aviso[data-estado-aviso="resuelto"] .avisoNivel { color: var(--success-text, var(--success)); }
 .vacio { margin: 0; color: var(--success-text, var(--success)); font-weight: 600; }
 
 /* serie: barras por día o semana */

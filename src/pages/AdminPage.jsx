@@ -43,6 +43,7 @@ const TEXTOS = {
     sinActivos: 'Sin problemas activos registrados.',
     etiquetaEspera: 'En espera',
     etiquetaEvento: 'Evento',
+    etiquetaResuelto: 'Resuelto',
     principales: 'Cifras principales',
     nivel: { critico: 'Crítico', aviso: 'Revisar', info: 'Informativo' },
     secciones: 'Secciones del panel',
@@ -213,8 +214,8 @@ function BloqueAvisos({ bloque }) {
             {filas.map((a, i) => {
                 const nivel = nivelDe(a.nivel);
                 return (
-                    <li key={i} className={styles.aviso} data-nivel-aviso={nivel}>
-                        <span className={styles.avisoNivel}>{a.grupo === 'espera' ? TEXTOS.etiquetaEspera : a.grupo === 'historial' ? TEXTOS.etiquetaEvento : TEXTOS.nivel[nivel]}</span>
+                    <li key={i} className={styles.aviso} data-nivel-aviso={nivel} data-estado-aviso={a.estado}>
+                        <span className={styles.avisoNivel}>{a.estado === 'resuelto' ? TEXTOS.etiquetaResuelto : a.grupo === 'espera' ? TEXTOS.etiquetaEspera : a.grupo === 'historial' ? TEXTOS.etiquetaEvento : TEXTOS.nivel[nivel]}</span>
                         <span className={styles.avisoTexto}>
                             <span className={styles.avisoTitulo}>{a.titulo}</span>
                             {a.detalle && <span className={styles.avisoDetalle}>{a.detalle}</span>}
