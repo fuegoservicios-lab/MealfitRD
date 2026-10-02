@@ -157,11 +157,12 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, al
         sonarModoVoz('abrir');
         let fase = 'microfono';
         try {
+            // The opening tone selects playback. WebKit rejects getUserMedia in that category with
+            // InvalidStateError, so select capture-compatible audio BEFORE requesting the microphone.
+            try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch { /* sin API */ }
             c.micro = await capturarMicrofonoDeVoz();
             if (conexionRef.current !== c || !abiertoRef.current) { soltar(c); return; }
             c.micro.getTracks().forEach((tr) => { tr.enabled = false; });
-            // iOS: una llamada (oír y hablar a la vez) por el altavoz, no bajito por el auricular.
-            try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch { /* sin API */ }
             fase = 'webrtc';
             c.pc = new RTCPeerConnection();
             c.audio = document.createElement('audio');
@@ -228,8 +229,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, al
             setEstado('error');
             avisarFalloDeVozEnVivo({ fase, codigo: e?.name, idioma: localeRef.current });
             try {
-                alErrorRef.current?.({ mensaje, fase, puedeUsarRespaldo:
-                    ['microfono', 'webrtc', 'oferta', 'sdp_local'].includes(fase) && !permisoDenegado });
+                alErrorRef.current?.({ mensaje, fase });
             } catch { /* feedback must not interrupt cleanup */ }
         }
     }, [disponible, alEvento, soltar, vigilar, avisarCierre]);

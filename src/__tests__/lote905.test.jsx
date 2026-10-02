@@ -89,13 +89,14 @@ describe('useConversacionLive', () => {
         expect(sonarModoVoz).not.toHaveBeenCalled();
     });
 
-    it('un fallo inmediato de captura cierra el estado, permite respaldo y registra solo el código', async () => {
+    it('un fallo inmediato de captura cierra el estado, conserva el motor Live y registra solo el código', async () => {
         navigator.mediaDevices.getUserMedia.mockRejectedValue(new TypeError('secret-token-and-private-text'));
         const alError = vi.fn();
         const { result } = await abierto({ alError });
         expect(result.current.estado).toBe('error');
         expect(result.current.abierto).toBe(false);
-        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ fase: 'microfono', puedeUsarRespaldo: true }));
+        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ fase: 'microfono' }));
+        expect(result.current.disponible).toBe(true);
         expect(red.pedidas.some(p => p.url === '/api/chat/live/sesion')).toBe(false);
         const diagnostico = red.pedidas.find(p => p.url === '/api/chat/diagnostico-voz');
         expect(JSON.parse(diagnostico.opts.body)).toMatchObject({ codigo: 'live_microfono_TypeError', donde: 'modo_voz' });
@@ -103,13 +104,14 @@ describe('useConversacionLive', () => {
         expect(sonarModoVoz.mock.calls).toEqual([['abrir'], ['cerrar']]);
     });
 
-    it('si falla WebRTC suelta la captura antes de permitir el siguiente toque con respaldo', async () => {
+    it('si falla WebRTC suelta la captura antes de volver a intentar el mismo motor', async () => {
         window.RTCPeerConnection = class { constructor() { throw new DOMException('unsupported', 'NotSupportedError'); } };
         const alError = vi.fn();
         const { result } = await abierto({ alError });
         expect(pista.stop).toHaveBeenCalledTimes(1);
         expect(result.current.abierto).toBe(false);
-        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ fase: 'webrtc', puedeUsarRespaldo: true }));
+        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ fase: 'webrtc' }));
+        expect(result.current.disponible).toBe(true);
         expect(red.pedidas.some(p => p.url === '/api/chat/live/sesion')).toBe(false);
     });
 
@@ -119,7 +121,7 @@ describe('useConversacionLive', () => {
         const { result } = await abierto({ alError });
         expect(result.current.abierto).toBe(false);
         expect(result.current.error).toBe('Permite el micrófono para dictar');
-        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ puedeUsarRespaldo: false }));
+        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ mensaje: 'Permite el micrófono para dictar' }));
         expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
     });
 
@@ -135,6 +137,26 @@ describe('useConversacionLive', () => {
         expect(result.current.abierto).toBe(true);
         expect(sonarModoVoz.mock.calls).toEqual([['abrir']]);
         expect(pista.enabled).toBe(true);
+    });
+
+    it('el sonido no deja iOS en playback al capturar: evita el InvalidStateError real de WebKit', async () => {
+        Object.defineProperty(navigator, 'audioSession', { configurable: true, value: { type: 'auto' } });
+        sonarModoVoz.mockImplementationOnce(() => { navigator.audioSession.type = 'playback'; });
+        navigator.mediaDevices.getUserMedia.mockImplementation(async () => {
+            if (!['auto', 'play-and-record'].includes(navigator.audioSession.type)) {
+                throw new DOMException('AudioSession category is not compatible with audio capture.', 'InvalidStateError');
+            }
+            return { getTracks: () => [pista] };
+        });
+        const alError = vi.fn();
+        try {
+            const { result } = await abierto({ alError });
+            expect(navigator.audioSession.type).toBe('play-and-record');
+            expect(result.current.estado).toBe('escuchando');
+            expect(alError).not.toHaveBeenCalled();
+            expect(red.pedidas.some(p => p.url === '/api/chat/live/sesion')).toBe(true);
+            act(() => result.current.cerrar());
+        } finally { delete navigator.audioSession; }
     });
 
     it('los eventos de la sesión mueven el círculo: oye, piensa (delega), habla', async () => {
@@ -290,14 +312,15 @@ describe('useConversacionLive', () => {
         expect(result.current.abierto).toBe(false);
         expect(result.current.error).toBe('Activa la IA para usar esto');
         expect(result.current.disponible).toBe(true);
-        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ fase: 'servidor', puedeUsarRespaldo: false }));
+        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ fase: 'servidor' }));
     });
 });
 
 describe('cableado en AgentPage', () => {
     it('con la prueba habilitada el modo voz es el de GPT-Live-1; si no, el de siempre', () => {
         const src = readFileSync(join(__dirname, '..', 'pages', 'AgentPage.jsx'), 'utf8');
-        expect(src).toContain('const vozCoach = vozEnVivo.disponible && !usarVozDelTelefono ? vozEnVivo : vozDelTelefono;');
+        expect(src).toContain('const vozCoach = vozEnVivo.disponible ? vozEnVivo : vozDelTelefono;');
+        expect(src).not.toContain('setUsarVozDelTelefono');
         expect(src).toContain('fetchSessionMessagesRef.current?.(currentSessionIdRef.current)');
     });
 });

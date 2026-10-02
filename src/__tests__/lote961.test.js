@@ -69,6 +69,13 @@ describe('sonidosDeVoz', () => {
         expect(win.navigator.audioSession.type).toBe('auto');
     });
 
+    it('el fin del sonido no cambia la ruta que Live ya reservó para oír y hablar', () => {
+        sonarAperturaVoz(win);
+        win.navigator.audioSession.type = 'play-and-record';
+        vi.advanceTimersByTime(DURACION_ABRIR_MS);
+        expect(win.navigator.audioSession.type).toBe('play-and-record');
+    });
+
     it('la señal de abrir se apaga antes de que se abra el micrófono (no se cuela en el dictado)', () => {
         const fin = Math.max(...MELODIA_ABRIR.map(([, ini, dur]) => ini + dur)) * 1000;
         expect(fin).toBeLessThanOrEqual(VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS);

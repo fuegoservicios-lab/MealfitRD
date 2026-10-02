@@ -2062,21 +2062,10 @@ const AgentPage = () => {
     // habla con OpenAI en vivo y el coach de siempre piensa detrás. Cada turno lo guarda el servidor: aquí se recarga
     // el chat y se aplica lo que el coach cambió (ajustes, Nevera), como en el `done` de un turno escrito.
     const fetchSessionMessagesRef = useRef(null);
-    const [usarVozDelTelefono, setUsarVozDelTelefono] = useState(false);
     const vozEnVivo = useConversacionLive({
         sessionId: currentSessionId,
         locale: getLocale(),
-        alError: ({ mensaje, puedeUsarRespaldo }) => {
-            if (puedeUsarRespaldo && vozDelTelefono.disponible) {
-                setUsarVozDelTelefono(true);
-                // iOS needs another user gesture to open recognition; never reopen the microphone in a catch.
-                toast.info(t('La voz en vivo no está disponible'), {
-                    description: t('Listo. Vuelve a tocar el modo voz para empezar.'),
-                });
-            } else {
-                toast.error(t(mensaje));
-            }
-        },
+        alError: ({ mensaje }) => { toast.error(t(mensaje)); },
         alNovedad: (n) => {
             if (n?.turno_completo !== false) {
                 if (!n?.aviso_diario) trackEvent('coach_voz_live_turno');
@@ -2108,7 +2097,7 @@ const AgentPage = () => {
             }
         },
     });
-    const vozCoach = vozEnVivo.disponible && !usarVozDelTelefono ? vozEnVivo : vozDelTelefono;
+    const vozCoach = vozEnVivo.disponible ? vozEnVivo : vozDelTelefono;
     const isCallModeActive = vozCoach.abierto;
     const avisarBorrado = vozCoach.notificarBorrado;
     const usuarioDeVoz = session?.user?.id || userProfile?.id;
