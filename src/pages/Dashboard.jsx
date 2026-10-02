@@ -67,7 +67,6 @@ import { useTodaysConsumedMeals } from '../hooks/useTodaysConsumedMeals';
 // el badge plano icono+número del header). Recibe la misma data del badge.
 import CreditsMeter from '../components/dashboard/CreditsMeter';
 import DashboardTracking from '../components/dashboard/DashboardTracking';
-import NotaAvisoMedico from '../components/common/NotaAvisoMedico';   // [P1-PLAN-LOTE-846]
 import AvisoRevisionCompacto from '../components/dashboard/AvisoRevisionCompacto';   // [P1-PLAN-LOTE-846]
 // [P3-MICRONUTRIENT-PANEL · 2026-06-15] Panel de micros como medidores + dismissible.
 // [P3-NOTIF-CENTER · 2026-06-16] buildMicrosNotification = SSOT del resumen archivado;
@@ -9745,9 +9744,7 @@ const DashboardInner = () => {
                 </div>
             </div>
 
-            {/* [P1-PLAN-LOTE-846 · 2026-09-29] Apple 1.4.1: la nota médica fija al pie del plan, con el Aviso Médico.
-                Sin X a propósito: es el recordatorio que no depende de que el usuario haya declarado nada. */}
-            <NotaAvisoMedico />
+
 
             {listaImagenes && <ListaImagenPreview imagenes={listaImagenes} onClose={() => setListaImagenes(null)} />}
             {/* MODAL DE ONBOARDING WEB PUSH (Alertas Inteligentes) */}

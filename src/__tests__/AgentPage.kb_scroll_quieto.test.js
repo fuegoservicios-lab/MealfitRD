@@ -243,12 +243,12 @@ describe('[P1-CHAT-HEADER-GAP] el primer turno no invade el encabezado', () => {
     // cabecera transparente para ver más chat: ya no hay raya que invadir, y que la conversación pase por debajo de
     // los dos botones es el diseño. Lo que sigue protegido: el relleno reserva la altura de los botones (el primer
     // turno, con el scroll arriba del todo, nace DEBAJO de ellos) y el anclaje del mensaje enviado lo descuenta.
-    it('el scroller empieza arriba del todo y reserva como relleno la altura de los botones', () => {
+    it('el scroller reserva la cabecera fuera del contenido desplazable', () => {
         const src = read('pages/AgentPage.jsx');
         const i = src.indexOf('/* --- Messages area --- */');
         const regla = src.slice(src.indexOf('.messages-container {', i), src.indexOf('}', src.indexOf('.messages-container {', i)));
-        expect(regla).toMatch(/margin-top:\s*0 !important/);
-        expect(regla).toMatch(/padding-top:\s*calc\(3\.7rem \+ max\(env\(safe-area-inset-top\), 24px\)\)/);
+        expect(regla).toMatch(/margin-top:\s*calc\(3\.7rem \+ max\(env\(safe-area-inset-top\), 24px\)\)/);
+        expect(regla).toMatch(/padding-top:\s*1\.25rem !important/);
         expect(src).toMatch(/const padTop = parseFloat\(getComputedStyle\(el\)\.paddingTop\) \|\| 0;/);
     });
 });

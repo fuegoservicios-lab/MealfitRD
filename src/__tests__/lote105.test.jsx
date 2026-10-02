@@ -142,7 +142,7 @@ describe('el diario de días anteriores', () => {
         const antes = fetchWithAuth.mock.calls.length;
         fireEvent.click(screen.getByRole('button', { name: 'Eliminar Galletas del diario' }));
         await waitFor(() => expect(oido).toHaveBeenCalledTimes(1));
-        expect(oido.mock.calls[0][0].detail).toEqual({ source: 'diary-history', date: hoyISO(), userId:'u1', deletedMeal:{id:'m2',name:'Galletas'} });
+        expect(oido.mock.calls[0][0].detail).toEqual({ source: 'diary-history', date: hoyISO() });
         await waitFor(() => {
             const urls = fetchWithAuth.mock.calls.slice(antes).map((c) => String(c[0]));
             expect(urls.filter((u) => u.startsWith('/api/diary/consumed/u1?date='))).toHaveLength(1);

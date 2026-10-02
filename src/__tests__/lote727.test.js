@@ -136,7 +136,7 @@ describe('enganches', () => {
         const ap = src('src/pages/AgentPage.jsx');
         expect(ap).toContain('const _uidFotos = session?.user?.id || userProfile?.id;');
         expect(ap).toContain('const _uidVinculo = session?.user?.id || userProfile?.id;');
-        expect(ap).toContain('idsCorregidos: dataObj.diary_corrected_meal_ids');
+        expect(ap).toContain('m.vincularFotosDelChat(_uidVinculo, { cierraTurnoDe: currentSessionId })');
     });
     it('el panel enlaza al abrirse y al volver a primer plano, con import dinámico', () => {
         const tp = src('src/components/dashboard/TrackingProgress.jsx');

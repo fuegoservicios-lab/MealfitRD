@@ -1,30 +1,37 @@
-// [P1-PLAN-LOTE-846 · 2026-09-29] La nota médica fija del plan y del contador (Apple 1.4.1; auditoría fila 7.1, §A.4.3).
-//
-// Hasta este lote el recordatorio de consultar al médico solo salía si el usuario había declarado algo (el banner de
-// revisión profesional, que además se podía cerrar) y el Aviso Médico vivía solo en «Más información». Esta nota va
-// SIEMPRE, sin X: pequeña, al pie del plan y del contador, con el enlace al Aviso Médico.
-//
-// El enlace es `apexUrl('/medical')`: en la web, el `/medical` del apex; en la app nativa, la variante sin navegación
-// ni comercio que resuelve `apexUrl` (lote 845). Pestaña nueva / Safari: no se pierde el plan.
+import { useId, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Stethoscope } from 'lucide-react';
 import { apexUrl } from '../../config/site';
 import { BRAND } from '../../data/routeMeta';
 import { useT } from '../../i18n';
+import Modal from './Modal';
 import styles from './NotaAvisoMedico.module.css';
 
 const NotaAvisoMedico = () => {
     const t = useT();
+    const [open, setOpen] = useState(false);
+    const titleId = useId();
     return (
-        <p className={styles.nota} role="note" data-testid="nota-aviso-medico">
-            <Stethoscope size={14} aria-hidden="true" className={styles.icono} />
-            <span>
-                {t('{app} no sustituye el consejo médico. Consulta a tu médico antes de cambiar tu alimentación.', { app: BRAND })}
-                {' '}
-                <a href={apexUrl('/medical')} target="_blank" rel="noopener noreferrer" className={styles.enlace}>
-                    {t('Aviso médico')}
-                </a>
-            </span>
-        </p>
+        <>
+            {/* Acceso permanente junto al título, sin desplazar los datos. */}
+            <button type="button" className={styles.acceso} data-testid="nota-aviso-medico"
+                title={t('Aviso médico')} aria-label={t('Aviso médico')}
+                aria-haspopup="dialog" onClick={() => setOpen(true)}>
+                <Stethoscope size={18} aria-hidden="true" />
+            </button>
+            {/* El portal evita que el contenedor de las barras recorte la ventana. */}
+            {createPortal(
+                <Modal isOpen={open} onClose={() => setOpen(false)} titleId={titleId} isBottomSheetOnMobile>
+                    <h2 id={titleId} className={styles.titulo}>{t('Aviso médico')}</h2>
+                    <p className={styles.explicacion}>
+                        {t('{app} no sustituye el consejo médico. Consulta a tu médico antes de cambiar tu alimentación.', { app: BRAND })}
+                    </p>
+                    <a href={apexUrl('/medical')} target="_blank" rel="noopener noreferrer" className={styles.enlace}>
+                        {t('Aviso médico')}
+                    </a>
+                </Modal>, document.body
+            )}
+        </>
     );
 };
 

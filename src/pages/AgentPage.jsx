@@ -5340,14 +5340,7 @@ const AgentPage = () => {
                         )}
                     </div>
                 </div>
-                {/* [P1-PLAN-LOTE-846 · 2026-09-29] Apple 1.4.1: bajo el cuadro del coach, fija, que es una IA y no
-                    sustituye el consejo médico. 12 px y --text-muted (AA en los dos temas). */}
-                <p className="chat-aviso-ia" data-testid="chat-aviso-ia" style={{
-                    margin: '0.45rem 0 0', textAlign: 'center', fontSize: '0.75rem', lineHeight: 1.4,
-                    color: 'var(--text-muted)',
-                }}>
-                    {t('El coach es una IA: puede equivocarse y no sustituye el consejo médico.')}
-                </p>
+
             </div>
             {/* Reproductor Nativo Montado en el DOM para Evitar Bloqueos de iOS Safari */}
             <audio ref={audioPlayerRef} playsInline style={{ display: 'none' }} id="tts-audio-player" />
@@ -6205,39 +6198,19 @@ const AgentPage = () => {
                             <History size={24} strokeWidth={1.5} />
                         </button>
 
-                        {/* Center: Title */}
-                        {/* [P3-AGENT-HEADER-TITLE · 2026-05-19 · P2-WORDMARK-BIOBOROS 2026-07-30]
-                            Título del header del chat: wordmark + versión visible al
-                            usuario. Antes decía "Mealfit V1.0" HARDCODEADO — sobrevivió
-                            al rebrand porque no era "MealfitRD" sino "Mealfit" suelto,
-                            que no se podía reemplazar en bloque (también es nombre de
-                            clase CSS y de variable en otros archivos). Ahora usa
-                            `<Wordmark/>`, así que ninguna renombrada futura puede
-                            dejarlo atrás.
-                            La versión va en cifra desnuda ("1", no "V1.0"): el usuario
-                            no necesita el patch, y el prefijo "V" es jerga de release. */}
-                        <span className="agent-header-title" style={{
-                            fontSize: '1.25rem',
-                            fontWeight: 400,
-                            color: 'var(--text-main)',
-                            position: 'absolute',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            letterSpacing: '-0.02em'
-                        }}>
-                            <Wordmark /> <span style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', letterSpacing: 'normal', color: 'var(--text-muted)', fontSize: '0.8em' }}>1</span>
-                        </span>
-                        {/* [P1-PLAN-LOTE-935 · 2026-09-30] En el teléfono el aviso «El coach es una IA…» (Apple 1.4.1,
-                            lote 846) no va bajo la caja de escribir: subía con el teclado y robaba una línea al chat.
-                            Aquí ocupa el centro de la franja, donde el rótulo está oculto en móvil; en escritorio
-                            este span no se muestra y sigue el de abajo. */}
-                        <span className="chat-aviso-ia-cabecera" data-testid="chat-aviso-ia-cabecera" style={{
-                            position: 'absolute', left: '50%', transform: 'translateX(-50%)',
-                            maxWidth: 'calc(100% - 7.5rem)', textAlign: 'center', fontSize: '0.75rem', lineHeight: 1.3,
-                            color: 'var(--text-muted)', pointerEvents: 'none',
-                        }}>
-                            {t('El coach es una IA y puede equivocarse.')}
-                        </span>
+                        <div className="chat-header-identidad">
+                            <span className="agent-header-title" style={{
+                                fontSize: '1.25rem', fontWeight: 400, color: 'var(--text-main)', letterSpacing: '-0.02em'
+                            }}>
+                                <Wordmark /> <span style={{ color: 'var(--text-muted)', fontSize: '0.8em' }}>1</span>
+                            </span>
+                            <span className="chat-aviso-ia-cabecera" data-testid="chat-aviso-ia-cabecera"
+                                title={t('El coach es una IA: puede equivocarse y no sustituye el consejo médico.')}
+                                aria-label={t('El coach es una IA y puede equivocarse.')}
+                            >
+                                {t('IA · Puede equivocarse')}
+                            </span>
+                        </div>
 
                         {/* Right: 3-dot nav menu (mobile) */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -6776,8 +6749,23 @@ const AgentPage = () => {
                     display: none;
                 }
 
-                /* [P1-PLAN-LOTE-935] el aviso corto de la cabecera es solo del teléfono */
-                .chat-aviso-ia-cabecera { display: none; }
+                .chat-header-identidad {
+                    position: absolute;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    max-width: calc(100% - 7.5rem);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.15rem;
+                    pointer-events: auto;
+                }
+                .chat-aviso-ia-cabecera {
+                    color: var(--text-muted);
+                    font-size: 0.75rem;
+                    line-height: 1.4;
+                    white-space: nowrap;
+                }
 
                 /* ====== MOBILE REDESIGN ====== */
                 @media (max-width: 1024px) {
@@ -6860,10 +6848,6 @@ const AgentPage = () => {
                     /* El rótulo «Bioboros 1» no informa de nada dentro de la app y ocupaba el centro de la franja.
                        Sigue en escritorio, donde el espacio no escasea. */
                     .agent-header-title { display: none !important; }
-                    /* [P1-PLAN-LOTE-935] el aviso del coach pasa de la caja de escribir (subía con el teclado) al
-                       centro de la franja, en el hueco del rótulo. */
-                    .chat-aviso-ia-cabecera { display: block !important; }
-                    .chat-aviso-ia { display: none !important; }
                     /* Los botones, como fichas: sobre una franja opaca bastaba el icono; flotando sobre el texto del
                        chat necesitan su propio fondo para leerse. Los márgenes negativos alineaban ÓPTICAMENTE un
                        icono sin contorno con el borde; una ficha con contorno se alinea por su caja. */
@@ -6878,20 +6862,9 @@ const AgentPage = () => {
                     .messages-container {
                         padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
                         padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
-                        /* [P1-CHAT-HEADER-CLEARANCE · 2026-08-24] El header es absoluto.
-                           Antes su altura vivía como padding dentro del scroller: al anclar
-                           una conversación larga abajo, ese padding se desplazaba y la
-                           primera burbuja podía quedar a 8 px de la línea del encabezado.
-                           Ahora el viewport desplazable empieza físicamente debajo del
-                           header y conserva 1.25rem de aire que nunca se puede scrollear. */
-                        /* [P1-PLAN-LOTE-121] Con la cabecera transparente el viewport desplazable vuelve a empezar
-                           ARRIBA DEL TODO y la altura de los botones va como relleno: que la conversación pase por
-                           debajo de ellos es ahora el diseño, no el defecto. Lo que aquel arreglo protegía sigue
-                           protegido por otra vía: el anclaje del mensaje enviado (_layoutAnchor) descuenta este
-                           padding-top, así que la burbuja anclada aterriza DEBAJO de los botones, no tras ellos.
-                           3.7rem = 0.35 + 2.75 (botón de 44 px) + 0.35 de la franja + 0.25 de aire. */
-                        margin-top: 0 !important;
-                        padding-top: calc(3.7rem + max(env(safe-area-inset-top), 24px)) !important;
+                        /* La franja queda fuera del scroll: ningún mensaje pasa detrás del aviso. */
+                        margin-top: calc(3.7rem + max(env(safe-area-inset-top), 24px)) !important;
+                        padding-top: 1.25rem !important;
                         padding-bottom: 0.5rem !important;
                         background: var(--bg-card) !important;
                         -ms-overflow-style: none;

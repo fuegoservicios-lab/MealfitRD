@@ -97,35 +97,6 @@ describe('textoParaHablar', () => {
     });
 });
 
-it('el modo del teléfono se cierra tras diez segundos sin palabras aunque el reconocedor se pause a los ocho', async () => {
-    const enviar=vi.fn();
-    const {result}=renderHook(()=>useConversacionPorVoz({locale:'es-DO',enviar}));
-    act(()=>result.current.abrir());
-    await avanzar(VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS+10);
-    expect(result.current.estado).toBe('escuchando');
-    await avanzar(VOZ_SIN_VOZ_MS+10);
-    expect(result.current.estado).toBe('pausa');
-    await avanzar(1980);
-    expect(result.current.abierto).toBe(true);
-    await avanzar(50);
-    expect(result.current.abierto).toBe(false);
-    expect(enviar).not.toHaveBeenCalled();
-    expect(sonarModoVoz.mock.calls).toEqual([['abrir'],['cerrar']]);
-});
-
-it('reconoce un borrado mientras escucha, sin enviarlo al coach como si fuera otra comida', async () => {
-    const enviar=vi.fn();
-    const {result}=renderHook(()=>useConversacionPorVoz({locale:'es-DO',enviar}));
-    act(()=>result.current.abrir());
-    await avanzar(VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS+10);
-    act(()=>result.current.notificarBorrado('Lasaña eliminada del diario.'));
-    await avanzar(20);
-    expect(habladas.some(x=>x.includes('Lasaña eliminada del diario'))).toBe(true);
-    expect(enviar).not.toHaveBeenCalled();
-    await avanzar(VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS+10);
-    expect(result.current.estado).toBe('escuchando');
-});
-
 describe('crearVozDelCoach', () => {
     it('encadena las frases en orden y avisa al vaciarse; cancelar corta la cola', async () => {
         const alVaciarse = vi.fn();

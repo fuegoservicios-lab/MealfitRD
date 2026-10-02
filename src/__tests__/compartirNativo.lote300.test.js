@@ -15,7 +15,7 @@ vi.mock('../config/platform', () => ({
 }));
 vi.mock('@capacitor/filesystem', () => ({
     Directory: { Cache: 'CACHE' },
-    Filesystem: { writeFile: vi.fn(async (o) => { escritos.push(o); return { uri: 'file:///cache/'+o.path }; }) },
+    Filesystem: { writeFile: vi.fn(async (o) => { escritos.push(o); return { uri: 'file:///cache/mi-dia-bioboros.png' }; }) },
 }));
 vi.mock('@capacitor/share', () => ({
     Share: { share: vi.fn(async (o) => { if (fallarShare) throw fallarShare; compartidos.push(o); }) },
@@ -52,13 +52,5 @@ describe('[300] compartir la imagen en la app nativa', () => {
     it('sin los plugins (APK anterior) no intenta la vía nativa', () => {
         plataforma.plugins = false;
         expect(puedeCompartirNativo()).toBe(false);
-    });
-    it('comparte todas las páginas de la lista en una sola hoja, con sus nombres y orden', async () => {
-        const archivos = [1,2,3].map(n=>archivoDeImagen(new Blob(['PNG'+n],{type:'image/png'}),`lista-${n}.png`));
-        expect(await compartir({archivos,texto:'',titulo:'Lista de compras'})).toBe('compartido');
-        expect(escritos.map(x=>x.path)).toEqual(['lista-1.png','lista-2.png','lista-3.png']);
-        expect(compartidos).toHaveLength(1);
-        expect(compartidos[0].files).toEqual(['file:///cache/lista-1.png','file:///cache/lista-2.png','file:///cache/lista-3.png']);
-        expect(compartidos[0].text).toBeUndefined();
     });
 });

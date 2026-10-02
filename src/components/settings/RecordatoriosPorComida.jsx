@@ -10,6 +10,7 @@
 // borraría las otras tres. Y el formulario no la toca (`CLAVES_CON_CONTROL_PROPIO`).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
+import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useT } from '../../i18n';
@@ -138,18 +139,29 @@ const RecordatoriosPorComida = ({ claseInterruptor, claseDeslizador, onGuardado 
                         {/* Hora e interruptor van juntos: si el nombre no cabe al lado (320 px, «Petit-déjeuner»), bajan
                             los dos a la línea siguiente en vez de montarse encima del nombre. */}
                         <div className={styles.controles}>
-                            <input
-                                type="time"
-                                className={styles.hora}
-                                value={borradores[c.meal] ?? aHHMM(c.hour, c.minute)}
-                                step={300}
-                                min={aHHMM(silencio, 0)}
-                                max={aHHMM(tope - 1, 59)}
-                                disabled={!c.active}
-                                aria-label={t('Hora del recordatorio: {comida}', { comida: nombre })}
-                                onChange={(e) => setBorradores((b) => ({ ...b, [c.meal]: e.target.value }))}
-                                onBlur={() => soltarHora(c)}
-                            />
+                            <label className={styles.selectorHora}>
+                                <span className={styles.accionHora}>{t('Cambiar hora')}</span>
+                                <span className={styles.campoHora}>
+                                    <input
+                                        type="time"
+                                        className={styles.hora}
+                                        value={borradores[c.meal] ?? aHHMM(c.hour, c.minute)}
+                                        step={300}
+                                        min={aHHMM(silencio, 0)}
+                                        max={aHHMM(tope - 1, 59)}
+                                        disabled={!c.active}
+                                        aria-label={t('Hora del recordatorio: {comida}', { comida: nombre })}
+                                        onChange={(e) => setBorradores((b) => ({ ...b, [c.meal]: e.target.value }))}
+                                        onClick={(e) => {
+                                            // En navegadores compatibles, toda la hora abre el selector del sistema.
+                                            // Sin showPicker (p. ej. iOS), el input conserva su interacción nativa.
+                                            try { e.currentTarget.showPicker?.(); } catch { /* edición nativa disponible */ }
+                                        }}
+                                        onBlur={() => soltarHora(c)}
+                                    />
+                                    <ChevronDown size={16} className={styles.flechaHora} aria-hidden="true" />
+                                </span>
+                            </label>
                             <label className={claseInterruptor}>
                                 <input
                                     type="checkbox"

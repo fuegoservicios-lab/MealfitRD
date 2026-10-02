@@ -63,6 +63,8 @@ import { prefetchHistoryList } from '../../utils/historyCaches';
 import { useT } from '../../i18n';
 import styles from './DashboardLayout.module.css';
 import Wordmark from '../common/Wordmark';
+import NotaAvisoMedico from '../common/NotaAvisoMedico';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 // [P1-PLAN-LOTE-166 · 2026-09-22] En la app nativa, el id del paquete OTA junto a la versión: «¿qué versión tienes?» se
 // contesta abriendo el menú. `v1.0.0` era el mismo en los APK 100, 101 y 102 y en todos los paquetes; en la web el id
@@ -157,6 +159,8 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
 
     // Settings funciona como página standalone (sin sidebar global ni BottomTabBar).
     const isSettings = location.pathname.startsWith('/dashboard/settings');
+    const isMobileHeader = useMediaQuery('(max-width: 1024px)');
+    const showMedicalNotice = ['/dashboard', '/dashboard/progress'].includes(location.pathname.replace(/\/$/, ''));
     // [P1-PLAN-LOTE-89 · 2026-09-17] El centro de notificaciones vive SOLO en «Hoy» (/dashboard), de donde
     // salen sus avisos. Una sola condición para el centro Y para su hueco en la cabecera: si divergen, la
     // campana atraca en una cabecera sin centro o el centro se queda sin dónde atracar.
@@ -253,6 +257,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         {/* [P1-APP-VERSION · 2026-06-19] Versión minimalista (estilo Anthropic) bajo el wordmark. */}
                         <span className={styles.version}>v{APP_VERSION}{_otaId ? ` · ${_otaId}` : ''}</span>
                     </div>
+                    {showMedicalNotice && !isMobileHeader && <NotaAvisoMedico />}
                     {/* Close button for mobile inside sidebar */}
                     <button className={styles.menuBtn} onClick={closeMenu} style={{ marginBottom: '3rem', display: 'none' }}>
                         {/* We hide this by default and could show via media query if we wanted an internal close button, 
@@ -409,6 +414,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         por eso el hueco se monta con SU misma condición (`showNotifCenter`). */}
                     <div className={styles.mobileHeaderActions}>
                         {showNotifCenter && <NotificationSlot />}
+                        {showMedicalNotice && isMobileHeader && <NotaAvisoMedico />}
                         <button
                             className={styles.menuBtn}
                             onClick={() => setIsMobileMoreMenuOpen(true)}

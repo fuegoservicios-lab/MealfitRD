@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen, cleanup, fireEvent } from './utils/test-utils';
+import { render, screen, cleanup, fireEvent, waitFor } from './utils/test-utils';
 import InteractiveAssessmentFlow from '../components/assessment/InteractiveAssessmentFlow';
 import NotaAvisoMedico from '../components/common/NotaAvisoMedico';
 import AvisoRevisionCompacto from '../components/dashboard/AvisoRevisionCompacto';
@@ -76,42 +76,42 @@ describe('[P1-PLAN-LOTE-846] 1 · al final del formulario, en las dos ramas', ()
     });
 });
 
-describe('[P1-PLAN-LOTE-846] 2 · bajo el cuadro del coach', () => {
-    it('la línea vive dentro de renderInputArea, después de la caja de escribir', () => {
+describe('[P1-PLAN-LOTE-846] 2 · aviso del coach sin invadir la caja', () => {
+    it('la nota está en la cabecera y conserva la explicación completa', () => {
         const src = leer('pages/AgentPage.jsx');
-        const i = src.indexOf('const renderInputArea = (isCentered = false) => (');
-        const fin = src.indexOf('Reproductor Nativo', i);
-        const bloque = src.slice(i, fin);
-        const caja = bloque.indexOf('className="input-box-dictable"');
-        const linea = bloque.indexOf("t('El coach es una IA: puede equivocarse y no sustituye el consejo médico.')");
-        expect(caja).toBeGreaterThan(-1);
-        expect(linea).toBeGreaterThan(caja);
-        // 12 px y el gris con información (--text-muted), no el de adorno
-        expect(bloque.slice(linea - 400, linea)).toMatch(/fontSize: '0\.75rem'[\s\S]*color: 'var\(--text-muted\)'/);
+        const cabecera = src.indexOf('className="mobile-chat-header"');
+        const nota = src.indexOf('data-testid="chat-aviso-ia-cabecera"', cabecera);
+        const mensajes = src.indexOf('className="messages-container"', nota);
+        expect(nota).toBeGreaterThan(cabecera);
+        expect(mensajes).toBeGreaterThan(nota);
+        expect(src.slice(nota, mensajes)).toContain("t('El coach es una IA: puede equivocarse y no sustituye el consejo médico.')");
+        expect(src).not.toContain('data-testid="chat-aviso-ia"');
     });
 });
 
 describe('[P1-PLAN-LOTE-846] 3 · nota fija en el plan y en el contador', () => {
-    it('la nota enlaza el Aviso Médico por apexUrl y se abre aparte', () => {
+    it('el acceso compacto abre la explicación y el enlace médico, y vuelve a quedar disponible al cerrar', async () => {
         render(<NotaAvisoMedico />);
-        const nota = screen.getByTestId('nota-aviso-medico');
-        expect(nota.textContent).toMatch(/Bioboros no sustituye el consejo médico\. Consulta a tu médico/);
+        const acceso = screen.getByRole('button', { name: 'Aviso médico' });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.queryByText(/Consulta a tu médico antes/)).toBeNull();
+        fireEvent.click(acceso);
+        expect(screen.getByRole('dialog', { name: 'Aviso médico' })).toHaveTextContent('Consulta a tu médico antes de cambiar tu alimentación.');
+        expect(screen.getByRole('dialog')).toHaveTextContent('Bioboros no sustituye el consejo médico.');
         const enlace = screen.getByRole('link', { name: 'Aviso médico' });
         expect(enlace.getAttribute('href')).toBe(apexUrl('/medical'));
         expect(enlace.getAttribute('target')).toBe('_blank');
         expect(enlace.getAttribute('rel')).toMatch(/noopener/);
-        expect(screen.queryByRole('button')).toBeNull();   // fija: no se cierra
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(acceso).toBeInTheDocument();
+        // AnimatePresence conserva el diálogo durante la animación de salida.
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     });
 
-    it('la montan el plan (Dashboard) y el contador (DashboardTracking), sin condición', () => {
-        for (const f of ['pages/Dashboard.jsx', 'components/dashboard/DashboardTracking.jsx']) {
-            const src = leer(f);
-            expect(src, f).toMatch(/import NotaAvisoMedico from '[./]+(components\/)?common\/NotaAvisoMedico'/);
-            const k = src.indexOf('<NotaAvisoMedico />');
-            expect(k, f).toBeGreaterThan(-1);
-            // no va dentro de un `cond && (` en la misma línea
-            const linea = src.slice(src.lastIndexOf('\n', k), k);
-            expect(linea, f).not.toMatch(/&&/);
+    it('el acceso vive en el armazón, fuera del plan y del contador de macros', () => {
+        expect(leer('components/dashboard/DashboardLayout.jsx')).toContain("import NotaAvisoMedico from '../common/NotaAvisoMedico'");
+        for (const f of ['pages/Dashboard.jsx', 'components/dashboard/DashboardTracking.jsx', 'components/dashboard/TrackingProgress.jsx']) {
+            expect(leer(f), f).not.toContain('NotaAvisoMedico');
         }
     });
 

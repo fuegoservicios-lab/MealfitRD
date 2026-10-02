@@ -41,10 +41,10 @@ describe('[P1-PLAN-LOTE-121] la cabecera del chat en el teléfono', () => {
         expect(r).toContain('border: 1px solid var(--border) !important;');
     });
 
-    it('la conversación empieza ARRIBA DEL TODO y la altura de los botones va como relleno', () => {
+    it('la conversación empieza debajo del aviso, incluso después de desplazar el hilo', () => {
         const r = regla('                    .messages-container');
-        expect(r).toContain('margin-top: 0 !important;');
-        expect(r).toContain('padding-top: calc(3.7rem + max(env(safe-area-inset-top), 24px)) !important;');
+        expect(r).toContain('margin-top: calc(3.7rem + max(env(safe-area-inset-top), 24px)) !important;');
+        expect(r).toContain('padding-top: 1.25rem !important;');
         // el anclaje del mensaje enviado descuenta ese relleno: la burbuja aterriza DEBAJO de los botones
         expect(SRC).toContain("const padTop = parseFloat(getComputedStyle(el).paddingTop) || 0;");
         expect(SRC).toMatch(/el\.scrollTop - padTop - 12\)\);/);
