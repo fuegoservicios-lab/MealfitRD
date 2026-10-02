@@ -52,12 +52,29 @@ export function avisarFalloDeVoz({ donde, codigo, crudo, idioma } = {}) {
     enviar({ donde, codigo: codigo || null, crudo: crudo ? String(crudo).slice(0, 80) : null, idioma: idioma || null });
 }
 
+/** Live fails before the server can log a session: report only a fixed stage/code and the running bundle. */
+export function avisarFalloDeVozEnVivo({ fase, codigo, idioma } = {}) {
+    const fases = ['capacidad', 'microfono', 'webrtc', 'oferta', 'sdp_local', 'servidor', 'sdp_remoto'];
+    const codigos = ['Error', 'TypeError', 'NotAllowedError', 'SecurityError', 'NotReadableError',
+        'NotFoundError', 'NotSupportedError', 'OverconstrainedError', 'InvalidStateError',
+        'OperationError', 'AbortError', 'sin_microfono', 'sin_webrtc'];
+    const bundle = typeof __OTA_BUNDLE_ID__ === 'string' ? __OTA_BUNDLE_ID__ : '';
+    avisarFalloDeVoz({
+        donde: 'modo_voz',
+        codigo: `live_${fases.includes(fase) ? fase : 'capacidad'}_${codigos.includes(codigo) ? codigo : 'Error'}`,
+        crudo: /^\d{8}-\d{6}$/.test(bundle) ? `ota:${bundle}` : 'ota:no_disponible',
+        idioma,
+    });
+}
+
 /** Una vez por arranque, solo en la app nativa: en qué estado está la voz en ESTE binario. */
 export function avisarEstadoDeVozUnaVez({ dictadoDisponible } = {}) {
     if (estadoEnviado || nativePlatform() === 'web') return;
     estadoEnviado = true;
     enviar({
         donde: 'estado',
+        crudo: typeof __OTA_BUNDLE_ID__ === 'string' && /^\d{8}-\d{6}$/.test(__OTA_BUNDLE_ID__)
+            ? `ota:${__OTA_BUNDLE_ID__}` : 'ota:no_disponible',
         plugin_reconocimiento: nativePluginAvailable('SpeechRecognition'),
         plugin_sintesis: nativePluginAvailable('SpeechSynthesis'),
         dictado_disponible: typeof dictadoDisponible === 'boolean' ? dictadoDisponible : null,

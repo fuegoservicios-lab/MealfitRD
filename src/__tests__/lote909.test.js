@@ -3,7 +3,7 @@
  * problemas», y el servidor no veía nada. Se prueba qué se avisa, con qué tope, y que el código original de Android
  * llega (el adaptador lo traducía y lo perdía).
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -17,7 +17,7 @@ vi.mock('../config/platform', () => ({
 }));
 
 import {
-    avisarFalloDeVoz, avisarEstadoDeVozUnaVez, _reiniciarDiagnosticoVoz, DIAGNOSTICO_MAX_POR_ARRANQUE,
+    avisarFalloDeVoz, avisarFalloDeVozEnVivo, avisarEstadoDeVozUnaVez, _reiniciarDiagnosticoVoz, DIAGNOSTICO_MAX_POR_ARRANQUE,
 } from '../utils/diagnosticoVoz';
 import { ReconocimientoNativo } from '../utils/vozNativa';
 
@@ -27,8 +27,19 @@ beforeEach(() => {
     estado.plataforma = 'android';
     estado.plugins = new Set(['SpeechRecognition']);
 });
+afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('diagnosticoVoz', () => {
+    it('Live identifica la etapa y el paquete con códigos permitidos, nunca mensajes ni datos arbitrarios', () => {
+        vi.stubGlobal('__OTA_BUNDLE_ID__', '20261002-150000');
+        avisarFalloDeVozEnVivo({ fase: 'microfono', codigo: 'TypeError', idioma: 'es-DO' });
+        expect(estado.pedidas[0].cuerpo).toMatchObject({ codigo: 'live_microfono_TypeError', crudo: 'ota:20261002-150000' });
+        avisarFalloDeVozEnVivo({ fase: 'private-text', codigo: 'secret-token' });
+        expect(estado.pedidas[1].cuerpo).toMatchObject({ codigo: 'live_capacidad_Error' });
+        expect(JSON.stringify(estado.pedidas)).not.toMatch(/private-text|secret-token/);
+        avisarEstadoDeVozUnaVez({ dictadoDisponible: true });
+        expect(estado.pedidas[2].cuerpo.crudo).toBe('ota:20261002-150000');
+    });
     it('un fallo va con el código, el original de Android, el motor y la plataforma', () => {
         avisarFalloDeVoz({ donde: 'dictado', codigo: 'language-not-supported', crudo: 'UNKNOWN_12', idioma: 'es-DO' });
         expect(estado.pedidas).toEqual([{

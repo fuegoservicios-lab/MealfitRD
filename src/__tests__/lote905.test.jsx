@@ -78,6 +78,51 @@ describe('useConversacionLive', () => {
         expect(sonarModoVoz).not.toHaveBeenCalled();
     });
 
+    it.each(['microfono', 'webrtc'])('sin API de %s ofrece el modo del teléfono sin abrir una sesión', async (api) => {
+        if (api === 'microfono') Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined });
+        else delete window.RTCPeerConnection;
+        const { result } = renderHook(() => useConversacionLive());
+        await waitFor(() => expect(red.pedidas.some(p => p.url === '/api/chat/diagnostico-voz')).toBe(true));
+        expect(result.current.disponible).toBe(false);
+        await act(async () => { await result.current.abrir(); });
+        expect(red.pedidas.some(p => p.url === '/api/chat/live/sesion')).toBe(false);
+        expect(sonarModoVoz).not.toHaveBeenCalled();
+    });
+
+    it('un fallo inmediato de captura cierra el estado, permite respaldo y registra solo el código', async () => {
+        navigator.mediaDevices.getUserMedia.mockRejectedValue(new TypeError('secret-token-and-private-text'));
+        const alError = vi.fn();
+        const { result } = await abierto({ alError });
+        expect(result.current.estado).toBe('error');
+        expect(result.current.abierto).toBe(false);
+        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ fase: 'microfono', puedeUsarRespaldo: true }));
+        expect(red.pedidas.some(p => p.url === '/api/chat/live/sesion')).toBe(false);
+        const diagnostico = red.pedidas.find(p => p.url === '/api/chat/diagnostico-voz');
+        expect(JSON.parse(diagnostico.opts.body)).toMatchObject({ codigo: 'live_microfono_TypeError', donde: 'modo_voz' });
+        expect(diagnostico.opts.body).not.toContain('secret-token-and-private-text');
+        expect(sonarModoVoz.mock.calls).toEqual([['abrir'], ['cerrar']]);
+    });
+
+    it('si falla WebRTC suelta la captura antes de permitir el siguiente toque con respaldo', async () => {
+        window.RTCPeerConnection = class { constructor() { throw new DOMException('unsupported', 'NotSupportedError'); } };
+        const alError = vi.fn();
+        const { result } = await abierto({ alError });
+        expect(pista.stop).toHaveBeenCalledTimes(1);
+        expect(result.current.abierto).toBe(false);
+        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ fase: 'webrtc', puedeUsarRespaldo: true }));
+        expect(red.pedidas.some(p => p.url === '/api/chat/live/sesion')).toBe(false);
+    });
+
+    it.each(['NotAllowedError', 'SecurityError'])('un permiso denegado (%s) no se esquiva con el respaldo', async (name) => {
+        navigator.mediaDevices.getUserMedia.mockRejectedValue(new DOMException('denied', name));
+        const alError = vi.fn();
+        const { result } = await abierto({ alError });
+        expect(result.current.abierto).toBe(false);
+        expect(result.current.error).toBe('Permite el micrófono para dictar');
+        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ puedeUsarRespaldo: false }));
+        expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
+    });
+
     it('abrir: micrófono → oferta por NUESTRO servidor → respuesta de OpenAI; canal oai-events', async () => {
         const { result } = await abierto();
         const envio = red.pedidas.find((p) => p.url === '/api/chat/live/sesion');
@@ -114,7 +159,6 @@ describe('useConversacionLive', () => {
         await abierto({ alNovedad });
         await act(async () => { vi.advanceTimersByTime(LIVE_SONDEO_MS + 10); await Promise.resolve(); await Promise.resolve(); });
         expect(alNovedad).toHaveBeenCalledWith(expect.objectContaining({ ajustes_de_app: { hidratacion: true } }));
-        const ultima = red.pedidas.filter((p) => p.url.includes('/novedades')).at(-1);
         await act(async () => { vi.advanceTimersByTime(LIVE_SONDEO_MS + 10); await Promise.resolve(); });
         expect(red.pedidas.filter((p) => p.url.includes('/novedades')).at(-1).url).toContain('desde=1');
         expect(red.pedidas.find((p) => p.url.includes('/novedades')).url).toContain('desde=0');
@@ -240,17 +284,20 @@ describe('useConversacionLive', () => {
 
     it('sin permiso para la IA («Ahora no» en la hoja) lo dice, y sigue ofreciéndose', async () => {
         red.respuestas['/api/chat/live/sesion'] = { status: 428, body: { error_code: 'ai_consent_required' } };
-        const { result } = await abierto();
+        const alError = vi.fn();
+        const { result } = await abierto({ alError });
         expect(result.current.estado).toBe('error');
+        expect(result.current.abierto).toBe(false);
         expect(result.current.error).toBe('Activa la IA para usar esto');
         expect(result.current.disponible).toBe(true);
+        expect(alError).toHaveBeenCalledWith(expect.objectContaining({ fase: 'servidor', puedeUsarRespaldo: false }));
     });
 });
 
 describe('cableado en AgentPage', () => {
     it('con la prueba habilitada el modo voz es el de GPT-Live-1; si no, el de siempre', () => {
         const src = readFileSync(join(__dirname, '..', 'pages', 'AgentPage.jsx'), 'utf8');
-        expect(src).toContain('const vozCoach = vozEnVivo.disponible ? vozEnVivo : vozDelTelefono;');
+        expect(src).toContain('const vozCoach = vozEnVivo.disponible && !usarVozDelTelefono ? vozEnVivo : vozDelTelefono;');
         expect(src).toContain('fetchSessionMessagesRef.current?.(currentSessionIdRef.current)');
     });
 });

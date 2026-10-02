@@ -16,6 +16,7 @@ import { i18nKey } from '../i18n';
 import { sonarModoVoz, DURACION_SONIDO_VOZ_MS } from '../utils/sonidosModoVoz';
 import { crearVigiaDeSilencio, hayActividadDeAudio } from '../utils/cierreVozPorSilencio';
 import { capturarMicrofonoDeVoz } from '../utils/capturaMicrofono';
+import { avisarFalloDeVozEnVivo } from '../utils/diagnosticoVoz';
 
 export const LIVE_SONDEO_MS = 2000;
 
@@ -26,7 +27,7 @@ const MOTIVOS = {
     permiso: i18nKey('Activa la IA para usar esto'),
 };
 
-export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } = {}) {
+export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, alError } = {}) {
     const [disponible, setDisponible] = useState(false);
     const [estado, setEstado] = useState('cerrado');
     const [oido, setOido] = useState('');
@@ -42,15 +43,22 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
         sonarModoVoz('cerrar');
     }, []);
     const alNovedadRef = useRef(alNovedad);
+    const alErrorRef = useRef(alError);
     const sessionIdRef = useRef(sessionId);
     const localeRef = useRef(locale);
-    useEffect(() => { alNovedadRef.current = alNovedad; sessionIdRef.current = sessionId; localeRef.current = locale; });
+    useEffect(() => { alNovedadRef.current = alNovedad; alErrorRef.current = alError; sessionIdRef.current = sessionId; localeRef.current = locale; });
 
     useEffect(() => {
         let vivo = true;
         fetchWithAuth('/api/chat/live/disponible')
             .then((r) => (r.ok ? r.json() : null))
-            .then((d) => { if (vivo) setDisponible(Boolean(d?.disponible)); })
+            .then((d) => {
+                if (!vivo || !d?.disponible) return;
+                const codigo = typeof navigator.mediaDevices?.getUserMedia !== 'function' ? 'sin_microfono'
+                    : typeof RTCPeerConnection !== 'function' ? 'sin_webrtc' : null;
+                if (codigo) avisarFalloDeVozEnVivo({ fase: 'capacidad', codigo, idioma: localeRef.current });
+                setDisponible(!codigo);
+            })
             .catch(() => {});
         return () => { vivo = false; };
     }, []);
@@ -147,12 +155,14 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
         abiertoRef.current = true;
         const inicioSonido = Date.now();
         sonarModoVoz('abrir');
+        let fase = 'microfono';
         try {
             c.micro = await capturarMicrofonoDeVoz();
             if (conexionRef.current !== c || !abiertoRef.current) { soltar(c); return; }
             c.micro.getTracks().forEach((tr) => { tr.enabled = false; });
             // iOS: una llamada (oír y hablar a la vez) por el altavoz, no bajito por el auricular.
             try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch { /* sin API */ }
+            fase = 'webrtc';
             c.pc = new RTCPeerConnection();
             c.audio = document.createElement('audio');
             c.audio.autoplay = true;
@@ -162,9 +172,12 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
             c.micro.getTracks().forEach((tr) => c.pc.addTrack(tr, c.micro));
             c.dc = c.pc.createDataChannel('oai-events');
             c.dc.onmessage = (m) => { if (conexionRef.current !== c) return; try { alEvento(JSON.parse(m.data)); } catch { /* evento ilegible */ } };
+            fase = 'oferta';
             const oferta = await c.pc.createOffer();
+            fase = 'sdp_local';
             await c.pc.setLocalDescription(oferta);
             const ahora = new Date();
+            fase = 'servidor';
             const r = await fetchWithAuth('/api/chat/live/sesion', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -184,6 +197,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
             }
             if (conexionRef.current !== c || !abiertoRef.current) return;   // lo cerraron mientras tanto
             c.liveId = d.live_id;
+            fase = 'sdp_remoto';
             await c.pc.setRemoteDescription({ type: 'answer', sdp: d.sdp });
             const restante = DURACION_SONIDO_VOZ_MS - (Date.now() - inicioSonido);
             if (restante > 0) await new Promise((r) => setTimeout(r, restante));
@@ -206,11 +220,19 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
         } catch (e) {
             if (conexionRef.current !== c || !abiertoRef.current) return;
             if (conexionRef.current === c) soltar();
+            avisarCierre();
             const motivo = e?.motivo;
-            setError(MOTIVOS[motivo] || (e?.name === 'NotAllowedError' ? i18nKey('Permite el micrófono para dictar') : i18nKey('No se pudo conectar la voz en vivo')));
+            const permisoDenegado = ['NotAllowedError', 'SecurityError'].includes(e?.name);
+            const mensaje = MOTIVOS[motivo] || (permisoDenegado ? i18nKey('Permite el micrófono para dictar') : i18nKey('No se pudo conectar la voz en vivo'));
+            setError(mensaje);
             setEstado('error');
+            avisarFalloDeVozEnVivo({ fase, codigo: e?.name, idioma: localeRef.current });
+            try {
+                alErrorRef.current?.({ mensaje, fase, puedeUsarRespaldo:
+                    ['microfono', 'webrtc', 'oferta', 'sdp_local'].includes(fase) && !permisoDenegado });
+            } catch { /* feedback must not interrupt cleanup */ }
         }
-    }, [disponible, alEvento, soltar, vigilar]);
+    }, [disponible, alEvento, soltar, vigilar, avisarCierre]);
 
     const cerrar = useCallback(() => {
         const c = conexionRef.current;
@@ -241,5 +263,5 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad } =
     const hablar = useCallback(() => { /* la voz la pone GPT-Live-1, no el stream del chat */ }, []);
     const notificarBorrado = useCallback(() => { conexionRef.current?.silencio?.actividad(); }, []);
 
-    return { disponible, abierto: estado !== 'cerrado', estado, oido, dicho, error, pulso, abrir, cerrar, tocar, hablar, notificarBorrado };
+    return { disponible, abierto: estado !== 'cerrado' && estado !== 'error', estado, oido, dicho, error, pulso, abrir, cerrar, tocar, hablar, notificarBorrado };
 }
