@@ -92,10 +92,11 @@ describe('recordar y enlazar', () => {
         expect(await vincularFotosDelChat(UID, { ...s, ahora: T0 + 90000 })).toBe(0);
     });
 
-    it('sin fotos recientes no pregunta nada al servidor', async () => {
+    it('sin fotos recientes solo consulta enlaces históricos confirmados', async () => {
         const s = servidor([]);
         expect(await vincularFotosDelChat(UID, { ...s, ahora: T0 })).toBe(0);
-        expect(s.fetchJson).not.toHaveBeenCalled();
+        expect(s.fetchJson).toHaveBeenCalledTimes(1);
+        expect(s.fetchJson).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/diary\/chat-photos\?tzOffset=/));
     });
 });
 
@@ -105,7 +106,7 @@ describe('enganches en el chat', () => {
         expect(ap).toContain("const cargarFotosDelChat = () => import('../utils/fotosDelChat');");
         expect(ap).toContain('m.recordarFotosDelChat(_uidFotos, uploadedAttachments, { sesion: _sesionFotos })');
         const done = ap.indexOf("} else if (dataObj.type === 'done') {");
-        expect(ap.slice(done, done + 2000)).toContain('m.vincularFotosDelChat(_uidVinculo, { cierraTurnoDe: currentSessionId })');
+        expect(ap.slice(done, done + 2300)).toContain('idsCorregidos: dataObj.diary_corrected_meal_ids');
         expect(ap).not.toMatch(/^import .*fotosDelChat/m);
     });
 });

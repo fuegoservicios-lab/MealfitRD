@@ -118,8 +118,8 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         await waitFor(() => {
             expect(confirmToast).toHaveBeenCalledTimes(1);
         });
-        // Solo el GET inicial se disparó — ningún DELETE.
-        expect(fetchWithAuth).toHaveBeenCalledTimes(1);
+        // El diario y las fotos pueden pedir datos; cancelar nunca muta el registro.
+        expect(fetchWithAuth.mock.calls.some(([, options]) => options?.method === 'DELETE')).toBe(false);
         expect(screen.getByText('Pollo con arroz')).toBeInTheDocument();
         expect(screen.getByText('2 comidas registradas')).toBeInTheDocument();
     });

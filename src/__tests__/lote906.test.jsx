@@ -105,9 +105,9 @@ describe('la burbuja se arrastra', () => {
 
     it('el globo se desvanece solo, salvo mientras el coach habla', () => {
         const { rerender } = pintar({ pistaBurbuja: 'Puedes moverte por la app mientras hablamos' });
-        expect(screen.getByText('Puedes moverte por la app mientras hablamos').dataset.fijo).toBe('0');
+        expect(screen.getByText('Puedes moverte por la app mientras hablamos').closest('[data-fijo]').dataset.fijo).toBe('0');
         rerender(<ModoVoz estado="hablando" oido="" dicho="Listo, anotado." minimizado onCerrar={vi.fn()} onExpandir={vi.fn()} />);
-        expect(screen.getByText('Listo, anotado.').dataset.fijo).toBe('1');
+        expect(screen.getByText('Listo, anotado.').closest('[data-fijo]').dataset.fijo).toBe('1');
     });
 });
 

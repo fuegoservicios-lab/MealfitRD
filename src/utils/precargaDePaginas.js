@@ -33,6 +33,31 @@ export const cargarPagina = {
     historial: unaVez(() => import('../pages/History')),
 };
 
+/**
+ * [P1-PLAN-LOTE-971 · 2026-10-01] El layout del panel, con el mismo patrón: `lazy` y la precarga comparten promesa.
+ * Va FUERA de `cargarPagina` porque no es una página del menú (el menú lo precarga el propio panel al montarse).
+ */
+export const cargarLayoutDelPanel = unaVez(() => import('../components/dashboard/DashboardLayout'));
+
+let llegadaProgramada = false;
+
+/**
+ * [P1-PLAN-LOTE-971] Lo que se abre en cuanto el plan termina: el panel y su layout. La pantalla de generación
+ * (`/plan`) vive FUERA del layout del panel, así que quien llega del formulario aún no tiene ese código: lo
+ * descargaba y compilaba (355 KB de JS) justo después de «listo». Se pide durante la espera, en reposo, para
+ * que la llegada no pase por la pantalla de carga.
+ */
+export function precargarLlegadaAlPanel() {
+    if (llegadaProgramada) return;
+    llegadaProgramada = true;
+    const pedir = () => {
+        cargarPagina.hoy().catch(() => { /* la visita real lo reintenta */ });
+        cargarLayoutDelPanel().catch(() => { /* la visita real lo reintenta */ });
+    };
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(pedir, { timeout: 8000 });
+    else setTimeout(pedir, 3000);   // Safari / WKWebView no tienen requestIdleCallback
+}
+
 let programada = false;
 
 /** Pide el código de las páginas del menú cuando el navegador está en reposo (nunca compite con lo que se ve). */

@@ -81,7 +81,7 @@ describe('P1-FIX-SODIUM-DAY', () => {
     });
 
     it('éxito (fixed=true): refresca el plan vía /api/plans-data/latest + setPlanData', () => {
-        const win = _sliceFrom("result?.fixed === true", 1500);
+        const win = _sliceFrom("result?.fixed === true", 2300);
         expect(win).toContain("fetchWithAuth('/api/plans-data/latest')");
         expect(win).toContain('setPlanData(pdNew)');
     });

@@ -12,7 +12,41 @@
 //
 // SE DECIDE POR EL BINARIO, no por la plataforma: un paquete OTA nuevo corre también en APKs viejos sin los
 // plugins; `isPluginAvailable` dice la verdad de ESE binario y en uno viejo, sencillamente, no hay botón.
-import { nativePlatform, nativePluginAvailable } from '../config/platform';
+import { nativePlatform, nativePluginAvailable, registrarPluginNativo } from '../config/platform';
+
+// [P1-PLAN-LOTE-962 · 2026-10-01] Sin el pitido del reconocedor de Android. El dueño: «quita también el pitido de
+// Android». El plugin de voz solo silencia el de ARRANQUE (devuelve el volumen en cuanto el reconocedor está listo),
+// así que el de cierre sonaba siempre. Con el APK que trae `MfSilencioVoz` (plugin local, MainActivity) los canales
+// de notificación y de sistema se silencian ANTES de cada escucha y se devuelven `SILENCIO_TRAS_FIN_MS` después de
+// terminar (el pitido de cierre suena justo al parar). Entre turnos seguidos no se restaura: la siguiente escucha
+// cancela la restauración pendiente. En un APK viejo, sin el plugin, se queda como estaba (`muteRecognizerBeep`).
+// El plugin nativo restaura también al pasar a segundo plano, con un tope de 2 min y tras una muerte de la app.
+export const SILENCIO_TRAS_FIN_MS = 900;
+let pluginSilencio = null;
+// Perezoso y SÍNCRONO (lo que vuelve es un Proxy: jamás desde una función async — lección del 133). Perezoso para que
+// importar este módulo en la web o en los tests no registre nada.
+const silencioVoz = () => {
+    if (!pluginSilencio) pluginSilencio = registrarPluginNativo('MfSilencioVoz');
+    return pluginSilencio;
+};
+let restauracionPendiente = null;
+
+export function silencioDelSistemaDisponible() {
+    return nativePlatform() === 'android' && nativePluginAvailable('MfSilencioVoz');
+}
+
+function silenciarSistema(plugin) {
+    if (restauracionPendiente) { clearTimeout(restauracionPendiente); restauracionPendiente = null; }
+    try { Promise.resolve(plugin.silenciar()).catch(() => {}); } catch { /* sin plugin: suena el del sistema */ }
+}
+
+function restaurarSistemaLuego(plugin, ms = SILENCIO_TRAS_FIN_MS) {
+    if (restauracionPendiente) clearTimeout(restauracionPendiente);
+    restauracionPendiente = setTimeout(() => {
+        restauracionPendiente = null;
+        try { Promise.resolve(plugin.restaurar()).catch(() => {}); } catch { /* el nativo restaura solo */ }
+    }, ms);
+}
 
 export function vozNativaDisponible() {
     return reconocimientoNativoDisponible() && sintesisNativaDisponible();
@@ -57,7 +91,9 @@ const resultados = (texto, final) => {
 
 /** El reconocedor nativo con la forma de `SpeechRecognition`: `new ReconocimientoNativo()`, lang, onresult, start… */
 export class ReconocimientoNativo {
-    constructor({ cargar = cargarReconocedor } = {}) {
+    constructor({ cargar = cargarReconocedor, silencio = null } = {}) {
+        // [P1-PLAN-LOTE-962] `silencio`: el plugin `MfSilencioVoz` (los tests pasan uno falso); null = el del binario si lo trae.
+        this._silencio = silencio || (silencioDelSistemaDisponible() ? silencioVoz() : null);
         this.lang = 'es-US';
         this.interimResults = true;
         this.continuous = false;           // Android corta solo al callar; los hooks ya saben reabrir
@@ -93,6 +129,7 @@ export class ReconocimientoNativo {
         this._terminado = true;
         this.fase = 'terminado';
         this._soltar();
+        if (this._silenciado) restaurarSistemaLuego(this._silencio);   // [P1-PLAN-LOTE-962] tras el pitido de cierre
         this.onend?.();
     }
 
@@ -155,12 +192,15 @@ export class ReconocimientoNativo {
         if (this._terminado) { this._soltar(); return; }
         this._arrancado = true;
         this.fase = 'start';
+        // [P1-PLAN-LOTE-962] Con nuestro silencio, el plugin de voz NO toca volúmenes: los dos a la vez se pisarían
+        // (él guarda el volumen ya silenciado y lo «restaura» a 0). Sin `await`: los plugins comparten un hilo (951).
+        if (this._silencio) { this._silenciado = true; silenciarSistema(this._silencio); }
         await plugin.start({
             language: this.lang,
             partialResults: true,
             popup: false,
             maxResults: 1,
-            muteRecognizerBeep: true,
+            muteRecognizerBeep: !this._silencio,
         });
         // El plugin resuelve `start()` justo después de emitir «started»: si resolvió y no llegó, el evento se perdió.
         if (!this._empezado && !this._terminado) this.fase = 'start_resuelto_sin_started';

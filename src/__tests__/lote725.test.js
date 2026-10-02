@@ -14,11 +14,12 @@ const regla = (sel) => {
 };
 
 describe('dictado ≠ modo voz', () => {
-    it('el micrófono pinta un micrófono también mientras escucha (sin las ondas del modo voz)', () => {
+    it('el dictado muestra actividad al escuchar y micrófono al estar apagado', () => {
         const i = ap.indexOf('className={`chat-mic-btn');
         const boton = ap.slice(i, ap.indexOf('</button>', i));
         expect(boton).toContain('<Mic size={21} strokeWidth={2.1} aria-hidden="true" />');
-        expect(boton).not.toContain('isListening ? (');
+        expect(boton).toContain('isListening ? (');
+        expect(boton).toContain('className="chat-mic-activity"');
         expect(ap).not.toContain('chat-mic-ondas');
     });
 

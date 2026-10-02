@@ -82,7 +82,7 @@ describe('lote 127 · la caja del chat es simétrica', () => {
         expect(ap).toContain('order: cajaApilada ? -1 : 0,');
         expect(ap).toContain("borderRadius: cajaApilada ? '1.75rem' : '2rem',");
         // sin mover el JSX: el input de fichero sigue dentro del span del «+» (iOS ancla ahí su menú)
-        expect(ap.indexOf('ref={fileInputRef}')).toBeLessThan(ap.indexOf('ref={chatInputRef}\n                            rows={1}'));
+        expect(ap.indexOf('ref={fileInputRef}')).toBeLessThan(ap.indexOf('ref={chatInputRef}'));
     });
 
     it('ningún acento grave dentro del CSS del chat (rompe el template literal)', () => {

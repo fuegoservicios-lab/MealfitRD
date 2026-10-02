@@ -17,7 +17,7 @@ import {
 } from '../hooks/useConversacionPorVoz';
 import ModoVoz from '../components/agent/ModoVoz';
 import { sonarModoVoz } from '../utils/sonidosModoVoz';
-vi.mock('../utils/sonidosModoVoz', () => ({ sonarModoVoz: vi.fn() }));
+vi.mock('../utils/sonidosModoVoz', () => ({ sonarModoVoz: vi.fn(), DURACION_SONIDO_VOZ_MS: 380 }));
 
 // ── dobles ──────────────────────────────────────────────────────────────────────────────────────────────────────
 let habladas = [];

@@ -25,7 +25,7 @@ import { crearVozDelCoach, rutaDeAudio, sintesisDisponible } from '../utils/vozD
 import { abrirVozEnLaNube, pedirVozEnLaNube } from '../utils/vozEnLaNube';
 import { sintesisNativa, sintesisNativaDisponible } from '../utils/vozNativa';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
-import { sonarModoVoz } from '../utils/sonidosModoVoz';
+import { sonarModoVoz, DURACION_SONIDO_VOZ_MS } from '../utils/sonidosModoVoz';
 import { avisarFalloDeVoz } from '../utils/diagnosticoVoz';
 import { i18nKey } from '../i18n';
 import { crearVigiaDeSilencio } from '../utils/cierreVozPorSilencio';
@@ -47,7 +47,7 @@ export const VOZ_SIN_VOZ_MS = 8000;
 /** Tope de un turno hablado (un monólogo no se queda escuchando para siempre). */
 export const VOZ_TOPE_ESCUCHA_MS = 45000;
 /** Respiro entre que el coach calla y el micrófono se abre (que no se oiga la cola de su propia voz). */
-export const VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS = 350;
+export const VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS = Math.max(350, DURACION_SONIDO_VOZ_MS);
 // [P1-PLAN-LOTE-909] Si el reconocedor no dice «ya oigo» (`onstart`) en este tiempo, no se espera más: en Android se
 // quedaba en «Pensando…» para siempre. El tiempo en que el teléfono pide el permiso del micrófono no cuenta.
 export const VOZ_ARRANQUE_MS = 8000;
