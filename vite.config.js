@@ -575,6 +575,7 @@ export default defineConfig(({ mode }) => {
     // [2026-09-26 · P1-PLAN-LOTE-364] 492 archivos / 4.459 tests, exit 0 con los mismos 4 workers.
     // [2026-09-28 · P1-PLAN-LOTE-744] 535 archivos / 4.671 tests, exit 0 con los mismos 4 workers (gate del 744).
     // [2026-09-29 · P1-PLAN-LOTE-902] 578 archivos / 5.195 tests, exit 0 con los mismos 4 workers (gate del 900-902).
+    // [2026-10-01 · P1-PLAN-LOTE-971] 621 archivos / 5.717 tests, exit 0 con los mismos 4 workers (gate del frontend 961-971).
     maxWorkers: Number(process.env.VITEST_MAX_WORKERS) || 4,
     minWorkers: 1,
     // [P1-4 · COVERAGE-REPORT-ONLY · 2026-07-09] @vitest/coverage-v8 en modo
