@@ -7,7 +7,7 @@ import { resolve } from 'node:path';
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('../utils/fotosDeComidas', () => ({
     guardarFotoDeComida: vi.fn(async () => true),
-    idsConFoto: vi.fn(async () => new Set()),
+    idsConFoto: vi.fn(async () => new Set()), idsDeFotosDeComida: vi.fn(async () => new Set()),
 }));
 
 import { guardarFotoDeComida, idsConFoto } from '../utils/fotosDeComidas';

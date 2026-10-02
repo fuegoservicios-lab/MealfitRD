@@ -12,7 +12,8 @@
 //    cuenta en otra. Por eso el cierre de sesión NO las borra (lo que limpia `_clearUserScopedCaches` son cachés SIN
 //    usuario en la clave); borrar la CUENTA sí (`borrarFotosDelUsuario`).
 //  · Borrar la comida borra su foto (los dos caminos de borrar: la papelera de la fila y la ficha).
-//  · Retención: 90 días (lo que enseña el cajón de días anteriores) y 400 fotos como máximo en el dispositivo; al
+//  · Retención: 90 días (lo que enseña el cajón de días anteriores) y 400 comidas como máximo en el dispositivo;
+//    cada galería admite hasta 4 fotos, el mismo límite del chat; al
 //    guardar se poda lo más viejo, leyendo SOLO claves (un cursor de claves no carga los blobs).
 //  · Dos tamaños: la foto (1024 px de lado, lo mismo que se sube al análisis) y la miniatura cuadrada de 160 px de la
 //    fila. Un formato que el navegador no sabe pintar (HEIC en el escritorio) no se guarda: sin foto, no una rota.
@@ -211,7 +212,7 @@ async function _podar() {
 }
 
 /** Guarda la foto de la comida `mealId`. true si quedó guardada. */
-export async function guardarFotoDeComida(userId, mealId, archivo) {
+export async function guardarFotoDeComida(userId, mealId, archivo, { attachmentId = null, anexar = false } = {}) {
     if (!_valido(userId) || !_valido(mealId) || !(archivo instanceof Blob)) return false;
     if (!(await _abrir())) return false;   // sin base (modo privado, cuota) ni se decodifica
     const [foto, mini] = await Promise.all([
@@ -227,13 +228,45 @@ export async function guardarFotoDeComida(userId, mealId, archivo) {
         fotoGuardada = { bytes: fotoBytes, type: foto.type };
         miniGuardada = { bytes: miniBytes, type: mini.type };
     } catch { return false; }
-    const ok = await _conAlmacen('readwrite', (s) => s.put({
-        clave: _clave(userId, mealId), userId, mealId, foto: fotoGuardada, mini: miniGuardada, creada: Date.now(),
-    }));
+    // Read + append in ONE transaction: simultaneous uploads must not overwrite each other.
+    const ok = await _conAlmacen('readwrite', (s) => {
+        const req = s.get(_clave(userId, mealId));
+        req.onsuccess = () => {
+            const anterior = req.result;
+            const fotos = anexar && anterior?.userId === userId ? _fotos(anterior) : [];
+            if (attachmentId && fotos.some((f) => f.id === attachmentId)) return;
+            // A legacy unlabelled chat picture is replaced by its recoverable gallery, avoiding a duplicate cover.
+            const lista = attachmentId ? fotos.filter((f) => f.id) : fotos;
+            if (lista.length >= 4) return;
+            lista.push({ id: attachmentId, foto: fotoGuardada, mini: miniGuardada });
+            s.put({ clave: _clave(userId, mealId), userId, mealId, fotos: lista,
+                foto: lista[0].foto, mini: lista[0].mini, creada: anterior?.creada || Date.now() });
+        };
+        return true;
+    });
     if (ok === null) return false;
     await _podar();
     _avisar(userId);
     return true;
+}
+
+const _fotos = (reg) => Array.isArray(reg?.fotos) ? reg.fotos : reg?.foto ? [{ id: null, foto: reg.foto, mini: reg.mini }] : [];
+const _blob = (dato) => dato instanceof Blob ? dato
+    : dato?.bytes instanceof ArrayBuffer ? new Blob([dato.bytes], { type: dato.type || 'image/jpeg' }) : null;
+
+/** Backward-compatible gallery; old single-image meals remain visible. */
+export async function leerFotosDeComida(userId, mealId, tipo = 'foto') {
+    if (!_valido(userId) || !_valido(mealId)) return [];
+    const reg = (await _conAlmacen('readonly', (s) => s.get(_clave(userId, mealId))))?.valor;
+    if (reg?.userId !== userId) return [];
+    return _fotos(reg).map((f) => ({ id: f.id, blob: _blob(tipo === 'mini' ? f.mini : f.foto) })).filter((f) => f.blob);
+}
+
+/** IDs allow recovery to retry missing pictures without downloading the complete gallery again. */
+export async function idsDeFotosDeComida(userId, mealId) {
+    if (!_valido(userId) || !_valido(mealId)) return new Set();
+    const reg = (await _conAlmacen('readonly', (s) => s.get(_clave(userId, mealId))))?.valor;
+    return new Set(reg?.userId === userId ? _fotos(reg).map((f) => f.id).filter(Boolean) : []);
 }
 
 /** La foto (`'foto'`) o la miniatura (`'mini'`) de la comida, o null. */

@@ -11,6 +11,33 @@ const VACIO = new Set();
 
 const _conUsuario = (userId) => typeof userId === 'string' && userId.length > 0 && userId !== 'guest';
 
+export function useFotosDeComida(userId, mealId) {
+    const [estado, setEstado] = useState({ clave: null, fotos: [] });
+    const clave = _conUsuario(userId) && mealId ? `${userId}:${mealId}` : null;
+    useEffect(() => {
+        if (!clave) return undefined;
+        let vivo = true, version = 0, urls = [];
+        const soltar = () => { urls.forEach((u) => URL.revokeObjectURL(u)); urls = []; };
+        const cargar = async (evento) => {
+            if (evento?.detail?.userId && evento.detail.userId !== userId) return;
+            const turno = ++version;
+            try {
+                const almacen = await cargarAlmacen();
+                const fotos = await almacen.leerFotosDeComida(userId, mealId);
+                if (!vivo || turno !== version) return;
+                soltar();
+                const nuevas = fotos.map((f) => ({ id: f.id, url: URL.createObjectURL(f.blob) }));
+                urls = nuevas.map((f) => f.url);
+                setEstado({ clave, fotos: nuevas });
+            } catch { /* retain the current pictures if a transient read fails */ }
+        };
+        cargar();
+        window.addEventListener(EVENTO, cargar);
+        return () => { vivo = false; window.removeEventListener(EVENTO, cargar); soltar(); };
+    }, [clave, userId, mealId]);
+    return estado.clave === clave ? estado.fotos : [];
+}
+
 /** Los `mealId` de este usuario con foto en el dispositivo. Se refresca al guardar o borrar una foto. */
 export function useIdsConFoto(userId) {
     const [estado, setEstado] = useState({ userId: null, ids: VACIO });

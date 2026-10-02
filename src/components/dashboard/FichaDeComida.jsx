@@ -33,12 +33,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, RotateCcw, Trash2, Loader2 } from 'lucide-react';
+import { X, RotateCcw, Trash2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
-import { useFotoDeComida } from '../../hooks/useFotosDeComidas';
+import { useFotosDeComida } from '../../hooks/useFotosDeComidas';
 import { useAssessment } from '../../context/AssessmentContext';
 import { formatDate, formatNumber, formatPercent, getLocale, useT } from '../../i18n';
 import { nombreDeRegistro, platoDelPlan } from '../../utils/nombreDeRegistro';
@@ -97,9 +97,15 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     const [repitiendo, setRepitiendo] = useState(false);
     const [eliminando, setEliminando] = useState(false);
     const [ampliada, setAmpliada] = useState(false);
+    const visorRef = useRef(null);
+    const ampliarRef = useRef(null);
 
     // `undefined` mientras se mira el dispositivo, `null` si no hay foto, la URL si la hay (ver `useFotoDeComida`)
-    const fotoUrl = useFotoDeComida(userId, meal?.id, 'foto');
+    const fotos = useFotosDeComida(userId, meal?.id);
+    const [seleccionada, setSeleccionada] = useState(0);
+    const indice = Math.min(seleccionada, Math.max(0, fotos.length - 1));
+    const fotoUrl = fotos[indice]?.url;
+    const cambiarFoto = (paso) => setSeleccionada((indice + paso + fotos.length) % fotos.length);
     const nombre = nombreDeRegistro(meal?.meal_name, planData, t) || t('Sin nombre');
 
     useEffect(() => {
@@ -127,15 +133,31 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     // La foto en grande: Escape la cierra a ELLA (en captura, antes que el Escape de la hoja).
     useEffect(() => {
         if (!ampliada) return undefined;
+        const disparador = ampliarRef.current;
+        visorRef.current?.querySelector('button')?.focus({ preventScroll: true });
         const onKey = (e) => {
+            if (e.key === 'Tab') {
+                const botones = [...(visorRef.current?.querySelectorAll('button') || [])];
+                const actual = botones.indexOf(document.activeElement);
+                botones[(actual + (e.shiftKey ? -1 : 1) + botones.length) % botones.length]?.focus();
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                e.stopPropagation();
+                setSeleccionada((n) => (n + (e.key === 'ArrowLeft' ? -1 : 1) + fotos.length) % fotos.length);
+                return;
+            }
             if (e.key !== 'Escape') return;
             e.preventDefault();
             e.stopPropagation();
             setAmpliada(false);
         };
         window.addEventListener('keydown', onKey, true);
-        return () => window.removeEventListener('keydown', onKey, true);
-    }, [ampliada]);
+        return () => { window.removeEventListener('keydown', onKey, true); disparador?.focus({ preventScroll: true }); };
+    }, [ampliada, fotos.length]);
 
     const consumido = aFecha(meal?.consumed_at);
     const creado = aFecha(detalle.meal?.created_at || meal?.created_at);
@@ -235,7 +257,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                 onTouchEnd={hoja.onTouchEnd}
                 onTouchCancel={hoja.onTouchEnd}
             >
-                <div className={styles.head}>
+                <div className={styles.head} inert={ampliada || undefined}>
                     <span className={styles.grip} aria-hidden="true" />
                     <div className={styles.headRow}>
                         <div className={styles.headText}>
@@ -251,12 +273,26 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                     </div>
                 </div>
 
-                <div ref={bodyRef} className={styles.body}>
+                <div ref={bodyRef} className={styles.body} inert={ampliada || undefined}>
                     {fotoUrl && (
                         <figure className={styles.foto}>
-                            <button type="button" className={styles.fotoBtn} onClick={() => setAmpliada(true)} aria-label={t('Ver la foto en grande')}>
+                            <button ref={ampliarRef} type="button" className={styles.fotoBtn} onClick={() => setAmpliada(true)} aria-label={t('Ver la foto en grande')}>
                                 <img src={fotoUrl} alt={t('Foto de {nombre}', { nombre })} className={styles.fotoImg} />
                             </button>
+                            {fotos.length > 1 && (
+                                <div className={styles.galeria}>
+                                    <div className={styles.miniaturas}>
+                                        {fotos.map((foto, i) => (
+                                            <button type="button" key={foto.id || i} className={styles.miniatura}
+                                                aria-pressed={i === indice} aria-label={`${t('Foto de {nombre}', { nombre })} ${i + 1} / ${fotos.length}`}
+                                                onClick={() => setSeleccionada(i)}>
+                                                <img src={foto.url} alt="" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <span className={styles.cuenta} aria-live="polite">{indice + 1} / {fotos.length}</span>
+                                </div>
+                            )}
                         </figure>
                     )}
 
@@ -353,7 +389,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                     )}
                 </div>
 
-                <div className={styles.footer}>
+                <div className={styles.footer} inert={ampliada || undefined}>
                     <button type="button" className={styles.secundario} onClick={repetir} disabled={repitiendo || eliminando}>
                         {repitiendo
                             ? <Loader2 size={17} className="spin-animation" aria-hidden="true" />
@@ -371,9 +407,15 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                 </div>
 
                 {ampliada && fotoUrl && (
-                    <button type="button" className={styles.visor} onClick={() => setAmpliada(false)} aria-label={t('Cerrar')}>
+                    <div ref={visorRef} className={styles.visor} role="dialog" aria-modal="true" aria-label={t('Foto de {nombre}', { nombre })}>
+                        <button type="button" className={styles.visorCerrar} onClick={() => setAmpliada(false)} aria-label={t('Cerrar')}><X aria-hidden="true" /></button>
                         <img src={fotoUrl} alt={t('Foto de {nombre}', { nombre })} className={styles.visorImg} />
-                    </button>
+                        {fotos.length > 1 && <div className={styles.visorControles}>
+                            <button type="button" onClick={() => cambiarFoto(-1)} aria-label={t('Imagen anterior')}><ChevronLeft aria-hidden="true" /></button>
+                            <span aria-live="polite">{indice + 1} / {fotos.length}</span>
+                            <button type="button" onClick={() => cambiarFoto(1)} aria-label={t('Imagen siguiente')}><ChevronRight aria-hidden="true" /></button>
+                        </div>}
+                    </div>
                 )}
             </div>
         </div>

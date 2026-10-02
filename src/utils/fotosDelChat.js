@@ -28,7 +28,7 @@
 //
 // Nada de esto lanza hacia la interfaz: si algo falla, la comida sale sin foto, como antes.
 // Las correcciones se enlazan por el ID que confirma el servidor, aunque la fila sea anterior a la foto.
-import { guardarFotoDeComida, idsConFoto } from './fotosDeComidas';
+import { guardarFotoDeComida, idsConFoto, idsDeFotosDeComida } from './fotosDeComidas';
 import { fetchWithAuth } from '../config/api';
 
 export const VENTANA_MS = 45 * 60 * 1000;
@@ -125,6 +125,16 @@ export function fotoParaComida(fotos, creada, textoDeLaComida = '') {
     return candidatas[0] || null;
 }
 
+export function fotosParaComida(fotos, creada, texto = '') {
+    const primera = fotoParaComida(fotos, creada, texto);
+    if (!primera) return [];
+    // Only images from the same upload group: a previous turn cannot leak into the gallery.
+    const grupo = fotos.filter((f) => f.t === primera.t && f.ses === primera.ses
+        && fotoParaComida([f], creada, texto));
+    const coincidentes = grupo.filter((f) => hablanDeLoMismo(f.desc, texto));
+    return (coincidentes.length ? coincidentes : [primera]).slice(0, 4);
+}
+
 const _fechaLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const _fetchJson = async (url) => { const r = await fetchWithAuth(url); return r.ok ? r.json() : null; };
@@ -177,19 +187,24 @@ export async function vincularFotosDelChat(userId, {
             && (f.enlazadaEn == null || Math.abs(Number(c.t) - Number(f.enlazadaEn)) <= MISMO_TURNO_MS))
             .sort((a, b) => Number(b.t) - Number(a.t));
         const coincidentes = candidatas.filter((f) => hablanDeLoMismo(f.desc, _textoDeLaComida(detalle.meal)));
-        const foto = coincidentes[0] || (candidatas.length === 1 && !Number(candidatas[0].turnos) ? candidatas[0] : null);
-        if (!foto) continue;
+        const elegidas = coincidentes.length ? coincidentes.filter((f) => f.t === coincidentes[0].t).slice(0, 4)
+            : candidatas.length === 1 && !Number(candidatas[0].turnos) ? candidatas : [];
+        if (!elegidas.length) continue;
+        let completas = true, primeraGuardada = false;
+        for (const foto of elegidas) {
         let blob = _blobs.get(foto.id) || null;
         if (!blob && foto.url && typeof fetchBlob === 'function') {
             try { blob = await fetchBlob(foto.url); } catch { /* retry */ }
         }
-        if (!(blob instanceof Blob)) continue;
-        if (await guardarFotoDeComida(userId, c.id, blob)) {
+        if (!(blob instanceof Blob)) { completas = false; continue; }
+        if (await guardarFotoDeComida(userId, c.id, blob, { attachmentId: foto.id, anexar: primeraGuardada })) {
             guardadas += 1;
-            completadas.add(`${c.id}:${c.t}`);
+            primeraGuardada = true;
             enlaces.set(foto.id, Number(c.t));
             fotos = fotos.map((f) => f.id === foto.id ? { ...f, enlazadaEn: Number(c.t) } : f);
+        } else completas = false;
         }
+        if (completas) completadas.add(`${c.id}:${c.t}`);
     }
     // Preserve receipts arriving during these asynchronous reads; retain failed saves for a retry.
     _escribirCorrecciones(userId, _leerCorrecciones(userId).filter((c) => !completadas.has(`${c.id}:${c.t}`)
@@ -217,19 +232,20 @@ export async function vincularFotosDelChat(userId, {
             let detalle = null;
             try { detalle = await fetchJson(`/api/diary/meal/${m.id}`); } catch { detalle = null; }
             if (detalle?.meal?.source !== 'chat') continue;
-            const foto = fotoParaComida(fotos, creada, _textoDeLaComida(detalle.meal));
-            if (!foto) continue;
+            const elegidas = fotosParaComida(fotos, creada, _textoDeLaComida(detalle.meal));
+            for (const foto of elegidas) {
             let blob = _blobs.get(foto.id) || null;
             if (!blob && foto.url && typeof fetchBlob === 'function') {
                 try { blob = await fetchBlob(foto.url); } catch { blob = null; }
             }
             if (!(blob instanceof Blob)) continue;
-            if (await guardarFotoDeComida(userId, m.id, blob)) {
+            if (await guardarFotoDeComida(userId, m.id, blob, { attachmentId: foto.id, anexar: true })) {
                 guardadas += 1;
                 if (foto.enlazadaEn == null) {
                     enlaces.set(foto.id, creada);
                     fotos = fotos.map((f) => (f.id === foto.id ? { ...f, enlazadaEn: creada } : f));
                 }
+            }
             }
         }
     }
@@ -249,19 +265,27 @@ export async function vincularFotosDelChat(userId, {
     try {
         const data = await fetchJson(`/api/diary/chat-photos?tzOffset=${new Date().getTimezoneOffset()}`);
         const presentes = await idsConFoto(userId);
-        for (const enlace of Array.isArray(data?.photos) ? data.photos : []) {
-            if (!UUID_RE.test(enlace?.meal_id) || !UUID_RE.test(enlace?.attachment_id)
-                || presentes.has(enlace.meal_id)
-                || typeof enlace.image_url !== 'string'
-                || !(enlace.image_url === `/api/chat/attachments/${enlace.attachment_id}`
-                    || enlace.image_url.startsWith(`/api/chat/attachments/${enlace.attachment_id}?`))) continue;
+        const conocidas = new Map();
+        const validas = (Array.isArray(data?.photos) ? data.photos : []).filter((enlace) =>
+            UUID_RE.test(enlace?.meal_id) && UUID_RE.test(enlace?.attachment_id)
+            && typeof enlace.image_url === 'string'
+            && (enlace.image_url === `/api/chat/attachments/${enlace.attachment_id}`
+                || enlace.image_url.startsWith(`/api/chat/attachments/${enlace.attachment_id}?`)));
+        for (const enlace of validas) {
+            if (!conocidas.has(enlace.meal_id)) conocidas.set(enlace.meal_id, await idsDeFotosDeComida(userId, enlace.meal_id));
+            const ids = conocidas.get(enlace.meal_id);
+            if (ids.has(enlace.attachment_id) || ids.size >= 4) continue;
+            // Keep an existing legacy single photo; migrate it only when the server confirms a gallery.
+            if (presentes.has(enlace.meal_id) && !ids.size
+                && validas.filter((f) => f.meal_id === enlace.meal_id).length < 2) continue;
             let blob = _blobs.get(enlace.attachment_id) || null;
             if (!blob) {
                 try { blob = await fetchBlob(enlace.image_url); } catch { continue; }
             }
-            if (blob instanceof Blob && await guardarFotoDeComida(userId, enlace.meal_id, blob)) {
+            if (blob instanceof Blob && await guardarFotoDeComida(userId, enlace.meal_id, blob,
+                { attachmentId: enlace.attachment_id, anexar: true })) {
                 guardadas += 1;
-                presentes.add(enlace.meal_id);
+                ids.add(enlace.attachment_id);
             }
         }
     } catch { /* private photo unavailable; retry when the diary opens */ }

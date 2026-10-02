@@ -16,7 +16,7 @@ import path from 'node:path';
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn() }) }));
 vi.mock('../hooks/useFotosDeComidas', () => ({
-    useFotoDeComida: vi.fn(() => null),
+    useFotoDeComida: vi.fn(() => null), useFotosDeComida: vi.fn(() => []),
     useIdsConFoto: vi.fn(() => new Set()),
     useEnlazarFotosDelChat: vi.fn(),   // [P1-PLAN-LOTE-727] el panel enlaza las fotos del chat al abrirse
     borrarFotoDeComidaEnSegundoPlano: vi.fn(),
@@ -27,7 +27,7 @@ vi.mock('../utils/confirmToast', () => ({ confirmToast: vi.fn(async () => true) 
 
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
-import { useFotoDeComida, useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../hooks/useFotosDeComidas';
+import { useFotoDeComida, useFotosDeComida, useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../hooks/useFotosDeComidas';
 import { useAssessment } from '../context/AssessmentContext';
 import FichaDeComida from '../components/dashboard/FichaDeComida';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
@@ -61,7 +61,7 @@ const detalle = (extra = {}) => ({
 
 beforeEach(() => {
     vi.mocked(fetchWithAuth).mockReset();
-    vi.mocked(useFotoDeComida).mockReturnValue(null);
+    vi.mocked(useFotoDeComida).mockReturnValue(null); vi.mocked(useFotosDeComida).mockReturnValue([]);
     vi.mocked(useIdsConFoto).mockReturnValue(new Set());
     vi.mocked(useAssessment).mockReturnValue({ planData: null });
 });
@@ -101,12 +101,12 @@ describe('FichaDeComida', () => {
 
     it('la foto del dispositivo, sin pie de página [762]', async () => {
         vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle()));
-        vi.mocked(useFotoDeComida).mockReturnValue('blob:foto');
+        vi.mocked(useFotosDeComida).mockReturnValue([{ id: 'photo-1', url: 'blob:foto' }]);
         render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={vi.fn()} />);
         const img = screen.getByRole('img', { name: `Foto de ${MEAL.meal_name}` });
         expect(img.getAttribute('src')).toBe('blob:foto');
         expect(screen.queryByText('Solo en este dispositivo')).not.toBeInTheDocument();
-        expect(useFotoDeComida).toHaveBeenCalledWith(UID, 'meal-1', 'foto');
+        expect(useFotosDeComida).toHaveBeenCalledWith(UID, 'meal-1');
         fireEvent.click(screen.getByRole('button', { name: 'Ver la foto en grande' }));
         expect(screen.getAllByRole('img', { name: `Foto de ${MEAL.meal_name}` })).toHaveLength(2);
     });
@@ -118,6 +118,28 @@ describe('FichaDeComida', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Reintentar' }));
         expect(await screen.findByText('150 g de Pechuga de pollo')).toBeInTheDocument();
         expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows both meal photos, switches by thumbnail and navigates the enlarged gallery', async () => {
+        vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle()));
+        vi.mocked(useFotosDeComida).mockReturnValue([
+            { id: 'smoothie', url: 'blob:smoothie' }, { id: 'omelette', url: 'blob:omelette' },
+        ]);
+        const cerrar = vi.fn();
+        render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={cerrar} />);
+        const nombre = `Foto de ${MEAL.meal_name}`;
+        expect(screen.getByRole('img', { name: nombre })).toHaveAttribute('src', 'blob:smoothie');
+        fireEvent.click(screen.getByRole('button', { name: `${nombre} 2 / 2` }));
+        expect(screen.getByRole('img', { name: nombre })).toHaveAttribute('src', 'blob:omelette');
+        expect(screen.getByRole('button', { name: `${nombre} 2 / 2` })).toHaveAttribute('aria-pressed', 'true');
+        fireEvent.click(screen.getByRole('button', { name: 'Ver la foto en grande' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Imagen siguiente' }));
+        expect(screen.getAllByRole('img', { name: nombre }).at(-1)).toHaveAttribute('src', 'blob:smoothie');
+        fireEvent.keyDown(window, { key: 'ArrowLeft' });
+        expect(screen.getAllByRole('img', { name: nombre }).at(-1)).toHaveAttribute('src', 'blob:omelette');
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(screen.queryByRole('button', { name: 'Imagen siguiente' })).not.toBeInTheDocument();
+        expect(cerrar).not.toHaveBeenCalled();
     });
 
     it('del plan: su descripción y cómo se prepara', async () => {

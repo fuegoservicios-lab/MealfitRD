@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
-vi.mock('../utils/fotosDeComidas', () => ({ guardarFotoDeComida: vi.fn(async () => true), idsConFoto: vi.fn(async () => new Set()) }));
-import { guardarFotoDeComida, idsConFoto } from '../utils/fotosDeComidas';
+vi.mock('../utils/fotosDeComidas', () => ({ guardarFotoDeComida: vi.fn(async () => true), idsConFoto: vi.fn(async () => new Set()), idsDeFotosDeComida: vi.fn(async () => new Set()) }));
+import { guardarFotoDeComida, idsConFoto, idsDeFotosDeComida } from '../utils/fotosDeComidas';
 import { recordarFotosDelChat, vincularFotosDelChat } from '../utils/fotosDelChat';
 const UID = 'user-photos';
 const MID = '11111111-1111-4111-8111-111111111111';
@@ -17,12 +17,46 @@ const servidor = (exists = true) => ({
     fetchBlob: vi.fn(async () => blob()),
     ahora: NOW + 1000, cierraTurnoDe: CHAT, idsCorregidos: [MID],
 });
-beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); vi.mocked(guardarFotoDeComida).mockResolvedValue(true); vi.mocked(idsConFoto).mockResolvedValue(new Set()); });
+beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); vi.mocked(guardarFotoDeComida).mockResolvedValue(true); vi.mocked(idsConFoto).mockResolvedValue(new Set()); vi.mocked(idsDeFotosDeComida).mockImplementation(async () => new Set()); });
+
+it('saves both photos for a combined meal and keeps separate meals matched to their food', async () => {
+    recordar(CHAT, 'smoothie', 'Batida de pitahaya con leche');
+    recordar(CHAT, 'omelette', 'Omelette con queso y plátano');
+    const s = servidor();
+    s.fetchJson = vi.fn(async (url) => url === `/api/diary/meal/${MID}`
+        ? { meal: { id: MID, source: 'chat', meal_name: 'Batida de pitahaya con leche + omelette con queso y plátano' } }
+        : { meals: [{ id: MID, created_at: new Date(NOW + 500).toISOString() }] });
+    expect(await vincularFotosDelChat(UID, { ...s, idsCorregidos: [] })).toBe(2);
+    expect(guardarFotoDeComida.mock.calls.map((c) => c[3].attachmentId)).toEqual(['smoothie', 'omelette']);
+    vi.clearAllMocks();
+    s.fetchJson = vi.fn(async (url) => url === `/api/diary/meal/${MID}`
+        ? { meal: { id: MID, source: 'chat', meal_name: 'Omelette con queso y plátano' } }
+        : { meals: [{ id: MID, created_at: new Date(NOW + 500).toISOString() }] });
+    expect(await vincularFotosDelChat(UID, { ...s, idsCorregidos: [] })).toBe(1);
+    expect(guardarFotoDeComida.mock.calls[0][3].attachmentId).toBe('omelette');
+});
+
+it('recovers a missing second photo, retries download failure and skips already saved attachment IDs', async () => {
+    const a = '22222222-2222-4222-8222-222222222222';
+    const b = '33333333-3333-4333-8333-333333333333';
+    vi.mocked(idsConFoto).mockResolvedValue(new Set([MID]));
+    vi.mocked(idsDeFotosDeComida).mockResolvedValue(new Set([a]));
+    const s = { ahora: NOW, fetchJson: vi.fn(async () => ({ photos: [a, b].map((id) => ({
+        meal_id: MID, attachment_id: id, image_url: `/api/chat/attachments/${id}`,
+    })) })), fetchBlob: vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(blob()) };
+    expect(await vincularFotosDelChat(UID, s)).toBe(0);
+    expect(await vincularFotosDelChat(UID, s)).toBe(1);
+    expect(s.fetchBlob.mock.calls.every(([url]) => url.endsWith(b))).toBe(true);
+    vi.mocked(idsDeFotosDeComida).mockResolvedValue(new Set([a, b]));
+    expect(await vincularFotosDelChat(UID, s)).toBe(0);
+    expect(s.fetchBlob).toHaveBeenCalledTimes(2);
+    vi.mocked(idsDeFotosDeComida).mockResolvedValue(new Set());
+});
 
 it('adds the correction photo to the exact original meal, even manually logged seven days before', async () => {
     recordar(); const s = servidor();
     expect(await vincularFotosDelChat(UID, s)).toBe(1);
-    expect(guardarFotoDeComida).toHaveBeenCalledWith(UID, MID, expect.any(Blob));
+    expect(guardarFotoDeComida).toHaveBeenCalledWith(UID, MID, expect.any(Blob), expect.objectContaining({ attachmentId: expect.any(String) }));
     expect(JSON.parse(localStorage.getItem(`mealfit_fotos_corregidas:${UID}`))).toEqual([]);
 });
 it('does not attach to an old meal just because its name resembles a pending photo', async () => {
@@ -55,7 +89,7 @@ it('chooses the matching photo when the current turn contains different foods', 
 it('replaces an older picture only for the server-confirmed corrected meal', async () => {
     recordar(); vi.mocked(idsConFoto).mockResolvedValue(new Set([MID]));
     expect(await vincularFotosDelChat(UID, servidor())).toBe(1);
-    expect(guardarFotoDeComida).toHaveBeenCalledWith(UID, MID, expect.any(Blob));
+    expect(guardarFotoDeComida).toHaveBeenCalledWith(UID, MID, expect.any(Blob), expect.objectContaining({ attachmentId: expect.any(String) }));
 });
 
 const PHOTO = '22222222-2222-4222-8222-222222222222';
@@ -65,7 +99,7 @@ it('recovers yesterday’s unchanged breakfast photo, even after local pending p
     const fetchBlob = vi.fn(async () => blob());
     expect(await vincularFotosDelChat(UID, { fetchJson, fetchBlob, ahora: NOW })).toBe(1);
     expect(fetchBlob).toHaveBeenCalledWith(enlace.image_url);
-    expect(guardarFotoDeComida).toHaveBeenCalledWith(UID, MID, expect.any(Blob));
+    expect(guardarFotoDeComida).toHaveBeenCalledWith(UID, MID, expect.any(Blob), expect.objectContaining({ attachmentId: expect.any(String) }));
 });
 it('keeps an existing local picture and rejects untrusted photo URLs or malformed IDs', async () => {
     vi.mocked(idsConFoto).mockResolvedValue(new Set([MID]));
@@ -89,5 +123,5 @@ it('one unavailable historical photo does not prevent recovering another meal', 
     const fetchJson = vi.fn(async () => ({ photos: [otro, enlace] }));
     const fetchBlob = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(blob());
     expect(await vincularFotosDelChat(UID, { fetchJson, fetchBlob })).toBe(1);
-    expect(guardarFotoDeComida).toHaveBeenCalledWith(UID, MID, expect.any(Blob));
+    expect(guardarFotoDeComida).toHaveBeenCalledWith(UID, MID, expect.any(Blob), expect.objectContaining({ attachmentId: expect.any(String) }));
 });
