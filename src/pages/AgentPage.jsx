@@ -130,6 +130,7 @@ import Modal from '../components/common/Modal';
 // [P2-CHAT-TIMELINE · 2026-09-03] separadores de día + hora por mensaje.
 import { daySeparatorLabel, previousDatedMessage, respondeAlUsuario } from '../utils/chatTimeline';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
+import { sonarAperturaVoz, sonarCierreVoz } from '../utils/sonidosDeVoz';
 import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
 // de React (`_buildAgentErrorMessage`, `menuItemsDelAgente`); dentro del componente
@@ -2157,9 +2158,11 @@ const AgentPage = () => {
             setPistaDeLaBurbuja(true);
             safeLocalStorageSet(CLAVE_BURBUJA_EXPLICADA, '1');
         }
+        if (!vozCoach.abierto) sonarAperturaVoz();   // [P1-PLAN-LOTE-961] la señal propia, dentro del toque
         vozCoach.abrir();
     };
     const cerrarModoVoz = () => {
+        if (vozCoach.abierto) sonarCierreVoz();   // [P1-PLAN-LOTE-961]
         vozCoach.cerrar();
         setVozMinimizada(true);
         setPistaDeLaBurbuja(false);
