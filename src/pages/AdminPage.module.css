@@ -95,6 +95,15 @@
 
 /* avisos: la gravedad en el borde y en una palabra, no solo en el color */
 .avisos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.gruposAvisos { display: flex; flex-direction: column; gap: 1.25rem; }
+.grupoAvisosTitulo { margin: 0 0 0.6rem; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+.avisoAccion { font-size: 0.8rem; line-height: 1.45; color: var(--text-main); }
+.avisoMomento { font-size: 0.74rem; color: var(--text-muted); margin-top: 0.2rem; }
+.sinActivos { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
+.historialAvisos { border-top: 1px solid var(--border); padding-top: 0.85rem; }
+.historialAvisos summary { cursor: pointer; font-size: 0.85rem; color: var(--text-muted); }
+.historialAvisos[open] summary { margin-bottom: 0.75rem; }
+.historialAvisos summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 3px; }
 .aviso { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) auto; align-items: baseline; gap: 0.9rem; padding: 0.65rem 0.85rem; border-radius: 10px; border-left: 4px solid var(--text-muted); background: color-mix(in srgb, var(--text-muted) 7%, transparent); }
 .aviso[data-nivel-aviso="critico"] { border-left-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .aviso[data-nivel-aviso="aviso"] { border-left-color: var(--warning); background: color-mix(in srgb, var(--warning) 9%, transparent); }

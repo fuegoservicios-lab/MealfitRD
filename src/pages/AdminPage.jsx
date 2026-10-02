@@ -38,6 +38,11 @@ const TEXTOS = {
     errorRefresco: 'No se pudo actualizar; sigues viendo los datos anteriores.',
     actualizar: 'Actualizar',
     actualizado: (hora) => `Actualizado a las ${hora}`,
+    automatico: 'Actualización automática cada 30 s mientras este panel está visible.',
+    gruposAvisos: { activo: 'Problemas activos', revision: 'Pendientes de revisión', espera: 'Esperando al usuario', historial: 'Eventos anteriores' },
+    sinActivos: 'Sin problemas activos registrados.',
+    etiquetaEspera: 'En espera',
+    etiquetaEvento: 'Evento',
     principales: 'Cifras principales',
     nivel: { critico: 'Crítico', aviso: 'Revisar', info: 'Informativo' },
     secciones: 'Secciones del panel',
@@ -203,16 +208,18 @@ function BloqueResumen({ bloque }) {
 function BloqueAvisos({ bloque }) {
     const items = bloque.items || [];
     if (items.length === 0) return <p className={styles.vacio}>{bloque.vacio}</p>;
-    return (
+    const lista = (filas) => (
         <ul className={styles.avisos}>
-            {items.map((a, i) => {
+            {filas.map((a, i) => {
                 const nivel = nivelDe(a.nivel);
                 return (
                     <li key={i} className={styles.aviso} data-nivel-aviso={nivel}>
-                        <span className={styles.avisoNivel}>{TEXTOS.nivel[nivel]}</span>
+                        <span className={styles.avisoNivel}>{a.grupo === 'espera' ? TEXTOS.etiquetaEspera : a.grupo === 'historial' ? TEXTOS.etiquetaEvento : TEXTOS.nivel[nivel]}</span>
                         <span className={styles.avisoTexto}>
                             <span className={styles.avisoTitulo}>{a.titulo}</span>
                             {a.detalle && <span className={styles.avisoDetalle}>{a.detalle}</span>}
+                            {a.accion && <span className={styles.avisoAccion}>{a.accion}</span>}
+                            {a.momento && <span className={styles.avisoMomento}>{a.momento}</span>}
                         </span>
                         <span className={styles.avisoValor}>{a.valor}</span>
                     </li>
@@ -220,6 +227,22 @@ function BloqueAvisos({ bloque }) {
             })}
         </ul>
     );
+    if (!items.some((a) => a.grupo)) return lista(items);
+    const grupos = Object.keys(TEXTOS.gruposAvisos).map((grupo) => ({
+        grupo, filas: items.filter((a) => (TEXTOS.gruposAvisos[a.grupo] ? a.grupo : 'activo') === grupo),
+    }));
+    return <div className={styles.gruposAvisos}>
+        {!grupos[0].filas.length && <p className={styles.sinActivos}>{TEXTOS.sinActivos}</p>}
+        {grupos.filter((g) => g.filas.length).map(({ grupo, filas }) => {
+            const total = filas.reduce((n, a) => n + (Number(String(a.valor).replaceAll(',', '')) || 0), 0);
+            const titulo = `${TEXTOS.gruposAvisos[grupo]} (${total})`;
+            return grupo === 'historial' ? <details key={grupo} className={styles.historialAvisos}>
+                <summary>{titulo}</summary>{lista(filas)}
+            </details> : <section key={grupo} aria-label={titulo} data-grupo-aviso={grupo}>
+                <h4 className={styles.grupoAvisosTitulo}>{titulo}</h4>{lista(filas)}
+            </section>;
+        })}
+    </div>;
 }
 
 function BloqueSerie({ bloque }) {
@@ -308,13 +331,22 @@ function AdminPanel() {
     }, []);
 
     useEffect(() => {
+        if (vista !== 'metricas') return undefined;
         let vivo = true;
+        let enCurso = false;
+        let fuera = false;
+        let timer;
+        const controller = new AbortController();
+        const programar = () => { clearTimeout(timer); if (vivo && !fuera) timer = setTimeout(cargar, 30000); };
         const fallar = () => { if (!vivo) return; setPendiente(false); setFallo(true); setEstado((e) => (e === 'listo' ? e : 'error')); };
-        (async () => {
+        const cargar = async () => {
+            if (!vivo || fuera || enCurso) return;
+            if (document.visibilityState === 'hidden') { programar(); return; }
+            enCurso = true;
             try {
-                const r = await fetchWithAuth(`/api/admin/metricas?dias=${dias}`);
+                const r = await fetchWithAuth(`/api/admin/metricas?dias=${dias}`, { signal: controller.signal });
                 if (!vivo) return;
-                if (r.status === 404 || r.status === 401) { setEstado('fuera'); return; }
+                if (r.status === 404 || r.status === 401) { fuera = true; setEstado('fuera'); return; }
                 if (!r.ok) { fallar(); return; }
                 const cuerpo = await r.json();
                 if (!vivo) return;
@@ -325,10 +357,17 @@ function AdminPanel() {
                 setEstado('listo');
             } catch {
                 fallar();
+            } finally {
+                enCurso = false;
+                programar();
             }
-        })();
-        return () => { vivo = false; };
-    }, [dias, intento]);
+        };
+        const alVolver = () => { if (document.visibilityState !== 'hidden') { clearTimeout(timer); cargar(); } };
+        cargar();
+        document.addEventListener('visibilitychange', alVolver);
+        window.addEventListener('focus', alVolver);
+        return () => { vivo = false; clearTimeout(timer); controller.abort(); document.removeEventListener('visibilitychange', alVolver); window.removeEventListener('focus', alVolver); };
+    }, [dias, intento, vista]);
 
     // Con datos a la vista se espera sobre ellos; sin datos, «Cargando…».
     const empezar = () => { setFallo(false); if (datos) setPendiente(true); else setEstado('cargando'); };
@@ -344,7 +383,7 @@ function AdminPanel() {
             <header className={styles.cabecera}>
                 <div>
                     <h1 className={styles.h1}>{TEXTOS.titulo}</h1>
-                    {estado === 'listo' && datos && <p className={styles.sub}>{TEXTOS.actualizado(horaDe(datos.generado))}</p>}
+                    {estado === 'listo' && datos && <p className={styles.sub}>{TEXTOS.actualizado(horaDe(datos.generado))} · {TEXTOS.automatico}</p>}
                 </div>
                 <Link to="/dashboard" className={styles.volver}>
                     <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
@@ -406,7 +445,7 @@ function AdminPanel() {
                     )}
                     {estado === 'listo' && datos && (
                         <div
-                            key={version}
+                            data-version={version}
                             className={pendiente ? `${styles.contenido} ${styles.contenidoEspera}` : styles.contenido}
                             aria-busy={pendiente ? 'true' : undefined}
                             data-contenido=""
