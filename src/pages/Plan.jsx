@@ -28,6 +28,7 @@ import { safeJSONParseObject } from '../utils/safeJSONParse';
 // id se persiste en setup del flow de plan; raw setItem rompe golden path
 // guest en iOS Private Mode.
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
+import { precargarLlegadaAlPanel } from '../utils/precargaDePaginas';   // [P1-PLAN-LOTE-971]
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` suelta para el motor de generación
 // (`generateAIPlanStream` y sus helpers viven FUERA de React); `useT`/`useTn`
 // para los tres componentes de este archivo. Los mensajes de error que solo
@@ -2786,6 +2787,10 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
         }, 1000);
         return () => clearInterval(tick);
     }, [status, startTime]);
+
+    // [P1-PLAN-LOTE-971 · 2026-10-01] Mientras se genera, el código del panel: al terminar se navega a él y, viniendo
+    // del formulario, aún no estaba cargado (la pantalla de carga se veía otra vez justo después de «listo»).
+    useEffect(() => { precargarLlegadaAlPanel(); }, []);
 
     // [P2-LOADING-ETA-HONEST] p50/p90 reales del bloque 1. Falla en silencio ⇒ rango prudente.
     useEffect(() => {

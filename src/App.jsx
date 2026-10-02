@@ -69,7 +69,7 @@ import { APP_ORIGIN, isApexHost } from './config/site';
 // landing). Renderiza dentro del <Suspense> de AnimatedLayout (mismo patrón que las
 // páginas legales, que ya usan <Layout><X/></Layout> lazy y funcionan).
 // [P1-PLAN-LOTE-320] Las páginas del menú inferior comparten cargador con su precarga (utils/precargaDePaginas.js).
-import { cargarPagina, precargarPaginasDelMenu } from './utils/precargaDePaginas';
+import { cargarPagina, cargarLayoutDelPanel, precargarPaginasDelMenu } from './utils/precargaDePaginas';
 const Home = lazy(() => import('./pages/Home'));
 // [P3-APP-SUBDOMAIN-BUILD-SEP · 2026-06-28] Login y DashboardLayout son código
 // EXCLUSIVO del app (app.mealfitrd.com); antes eran imports eager → engordaban el
@@ -79,7 +79,8 @@ const Home = lazy(() => import('./pages/Home'));
 const Login = lazy(() => import('./pages/Login'));
 // [P1-PLAN-LOTE-680] `/probar`: la entrada directa del landing al modo invitado, sin pasar por la pantalla de login.
 const ProbarSinCuenta = lazy(() => import('./pages/ProbarSinCuenta'));
-const DashboardLayout = lazy(() => import('./components/dashboard/DashboardLayout'));
+// [P1-PLAN-LOTE-971] Mismo cargador que su precarga desde la pantalla de generación (utils/precargaDePaginas.js).
+const DashboardLayout = lazy(cargarLayoutDelPanel);
 const Assessment = lazy(() => import('./pages/Assessment'));
 const Plan = lazy(() => import('./pages/Plan'));
 const Dashboard = lazy(cargarPagina.hoy);
