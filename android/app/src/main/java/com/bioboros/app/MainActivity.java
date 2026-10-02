@@ -14,6 +14,8 @@ public class MainActivity extends BridgeActivity {
         // Si esta línea falta, `registerPlugin('MfGoogleId')` en la web devuelve un Proxy que no responde y
         // `googleSignInNativo()` da false: el botón simplemente no aparece, sin error en ninguna parte.
         registerPlugin(MfGoogleId.class);
+        // [P1-PLAN-LOTE-962 · 2026-10-01] Sin el pitido del reconocedor de voz mientras el modo voz escucha.
+        registerPlugin(MfSilencioVoz.class);
         super.onCreate(savedInstanceState);
     }
 }
