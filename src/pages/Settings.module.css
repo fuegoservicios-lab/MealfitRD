@@ -690,12 +690,13 @@
     gap: 0.5rem;
     background: transparent;
     border: none;
-    color: var(--primary, #4F46E5);
+    color: var(--text-muted, #64748B);
     cursor: pointer;
     font-family: inherit;
     font-size: 0.95rem;
     font-weight: 700;
     padding: 0.5rem 0.5rem;
+    min-height: 44px;
     margin: 0 0 0.75rem -0.5rem;
     border-radius: 0.6rem;
 }
@@ -1547,6 +1548,10 @@
         padding: 1rem 0.75rem 3rem;
     }
 
+    .wrapper:not(.inDialog) .exitSettingsBtn {
+        margin-left: 0;
+    }
+
     .pageHeader {
         margin-top: 0.5rem;
         margin-bottom: 1.25rem;
@@ -2123,4 +2128,3 @@
 :global(html[data-theme="dark"]) .inDialog .grid::after {
     display: none;
 }
-

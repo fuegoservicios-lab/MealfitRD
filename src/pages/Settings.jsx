@@ -2787,7 +2787,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     ningún sitio — el dashboard nunca se fue. */}
                 <button
                     type="button"
-                    className={`${styles.exitSettingsBtn} ui-close`}
+                    className={`${styles.exitSettingsBtn} ${inDialog ? 'ui-close' : ''}`}
                     onClick={requestExit}
                     aria-label={inDialog ? t('Cerrar configuración') : t('Volver')}
                 >
