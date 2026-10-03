@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 // muerto. El uso real vive en MessageBubble + ChatWidget vía LazyMarkdown
 // wrapper que mueve la lib a un chunk async separado.
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
+import { ChatStopButton } from '../components/agent/ChatStopButton';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener).
 import { useMediaQuery } from '../hooks/useMediaQuery';
 // [P3-BOT-AVATAR-3D · 2026-06-19] Avatar del agente = orbe 3D glossy de alto contraste.
@@ -4649,6 +4650,8 @@ const AgentPage = () => {
     };
 
     const handleStopGeneration = () => {
+        // Ignorar una activación tardía si el turno ya terminó por su cuenta.
+        if (!isTurnActiveRef.current && !_recoveryRef.current.active && !recoveringTurn) return;
         // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Detener aborta el controller VIGENTE (el ref, no
         // el state, que puede ir un render por detrás) e invalida el turno: su `finally` ya no
         // toca el candado ni el controller de un turno posterior.
@@ -5241,10 +5244,9 @@ const AgentPage = () => {
                             }}
                         />
                         {(isTurnActive || recoveringTurn) ? (
-                            <button
-                                type="button"
+                            <ChatStopButton
                                 aria-label={t('Detener generación')}
-                                onClick={handleStopGeneration}
+                                onStop={handleStopGeneration}
                                 title={t('Detener generación')}
                                 style={{
                                     background: '#ef4444',
@@ -5264,7 +5266,7 @@ const AgentPage = () => {
                                 }}
                             >
                                 <Square size={16} fill="white" />
-                            </button>
+                            </ChatStopButton>
                         ) : (
                             <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto', alignItems: 'center' }}>
                                 {/* [P1-PLAN-LOTE-125] El micrófono. Siempre a la vista (también con texto: lo dictado se
