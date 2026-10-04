@@ -244,8 +244,8 @@ describe('ModoVoz', () => {
 describe('AgentPage: el modo voz enchufado', () => {
     const ap = readFileSync(join(__dirname, '..', 'pages', 'AgentPage.jsx'), 'utf8');
 
-    it('solo en modo seguimiento, con la caja vacía y donde el dispositivo oye y habla', () => {
-        expect(ap).toContain('{vozCoach.disponible && enModoContador && !input.trim() && attachments.length === 0 && (');
+    it('en ambos modos, con la caja vacía y donde el dispositivo oye y habla', () => {
+        expect(ap).toContain('{vozCoach.disponible && !input.trim() && attachments.length === 0 && (');
         expect(ap).toContain("const ModoVoz = lazy(() => import('../components/agent/ModoVoz'));");
     });
 

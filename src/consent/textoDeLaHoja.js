@@ -25,8 +25,8 @@ export function textoDeLaHoja(t) {
             {
                 nombre: 'OpenAI',
                 donde: t('EE. UU.'),
-                recibe: t('Recibe tu perfil de salud, tus preferencias y, cuando hace falta, parte de la conversación.'),
-                para: t('Para generar días de tu plan, revisar que sea seguro y servir de respaldo.'),
+                recibe: t('Recibe tu perfil de salud, tus preferencias y, cuando hace falta, parte de la conversación. En el modo voz en vivo, recibe el audio de tu micrófono y las respuestas del coach.'),
+                para: t('Para generar días de tu plan, revisar que sea seguro, servir de respaldo y escuchar y responder en el modo voz en vivo.'),
             },
             {
                 nombre: 'Google Gemini',

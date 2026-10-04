@@ -2,7 +2,7 @@
  * [P1-PLAN-LOTE-844 · ronda 1] El texto del permiso para la IA, versionado y demostrable (art. 7.1 del RGPD).
  *
  * El SHA-256 que viaja en `text_sha256` se calcula sobre el texto que la hoja muestra en cada idioma. Esta tabla lo
- * FIJA para `ia-2026-10`: si cambias el texto de la hoja o una de sus traducciones, este test cae. Entonces decide:
+ * FIJA para `ia-2026-10-voz`: si cambias el texto de la hoja o una de sus traducciones, este test cae. Entonces decide:
  *  - si cambia lo que se promete (un proveedor, los datos, el país, los riesgos): sube `AI_CONSENT_VERSION`
  *    (version.js) y la del backend, y escribe `backend/docs/consentimientos/ia/<versión nueva>/<locale>.md`;
  *  - si es solo forma (una errata): actualiza la tabla Y el `.md` de la versión vigente, y di por qué en el commit.
@@ -18,14 +18,14 @@ import { textoDeLaHoja, textoPlanoDeLaHoja, huellaDelTexto } from '../consent/te
 import { AI_CONSENT_VERSION } from '../consent/version';
 
 const HUELLAS_IA_2026_10 = {
-    'es-DO': '830abb4b08c5108f67001f2e406ba345ef5882e7efda98c208369aafe6d7ba14',
-    'en-US': 'a4e646fa4e6640f13515a2501b746abbc709cfd9c9a58fd0cbc087ac1a17cff2',
-    'pt-BR': '181052cb0ec126be4c94a557bd7a955d3d49314bb74bd2e82133042617a6b695',
-    'fr-FR': '14718025b67df2dcbc028dbee56a765d5d740fa74de40fb975afd89e4f4807f8',
-    'it-IT': '6572aa3c131eca2e909f0269837deee79dc8e68bd4f6af527c357af090a8c091',
+    'es-DO': '311db8c54f0d982545ebd147dc61be54a7a476dd67b3ec198db9b5caed978942',
+    'en-US': '9e00c6b59309527034232756cd124d45ab9e2d52c2ebe839de77926de6966f71',
+    'pt-BR': 'b671c20a692d901eb6c4c75898a8605c376ea07bb75f2b94b0678f1f12724314',
+    'fr-FR': 'f267bcae207b4764dd40974a95c12d8ccaa2dcbccb3e91f7effcb7ff544b22d9',
+    'it-IT': 'f7e267b266bae0e2a6b14152293079fe5d2755f5b2962fd0393abc6acb392eef',
 };
 const IDIOMAS = Object.keys(HUELLAS_IA_2026_10);
-const DIR_BACKEND = resolve(__dirname, '../../../backend/docs/consentimientos/ia', AI_CONSENT_VERSION);
+const DIR_BACKEND = resolve(process.env.MEALFIT_BACKEND_TEST_DIR || resolve(__dirname, '../../../backend'), 'docs/consentimientos/ia', AI_CONSENT_VERSION);
 
 async function textoEn(locale) {
     await loadLocale(locale);
@@ -44,10 +44,10 @@ afterAll(async () => {
 
 describe('[P1-PLAN-LOTE-844 · ronda 1] el texto del permiso está fijado por versión', () => {
     it('la tabla es la de la versión vigente', () => {
-        expect(AI_CONSENT_VERSION).toBe('ia-2026-10');
+        expect(AI_CONSENT_VERSION).toBe('ia-2026-10-voz');
     });
 
-    it.each(IDIOMAS)('%s: el SHA-256 del texto mostrado es el fijado para ia-2026-10', async (locale) => {
+    it.each(IDIOMAS)('%s: el SHA-256 del texto mostrado es el fijado para ia-2026-10-voz', async (locale) => {
         const texto = await textoEn(locale);
         expect(texto.length).toBeGreaterThan(1000);
         expect(await huellaDelTexto(texto)).toBe(HUELLAS_IA_2026_10[locale]);

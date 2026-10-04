@@ -9,14 +9,14 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { AI_CONSENT_HEADER, AI_CONSENT_VERSION } from '../consent/version';
 
-const BACKEND = resolve(__dirname, '..', '..', '..', 'backend', 'consentimientos.py');
+const BACKEND = resolve(process.env.MEALFIT_BACKEND_TEST_DIR || resolve(__dirname, '..', '..', '..', 'backend'), 'consentimientos.py');
 const hayBackend = existsSync(BACKEND);
 
 describe('[P1-PLAN-LOTE-844] versión del permiso', () => {
     it('version.js lleva el literal que lee el test del backend', () => {
         const src = readFileSync(resolve(__dirname, '../consent/version.js'), 'utf8');
         expect(src).toContain(`export const AI_CONSENT_VERSION = '${AI_CONSENT_VERSION}';`);
-        expect(AI_CONSENT_VERSION).toMatch(/^ia-\d{4}-\d{2}$/);
+        expect(AI_CONSENT_VERSION).toMatch(/^ia-\d{4}-\d{2}(?:-[a-z]+)?$/);
     });
 
     it.skipIf(!hayBackend)('la versión y la cabecera son las de backend/consentimientos.py', () => {

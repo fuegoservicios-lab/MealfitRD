@@ -2098,7 +2098,7 @@ const AgentPage = () => {
             }
         },
     });
-    const vozCoach = vozEnVivo.disponible ? vozEnVivo : vozDelTelefono;
+    const vozCoach = vozDelTelefono.abierto ? vozDelTelefono : (vozEnVivo.disponible ? vozEnVivo : vozDelTelefono);
     const isCallModeActive = vozCoach.abierto;
     const avisarBorrado = vozCoach.notificarBorrado;
     const usuarioDeVoz = session?.user?.id || userProfile?.id;
@@ -5295,10 +5295,9 @@ const AgentPage = () => {
                                     </button>
                                 )}
                                 {/* [P1-PLAN-LOTE-682] El modo voz: conversar hablando, con el coach contestando en voz alta.
-                                    Ocupa el sitio de ENVIAR cuando la caja está vacía (con texto, manda enviar). Por ahora
-                                    solo en modo seguimiento (el dueño: «primero con el generador de planes apagado»): allí
-                                    el coach registra comidas y no toca un plan. */}
-                                {vozCoach.disponible && enModoContador && !input.trim() && attachments.length === 0 && (
+                                    Ocupa el sitio de ENVIAR cuando la caja está vacía (con texto, manda enviar).
+                                    Disponible también con el generador de planes encendido. */}
+                                {vozCoach.disponible && !input.trim() && attachments.length === 0 && (
                                     <button
                                         type="button"
                                         className="chat-voz-btn"

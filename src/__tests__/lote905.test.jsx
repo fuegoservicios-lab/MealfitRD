@@ -319,7 +319,7 @@ describe('useConversacionLive', () => {
 describe('cableado en AgentPage', () => {
     it('con la prueba habilitada el modo voz es el de GPT-Live-1; si no, el de siempre', () => {
         const src = readFileSync(join(__dirname, '..', 'pages', 'AgentPage.jsx'), 'utf8');
-        expect(src).toContain('const vozCoach = vozEnVivo.disponible ? vozEnVivo : vozDelTelefono;');
+        expect(src).toContain('const vozCoach = vozDelTelefono.abierto ? vozDelTelefono : (vozEnVivo.disponible ? vozEnVivo : vozDelTelefono);');
         expect(src).not.toContain('setUsarVozDelTelefono');
         expect(src).toContain('fetchSessionMessagesRef.current?.(currentSessionIdRef.current)');
     });

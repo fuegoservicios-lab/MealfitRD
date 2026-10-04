@@ -5,7 +5,7 @@
 // El backend rechaza cualquier otra (409 al concederla, 428 al usar la IA), así que subirla vuelve a pedir el
 // permiso a TODOS. Se sube cuando cambia un proveedor, los datos que recibe o su país —también si un knob cambia de
 // proveedor—, y ANTES de activar el cambio. El texto que se acepta vive en `textoDeLaHoja.js`.
-export const AI_CONSENT_VERSION = 'ia-2026-10';
+export const AI_CONSENT_VERSION = 'ia-2026-10-voz';
 
 /** Con esta cabecera el INVITADO declara su permiso en cada llamada a la IA. Una cuenta con sesión NUNCA la manda: su
  *  permiso vive en el servidor, y el backend trata un token inválido o caducado como invitado, así que una cabecera
