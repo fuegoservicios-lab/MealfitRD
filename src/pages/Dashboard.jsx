@@ -6592,6 +6592,155 @@ const DashboardInner = () => {
                         gap: 0.35rem !important;
                     }
                 }
+
+                /* [P2-MOBILE-MENU-FLAT · 2026-10-01] El menú, a sangre en el teléfono.
+                   P2-MOBILE-HERO-FLAT le quitó el marco al hero y el modo seguimiento ya
+                   nació sin tarjetas; «Tu Menú» seguía siendo una tarjeta dentro de la
+                   página: 13,6px de margen + borde + 20px de relleno dejaban 320 de 390px
+                   al texto, y a los siete días del plan cuadrados de ~40px. A ≤480px el
+                   menú y el razonamiento pasan a ser SECCIONES (una línea fina arriba,
+                   sin marco): todo comparte el mismo borde izquierdo y derecho que el
+                   hero, el texto gana 42px y cada día ~6px de lado.
+                   De paso, lo que pesaba: dos rayas por plato (la de las acciones + la
+                   azul gruesa entre platos) quedan en UNA línea fina; el medidor de
+                   créditos deja de ser una caja a todo el ancho; y los controles del hero
+                   comparten un solo radio (eran 10, 12, 14, 16 y 17px apilados).
+                   Va al FINAL y con !important donde DASH-MOBILE-CLEAN-CARD ya lo usa:
+                   misma especificidad, gana la última. El escritorio no cambia. */
+                @media (max-width: 480px) {
+                    .main-grid {
+                        gap: 0.5rem;
+                    }
+                    .meals-container,
+                    html[data-theme="dark"] .meals-container {
+                        background: transparent !important;
+                        border: none !important;
+                        border-top: 1px solid var(--border) !important;
+                        border-radius: 0 !important;
+                        box-shadow: none !important;
+                        /* visible: la fila de semanas desliza hasta el borde de la pantalla */
+                        overflow: visible;
+                    }
+                    .menu-section-header {
+                        align-items: flex-start;
+                        text-align: left;
+                        padding: 1.15rem 0 0.85rem !important;
+                        margin-bottom: 0;
+                        gap: 0;
+                    }
+                    .menu-section-title {
+                        text-align: left;
+                        font-size: 1.4rem;
+                        font-weight: 800;
+                        letter-spacing: -0.02em;
+                    }
+                    .menu-section-count:empty {
+                        display: none;
+                    }
+                    .menu-policy-note {
+                        margin: 1rem 0 0;
+                    }
+                    .plan-week-nav {
+                        padding-left: 0;
+                        padding-right: 0;
+                        margin-bottom: 0.35rem;
+                    }
+                    /* La media pastilla que asoma es la señal de que hay más semanas:
+                       ahora asoma contra el borde de la pantalla, no contra un marco. */
+                    .plan-week-nav .plan-week-pills {
+                        margin-right: -0.85rem;
+                        padding-right: 0.85rem;
+                    }
+                    .option-buttons {
+                        padding-left: 0 !important;
+                        padding-right: 0 !important;
+                    }
+                    .meal-card,
+                    .skipped-lunch {
+                        padding: 1.35rem 0 !important;
+                        gap: 0.9rem;
+                    }
+                    .meal-card:not(:last-of-type)::after,
+                    .skipped-lunch:not(:last-of-type)::after {
+                        left: 0 !important;
+                        right: 0 !important;
+                        height: 1px;
+                        background: var(--border);
+                    }
+                    .meal-actions {
+                        border-top: none;
+                        padding-top: 0;
+                    }
+                    /* «Cambiar Plato» ocupa el centro y los circulares quedan en los
+                       extremos con el MISMO hueco. La regla de P3-MENU-MOBILE-ACTIONS
+                       pedía esto con «flex: 1», pero el botón trae «flex: none» inline y
+                       nunca creció: space-between repartía huecos desiguales. Bloqueado
+                       (candado cuadrado) no se estira: un candado de 200px gritaría. */
+                    .meal-actions-row {
+                        justify-content: flex-start;
+                    }
+                    /* Base 0 y no «auto»: con «auto» el botón pide su ancho de contenido
+                       ANTES de repartir y a 320px mandaba «Me lo comí» a una segunda fila.
+                       El «min-width: auto» de serie sigue impidiendo que el rótulo se corte:
+                       si en otro idioma no cabe, la fila envuelve, que es lo que ya hacía. */
+                    .meal-actions-row .meal-act-btn:nth-child(2):not([aria-disabled="true"]) {
+                        flex: 1 1 0 !important;
+                        max-width: none;
+                        padding: 0 0.4rem !important;
+                        white-space: nowrap;
+                    }
+                    .today-remaining-note {
+                        padding-left: 0 !important;
+                        padding-right: 0 !important;
+                    }
+                    .reasoning-card {
+                        background: transparent !important;
+                        backdrop-filter: none !important;
+                        -webkit-backdrop-filter: none !important;
+                        border: none !important;
+                        border-top: 1px solid var(--border) !important;
+                        border-radius: 0 !important;
+                        box-shadow: none !important;
+                        padding: 1.25rem 0 0 !important;
+                        margin-bottom: 1rem !important;
+                    }
+                    /* El medidor: pastilla a su medida, no una caja a todo el ancho. */
+                    .credits-meter-slot {
+                        margin-top: 0.2rem !important;
+                    }
+                    .credits-meter-slot > div {
+                        width: auto;
+                    }
+                    /* Un solo radio y un solo alto táctil para los controles del hero. */
+                    .hero-duration-trigger {
+                        border-radius: 14px !important;
+                        min-height: 46px !important;
+                        padding: 0.5rem 0.9rem !important;
+                    }
+                    .dashboard-header .new-plan-btn,
+                    .dashboard-header .restock-cta-minimal,
+                    .hero-budget-banner {
+                        border-radius: 14px !important;
+                    }
+                    .hero-budget-banner {
+                        margin-top: 0.1rem !important;
+                    }
+                    /* Sin tarjeta, en CLARO el texto del menú quedaría sobre el fondo de
+                       burbujas (el subtítulo #64748B cae bajo 4,5:1 — lo midió
+                       P1-PLAN-LOTE-94 en el modo seguimiento). Mismo remedio: el color liso
+                       de página, aquí como una banda a sangre de borde a borde (los márgenes
+                       negativos cancelan el relleno de .mainContent, 0.85rem). En oscuro no
+                       se toca: el contraste sobra y el degradado es identidad. */
+                    html:not([data-theme="dark"]) .main-grid {
+                        background: var(--bg-page, #F8FAFC);
+                        margin-left: -0.85rem;
+                        margin-right: -0.85rem;
+                        padding: 0 0.85rem 1.25rem;
+                    }
+                    html:not([data-theme="dark"]) .meals-container {
+                        border-top-color: transparent !important;
+                    }
+                }
             `}</style>
 
             {/* --- HEADER PREMIUM --- */}
@@ -6718,6 +6867,7 @@ const DashboardInner = () => {
                             )}
                             {/* Compact Trigger Row */}
                             <div
+                                className="hero-duration-trigger"
                                 data-hover="fila"
                                 onClick={() => setShowDespensaDropdown(!showDespensaDropdown)}
                                 style={{
@@ -7492,7 +7642,7 @@ const DashboardInner = () => {
                             const _subs = Array.isArray(_br.substitutions) ? _br.substitutions.slice(0, 3) : [];
                             const _sugs = Array.isArray(_br.suggestions) ? _br.suggestions.slice(0, 3) : [];
                             return (
-                                <div role="status" style={{
+                                <div role="status" className="hero-budget-banner" style={{
                                     marginTop: '0.75rem', padding: '0.65rem 0.85rem',
                                     background: _palette.bg, border: `1px solid ${_palette.border}`,
                                     borderRadius: '0.75rem',
@@ -9628,7 +9778,7 @@ const DashboardInner = () => {
                         panel en el centro de notificaciones (campana) y se puede volver a
                         mostrar desde ahí cuando el usuario quiera. Recordado por plan. */}
                     {!reasoningHidden && (
-                    <div style={{
+                    <div className="reasoning-card" style={{
                         background: 'var(--bg-card)',
                         backdropFilter: 'blur(12px)',
                         padding: '1.75rem',
