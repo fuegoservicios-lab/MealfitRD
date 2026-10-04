@@ -262,12 +262,12 @@ const EXIGIDAS = [
     { frase: 'puede generarse en servidores de su fabricante (por ejemplo, Google en Chrome)', porque: 'el respaldo de la voz puede ser de red (Privacidad §2 y Uso de IA §1)' },
     { frase: 'las lee la voz de su navegador o dispositivo', porque: 'lo mismo en Protección de Datos §5' },
     { frase: '<strong>lee en voz alta las respuestas del coach</strong>. Para las fotos', porque: 'Google en su papel de voz, en la lista de proveedores de Privacidad §4' },
-    { frase: 'si usa el modo voz (sólo a Google)', porque: 'el texto que se lee en voz alta, en la lista de lo que se envía (Privacidad §4)' },
+    { frase: 'si usa el modo voz en vivo (a OpenAI)', porque: 'el texto que se lee en voz alta, en la lista de lo que se envía (Privacidad §4)' },
     { frase: 'Google trata las fotos y el texto del modo voz', porque: 'las condiciones de Google cubren fotos y voz (Privacidad §4)' },
-    { frase: 'en el modo voz, <strong>lee en voz alta las respuestas del coach</strong>', porque: 'Google y la voz en la Política de IA §2' },
+    { frase: 'en el modo voz de respaldo, <strong>lee en voz alta las respuestas del coach</strong>', porque: 'Google y la voz en la Política de IA §2' },
     { frase: 'si usas el modo voz en vivo (a OpenAI)', porque: 'el audio y las respuestas del modo voz en vivo se envían a OpenAI (Política de IA §2)' },
     { frase: 'las respuestas que se leen con la voz de respaldo (a Google)', porque: 'la voz de respaldo conserva su destinatario en la Política de IA §2' },
-    { frase: 'que en el modo voz también convierte en voz el texto de las respuestas del coach', porque: 'Google por la voz en las transferencias (Protección de Datos §6)' },
+    { frase: 'que en el modo voz de respaldo también convierte en voz el texto de las respuestas del coach', porque: 'Google por la voz en las transferencias (Protección de Datos §6)' },
     { frase: 'Las fotos que usted envía al chat del coach sí se guardan', porque: 'chat_attachments (Privacidad §2)' },
     { frase: 'Las fotos que envías al chat del coach sí se guardan', porque: 'lo mismo en la Política de IA §1' },
     { frase: '<strong>Fotos de sus comidas (<code>IndexedDB</code>):</strong>', porque: 'la copia de la foto en el dispositivo (fotosDeComidas.js, P1-PLAN-LOTE-721), en Privacidad §13' },
@@ -343,8 +343,8 @@ describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
 
     // [P1-PLAN-LOTE-836 · 2026-09-29] Cambió el fondo de estas dos políticas (acceso del equipo, cuentas de prueba, plazo
     // del rastro, finalidad de prueba): Privacidad §14 promete publicar el cambio con su nueva fecha, la misma del apex.
-    it.each(['Política de Privacidad', 'Política de Protección de Datos'])('«%s» lleva la fecha del cambio (29 de Septiembre, 2026)', (titulo) => {
-        expect(texto).toContain(`title="${titulo}" lastUpdated="29 de Septiembre, 2026"`);
+    it.each(['Política de Privacidad', 'Política de Protección de Datos'])('«%s» lleva la fecha del cambio (4 de Octubre, 2026)', (titulo) => {
+        expect(texto).toContain(`title="${titulo}" lastUpdated="4 de Octubre, 2026"`);
     });
 
     // Sin esta comprobación, borrar la sección entera dejaría el test en verde: el
