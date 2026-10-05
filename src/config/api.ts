@@ -1,5 +1,6 @@
 import { getBackendToken } from '../authClient';
 import { safeLocalStorageGet } from '../utils/safeLocalStorage';
+import { sessionRequestGeneration, shouldSignalSessionExpiry } from '../utils/accountDeletionSession';
 
 // [P1-PLAN-LOTE-844] El permiso para la IA de terceros entra en el cliente por GANCHOS que registra el propio módulo
 // del permiso (`consent/consentimientoIA`) al cargarse —lo carga el host de la hoja, montado en la raíz de la app—.
@@ -154,9 +155,10 @@ const _composeAbortSignals = (a, b) => {
 // (AssessmentContext) hace toast + teardown UNA vez, en vez del manejo per-caller
 // inconsistente (unos mostraban "Error al actualizar…", otros quedaban mudos). NO
 // cambia el valor de retorno — los callers conservan su manejo local (no-breaking).
-const _signalIfSessionExpired = (res: Response, url: string): Response => {
+const _signalIfSessionExpired = (res: Response, url: string, requestGeneration: number): Response => {
     try {
-        if (res && res.status === 401 && typeof window !== 'undefined' && !/\/auth(\/|$)/.test(url)) {
+        if (res && res.status === 401 && typeof window !== 'undefined' && !/\/auth(\/|$)/.test(url)
+            && shouldSignalSessionExpiry(requestGeneration, url)) {
             window.dispatchEvent(new CustomEvent('mealfit:session-expired', { detail: { url } }));
         }
     } catch { /* dispatch best-effort; nunca romper el fetch */ }
@@ -165,6 +167,7 @@ const _signalIfSessionExpired = (res: Response, url: string): Response => {
 
 // Custom fetch wrapper that includes Neon Auth JWT
 const _fetchWithAuthUnaVez = async (url: string, options: ApiRequestOptions = {}) => {
+    const requestGeneration = sessionRequestGeneration();
     const token = await _getTokenWithTimeout();
 
     const headers = new Headers(options.headers || {});
@@ -212,7 +215,7 @@ const _fetchWithAuthUnaVez = async (url: string, options: ApiRequestOptions = {}
         // Exento / desactivado → comportamiento legacy (respeta el signal del caller).
         // await para poder inspeccionar el status (401); resuelve en headers → no
         // rompe streaming SSE (el body sigue siendo un stream leído aparte).
-        return _signalIfSessionExpired(await fetch(finalUrl, { ...rest, headers, signal: callerSignal }), url);
+        return _signalIfSessionExpired(await fetch(finalUrl, { ...rest, headers, signal: callerSignal }), url, requestGeneration);
     }
 
     const timeoutController = new AbortController();
@@ -224,7 +227,7 @@ const _fetchWithAuthUnaVez = async (url: string, options: ApiRequestOptions = {}
     const signal = _composeAbortSignals(callerSignal, timeoutController.signal);
 
     try {
-        return _signalIfSessionExpired(await fetch(finalUrl, { ...rest, headers, signal }), url);
+        return _signalIfSessionExpired(await fetch(finalUrl, { ...rest, headers, signal }), url, requestGeneration);
     } catch (err) {
         // Solo re-etiquetamos como request_timeout si el abort fue NUESTRO timer
         // (no un abort legítimo del caller, que debe propagarse tal cual).

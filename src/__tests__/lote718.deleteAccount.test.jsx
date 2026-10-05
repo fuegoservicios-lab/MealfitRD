@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from './utils/test-utils';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
+import { shouldSignalSessionExpiry, sessionRequestGeneration } from '../utils/accountDeletionSession';
 
 const orden = [];
 const navigate = vi.fn();
@@ -23,6 +24,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: v
 vi.mock('../config/api', () => ({
     api: (p) => p,
     fetchWithAuth: vi.fn(async (url) => {
+        expect(shouldSignalSessionExpiry(sessionRequestGeneration(), '/api/profile')).toBe(false);
         orden.push(`fetch ${url}`);
         return respuestaDelBorrado;
     }),
@@ -37,6 +39,7 @@ vi.mock('../utils/chatDraftStore', () => ({ clearAllChatDrafts: vi.fn(async () =
 
 import DeleteAccountSection from '../components/account/DeleteAccountSection';
 import { activarAvisos } from '../utils/avisosDeComida';
+import { fetchWithAuth } from '../config/api';
 
 const contexto = () => ({
     session: { user: { id: 'u1' } },
@@ -74,6 +77,7 @@ async function confirmarBorrado(user) {
 }
 
 beforeEach(() => {
+    expect(shouldSignalSessionExpiry(sessionRequestGeneration(), '/api/profile')).toBe(true);
     orden.length = 0;
     vi.clearAllMocks();
     window.localStorage.clear();
@@ -95,6 +99,7 @@ describe('[718] (a) los avisos se apagan ANTES de borrar la cuenta', () => {
         expect(i('resetForNewAssessment')).toBeLessThan(i('resetApp'));
         expect(activarAvisos, 'con la cuenta borrada no hay nada que volver a encender').not.toHaveBeenCalled();
         expect(toast.success).toHaveBeenCalled();
+        expect(shouldSignalSessionExpiry(sessionRequestGeneration(), '/api/profile')).toBe(true);
     });
 });
 
@@ -140,6 +145,7 @@ describe('[718] (c) un 502/503 dice que la cuenta sigue viva por PayPal', () => 
         expect(ctx.resetApp).not.toHaveBeenCalled();
         expect(window.localStorage.getItem('mealfit_form')).not.toBeNull();
         expect(navigate).not.toHaveBeenCalled();
+        expect(shouldSignalSessionExpiry(sessionRequestGeneration(), '/api/profile')).toBe(true);
     });
 
     it('429 ⇒ «demasiados intentos»; el resto ⇒ el aviso genérico de siempre', async () => {
@@ -162,5 +168,41 @@ describe('[718] (d) el campo de la palabra', () => {
         expect(campo).toHaveAttribute('spellcheck', 'false');
         expect(campo).toHaveAttribute('autocapitalize', 'characters');
         await waitFor(() => expect(document.activeElement).toBe(campo));
+    });
+});
+
+describe('el fin del borrado restaura el manejo de sesiones', () => {
+    it('mantiene la protección hasta que termina el logout, antes del aviso de éxito', async () => {
+        let finishLogout;
+        const ctx = contexto();
+        ctx.resetApp.mockImplementation(() => new Promise((resolve) => { finishLogout = resolve; }));
+        render(<DeleteAccountSection />, { customContext: ctx });
+        await confirmarBorrado(userEvent.setup());
+        await waitFor(() => expect(finishLogout).toBeTypeOf('function'));
+        expect(shouldSignalSessionExpiry(sessionRequestGeneration(), '/api/profile')).toBe(false);
+        expect(toast.success).not.toHaveBeenCalled();
+        finishLogout();
+        await waitFor(() => expect(toast.success).toHaveBeenCalled());
+        expect(shouldSignalSessionExpiry(sessionRequestGeneration(), '/api/profile')).toBe(true);
+    });
+
+    it('libera la protección tras un error de red sin cerrar la sesión', async () => {
+        fetchWithAuth.mockRejectedValueOnce(new TypeError('Network error'));
+        const ctx = contexto();
+        render(<DeleteAccountSection />, { customContext: ctx });
+        await confirmarBorrado(userEvent.setup());
+        await waitFor(() => expect(toast.error).toHaveBeenCalled());
+        expect(ctx.resetApp).not.toHaveBeenCalled();
+        expect(shouldSignalSessionExpiry(sessionRequestGeneration(), '/api/profile')).toBe(true);
+    });
+
+    it('libera la protección también cuando el servidor declara un borrado parcial', async () => {
+        respuestaDelBorrado = { ok: true, status: 200, json: async () => ({ success: false, errors: ['test'] }) };
+        render(<DeleteAccountSection />, { customContext: contexto() });
+        await confirmarBorrado(userEvent.setup());
+        await waitFor(() => expect(navigate).toHaveBeenCalled());
+        expect(toast.warning).toHaveBeenCalled();
+        expect(toast.success).not.toHaveBeenCalled();
+        expect(shouldSignalSessionExpiry(sessionRequestGeneration(), '/api/profile')).toBe(true);
     });
 });

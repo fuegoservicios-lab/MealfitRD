@@ -12,6 +12,7 @@ import { Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssessment } from '../../context/AssessmentContext';
 import { fetchWithAuth } from '../../config/api';
+import { beginAccountDeletion } from '../../utils/accountDeletionSession';
 import Modal from '../common/Modal';
 import { useT } from '../../i18n';
 import { mensajeDeError } from '../../utils/errorCopy';
@@ -159,11 +160,12 @@ export default function DeleteAccountSection() {
     const handleDelete = async () => {
         if (!ready || isDeleting) return;
         setIsDeleting(true);
+        const endAccountDeletion = beginAccountDeletion();
         // [P1-PLAN-LOTE-718 · 2026-09-28] (a) Los avisos de ESTE dispositivo se apagan ANTES de borrar la cuenta,
         // mientras la sesión todavía vale. Después, `resetApp` → `apagarAvisosAlCerrarSesion` mandaba sus DELETE
         // (suscripción Web Push, token de FCM) con la cuenta ya borrada: 401, y el 401 dispara el aviso global
-        // `mealfit:session-expired` → «Tu sesión expiró» encima de «Tu cuenta fue eliminada». `config/api.ts` no tiene
-        // forma de silenciar esa señal, así que se ordena: limpiado aquí, lo de después ya no tiene nada que borrar
+        // `mealfit:session-expired` → «Tu sesión expiró» encima de «Tu cuenta fue eliminada». Además de proteger las
+        // peticiones pendientes durante el borrado, se ordena: lo de después ya no tiene nada que borrar
         // (`olvidarTokenAlCerrarSesion` solo borra lo registrado; la suscripción ya no existe).
         // Si el borrado FALLA, los avisos se vuelven a encender (abajo): una cuenta que sigue viva no pierde nada.
         let avisosEncendidos = false;
@@ -232,9 +234,9 @@ export default function DeleteAccountSection() {
                 navigate('/login', { replace: true });
                 return;
             }
-            toast.success(t('Tu cuenta fue eliminada.'));
             await cerrarYBorrarLoLocal(_uid);
             navigate('/login', { replace: true });
+            toast.success(t('Tu cuenta fue eliminada.'));
         } catch (err) {
             console.error('Error eliminando cuenta:', err);
             // Sin respuesta del servidor (red caída) no se sabe si borró; se vuelven a encender los avisos igual: si la
@@ -242,6 +244,8 @@ export default function DeleteAccountSection() {
             restaurarAvisos();
             toast.error(err?.paraMostrar ? err.message : t('No se pudo eliminar la cuenta.'));
             setIsDeleting(false);
+        } finally {
+            endAccountDeletion();
         }
     };
 

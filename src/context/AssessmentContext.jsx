@@ -2120,6 +2120,9 @@ export const AssessmentProvider = ({ children }) => {
     const _sessionExpiredAtRef = useRef(0);
     useEffect(() => {
         const onExpired = () => {
+            // Una respuesta tardía tras cerrar sesión no es una nueva expiración.
+            if (!sessionRef.current?.user?.id && !safeLocalStorageGet('mealfit_user_id', null)
+                && !safeLocalStorageGet('mealfit_mf_session', null)) return;
             const now = Date.now();
             if (now - _sessionExpiredAtRef.current < 5000) return; // ráfaga → maneja una vez
             _sessionExpiredAtRef.current = now;
@@ -2137,7 +2140,7 @@ export const AssessmentProvider = ({ children }) => {
         };
         window.addEventListener('mealfit:session-expired', onExpired);
         return () => window.removeEventListener('mealfit:session-expired', onExpired);
-    }, [reiniciarCreditos]);
+    }, [reiniciarCreditos, sessionRef]);
 
     // --- REFETCH DE PERFIL AL VOLVER A LA PESTAÑA ---
     // [P1-NEON-DB-MIGRATION · 2026-06-12] Reemplaza el canal Realtime
