@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 // [P2-14 · 2026-07-09] Hook SSOT de media queries (antes copia local del mismo hook).
@@ -6,11 +7,14 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes effect manual).
 import { useLatestRef } from '../../hooks/useLatestRef';
 import { useT } from '../../i18n';
+import { useVisibleViewport } from '../../hooks/useVisibleViewport';
 
-const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disableClose = false, isBottomSheetOnMobile = false }) => {
+const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disableClose = false, isBottomSheetOnMobile = false, adjustToKeyboard = false, initialFocusRef }) => {
     const t = useT();
     const modalRef = useRef(null);
     const triggerRef = useRef(null);
+    const initialFocusDoneRef = useRef(false);
+    const visibleViewport = useVisibleViewport(isOpen && adjustToKeyboard);
     const [isCloseShaking, setIsCloseShaking] = useState(false);
 
     const handleCloseAttempt = () => {
@@ -24,6 +28,22 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
     const isDesktop = useMediaQuery('(min-width: 641px)');
     const isMobile = isBottomSheetOnMobile && !isDesktop;
 
+    const keepFieldVisible = useCallback(() => {
+        const panel = modalRef.current;
+        const field = document.activeElement;
+        if (!panel?.contains(field) || !field.matches('input, textarea, select')) return;
+        const bounds = panel.getBoundingClientRect();
+        if (bounds.bottom <= bounds.top) return;
+        const input = field.getBoundingClientRect();
+        if (input.bottom > bounds.bottom - 16) panel.scrollTop += input.bottom - bounds.bottom + 16;
+        else if (input.top < bounds.top + 16) panel.scrollTop = Math.max(0, panel.scrollTop - (bounds.top + 16 - input.top));
+    }, []);
+    useEffect(() => {
+        if (!isOpen || !adjustToKeyboard) return undefined;
+        const id = requestAnimationFrame(keepFieldVisible);
+        return () => cancelAnimationFrame(id);
+    }, [isOpen, adjustToKeyboard, visibleViewport?.top, visibleViewport?.height, keepFieldVisible]);
+
     // [P4-MODAL-FOCUS-SPLIT] Refs para leer onClose/disableClose frescos sin meterlos en
     // deps del effect de foco. Antes su identidad inline (el padre pasa onClose nuevo cada
     // render) re-ejecutaba el effect en cada re-render → el cleanup restauraba el foco al
@@ -34,9 +54,11 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
 
     useEffect(() => {
         if (isOpen) {
+            initialFocusDoneRef.current = false;
             // Guardar el elemento activo al abrir el modal (botón disparador)
             triggerRef.current = document.activeElement;
             // Opcional: Evitar scroll de la página trasera
+            const previousOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
 
             const handleKeyDown = (e) => {
@@ -82,14 +104,14 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
             if (modalRef.current) {
                 // Pequeño timeout para asegurar que el DOM ha renderizado completamente tras AnimatePresence
                 focusTimer = setTimeout(() => {
-                    if (modalRef.current) modalRef.current.focus();
+                    if (modalRef.current && !modalRef.current.contains(document.activeElement)) modalRef.current.focus({ preventScroll: true });
                 }, 10);
             }
 
             return () => {
                 if (focusTimer) clearTimeout(focusTimer);
                 document.removeEventListener('keydown', handleKeyDown);
-                document.body.style.overflow = '';
+                document.body.style.overflow = previousOverflow;
                 // Restaurar foco al botón disparador al cerrar
                 if (triggerRef.current) {
                     triggerRef.current.focus();
@@ -112,7 +134,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
         transition: { duration: 0.2 }
     };
 
-    return (
+    const content = (
         <AnimatePresence>
             {isOpen && (
                 <div 
@@ -120,7 +142,8 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                         position: 'fixed', inset: 0, zIndex: 'var(--z-modal)', display: 'flex',
                         alignItems: isMobile ? 'flex-end' : 'center', 
                         justifyContent: 'center', 
-                        padding: isMobile ? '0' : '1.25rem'
+                        padding: isMobile ? '0' : '1.25rem',
+                        ...visibleViewport,
                     }}
                 >
                     {/* Backdrop */}
@@ -154,11 +177,21 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                         aria-labelledby={titleId}
                         tabIndex={-1}
                         className="mealfit-modal-content"
+                        onFocusCapture={adjustToKeyboard ? keepFieldVisible : undefined}
                         initial={animationVariants.initial}
                         animate={animationVariants.animate}
                         exit={animationVariants.exit}
                         transition={animationVariants.transition}
-                        drag={isMobile ? "y" : false}
+                        onAnimationComplete={() => {
+                            // Open the keyboard only after the sheet has reached its final position.
+                            // Viewport updates and typing must never refocus the input.
+                            if (!isOpen || initialFocusDoneRef.current) return;
+                            initialFocusDoneRef.current = true;
+                            const active = document.activeElement;
+                            if (modalRef.current?.contains(active) && active !== modalRef.current && active !== initialFocusRef?.current) return;
+                            initialFocusRef?.current?.focus({ preventScroll: true });
+                        }}
+                        drag={isMobile && !(adjustToKeyboard && visibleViewport && document.activeElement?.matches('input, textarea')) ? "y" : false}
                         dragConstraints={{ top: 0, bottom: 0 }}
                         dragElastic={{ top: 0, bottom: 1 }}
                         onDragEnd={(event, info) => {
@@ -171,6 +204,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             borderRadius: isMobile ? '1.5rem 1.5rem 0 0' : '1.25rem',
                             padding: isMobile ? '1.5rem 1.25rem 2rem' : '2rem',
                             width: '100%', maxWidth, position: 'relative', zIndex: 1,
+                            ...(adjustToKeyboard ? { maxHeight: '100%', overflowY: 'auto', overscrollBehavior: 'contain', scrollPadding: '1rem' } : {}),
                             boxShadow: isMobile ? '0 -8px 30px rgba(0,0,0,0.12)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                             // [P2-MODAL-OUTLINE-A11Y] outline ahora gestionado
                             // por `.mealfit-modal-content:focus-visible` en
@@ -202,5 +236,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
             )}
         </AnimatePresence>
     );
+    // Escape transformed/scrolling Settings ancestors so viewport coordinates remain valid.
+    return adjustToKeyboard && typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 };
 export default Modal;

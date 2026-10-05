@@ -6,7 +6,7 @@
 //
 // Diseño minimalista-premium: jerarquía tipográfica (eyebrow + título + cuerpo),
 // espaciado generoso, UN solo acento de peligro. Sin cajas que lo carguen.
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -148,14 +148,6 @@ export default function DeleteAccountSection() {
     const [isDeleting, setIsDeleting] = useState(false);
     const confirmInputRef = useRef(null);
 
-    // [P1-PLAN-LOTE-718 · 2026-09-28] Al abrir la confirmación, el foco va al campo donde hay que escribir la palabra
-    // (y en el móvil sale el teclado). `Modal` enfoca su contenedor a los 10 ms; esto va después para no perder la
-    // carrera.
-    useEffect(() => {
-        if (!showModal) return undefined;
-        const id = setTimeout(() => { try { confirmInputRef.current?.focus({ preventScroll: true }); } catch { /* sin foco */ } }, 60);
-        return () => clearTimeout(id);
-    }, [showModal]);
     // [P1-PLAN-LOTE-167 · 2026-09-22] La palabra a escribir va en el idioma de la pantalla («DELETE», «SUPPRIMER»…): se
     // pedía «ELIMINAR» en los cinco. Se compara contra ESA misma variable (la que pinta la etiqueta y el placeholder),
     // así que una traducción no puede dejar el botón muerto; «ELIMINAR» sigue valiendo, y al servidor le llega siempre
@@ -277,6 +269,8 @@ export default function DeleteAccountSection() {
                 maxWidth="440px"
                 disableClose={isDeleting}
                 isBottomSheetOnMobile
+                adjustToKeyboard
+                initialFocusRef={confirmInputRef}
             >
                 <h3 id="mf-dz-modal-title" className="mf-dz-mtitle">{t('¿Eliminar tu cuenta?')}</h3>
                 <p className="mf-dz-mtext">
