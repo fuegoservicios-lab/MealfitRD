@@ -11,9 +11,9 @@ const VACIO = new Set();
 
 const _conUsuario = (userId) => typeof userId === 'string' && userId.length > 0 && userId !== 'guest';
 
-export function useFotosDeComida(userId, mealId) {
+export function useFotosDeComida(userId, mealId, tipo = 'foto') {
     const [estado, setEstado] = useState({ clave: null, fotos: [] });
-    const clave = _conUsuario(userId) && mealId ? `${userId}:${mealId}` : null;
+    const clave = _conUsuario(userId) && mealId ? `${userId}:${mealId}:${tipo}` : null;
     useEffect(() => {
         if (!clave) return undefined;
         let vivo = true, version = 0, urls = [];
@@ -23,7 +23,7 @@ export function useFotosDeComida(userId, mealId) {
             const turno = ++version;
             try {
                 const almacen = await cargarAlmacen();
-                const fotos = await almacen.leerFotosDeComida(userId, mealId);
+                const fotos = await almacen.leerFotosDeComida(userId, mealId, tipo);
                 if (!vivo || turno !== version) return;
                 soltar();
                 const nuevas = fotos.map((f) => ({ id: f.id, url: URL.createObjectURL(f.blob) }));
@@ -34,7 +34,7 @@ export function useFotosDeComida(userId, mealId) {
         cargar();
         window.addEventListener(EVENTO, cargar);
         return () => { vivo = false; window.removeEventListener(EVENTO, cargar); soltar(); };
-    }, [clave, userId, mealId]);
+    }, [clave, userId, mealId, tipo]);
     return estado.clave === clave ? estado.fotos : [];
 }
 

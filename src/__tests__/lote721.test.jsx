@@ -227,7 +227,7 @@ describe('FichaDeComida', () => {
 describe('la fila del contador', () => {
     it('abre la ficha y enseña la miniatura si hay foto', async () => {
         vi.mocked(useIdsConFoto).mockReturnValue(new Set(['meal-1']));
-        vi.mocked(useFotoDeComida).mockImplementation((uid, id, tipo) => (tipo === 'mini' ? 'blob:mini' : null));
+        vi.mocked(useFotosDeComida).mockImplementation((uid, id, tipo) => (tipo === 'mini' ? [{ url: 'blob:mini' }] : []));
         vi.mocked(fetchWithAuth).mockImplementation(async (url) => (String(url).startsWith('/api/diary/consumed/')
             ? respuesta({ meals: [MEAL], totals: { calories: 740, protein: 42, carbs: 95, healthy_fats: 18 } })
             : respuesta(detalle())));

@@ -18,6 +18,7 @@
   "{alimento}: la opción más económica del súper es {producto} ({precio})": "{alimento}: a opção mais econômica do mercado é {producto} ({precio})",
   "{cantidad} {unidad} de {alimento}": "{cantidad} {unidad} de {alimento}",
   "{kcal} kcal · {p} g proteína": "{kcal} kcal · {p} g de proteína",
+  "{n} fotos": "{n} fotos",
   "{n} fotos sin analizar no se registrarán": {
     "one": "{n} foto não analisada não será registrada",
     "other": "{n} fotos não analisadas não serão registradas"
