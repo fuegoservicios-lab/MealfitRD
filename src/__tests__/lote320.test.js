@@ -75,6 +75,7 @@ describe('[320] la Nevera guarda su última copia para pintarla ya', () => {
 
 describe('[320] las páginas del menú se precargan en reposo', () => {
     beforeEach(() => { vi.resetModules(); });
+    afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
     it('cada página se importa UNA vez y lazy usa la misma promesa', async () => {
         const m = await import('../utils/precargaDePaginas');
@@ -93,11 +94,13 @@ describe('[320] las páginas del menú se precargan en reposo', () => {
         const m = await import('../utils/precargaDePaginas');
         const pedidas = [];
         for (const k of Object.keys(m.cargarPagina)) vi.spyOn(m.cargarPagina, k).mockImplementation(() => { pedidas.push(k); return Promise.resolve({}); });
-        let enReposo = null;
-        vi.stubGlobal('requestIdleCallback', (fn) => { enReposo = fn; return 1; });
+        const enReposo = [];
+        vi.stubGlobal('requestIdleCallback', (fn) => { enReposo.push(fn); return enReposo.length; });
         m.precargarPaginasDelMenu();
         expect(pedidas).toEqual([]);            // nada antes del reposo
-        enReposo();
+        enReposo[0]();
+        expect(pedidas).toEqual(['nevera']);
+        enReposo[1]();
         expect(pedidas.sort()).toEqual(['agente', 'historial', 'hoy', 'nevera', 'progreso']);
         vi.unstubAllGlobals();
     });
@@ -108,5 +111,33 @@ describe('[320] las páginas del menú se precargan en reposo', () => {
         expect(app).toContain('const AgentPage = lazy(cargarPagina.agente);');
         const k = app.indexOf('const DashboardAnimatedLayout = () => {');
         expect(app.slice(k, k + 2500)).toContain('precargarPaginasDelMenu()');
+    });
+
+    it('en Safari prepara la Nevera a los 350 ms y deja el resto para después', async () => {
+        vi.useFakeTimers();
+        vi.stubGlobal('requestIdleCallback', undefined);
+        const m = await import('../utils/precargaDePaginas');
+        const pedidas = [];
+        for (const k of Object.keys(m.cargarPagina)) vi.spyOn(m.cargarPagina, k).mockImplementation(() => {
+            pedidas.push(k); return Promise.resolve({});
+        });
+        m.precargarPaginasDelMenu();
+        m.precargarPaginasDelMenu();
+        vi.advanceTimersByTime(349);
+        expect(pedidas).toEqual([]);
+        vi.advanceTimersByTime(1);
+        expect(pedidas).toEqual(['nevera']);
+        vi.advanceTimersByTime(2150);
+        expect(pedidas.sort()).toEqual(['agente', 'historial', 'hoy', 'nevera', 'progreso']);
+    });
+
+    it('respeta el ahorro de datos sin programar descargas', async () => {
+        vi.useFakeTimers();
+        vi.stubGlobal('navigator', { connection: { saveData: true } });
+        const m = await import('../utils/precargaDePaginas');
+        const pedir = vi.spyOn(m.cargarPagina, 'nevera').mockResolvedValue({});
+        m.precargarPaginasDelMenu();
+        vi.runAllTimers();
+        expect(pedir).not.toHaveBeenCalled();
     });
 });

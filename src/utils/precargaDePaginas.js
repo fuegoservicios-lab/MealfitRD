@@ -65,8 +65,14 @@ export function precargarPaginasDelMenu() {
     if (programada) return;
     programada = true;
     try { if (navigator?.connection?.saveData) return; } catch { /* sin Network Information API */ }
+    // La Nevera se prepara primero; las páginas más pesadas conservan su espera.
+    const pedirNevera = () => cargarPagina.nevera().catch(() => {});
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(pedirNevera, { timeout: 800 });
+    else setTimeout(pedirNevera, 350);
     const pedir = () => {
-        for (const k of Object.keys(cargarPagina)) cargarPagina[k]().catch(() => { /* la visita real lo reintenta */ });
+        for (const k of Object.keys(cargarPagina)) {
+            if (k !== 'nevera') cargarPagina[k]().catch(() => { /* la visita real lo reintenta */ });
+        }
     };
     if (typeof requestIdleCallback === 'function') requestIdleCallback(pedir, { timeout: 5000 });
     else setTimeout(pedir, 2500);   // Safari / WKWebView no tienen requestIdleCallback

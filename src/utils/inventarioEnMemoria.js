@@ -8,9 +8,10 @@ import { safeLocalStorageRemove } from './safeLocalStorage';
 export const INVENTORY_LS_KEY = 'mealfit_pantry_inventory_cache_v1';
 
 /** `{ entrada: {value, expiresAt} | null }`: un objeto para que el módulo que lo importa pueda reasignar la entrada. */
-export const INVENTARIO = { entrada: null };
+export const INVENTARIO = { entrada: null, generacion: 0 };
 
 export const borrarCacheDeInventario = () => {
+    INVENTARIO.generacion += 1;
     INVENTARIO.entrada = null;
     safeLocalStorageRemove(INVENTORY_LS_KEY);
 };

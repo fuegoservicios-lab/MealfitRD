@@ -112,6 +112,7 @@ export const setCachedInventory = (rows, ttlMs = _INVENTORY_TTL_MS) => {
 // llega la fresca — antes el esqueleto esperaba a la red y a la sesión. Para BORRAR de verdad (cerrar sesión, cambiar de
 // usuario: nada de ver la Nevera de otra cuenta) está `borrarCacheDeInventario`.
 export const invalidateInventoryCache = () => {
+    _INV.generacion += 1;
     const actual = _INV.entrada?.value ?? getStaleInventory();
     if (Array.isArray(actual)) {
         _INV.entrada = { value: actual, expiresAt: 0 };

@@ -60,6 +60,7 @@ import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del listado del Historial
 // al hover/touch del NavItem — el data llega antes que el click.
 import { prefetchHistoryList } from '../../utils/historyCaches';
+import { precargarInventarioDeNevera } from '../../utils/inventarioDeNevera';
 import { useT } from '../../i18n';
 import styles from './DashboardLayout.module.css';
 import Wordmark from '../common/Wordmark';
@@ -76,6 +77,15 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const { resetApp, userProfile, planData, session, isPremium, isGuest, exitGuestSession } = useAssessment();
+    const puedePrecargarNevera = Boolean(session?.user?.id && userProfile && !isGuest && neveraActiva(userProfile));
+    const prepararNevera = useCallback(() => {
+        if (puedePrecargarNevera) precargarInventarioDeNevera().catch(() => {});
+    }, [puedePrecargarNevera]);
+    useEffect(() => {
+        if (!session?.user?.id || !puedePrecargarNevera || navigator?.connection?.saveData) return undefined;
+        const timer = setTimeout(prepararNevera, 350);
+        return () => clearTimeout(timer);
+    }, [puedePrecargarNevera, prepararNevera, session?.user?.id]);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMobileMoreMenuOpen, setIsMobileMoreMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -327,6 +337,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         const _isHistory = item.path === '/history';
                         const _doPrefetch = () => {
                             prefetchRoute(item.path);
+                            if (item.path === '/dashboard/pantry') prepararNevera();
                             if (_isHistory) prefetchHistoryList();
                         };
                         return (
@@ -514,6 +525,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             const _prefetch = () => {
                                 if (bloqueada) return;
                                 prefetchRoute(item.path);
+                                if (item.path === '/dashboard/pantry') prepararNevera();
                                 if (item.path === '/history') prefetchHistoryList();
                             };
                             return (

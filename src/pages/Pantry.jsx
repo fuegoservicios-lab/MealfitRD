@@ -41,6 +41,7 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate del mount de Pantry
 import { getCachedInventory, getStaleInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache, getCachedBrands, setCachedBrands, getCachedPantryStatus, setCachedPantryStatus, reconcilePantryStatus } from '../utils/pantryCache';
+import { cargarInventarioDeNevera } from '../utils/inventarioDeNevera';
 import { medirTecladoDeVentana } from '../utils/keyboardViewport';
 // [P1-PANTRY-DASH-PARITY - 2026-07-11] Escaner por foto compartido con el paso 21.
 import { PantryScanButton } from '../components/pantry/PantryScanButton';
@@ -1117,7 +1118,7 @@ const PantryPage = () => {
     const catalogInFlight = useRef(false);
     const [catalogLoading, setCatalogLoading] = useState(false);
     // Pide el catálogo si aún no hay filas (al abrir el buscador o al teclear): no
-    // depende de que fetchData haya tenido éxito en su Promise.all con el inventario.
+    // depende de la carga del inventario: el buscador puede reintentarlo por separado.
     const ensureCatalog = useCallback(async () => {
         if (masterListLoaded.current || catalogInFlight.current) return;
         catalogInFlight.current = true;
@@ -1388,27 +1389,11 @@ const PantryPage = () => {
     const fetchData = async (isInitial = true) => {
         if (isInitial) setLoading(true);
         try {
-            // [P5-SPEED-PANTRY-MOUNT-PARALLEL · 2026-06-01] inventario y
-            // catálogo son fuentes independientes (el catálogo es
-            // cuasi-inmutable y no depende del inventario) — Promise.all
-            // las corre concurrentes. El catálogo solo se pide cuando aún
-            // no está cargado (igual que antes).
-            // [P1-NEON-DB-MIGRATION · 2026-06-12] Transporte migrado a los
-            // endpoints backend: GET /api/inventory devuelve {items} con el
-            // embed master_ingredients anidado (shape idéntico al select
-            // PostgREST legacy, solo quantity>0, orden ingredient_name ASC);
-            // GET /api/catalog devuelve {items} con master_ingredients
-            // completo. el SDK anterior ya no habla con la DB post-cutover.
-            const needMaster = !masterListLoaded.current;
-            const invPromise = _apiJson('/api/inventory?incluir_suplementos=1');   // [P1-PLAN-LOTE-292] la única que ve los potes
-            const masterPromise = needMaster ? _apiJson('/api/catalog') : null;
-
-            const [invJson, masterJson] = await Promise.all([
-                invPromise,
-                masterPromise,
-            ]);
-
-            const _invRows = invJson?.items || [];
+            // El inventario ya incluye nombre, categoría e imagen. El catálogo
+            // completo sirve al buscador; su descarga no debe bloquear la lista.
+            const invPromise = cargarInventarioDeNevera();
+            void ensureCatalog();
+            const _invRows = await invPromise;
             setInventory(_invRows);
             // [P3-PANTRY-CACHE · 2026-05-19] Persiste al singleton tras
             // éxito. Próximo mount renderiza con cache vigente sin
@@ -1416,16 +1401,7 @@ const PantryPage = () => {
             // llamando fetchData → pisan el cache acá mismo.
             setCachedInventory(_invRows);
 
-            // Fetch Master List (solo una vez; cambios son rarísimos)
-            if (needMaster && (masterJson?.items || []).length > 0) {
-                const _masterRows = masterJson.items;
-                setMasterList(_masterRows);
-                // [P3-PANTRY-CACHE · 2026-05-19] Catálogo cuasi-inmutable.
-                // Cache 24h cross-mount cubre toda la sesión típica del
-                // user sin bajar 19.8KB cada entrada al apartado.
-                setCachedMasterList(_masterRows);
-                masterListLoaded.current = true;
-            } else if (masterList.length === 0) {
+            if (masterList.length === 0) {
                 // [P3-PANTRY-CACHE · 2026-05-19] Edge: masterListLoaded
                 // viene `true` del cache singleton pero el useState lazy
                 // arrancó vacío (cache invalidado entre el render y este
@@ -1437,6 +1413,7 @@ const PantryPage = () => {
                 }
             }
         } catch (error) {
+            if (error?.name === 'AbortError') return;
             console.error('Error fetching pantry:', error);
             // [P2-PANTRY-401-GRACEFUL · 2026-06-21] _apiJson adjunta err.status. 401 =
             // sesión expirada → mensaje neutro e informativo (no el rojo alarmante "Error
@@ -1808,6 +1785,7 @@ const PantryPage = () => {
                 // parecía vaciar la Nevera).
                 if (error?.status !== 401) {
                     toast.error(t('Error al actualizar alimento.'));
+                    invalidateInventoryCache();
                     fetchData(false); // rollback visual si falla
                 }
             } finally {
@@ -2075,6 +2053,7 @@ const PantryPage = () => {
                 // pestaña que ya insertó. Refetch y sumamos al row existente
                 // — UX consistente con click→+1.
                 if (insErr?.status === 409) {
+                    invalidateInventoryCache();
                     await fetchData(false);
                     const dup = inventoryRef.current.find(i =>
                         i.master_ingredient_id === masterItem.id
@@ -2197,6 +2176,7 @@ const PantryPage = () => {
                 // sync remoto). Refrescamos para que aparezca y tratamos
                 // como éxito.
                 if (insErr?.status === 409) {
+                    invalidateInventoryCache();
                     await fetchData(false);
                     _removeDepleted(entry);
                     toast.success(t('{alimento} ya estaba en tu nevera', { alimento: nombreDelAlimento(entry.ingredient_name) }), { icon: '✅', duration: 2000 });
