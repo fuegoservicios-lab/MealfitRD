@@ -16,14 +16,14 @@ import path from 'node:path';
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn() }) }));
 vi.mock('../hooks/useFotosDeComidas', () => ({
-    useFotoDeComida: vi.fn(() => null),
+    useFotosDeComida: vi.fn(() => []),
     useIdsConFoto: vi.fn(() => new Set()),
     borrarFotoDeComidaEnSegundoPlano: vi.fn(),
 }));
 vi.mock('../context/AssessmentContext', () => ({ useAssessment: vi.fn(() => ({ planData: null })) }));
 
 import { fetchWithAuth } from '../config/api';
-import { useFotoDeComida } from '../hooks/useFotosDeComidas';
+import { useFotosDeComida } from '../hooks/useFotosDeComidas';
 import FichaDeComida from '../components/dashboard/FichaDeComida';
 import { lineaDeIngredienteLegible } from '../utils/nombresDeAlimentos';
 
@@ -51,7 +51,7 @@ const detalle = (source, lineas = [{ texto: '2 unidad de huevo hervido', kcal: 1
 
 beforeEach(() => {
     vi.mocked(fetchWithAuth).mockReset();
-    vi.mocked(useFotoDeComida).mockReturnValue(null);
+    vi.mocked(useFotosDeComida).mockReturnValue([]);
 });
 afterEach(() => { vi.clearAllMocks(); });
 
@@ -69,7 +69,7 @@ describe('la foto: está o no está, sin explicaciones [762]', () => {
     });
 
     it('con la foto, la foto (y nada más a su alrededor)', async () => {
-        vi.mocked(useFotoDeComida).mockReturnValue('blob:foto');
+        vi.mocked(useFotosDeComida).mockReturnValue([{ url: 'blob:foto' }]);
         vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle('photo')));
         render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={vi.fn()} />);
         expect(screen.getByRole('img', { name: `Foto de ${MEAL.meal_name}` })).toBeInTheDocument();

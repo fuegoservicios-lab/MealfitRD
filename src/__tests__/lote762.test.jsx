@@ -5,7 +5,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn() }) }));
-vi.mock('../hooks/useFotosDeComidas', () => ({ useFotoDeComida: vi.fn(() => null) }));
+vi.mock('../hooks/useFotosDeComidas', () => ({ useFotosDeComida: vi.fn(() => []) }));
 vi.mock('../context/AssessmentContext', () => ({ useAssessment: vi.fn(() => ({ planData: null })) }));
 
 import { fetchWithAuth } from '../config/api';
