@@ -447,6 +447,8 @@
     padding: 0 0.9rem;
 }
 
+.receta[open] { padding-bottom: 0.9rem; }
+
 .recetaResumen {
     display: flex;
     align-items: center;
@@ -459,7 +461,7 @@
 
 .pasos {
     list-style: none;
-    margin: 0 0 0.8rem;
+    margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
