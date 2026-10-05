@@ -47,15 +47,16 @@ let llegadaProgramada = false;
  * descargaba y compilaba (355 KB de JS) justo después de «listo». Se pide durante la espera, en reposo, para
  * que la llegada no pase por la pantalla de carga.
  */
-export function precargarLlegadaAlPanel() {
-    if (llegadaProgramada) return;
-    llegadaProgramada = true;
+export function precargarLlegadaAlPanel({ inmediata = false } = {}) {
     const pedir = () => {
         cargarPagina.hoy().catch(() => { /* la visita real lo reintenta */ });
         cargarLayoutDelPanel().catch(() => { /* la visita real lo reintenta */ });
     };
-    if (typeof requestIdleCallback === 'function') requestIdleCallback(pedir, { timeout: 8000 });
-    else setTimeout(pedir, 3000);   // Safari / WKWebView no tienen requestIdleCallback
+    if (inmediata) { llegadaProgramada = true; pedir(); return; }
+    if (llegadaProgramada) return;
+    llegadaProgramada = true;
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(pedir, { timeout: 800 });
+    else setTimeout(pedir, 350);   // Prepare before iOS can suspend background timers.
 }
 
 let programada = false;

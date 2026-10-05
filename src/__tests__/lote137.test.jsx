@@ -199,7 +199,8 @@ describe('lote 137 · generar desde el contador deja al cliente en modo plan por
     it('el plan ADOPTADO (stream muerto ⇒ hydrateLatestPlan) también pone el espejo y relee el perfil', () => {
         const p = leer('src/pages/Plan.jsx');
         expect(p).toContain('if (!isTrackingMode(userProfile)) return;');
-        expect(p).toMatch(/marcarModoPlanTrasGenerar\(\);\s*try \{ await refreshProfileAndPlan\?\.\(\); \}/);
+        expect(p).toContain('Promise.resolve(refreshProfileAndPlan?.()).catch(() => {});');
+        expect(p).not.toContain('try { await refreshProfileAndPlan?.(); }');
         // las DOS llamadas de adopción van seguidas del cierre (contar los caminos, no blindar uno)
         const adopciones = p.match(/await hydrateLatestPlan\?\.\(\{ force: true, expectPlanId: [^}]+\}\); \} catch \{ \/\* noop \*\/ \}\s*try \{ await alDiaConElModoRef\.current\?\.\(\); \}/g) || [];
         expect(adopciones.length).toBe(2);

@@ -29,6 +29,8 @@ import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 import { t } from '../i18n';
 // [P1-I18N-SERVER-COPY-GANA · 2026-08-22] Ver la nota de errorCopy.js.
 import { mensajeDeError } from '../utils/errorCopy';
+import { readPendingPlanStatus } from '../utils/pendingPlanStatus';
+import { precargarLlegadaAlPanel } from '../utils/precargaDePaginas';
 
 const POLL_INTERVAL_MS = 10_000; // 10s
 // [P3-RECOVERY-BACKEND-DOWN-EXIT · 2026-05-16] Threshold de fallos
@@ -51,13 +53,7 @@ function _withSessionQS(path) {
     return sid ? `${path}?session_id=${encodeURIComponent(sid)}` : path;
 }
 
-async function fetchPendingStatus() {
-    try {
-        const res = await fetchWithAuth(_withSessionQS('/api/plans/pending-status'), { method: 'GET' });
-        if (!res.ok) return null;
-        return await res.json();
-    } catch { return null; }
-}
+const fetchPendingStatus = readPendingPlanStatus;
 
 async function ackPendingStatus() {
     // [P0-ACK-ROUTE-REBOUND · 2026-08-10] Antes esto era `catch { /* best-effort */ }`
@@ -193,6 +189,7 @@ export default function PendingPipelineRecovery() {
                         }
                     } else if (status.status === 'complete') {
                         handledRef.current = true;
+                        precargarLlegadaAlPanel({ inmediata: true });
                         // [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Guest (sin plan_id_final): recuperar el
                         // plan del KV backend y adoptarlo (mismo path que el success normal) antes de
                         // ir al dashboard. Autenticado (con plan_id_final): el dashboard lo carga solo.
@@ -215,8 +212,6 @@ export default function PendingPipelineRecovery() {
                         // esta rama puede haber sintetizado el flag más arriba, y limpiar
                         // dos veces es inofensivo; lo que cambió de verdad es que el acuse
                         // ahora llega.
-                        clearPendingFlag();
-                        await ackPendingStatus();
                         if (status.plan_id_final || _guestPlan) {
                             // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Hidratar ANTES de
                             // navegar: el `navigate` de abajo es no-op si el usuario ya está
@@ -225,15 +220,16 @@ export default function PendingPipelineRecovery() {
                             if (status.plan_id_final) {
                                 try { await hydrateLatestPlanRef.current?.({ force: true, expectPlanId: status.plan_id_final, src: 'recovery' }); } catch { /* noop */ }
                             }
-                            try {
-                                const { toast } = await import('sonner');
+                            clearPendingFlag();
+                            void ackPendingStatus();
+                            import('sonner').then(({ toast }) => {
                                 if (!_planToastJustShown()) toast.success(t('Tu plan está listo 🎉'), {
                                     description: t('Te llevamos al dashboard.'),
                                     duration: 3500,
                                 });
-                            } catch { /* noop */ }
+                            }).catch(() => {});
                             navigate('/dashboard', { replace: true });
-                        }
+                        } else { clearPendingFlag(); void ackPendingStatus(); }
                         // guest sin plan recuperable → no forzar navegación (evita loop).
                     }
                     // 'none' / 'failed' → no auto-redirect (el user no estaba esperando).
@@ -286,7 +282,7 @@ export default function PendingPipelineRecovery() {
 
             if (status.status === 'complete') {
                 handledRef.current = true;
-                clearPendingFlag();
+                precargarLlegadaAlPanel({ inmediata: true });
                 // [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Guest (sin plan_id_final): recuperar + adoptar el
                 // plan del KV backend antes del dashboard. Autenticado: el dashboard lo carga por id.
                 let _guestPlan = null;
@@ -296,7 +292,6 @@ export default function PendingPipelineRecovery() {
                         try { saveGeneratedPlanRef.current(_guestPlan); } catch { /* noop */ }
                     }
                 }
-                await ackPendingStatus();
                 if (status.plan_id_final || _guestPlan) {
                     // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Mismo motivo que en el
                     // camino de boot: hidratar antes de navegar (el navigate es no-op si
@@ -305,16 +300,17 @@ export default function PendingPipelineRecovery() {
                     if (status.plan_id_final) {
                         try { await hydrateLatestPlanRef.current?.({ force: true, expectPlanId: status.plan_id_final, src: 'recovery' }); } catch { /* noop */ }
                     }
+                    clearPendingFlag();
+                    void ackPendingStatus();
                     // Toast informativo + redirect.
-                    try {
-                        const { toast } = await import('sonner');
+                    import('sonner').then(({ toast }) => {
                         if (!_planToastJustShown()) toast.success(t('Tu plan está listo 🎉'), {
                             description: t('Te llevamos al dashboard.'),
                             duration: 3500,
                         });
-                    } catch { /* sonner no disponible — silencioso */ }
+                    }).catch(() => {});
                     navigate('/dashboard', { replace: true });
-                }
+                } else { clearPendingFlag(); void ackPendingStatus(); }
                 // guest sin plan recuperable → no forzar navegación (evita loop).
             } else if (status.status === 'failed') {
                 handledRef.current = true;
@@ -410,6 +406,7 @@ export default function PendingPipelineRecovery() {
             if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
                 return;
             }
+            precargarLlegadaAlPanel({ inmediata: true });
             checkOnce();
         };
         const handleVisibility = () => {

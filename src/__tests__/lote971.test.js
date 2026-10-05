@@ -38,6 +38,16 @@ describe('[971] precarga de la llegada al panel', () => {
         expect(app).toContain('const Dashboard = lazy(cargarPagina.hoy);');
     });
 
+    it('al volver pide el panel inmediatamente aunque el reposo siga pendiente', async () => {
+        const m = await import('../utils/precargaDePaginas');
+        const hoy = vi.spyOn(m.cargarPagina, 'hoy').mockResolvedValue({});
+        vi.stubGlobal('requestIdleCallback', vi.fn());
+        m.precargarLlegadaAlPanel();
+        expect(hoy).not.toHaveBeenCalled();
+        m.precargarLlegadaAlPanel({ inmediata: true });
+        expect(hoy).toHaveBeenCalledOnce();
+    });
+
     it('la pantalla de carga de la generación la lanza al montar', () => {
         const plan = leer('src/pages/Plan.jsx');
         const k = plan.indexOf('const LoadingScreen = (');

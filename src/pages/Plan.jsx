@@ -19,6 +19,7 @@ import { nativeHidesCommerce } from '../config/platform';
 import { initialViaQueueEnabled, idempotencyKeyFor, clearIdempotencyKey } from '../config/generation';
 import Wordmark from '../components/common/Wordmark';
 import { peekPendingStatusWithRetry } from '../utils/pendingStatusRetry';
+import { readPendingPlanStatus } from '../utils/pendingPlanStatus';
 import RenewalCheckinModal from '../components/plan/RenewalCheckinModal';
 import { findFirstIncompleteField, getFieldLabel } from '../config/formValidation';
 import { stripInternalFlags } from '../config/secureFormStorage';
@@ -874,7 +875,8 @@ const Plan = () => {
     alDiaConElModoRef.current = async () => {
         if (!isTrackingMode(userProfile)) return;
         marcarModoPlanTrasGenerar();
-        try { await refreshProfileAndPlan?.(); } catch { /* el espejo local ya dice 'plan' */ }
+        // The plan is adopted and the mode mirror is ready; refreshing preferences must not delay arrival.
+        try { Promise.resolve(refreshProfileAndPlan?.()).catch(() => {}); } catch { /* el espejo local ya dice 'plan' */ }
     };
     const [status, setStatus] = useState('analyzing'); // analyzing, generating, preview, ready
     // [P2-LINT-ZERO · 2026-07-09] setTempPlan nunca se llamaba (setter muerto)
@@ -976,9 +978,8 @@ const Plan = () => {
             try {
                 const sid = safeLocalStorageGet('mealfit_guest_session_id', null);
                 const qs = sid ? `?session_id=${encodeURIComponent(sid)}` : '';
-                const res = await fetchWithAuth(`/api/plans/pending-status${qs}`);
-                if (!res.ok) return;
-                const pd = await res.json();
+                const pd = await readPendingPlanStatus();
+                if (done || !pd) return;
                 if (pd?.status === 'complete') {
                     // Completo = listo, vayamos al dashboard. En foreground NORMAL sin resume (act=false)
                     // dejamos que el SSE muestre preview/ready; tras un resume el SSE está muerto → rescatamos.
@@ -1004,6 +1005,8 @@ const Plan = () => {
         // iOS aún despertando. Hace la navegación casi instantánea sin pollear rápido de forma permanente.
         const burstTimers = [];
         const onResume = () => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+            precargarLlegadaAlPanel({ inmediata: true });
             reconcile('resume');
             burstTimers.push(setTimeout(() => reconcile('resume'), 500));
             burstTimers.push(setTimeout(() => reconcile('resume'), 1500));
@@ -1168,11 +1171,8 @@ const Plan = () => {
                     // keyea el KV por session_id para guests. Sin esto el pre-flight devolvía 'none' para
                     // guests → Plan.jsx creía que no había pipeline → DISPARABA UN SSE NUEVO (duplicado) →
                     // toasts "Conexión interrumpida" apilados + doble generación. Autenticados: ignorado.
-                    const _preflightSid = safeLocalStorageGet('mealfit_guest_session_id', null);
-                    const _preflightQS = _preflightSid ? `?session_id=${encodeURIComponent(_preflightSid)}` : '';
-                    const pendingRes = await fetchWithAuth(`/api/plans/pending-status${_preflightQS}`);
-                    if (pendingRes.ok) {
-                        const pendingData = await pendingRes.json();
+                    const pendingData = await readPendingPlanStatus();
+                    if (pendingData) {
                         if (pendingData?.status === 'generating') {
                             // Asegurar flag local seteado (por si llegó vía
                             // navigate desde recovery sin pasar por el set
@@ -1202,6 +1202,7 @@ const Plan = () => {
                         // tenía que REINICIAR la app. Plan.jsx ahora es self-sufficient: adopta el plan (guest)
                         // + ackea el KV + navega. Fail-safe.
                         if (pendingData?.status === 'complete') {
+                            precargarLlegadaAlPanel({ inmediata: true });
                             try {
                                 const _gsid = safeLocalStorageGet('mealfit_guest_session_id', null);
                                 // Guest (sin plan_id_final): recuperar + adoptar el plan del KV antes del dashboard.

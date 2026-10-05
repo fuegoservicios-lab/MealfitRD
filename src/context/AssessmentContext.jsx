@@ -2314,6 +2314,12 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 } catch { /* noop */ }
             }
 
+            // A completed generation already enabled plan mode on the server. Mirror
+            // that known result now; do not hold the generator open for another profile request.
+            if (expectPlanId && _incomingHasDays) {
+                marcarModoPlanTrasGenerar();
+                setUserProfile((prev) => (prev ? { ...prev, plan_mode: 'plan' } : prev));
+            }
             setPlanData(prev => {
                 // [P1-PLANDATA-ID-HYDRATE · 2026-07-12] plan_data del servidor NO trae el
                 // id (vive en la columna) — devolverlo pelado deja planData SIN id y los
