@@ -13,7 +13,7 @@
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px 22px;
 }
 
@@ -21,10 +21,11 @@
     .list { grid-template-columns: 1fr; gap: 12px; }
 }
 
-.row { min-width: 0; }
+.row { min-width: 0; display: flex; flex-direction: column; }
 
 .rowTop {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     justify-content: space-between;
     gap: 8px;
@@ -38,10 +39,14 @@
     font-size: .9rem;
     font-weight: 700;
     color: var(--text-main);
-    white-space: nowrap;
+    max-width: 100%;
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
 }
 
 .tag {
+    flex-shrink: 0;
+    white-space: nowrap;
     font-size: .75rem;
     font-weight: 800;
     letter-spacing: .04em;
@@ -57,12 +62,15 @@
     font-weight: 600;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
-    white-space: nowrap;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .value b { color: var(--text-main); font-weight: 800; font-size: .95rem; }
 
 .track {
+    flex-shrink: 0;
+    margin-top: auto;
     height: 8px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--text-light) 22%, transparent);
@@ -88,10 +96,10 @@
     color: var(--text-muted);
 }
 
-/* [P1-PLAN-LOTE-105] variante compacta del diario de días anteriores: dos columnas siempre (el cajón mide
-   ≤460px), letra pequeña y barra fina — la misma gramática que la fila de macros del cajón. */
-.compact .list { grid-template-columns: 1fr 1fr; gap: 10px 16px; }
-.compact .rowTop { margin-bottom: 4px; gap: 6px; }
+/* En la ficha y el diario, cada nutriente pone sus cifras debajo del nombre:
+   «Sodio · máx.» y «1,103 / 2,000 mg» caben sin reducir ni recortar el texto. */
+.compact .list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+.compact .rowTop { flex-direction: column; align-items: flex-start; margin-bottom: 4px; gap: 3px; }
 .compact .label { font-size: .75rem; }
 .compact .tag { font-size: .75rem; padding: 0 5px; }
 .compact .value { font-size: .75rem; }
