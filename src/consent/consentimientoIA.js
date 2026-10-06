@@ -306,6 +306,12 @@ export function avisarActivaLaIA() {
  *  servidor) y false si la persona dijo «Ahora no» (ya se le avisó). */
 export async function asegurarConsentimientoIA(opciones = {}) {
     if (!faltaPermisoIA()) return true;
+    // El perfil puede venir de una caché anterior a la aceptación en otro arranque o dispositivo.
+    // Solo se comprueba cuando parece faltar; la cuenta con permiso vigente no paga otra petición.
+    if (_uidDe(_titularEfectivo())) {
+        const actualizado = await refrescarConsentimientoIA();
+        if (actualizado?.vigente === true || !faltaPermisoIA()) return true;
+    }
     const ok = await pedirHojaConsentimientoIA(opciones);
     if (!ok) avisarActivaLaIA();
     return ok;
@@ -407,7 +413,6 @@ function _marcarSinPermiso() {
     }
     const base = _cuenta && _cuenta.uid === uid ? _cuenta : { uid, version: null, at: null, revocadoEn: null, analytics: null };
     _aplicarCuenta({ ...base, vigente: false });
-    void refrescarConsentimientoIA();
 }
 
 /** Lee el cuerpo UNA vez y devuelve, para el llamador, una respuesta nueva con el mismo estado, cabeceras y cuerpo.
@@ -440,6 +445,10 @@ export async function resolverPermisoRequerido(res, reintentar, salio = null) {
     if (!cuerpo || cuerpo.error_code !== PERMISO_REQUERIDO) return respuesta;
     if (typeof salio === 'number' && _concedidoEn > 0 && _concedidoEn >= salio && !faltaPermisoIA()) return reintentar();
     _marcarSinPermiso();
+    if (_uidDe(_titularEfectivo())) {
+        const actualizado = await refrescarConsentimientoIA();
+        if (actualizado?.vigente === true) return reintentar();
+    }
     const ok = await pedirHojaConsentimientoIA();
     if (!ok) {
         avisarActivaLaIA();

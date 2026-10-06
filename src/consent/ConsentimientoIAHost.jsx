@@ -20,6 +20,7 @@ import {
     debePreguntarAlAbrirLaApp,
     fijarTitularConsentimientoIA,
     pedirHojaConsentimientoIA,
+    refrescarConsentimientoIA,
     rechazarConsentimientoIA,
     sincronizarConsentimientoIADesdePerfil,
     suscribirHojaConsentimientoIA,
@@ -56,18 +57,26 @@ export default function ConsentimientoIAHost() {
 
     useEffect(() => {
         if (!uid || !aiConsent || !enLaApp || _preguntadoAlAbrir.has(uid)) return undefined;
-        const temporizador = setTimeout(() => {
+        let cancelado = false;
+        const temporizador = setTimeout(async () => {
             // Se decide con lo que se sabe AL DISPARAR, no con el perfil de cuando se programó: en ese segundo pudo
             // llegar la adopción del plan del invitado con su permiso.
             if (_preguntadoAlAbrir.has(uid) || !debePreguntarAlAbrirLaApp()) return;
+            const actualizado = await refrescarConsentimientoIA();
+            // Un perfil en caché o un fallo de lectura no significa que haya que pedir permiso otra vez.
+            if (cancelado || !actualizado || !debePreguntarAlAbrirLaApp() || _preguntadoAlAbrir.has(uid)) return;
             _preguntadoAlAbrir.add(uid);
             void pedirHojaConsentimientoIA({ automatica: true });
         }, RETRASO_AL_ABRIR_MS);
-        return () => clearTimeout(temporizador);
+        return () => { cancelado = true; clearTimeout(temporizador); };
     }, [uid, aiConsent, enLaApp]);
 
     const aceptar = useCallback(async (decision) => {
         const r = await aceptarConsentimientoIA(decision);
+        // El próximo arranque debe recuperar un perfil con la decisión ya guardada, no el anterior al POST.
+        if (r?.ok && !r.planReanudado && typeof refreshProfileAndPlan === 'function') {
+            void Promise.resolve().then(() => refreshProfileAndPlan()).catch(() => {});
+        }
         if (r && r.ok && r.planReanudado) {
             // Volver a conceder poco después de retirarlo reanuda el generador que la retirada pausó (backend 843):
             // la app vuelve al modo plan, como con el interruptor de Configuración.

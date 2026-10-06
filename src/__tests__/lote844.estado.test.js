@@ -161,7 +161,7 @@ describe('[P1-PLAN-LOTE-844] la cuenta: su permiso vive en el servidor, nunca en
         fetchWithAuth.mockResolvedValue(json(200, { ...CON_PERMISO, plan_reanudado: false }));
         await aceptarConsentimientoIA({ analytics: true, textoSha256: null });
         await expect(puerta).resolves.toBe(true);
-        const [url, opts] = fetchWithAuth.mock.calls[0];
+        const [url, opts] = fetchWithAuth.mock.calls.find(([, options]) => options?.method === 'POST');
         expect(url).toBe('/api/consents');
         const cuerpo = JSON.parse(opts.body);
         expect(cuerpo).toMatchObject({ version: AI_CONSENT_VERSION, ai_processing: true, ai_transfer_cn: true, analytics: true });

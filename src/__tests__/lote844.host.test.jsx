@@ -45,6 +45,7 @@ beforeEach(() => {
     _reiniciarConsentimientoIAParaTests();
     localStorage.clear();
     fetchWithAuth.mockReset();
+    fetchWithAuth.mockResolvedValue(respuesta(SIN_PERMISO));
 });
 afterEach(() => {
     cleanup();
@@ -79,6 +80,21 @@ describe('[P1-PLAN-LOTE-844] la hoja sale sola al abrir la app (cuentas que ya e
         await new Promise((r) => setTimeout(r, 1700));
         expect(screen.queryByRole('dialog')).toBeNull();
         expect(estadoConsentimientoIA()).toMatchObject({ vigente: true });
+    });
+
+    it('un perfil antiguo no vuelve a pedir un permiso que ya está guardado en el servidor', async () => {
+        fetchWithAuth.mockResolvedValue(respuesta({ ...SIN_PERMISO, vigente: true, ai_consent_version: AI_CONSENT_VERSION, ai_consent_at: '2026-10-06T12:00:00Z' }));
+        montar({ uid: uidNuevo(), aiConsent: SIN_PERMISO });
+        await waitFor(() => expect(estadoConsentimientoIA().vigente).toBe(true), { timeout: 4000 });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(fetchWithAuth).toHaveBeenCalledWith('/api/consents');
+    });
+
+    it('un fallo de red al comprobar el perfil no vuelve a abrir el aviso automáticamente', async () => {
+        fetchWithAuth.mockRejectedValue(new Error('offline'));
+        montar({ uid: uidNuevo(), aiConsent: SIN_PERMISO });
+        await waitFor(() => expect(fetchWithAuth).toHaveBeenCalled(), { timeout: 4000 });
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 });
 
