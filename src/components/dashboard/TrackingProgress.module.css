@@ -398,9 +398,9 @@
    por el resto de la card (#E2E8F0 borde, #64748B texto muted, #0F172A
    texto principal) en vez de introducir una paleta nueva. */
 .mealsSection {
-    margin-top: 0.25rem;
+    margin-top: 1.5rem;
     padding-top: 1.5rem;
-    border-top: 1px solid #F1F5F9;
+    border-top: 1px solid var(--border, #E2E8F0);
     display: flex;
     flex-direction: column;
     gap: 0.65rem;
@@ -718,6 +718,7 @@
     /* [P1-DIARY-EDITABLE · 2026-07-28] Menos padding vertical en móvil,
        consistente con el resto de la card en este breakpoint. */
     .mealsSection {
+        margin-top: 1.25rem;
         padding-top: 1rem;
     }
 
