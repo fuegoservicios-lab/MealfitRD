@@ -47,7 +47,7 @@ describe('[P1-I18N-GLOSS-INERTE-EN-CARGA-NUEVA-POR-CACHE-FRIA]', () => {
         // que le pasa al Dashboard en cualquier carga nueva.
         vi.resetModules();
         const s2 = await import('../utils/pantryCache');
-        expect(s2.getCachedMasterList(), 'control: la memoria SÍ se perdió con el reload').toBeUndefined();
+        expect(s2.getCachedMasterList(), 'el catálogo del buscador también sobrevive al reload').toEqual(CATALOGO);
 
         const idx = s2.getCachedGlossIndex();
         expect(idx, 'el índice del gloss no sobrevivió al reload: el PDF sale en español').toBeTruthy();

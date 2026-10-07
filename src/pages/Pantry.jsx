@@ -40,8 +40,9 @@ import { safeJSONParseObject } from '../utils/safeJSONParse';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate del mount de Pantry
-import { getCachedInventory, getStaleInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache, getCachedBrands, setCachedBrands, getCachedPantryStatus, setCachedPantryStatus, reconcilePantryStatus } from '../utils/pantryCache';
+import { getCachedInventory, getStaleInventory, setCachedInventory, setCachedMasterList, invalidateInventoryCache, getCachedBrands, setCachedBrands, getCachedPantryStatus, setCachedPantryStatus, reconcilePantryStatus } from '../utils/pantryCache';
 import { cargarInventarioDeNevera } from '../utils/inventarioDeNevera';
+import { cargarCatalogoDeNevera, getCachedCatalogoDeNevera } from '../utils/catalogoDeNevera';
 import { medirTecladoDeVentana } from '../utils/keyboardViewport';
 // [P1-PANTRY-DASH-PARITY - 2026-07-11] Escaner por foto compartido con el paso 21.
 import { PantryScanButton } from '../components/pantry/PantryScanButton';
@@ -444,7 +445,7 @@ const PantryPage = () => {
     // no se contesta, se ignora.
     const [reconcileItems, setReconcileItems] = useState([]);
     const [reconcileBusyId, setReconcileBusyId] = useState(null);
-    const [masterList, setMasterList] = useState(() => getCachedMasterList() || []);
+    const [masterList, setMasterList] = useState(() => getCachedCatalogoDeNevera() || []);
     const [loading, setLoading] = useState(() => !getCachedInventory() && !getStaleInventory());
     const [searchQuery, setSearchQuery] = useState('');
     // [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] Mueble activo (Nevera/Alacena)
@@ -1114,24 +1115,26 @@ const PantryPage = () => {
     // como `useState(() => ...)`, así que evaluamos directo.
     // [P1-PANTRY-CATALOG-EMPTY-CACHE · 2026-08-22] «Cargado» = con filas. `Boolean([])`
     // era true y un catálogo vacío quedaba como definitivo para toda la vida de la PWA.
-    const masterListLoaded = useRef((getCachedMasterList() || []).length > 0);
+    const masterListLoaded = useRef((getCachedCatalogoDeNevera() || []).length > 0);
     const catalogInFlight = useRef(false);
     const [catalogLoading, setCatalogLoading] = useState(false);
+    const [catalogError, setCatalogError] = useState(false);
     // Pide el catálogo si aún no hay filas (al abrir el buscador o al teclear): no
     // depende de la carga del inventario: el buscador puede reintentarlo por separado.
     const ensureCatalog = useCallback(async () => {
         if (masterListLoaded.current || catalogInFlight.current) return;
         catalogInFlight.current = true;
         setCatalogLoading(true);
+        setCatalogError(false);
         try {
-            const json = await _apiJson('/api/catalog');
-            const rows = json?.items || [];
+            const rows = await cargarCatalogoDeNevera();
             if (rows.length > 0) {
                 setMasterList(rows);
                 setCachedMasterList(rows);
                 masterListLoaded.current = true;
             }
         } catch (e) {
+            setCatalogError(true);
             console.error('[pantry] catalog fetch failed', e);
         } finally {
             catalogInFlight.current = false;
@@ -1407,7 +1410,7 @@ const PantryPage = () => {
                 // arrancó vacío (cache invalidado entre el render y este
                 // punto). Releer del singleton; si sigue vigente lo
                 // setearemos. Sin esto el render queda con master vacío.
-                const _cachedMaster = getCachedMasterList();
+                const _cachedMaster = getCachedCatalogoDeNevera();
                 if (Array.isArray(_cachedMaster) && _cachedMaster.length > 0) {
                     setMasterList(_cachedMaster);
                 }
@@ -3557,9 +3560,15 @@ const PantryPage = () => {
                                 {/* [P1-PANTRY-CATALOG-EMPTY-CACHE] Mientras el catálogo baja NO se
                                     dice «No encontramos»: en PC salía durante segundos con el
                                     catálogo aún en vuelo y parecía que el alimento no existía. */}
-                                {addItemSearch.trim() && suggestedMasterItems.length === 0 && (catalogLoading || masterList.length === 0) && (
+                                {addItemSearch.trim() && suggestedMasterItems.length === 0 && !catalogError && (catalogLoading || masterList.length === 0) && (
                                     <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }} role="status" aria-live="polite">
                                         <div style={{ fontWeight: 600 }}>{t('Cargando catálogo…')}</div>
+                                    </div>
+                                )}
+                                {catalogError && suggestedMasterItems.length === 0 && (
+                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }} role="status">
+                                        <div>{t('No pudimos cargar los alimentos. Vuelve a intentarlo.')}</div>
+                                        <button type="button" onClick={ensureCatalog} style={{ marginTop: '0.75rem', padding: '0.7rem 1rem', borderRadius: '0.75rem', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)' }}>{t('Reintentar')}</button>
                                     </div>
                                 )}
                                 {addItemSearch.trim() && suggestedMasterItems.length === 0 && !catalogLoading && masterList.length > 0 && (

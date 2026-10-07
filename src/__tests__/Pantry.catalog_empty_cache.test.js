@@ -30,7 +30,7 @@ describe('[P1-PANTRY-CATALOG-EMPTY-CACHE] pantryCache', () => {
 describe('[P1-PANTRY-CATALOG-EMPTY-CACHE] Pantry.jsx', () => {
     const src = read('pages/Pantry.jsx');
     it('«cargado» exige filas, no un array', () => {
-        expect(src).toMatch(/masterListLoaded = useRef\(\(getCachedMasterList\(\) \|\| \[\]\)\.length > 0\)/);
+        expect(src).toMatch(/masterListLoaded = useRef\(\(getCachedCatalogoDeNevera\(\) \|\| \[\]\)\.length > 0\)/);
         expect(src).not.toMatch(/useRef\(Boolean\(getCachedMasterList\(\)\)\)/);
     });
     it('el buscador pide el catálogo al abrirse y al teclear (ensureCatalog)', () => {

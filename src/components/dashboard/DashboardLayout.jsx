@@ -61,6 +61,7 @@ import { prefetchRoute } from '../../utils/routePreload';
 // al hover/touch del NavItem — el data llega antes que el click.
 import { prefetchHistoryList } from '../../utils/historyCaches';
 import { precargarInventarioDeNevera } from '../../utils/inventarioDeNevera';
+import { cargarCatalogoDeNevera } from '../../utils/catalogoDeNevera';
 import { useT } from '../../i18n';
 import styles from './DashboardLayout.module.css';
 import Wordmark from '../common/Wordmark';
@@ -79,7 +80,10 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const { resetApp, userProfile, planData, session, isPremium, isGuest, exitGuestSession } = useAssessment();
     const puedePrecargarNevera = Boolean(session?.user?.id && userProfile && !isGuest && neveraActiva(userProfile));
     const prepararNevera = useCallback(() => {
-        if (puedePrecargarNevera) precargarInventarioDeNevera().catch(() => {});
+        if (puedePrecargarNevera) {
+            precargarInventarioDeNevera().catch(() => {});
+            cargarCatalogoDeNevera().catch(() => {});
+        }
     }, [puedePrecargarNevera]);
     useEffect(() => {
         if (!session?.user?.id || !puedePrecargarNevera || navigator?.connection?.saveData) return undefined;

@@ -54,6 +54,7 @@ let _masterListEntry = null;
 
 const _INVENTORY_TTL_MS = 10 * 60 * 1000; // 10 min (era 30s)
 const _MASTER_LIST_TTL_MS = 24 * 60 * 60 * 1000;
+export const MASTER_LIST_LS_KEY = 'mealfit_master_catalog_v1';
 
 // [P1-PANTRY-CACHE-LOCALSTORAGE · 2026-05-20] Keys de localStorage.
 
@@ -147,10 +148,21 @@ export const getStaleInventory = () => {
 export { borrarCacheDeInventario };
 
 export const getCachedMasterList = () => {
+    if (!_masterListEntry) {
+        try {
+            const parsed = JSON.parse(safeLocalStorageGet(MASTER_LIST_LS_KEY, 'null'));
+            if (parsed && Array.isArray(parsed.value) && parsed.value.length > 0
+                && parsed.value.every(row => row && typeof row.name === 'string')
+                && (parsed.expiresAt === null || Number.isFinite(parsed.expiresAt))) {
+                _masterListEntry = parsed;
+            }
+        } catch { /* caché dañada o almacenamiento no disponible: pedir la copia del servidor */ }
+    }
     if (!_masterListEntry) return undefined;
     if (typeof _masterListEntry.expiresAt === 'number'
         && Date.now() > _masterListEntry.expiresAt) {
         _masterListEntry = null;
+        _safeLsRemove(MASTER_LIST_LS_KEY);
         return undefined;
     }
     return _masterListEntry.value;
@@ -167,11 +179,19 @@ export const setCachedMasterList = (rows, ttlMs = _MASTER_LIST_TTL_MS) => {
         value: rows,
         expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null,
     };
+    // Referencias de alimentos, sin datos personales. Sobrevive al cierre de la app.
+    // Límite de 1 MB y escritura defensiva: una cuota llena no rompe la Nevera.
+    try {
+        const serialized = JSON.stringify(_masterListEntry);
+        if (serialized.length <= 1_000_000) safeLocalStorageSet(MASTER_LIST_LS_KEY, serialized);
+        else _safeLsRemove(MASTER_LIST_LS_KEY);
+    } catch { /* la copia en memoria sigue disponible */ }
     _publicarIndiceDelGloss(rows, ttlMs);
 };
 
 export const invalidateMasterListCache = () => {
     _masterListEntry = null;
+    _safeLsRemove(MASTER_LIST_LS_KEY);
     _safeLsRemove(GLOSS_INDEX_LS_KEY);
 };
 
@@ -183,10 +203,8 @@ export const invalidateMasterListCache = () => {
 // botón de descarga—. En cualquier carga nueva el índice salía vacío y el PDF en español.
 // Medido contra producción: 2.742 de 3.605 ítems (76 %) dependen de este respaldo.
 //
-// POR QUÉ NO SE PERSISTE EL CATÁLOGO ENTERO como hace el inventario: medido contra Neon,
-// son 567 KB (54 columnas × 347 filas). El gloss sólo necesita `name` + `name_en` +
-// el `gloss_es` disperso de regionalismos: sigue siendo una fracción del catálogo.
-// `localStorage` tiene cuota y la comparte toda la app, así que se persiste lo que se usa.
+// El gloss mantiene su índice pequeño para las lecturas por nombre. El buscador de la
+// Nevera conserva además el catálogo con sus unidades y cantidades bajo otra clave.
 //
 // Se PUBLICA desde `setCachedMasterList` —o sea, desde los cinco sitios que ya traen el
 // catálogo, sin cablear ninguno— y se LEE desde el Dashboard. Mismo TTL que el catálogo.
@@ -440,4 +458,5 @@ export const _resetPantryCacheForTests = () => {
     _safeLsRemove(_INVENTORY_LS_KEY);
     _safeLsRemove(_BRANDS_LS_KEY);
     _safeLsRemove(_STATUS_LS_KEY);
+    _safeLsRemove(MASTER_LIST_LS_KEY);
 };

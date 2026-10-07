@@ -1,9 +1,9 @@
 import React from 'react';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithAuth } from '../config/api';
-import { borrarCacheDeInventario, _resetPantryCacheForTests } from '../utils/pantryCache';
+import { borrarCacheDeInventario, setCachedMasterList, _resetPantryCacheForTests } from '../utils/pantryCache';
 import Pantry from '../pages/Pantry';
 
 const viewport = vi.hoisted(() => ({ mobile: false }));
@@ -38,6 +38,32 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe('primera apertura de Nevera', () => {
+    it('encuentra Arroz desde la copia guardada sin esperar otra descarga', async () => {
+        viewport.mobile = true;
+        setCachedMasterList([{ id: 'arroz', name: 'Arroz', market_container: 'libra', default_unit: 'lb' }]);
+        render(<MemoryRouter><Pantry /></MemoryRouter>);
+        await act(async () => { inventory.resolve(jsonResponse({ items: [] })); });
+        fireEvent.click(screen.getByRole('button', { name: 'Añadir alimento' }));
+        fireEvent.change(screen.getByPlaceholderText('¿Qué vas a añadir? (ej: vinagre, aceite, pollo)'), { target: { value: 'Arroz' } });
+        expect(screen.getAllByText('Arroz').length).toBeGreaterThan(0);
+        expect(screen.queryByText('Cargando catálogo…')).toBeNull();
+        expect(fetchWithAuth.mock.calls.filter(([path]) => path === '/api/catalog')).toHaveLength(0);
+    });
+
+    it('ofrece reintentar si la descarga falla', async () => {
+        viewport.mobile = true;
+        render(<MemoryRouter><Pantry /></MemoryRouter>);
+        await act(async () => {
+            catalog.resolve(jsonResponse({ detail: 'offline' }, 503));
+            inventory.resolve(jsonResponse({ items: [] }));
+        });
+        await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Añadir alimento' })); });
+        fireEvent.change(screen.getByPlaceholderText('¿Qué vas a añadir? (ej: vinagre, aceite, pollo)'), { target: { value: 'Arroz' } });
+        await act(async () => {});
+        expect(screen.getByRole('button', { name: 'Reintentar' })).toBeTruthy();
+        expect(screen.queryByText('Cargando catálogo…')).toBeNull();
+    });
+
     it.each([
         { mobile: false, state: 'pending' }, { mobile: false, state: 'failed' },
         { mobile: true, state: 'pending' }, { mobile: true, state: 'failed' },
