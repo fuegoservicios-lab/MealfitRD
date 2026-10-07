@@ -14,6 +14,7 @@ import RouteTitle from './components/layout/RouteTitle';
 // no romper los CTA "crear cuenta" repartidos por la app (Upgrade/Pricing/etc.).
 import { AssessmentProvider } from './context/AssessmentContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
+import AppEntryRedirect from './components/layout/AppEntryRedirect';
 // [P1-7 · 2026-07-09] Boundary SCOPED por ruta: contiene un crash de render a la
 // sección sin colapsar el shell (tab bar + keep-alive del chat). Complementa el
 // GlobalErrorBoundary root (que recarga toda la app).
@@ -142,7 +143,8 @@ const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
 const PrecisionPage = lazy(() => import('./pages/PrecisionPage'));
 
 // [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] En el subdominio de la app
-// (app.mealfitrd.com) el root `/` entra DIRECTO a la app — redirige a `/dashboard`
+// (app.mealfitrd.com) el root `/` entra DIRECTO a la app: Agente en modo contador,
+// `/dashboard` con el generador encendido. La entrada espera al perfil
 // y deja que ProtectedRoute decida (sin sesión → /login; con sesión sin plan →
 // /assessment; con plan → dashboard). La landing de marketing vive SOLO en el apex
 // (mealfitrd.com), que NO cambia. Detección estática por hostname (`app.*`); en
@@ -560,11 +562,12 @@ function App() {
 
             {/* Rutas Protegidas */}
             {/* [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] En app.mealfitrd.com el root
-                entra directo a la app (→ /dashboard, ProtectedRoute decide el
-                destino real). En el apex se muestra la landing de marketing. */}
+                entra por Agente sin generador y por el panel con generador.
+                ProtectedRoute conserva onboarding y recuperación. En el apex
+                se muestra la landing de marketing. */}
             <Route path="/" element={
               (IS_APP_HOST || NATIVE_NO_COMMERCE)
-                ? <Navigate to="/dashboard" replace />
+                ? <AppEntryRedirect />
                 : (
                   <ProtectedRoute landing>
                     <Layout><Home /></Layout>

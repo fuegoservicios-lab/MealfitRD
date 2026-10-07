@@ -59,7 +59,7 @@ const _dataApiUrl = neonAuthUrl.replace(/\/auth\/?$/, '') + '/rest/v1';
 // `url` de init con sólo el header Origin (mealfitrd.com es trusted_origin).
 async function _signInWithOAuth({ provider = 'google', options } = {}) {
     const callbackURL = options?.redirectTo
-        || (typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : '/dashboard');
+        || (typeof window !== 'undefined' ? `${window.location.origin}/` : '/');
     // 1) Método nativo del SDK (Better Auth) si está disponible.
     try {
         const c = await _getClient();

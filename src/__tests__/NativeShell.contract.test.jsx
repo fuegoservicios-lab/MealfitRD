@@ -95,11 +95,11 @@ describe('[P1-IOS-NATIVE-SHELL] B. parser — cada superficie consume el ÚNICO 
         expect(offenders).toEqual(['config/platform.js']);
     });
 
-    it('App.jsx: landing, /precios y /dashboard/upgrade colapsan a /dashboard bajo NATIVE_NO_COMMERCE', () => {
+    it('App.jsx: entrada por modo y comercio bloqueado bajo NATIVE_NO_COMMERCE', () => {
         const src = read('App.jsx');
         expect(src).toMatch(/import \{ nativeHidesCommerce \} from '\.\/config\/platform'/);
         expect(src).toMatch(/const NATIVE_NO_COMMERCE = nativeHidesCommerce\(\)/);
-        expect(src).toMatch(/\(IS_APP_HOST \|\| NATIVE_NO_COMMERCE\)\s*\?\s*<Navigate to="\/dashboard" replace \/>/);
+        expect(src).toMatch(/\(IS_APP_HOST \|\| NATIVE_NO_COMMERCE\)\s*\?\s*<AppEntryRedirect \/>/);
         expect(src).toMatch(/path="\/dashboard\/upgrade" element=\{\s*NATIVE_NO_COMMERCE\s*\?\s*<Navigate to="\/dashboard" replace \/>/);
         expect(src).toMatch(/path="\/precios" element=\{\s*NATIVE_NO_COMMERCE\s*\?\s*<Navigate to="\/dashboard" replace \/>/);
     });

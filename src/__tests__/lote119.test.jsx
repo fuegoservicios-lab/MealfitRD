@@ -40,7 +40,7 @@ describe('repartoTelefono', () => {
     });
     it('en modo contador caben las 4: nadie sale de la barra', () => {
         const { barra, menu } = repartoTelefono(navItemsFor({ trackingMode: true }));
-        expect(barra.map((i) => i.key)).toEqual(['plan', 'agent', 'pantry', 'history']);
+        expect(barra.map((i) => i.key)).toEqual(['agent', 'plan', 'pantry', 'history']);
         expect(menu).toEqual([]);
     });
     it('nada se pierde: barra + menú son la nav entera', () => {
@@ -60,7 +60,7 @@ describe('la barra', () => {
     it('modo contador: conserva el Historial', () => {
         perfil.plan_mode = 'tracking';
         pintar();
-        expect(pestanas()).toEqual(['Progreso', 'Agente', 'Nevera', 'Historial']);
+        expect(pestanas()).toEqual(['Agente', 'Progreso', 'Nevera', 'Historial']);
     });
     it('el menú ☰ recibe lo que la barra suelta, del mismo SSOT', () => {
         const layout = leer('components/dashboard/DashboardLayout.jsx');

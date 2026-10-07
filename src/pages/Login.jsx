@@ -328,7 +328,7 @@ const Login = ({ embedded = false }) => {
         try {
             const { error: oauthError } = await authClient.auth.signInWithOAuth({
                 provider,
-                options: { redirectTo: `${window.location.origin}/dashboard` },
+                options: { redirectTo: `${window.location.origin}/` },
             });
             if (oauthError) throw oauthError;
             // éxito → la página redirige a Google; no reseteamos loading.

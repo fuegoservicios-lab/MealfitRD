@@ -7,7 +7,7 @@
 //      interruptor: los crons no leen formData, y los crons son donde se gasta.
 //   3. Espeja el modo en localStorage para el arranque en frío del dashboard («no sé»
 //      no puede leerse como «plan», ver el wrapper de Dashboard.jsx).
-//   4. Al dashboard, donde el contador ya tiene metas (/api/nutrition/targets).
+//   4. Al Agente para anotar la primera comida; las metas ya están en Progreso.
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gauge, Loader2 } from 'lucide-react';
@@ -165,7 +165,7 @@ export const QTrackingFinish = ({ onMenorDeEdad } = {}) => {
             try { await refreshProfileAndPlan(); } catch { /* best-effort */ }
 
             toast.success(t('Listo: tus metas están calculadas. Anota tu primera comida.'));
-            navigate('/dashboard', { replace: true });
+            navigate('/dashboard/agent', { replace: true });
             // [137] Con plan vivo, el `planData` en memoria sigue diciendo el estado de ANTES de la pausa (y su sondeo
             // de bloques sigue vivo): la misma recarga que cierra el interruptor de Configuración (P1-PAUSE-STALE-PLANDATA).
             if (_conPlanVivo) setTimeout(() => window.location.reload(), 900);

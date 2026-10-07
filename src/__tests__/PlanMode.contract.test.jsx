@@ -31,9 +31,9 @@ describe('[P1-PLAN-MODE] dashboardNav — SSOT de la nav por modo', () => {
 
     it('modo seguimiento: Recetas se OCULTA y Plan se rotula Progreso (lote 102; antes «Hoy»)', () => {
         const items = navItemsFor({ trackingMode: true });
-        expect(items.map((i) => i.key)).toEqual(['plan', 'agent', 'pantry', 'history']);
-        expect(items[0].label).toBe('Progreso');
-        expect(items[0].path).toBe('/dashboard'); // mismo destino, otro rótulo
+        expect(items.map((i) => i.key)).toEqual(['agent', 'plan', 'pantry', 'history']);
+        expect(items[1].label).toBe('Progreso');
+        expect(items[1].path).toBe('/dashboard'); // mismo destino, otro rótulo
     });
 
     // [P1-TRACKING-WINS · 2026-08-14] CONTRATO INVERTIDO por decisión del owner.
@@ -354,7 +354,7 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         // mismo tick — «Empezar a contar» no hacía nada visible.
         const s = read('components/assessment/questions/QTrackingFinish.jsx');
         const refreshIdx = s.indexOf('await refreshProfileAndPlan()');
-        const navIdx = s.indexOf("navigate('/dashboard'");
+        const navIdx = s.indexOf("navigate('/dashboard/agent'");
         expect(refreshIdx).toBeGreaterThan(-1);
         expect(navIdx).toBeGreaterThan(-1);
         expect(refreshIdx).toBeLessThan(navIdx);
