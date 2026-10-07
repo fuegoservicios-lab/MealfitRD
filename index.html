@@ -3,13 +3,11 @@
 
 <head>
   <meta charset="UTF-8" />
-  <!-- [P6-SPEED-IMG · 2026-06-01] favicon recomprimido 302KB→54.8KB (palette 128c,
-       visualmente idéntico a 16-48px). ?v bump fuerza refetch del nuevo archivo.
-       [P2-FAVICON-DEDUPE · 2026-07-09] favicon-transparent.png era BYTE-IDÉNTICO
-       a favicon.png (MD5 71c4a858) — 54.8KB duplicados en el precache del SW.
-       Todas las refs apuntan ahora a /favicon.png; el duplicado se eliminó. -->
-  <link rel="icon" type="image/png" href="/favicon.png?v=23" />
-  <link rel="icon" type="image/x-icon" href="/favicon.ico?v=23" />
+  <!-- Fondo de marca opaco hasta el borde: las esquinas transparentes del icono
+       circular dejaban ver un halo blanco al mostrarse en Google. PNG e ICO
+       usan la misma marca que el apple-touch-icon, con su fondo completo. -->
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png?v=24" />
+  <link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48 64x64" href="/favicon.ico?v=24" />
   <!-- [P1-VIEWPORT-ZOOM-LOCK · 2026-07-09] Zoom BLOQUEADO (feel de app nativa).
        SUPERSEDE a P2-A11Y-VIEWPORT-ZOOM (2026-05-31, que habilitó pinch-zoom por
        WCAG 1.4.4 Resize Text). Reversión confirmada con el dueño: el zoom
