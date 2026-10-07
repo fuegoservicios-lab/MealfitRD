@@ -2092,7 +2092,6 @@
   "Preguntarle al coach cómo mejorar tu {nutriente}": "Ask the coach how to improve your {nutriente}",
   "Preguntarle al coach cómo subir tu {nutriente}": "Ask the coach how to raise your {nutriente}",
   "Preguntas frecuentes": "FAQ",
-  "Pregúntale a {app}": "Ask {app}",
   "Prepara tu Nevera": "Set up your Fridge",
   "Preparación": "Preparation",
   "Preparación variada": "Varied preparation",
@@ -3906,5 +3905,10 @@
   "Consulta a tu médico o nutricionista antes de cambiar tu alimentación, especialmente si tienes una condición médica o tomas medicamentos.": "Consult your doctor or dietitian before changing your diet, especially if you have a medical condition or take medication.",
   "Ver todas las fuentes y los límites de las estimaciones": "See all sources and the limits of estimates",
   "Resumen de tu perfil": "Your profile summary",
-  "Resumen de tu perfil, plan de acción y tip del chef de tu plan actual.": "Your profile summary, action plan and chef’s tip for your current plan."
+  "Resumen de tu perfil, plan de acción y tip del chef de tu plan actual.": "Your profile summary, action plan and chef’s tip for your current plan.",
+  "Fuentes de salud": "Health sources",
+  "¿En qué puedo ayudarte?": "How can I help you?",
+  "Cuéntame sobre la foto…": "Tell me about the photo…",
+  "Cuéntame sobre las fotos…": "Tell me about the photos…",
+  "Mensaje para el coach": "Message for the coach"
 }

@@ -162,7 +162,6 @@ import { saludoDelCoach, franjaDeLaHora } from '../utils/saludoDelCoach';
 import { nativeHidesCommerce } from '../config/platform';
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
-import { BRAND } from '../data/routeMeta';
 const _captureAgentPageException = (err, tags) => {
     try {
         captureException(err, {
@@ -4879,6 +4878,10 @@ const AgentPage = () => {
     // el input de fichero sigue dentro del span del «+» (iOS ancla ahí su menú, P1-CHAT-PICKER-ANCLADO) y el orden de
     // tabulación no cambia. Sin adjuntos sigue siendo la pastilla de una fila (el chat no pierde alto).
     const cajaApilada = attachments.length > 0;
+    // La invitación sigue los adjuntos, sin rotaciones mientras el usuario escribe.
+    const chatInvitation = attachments.length > 1 ? t('Cuéntame sobre las fotos…')
+        : attachments.length === 1 ? t('Cuéntame sobre la foto…')
+            : t('¿En qué puedo ayudarte?');
 
     // [P1-PLAN-LOTE-130 · 2026-09-19] El dueño, tras confirmar que la X de la foto ya no cierra el teclado: «ahora haz lo
     // mismo con el + y enviar». Con el teclado abierto, «+» y ENVIAR ya actúan en `pointerdown` (P0-CHAT-IOS-APP-BOTONES-
@@ -5208,7 +5211,8 @@ const AgentPage = () => {
                             onPaste={handlePaste}
                             // [P1-PLAN-LOTE-688] con el modo voz activo (minimizado) no se escribe: se habla
                             readOnly={isCallModeActive}
-                            placeholder={isListening ? t('Te escucho…') : (pistaDeRespuesta || micErrorMsg || (isCallModeActive ? t('Modo voz activo') : t("Pregúntale a {app}", { app: BRAND })))}
+                            placeholder={isListening ? t('Te escucho…') : (pistaDeRespuesta || micErrorMsg || (isCallModeActive ? t('Modo voz activo') : chatInvitation))}
+                            aria-label={t('Mensaje para el coach')}
                             onFocus={() => { if (isMobile) setTimeout(scrollToBottom, 300); }}  // [P2-CHAT-ANCHOR-SENT-TOP] en PC no salta
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se

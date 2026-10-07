@@ -25,7 +25,8 @@ describe('referencias visibles de salud', () => {
     });
     it('muestra fuentes oficiales enlazadas, alcance y acceso interno a todas las referencias', () => {
         render(<MemoryRouter initialEntries={['/dashboard/agent']}><HealthSources context="chat" text="Tu sodio y tu glucosa" /></MemoryRouter>);
-        expect(screen.getByText('Fuentes de salud y nutrición')).toBeInTheDocument();
+        expect(screen.getByText('Fuentes de salud')).toBeInTheDocument();
+        expect(screen.getByLabelText('Fuentes de salud y nutrición')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /límites de sodio/ })).toHaveAttribute('href', expect.stringContaining('who.int'));
         expect(screen.getByRole('link', { name: /con diabetes/ })).toHaveAttribute('href', expect.stringContaining('niddk.nih.gov'));
         expect(screen.getByRole('link', { name: /Ver todas/ })).toHaveAttribute('href', '/medical#fuentes');

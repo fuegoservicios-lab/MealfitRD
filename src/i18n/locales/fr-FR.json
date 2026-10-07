@@ -2092,7 +2092,6 @@
   "Preguntarle al coach cómo mejorar tu {nutriente}": "Demander au coach comment améliorer votre {nutriente}",
   "Preguntarle al coach cómo subir tu {nutriente}": "Demander au coach comment augmenter votre {nutriente}",
   "Preguntas frecuentes": "Questions fréquentes",
-  "Pregúntale a {app}": "Demandez à {app}",
   "Prepara tu Nevera": "Préparez votre Frigo",
   "Preparación": "Préparation",
   "Preparación variada": "Préparation variée",
@@ -3906,5 +3905,10 @@
   "Consulta a tu médico o nutricionista antes de cambiar tu alimentación, especialmente si tienes una condición médica o tomas medicamentos.": "Consultez votre médecin ou diététicien avant de modifier votre alimentation, surtout si vous avez un problème de santé ou prenez des médicaments.",
   "Ver todas las fuentes y los límites de las estimaciones": "Voir toutes les sources et les limites des estimations",
   "Resumen de tu perfil": "Résumé de votre profil",
-  "Resumen de tu perfil, plan de acción y tip del chef de tu plan actual.": "Résumé de votre profil, plan d’action et conseil du chef pour votre plan actuel."
+  "Resumen de tu perfil, plan de acción y tip del chef de tu plan actual.": "Résumé de votre profil, plan d’action et conseil du chef pour votre plan actuel.",
+  "Fuentes de salud": "Sources de santé",
+  "¿En qué puedo ayudarte?": "Comment puis-je t’aider ?",
+  "Cuéntame sobre la foto…": "Parle-moi de la photo…",
+  "Cuéntame sobre las fotos…": "Parle-moi des photos…",
+  "Mensaje para el coach": "Message pour le coach"
 }

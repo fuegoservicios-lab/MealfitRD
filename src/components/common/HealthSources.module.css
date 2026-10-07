@@ -1,8 +1,7 @@
 .sources {
     margin: 1rem 0;
-    padding: 0.85rem 1rem;
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     color: var(--text-muted);
     font-size: 0.82rem;
     line-height: 1.55;
@@ -10,18 +9,59 @@
     overflow-wrap: anywhere;
 }
 .sources summary {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 0.8rem;
+    min-height: 48px;
+    box-sizing: border-box;
+    list-style: none;
+    border-radius: 13px;
     color: var(--text-main);
     cursor: pointer;
     font-weight: 600;
-    min-height: 28px;
 }
+.sources summary::-webkit-details-marker { display: none; }
+.sources summary::marker { content: ''; }
+.sources summary:hover { background: var(--bg-muted); }
+.sources[open] summary { border-radius: 13px 13px 0 0; }
+.sourceIcon {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.heading { flex: 1; min-width: 0; line-height: 1.35; }
+.count {
+    display: grid;
+    place-items: center;
+    min-width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 7px;
+    background: var(--bg-muted);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+}
+.chevron { flex-shrink: 0; color: var(--text-muted); }
+.sources[open] .chevron { transform: rotate(180deg); }
+.content { padding: 0.1rem 0.9rem 0.9rem; border-top: 1px solid var(--border); }
 .sources summary:focus-visible, .sources a:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 3px;
 }
 .sources p { margin: 0.65rem 0; }
-.sources ul { margin: 0.75rem 0; padding-left: 1.2rem; }
-.sources li { margin-bottom: 0.7rem; }
+.sources ul { margin: 0.85rem 0; padding: 0; list-style: none; }
+.sources li { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+.sources li:first-child { padding-top: 0; }
+.sources li:last-child { border-bottom: 0; padding-bottom: 0; }
 .sources a { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
-.sources li span { display: block; margin-top: 0.1rem; font-size: 0.78rem; }
-@media (pointer: coarse) { .sources summary { min-height: 44px; display: list-item; align-content: center; } }
+.publisher { display: block; margin-bottom: 0.25rem; font-size: 0.73rem; line-height: 1.45; }
+.reference, .more { display: flex; align-items: baseline; gap: 0.5rem; }
+.reference svg, .more svg { flex-shrink: 0; align-self: center; }
+.more { padding-top: 0.65rem; font-weight: 600; }
