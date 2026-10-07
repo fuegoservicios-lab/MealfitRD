@@ -4881,7 +4881,7 @@ const AgentPage = () => {
     // La invitación sigue los adjuntos, sin rotaciones mientras el usuario escribe.
     const chatInvitation = attachments.length > 1 ? t('Cuéntame sobre las fotos…')
         : attachments.length === 1 ? t('Cuéntame sobre la foto…')
-            : t('¿En qué puedo ayudarte?');
+            : isMobile ? t('¿Cómo te ayudo?') : t('¿En qué puedo ayudarte?');
 
     // [P1-PLAN-LOTE-130 · 2026-09-19] El dueño, tras confirmar que la X de la foto ya no cierra el teclado: «ahora haz lo
     // mismo con el + y enviar». Con el teclado abierto, «+» y ENVIAR ya actúan en `pointerdown` (P0-CHAT-IOS-APP-BOTONES-
@@ -5240,8 +5240,9 @@ const AgentPage = () => {
                                 minWidth: 0,
                                 maxWidth: '100%',
                                 resize: 'none',
-                                overflow: isCallModeActive ? 'hidden' : 'auto',
-                                whiteSpace: isCallModeActive ? 'nowrap' : 'pre-wrap',
+                                overflow: isCallModeActive || !input ? 'hidden' : 'auto',
+                                whiteSpace: isCallModeActive || !input ? 'nowrap' : 'pre-wrap',
+                                textOverflow: !input ? 'ellipsis' : 'clip',
                                 maxHeight: `${CHAT_TEXTAREA_MAX_HEIGHT_PX}px`,
                                 overflowWrap: 'break-word',
                                 wordBreak: 'break-word'
@@ -6691,6 +6692,9 @@ const AgentPage = () => {
                 /* Oculta la barra interna junto al micrófono, conservando el scroll del texto. */
                 .chat-composer-input {
                     scrollbar-width: none;
+                }
+                @media (max-width: 1024px) {
+                    .chat-composer-input::placeholder { font-size: 0.875rem; }
                 }
                 .chat-composer-input::-webkit-scrollbar {
                     display: none;
