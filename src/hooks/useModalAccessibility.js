@@ -51,7 +51,7 @@ import { useEffect, useRef } from 'react';
 const FOCUSABLE_SELECTOR =
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function useModalAccessibility({ isOpen, onClose, disableClose = false, isTopmost }) {
+export function useModalAccessibility({ isOpen, onClose, disableClose = false, isTopmost, returnFocusRef }) {
     const containerRef = useRef(null);
     const triggerRef = useRef(null);
 
@@ -89,7 +89,11 @@ export function useModalAccessibility({ isOpen, onClose, disableClose = false, i
         if (typeof document === 'undefined') return undefined;
 
         // Guardar el elemento activo al abrir para restaurar focus al cerrar.
-        triggerRef.current = document.activeElement;
+        // autoFocus se ejecuta antes de este efecto. Un campo dentro del modal
+        // no es su disparador: restaurarlo durante la animación de salida abre
+        // otra vez el teclado. El caller puede guardar el botón real al tocarlo.
+        const trigger = returnFocusRef?.current || document.activeElement;
+        triggerRef.current = containerRef.current?.contains(trigger) ? null : trigger;
 
         // Lock scroll del fondo mientras el modal está abierto.
         const prevOverflow = document.body.style.overflow;
@@ -103,7 +107,7 @@ export function useModalAccessibility({ isOpen, onClose, disableClose = false, i
         // componedor: «si estoy lo más arriba, abro y cierro, y baja»). Un diálogo fijo no necesita que nadie
         // scrollee para verlo; lo mismo al devolver el foco al disparador.
         const focusTimeout = setTimeout(() => {
-            if (containerRef.current) {
+            if (containerRef.current && !containerRef.current.contains(document.activeElement)) {
                 containerRef.current.focus({ preventScroll: true });
             }
         }, 10);
@@ -143,7 +147,7 @@ export function useModalAccessibility({ isOpen, onClose, disableClose = false, i
             document.removeEventListener('keydown', handleKeyDown);
             document.body.style.overflow = prevOverflow;
             // Restore focus al trigger original (preserva keyboard flow).
-            if (triggerRef.current && typeof triggerRef.current.focus === 'function') {
+            if (triggerRef.current?.isConnected && typeof triggerRef.current.focus === 'function') {
                 try {
                     triggerRef.current.focus({ preventScroll: true });
                 } catch (_e) {
@@ -151,7 +155,7 @@ export function useModalAccessibility({ isOpen, onClose, disableClose = false, i
                 }
             }
         };
-    }, [isOpen, onClose, disableClose]);
+    }, [isOpen, onClose, disableClose, returnFocusRef]);
 
     return { containerRef };
 }

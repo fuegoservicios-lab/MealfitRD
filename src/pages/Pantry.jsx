@@ -553,6 +553,8 @@ const PantryPage = () => {
     
     // Auto-complete (Add Item) state
     const [showAddMenu, setShowAddMenu] = useState(false);
+    const addMenuTriggerRef = useRef(null);
+    const addMenuSearchRef = useRef(null);
     const [addItemSearch, setAddItemSearch] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -824,13 +826,23 @@ const PantryPage = () => {
     // (deps [isOpen, onClose, disableClose]) re-corría cada vez → re-armaba el
     // focus-trap y el scroll-lock MIENTRAS el modal estaba abierto. Pantry re-renderiza
     // muy seguido con un modal abierto (typeahead del add-menu, hold-increment a 80ms).
-    const _closeAddMenu = useCallback(() => { setShowAddMenu(false); setAddItemSearch(''); }, []);
+    const _openAddMenu = useCallback((event) => {
+        addMenuTriggerRef.current = event.currentTarget;
+        setShowAddMenu(true);
+        setAddItemSearch('');
+    }, []);
+    const _closeAddMenu = useCallback(() => {
+        addMenuSearchRef.current?.blur();
+        setShowAddMenu(false);
+        setAddItemSearch('');
+    }, []);
     const _closeQtyEdit = useCallback(() => setQtyEditItem(null), []);
     const _closeDeleteConfirm = useCallback(() => setShowDeleteConfirm(false), []);
     const { containerRef: addMenuModalRef } = useModalAccessibility({
         isOpen: showAddMenu,
         onClose: _closeAddMenu,
         disableClose: isAdding,
+        returnFocusRef: addMenuTriggerRef,
     });
     const { containerRef: qtyEditModalRef } = useModalAccessibility({
         isOpen: !!qtyEditItem,
@@ -2026,8 +2038,7 @@ const PantryPage = () => {
                     cantidad: safeQty, unidad: glossUnitWord(existing.unit || '', t), alimento: nombreDeFila(masterItem),
                 }).trim());
                 _recordRecentAdd(masterItem, existing.unit || finalUnit);
-                setShowAddMenu(false);
-                setAddItemSearch('');
+                _closeAddMenu();
                 return;
             }
 
@@ -2072,8 +2083,7 @@ const PantryPage = () => {
                         toast.success(t('{alimento} ya estaba en tu nevera', { alimento: nombreDeFila(masterItem) }), { icon: '✅' });
                     }
                     _recordRecentAdd(masterItem, (dup && dup.unit) || finalUnit);
-                    setShowAddMenu(false);
-                    setAddItemSearch('');
+                    _closeAddMenu();
                     _scheduleRecalcShoppingList();
                     return;
                 }
@@ -2086,8 +2096,7 @@ const PantryPage = () => {
             }));
             setInventory(prev => [...prev, data].sort((a,b) => compareText(a.ingredient_name, b.ingredient_name)));
             _recordRecentAdd(masterItem, finalUnit);
-            setShowAddMenu(false);
-            setAddItemSearch('');
+            _closeAddMenu();
             // [P3-AUDIT-8 · 2026-05-10] Recalcular lista tras add individual.
             // Si el ítem que se acaba de añadir estaba en la lista de
             // compras, debe desaparecer; el Dashboard refleja el cambio
@@ -2795,7 +2804,7 @@ const PantryPage = () => {
                             <Trash2 size={16} />{t('Borrar todos')}
                         </button>
                     )}
-                    <button type="button" className={`${mstyles.btn} ${mstyles.add}`} onClick={() => { setShowAddMenu(true); setAddItemSearch(''); }}>
+                    <button type="button" className={`${mstyles.btn} ${mstyles.add}`} onClick={_openAddMenu}>
                         <Plus size={16} />{t('Añadir alimento')}
                     </button>
                 </div>
@@ -3063,7 +3072,7 @@ const PantryPage = () => {
                             <button
                                 type="button"
                                 className={`${fstyles.btn} ${fstyles.add}`}
-                                onClick={() => { setShowAddMenu(true); setAddItemSearch(''); }}
+                                onClick={_openAddMenu}
                             >
                                 <Plus size={16} /> {t('Añadir')}
                             </button>
@@ -3215,7 +3224,7 @@ const PantryPage = () => {
                     <>
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            onClick={() => { setShowAddMenu(false); setAddItemSearch(''); }}
+                            onClick={_closeAddMenu}
                             style={{ position: 'fixed', inset: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(6px)', zIndex: 100 }}
                         />
                         <motion.div
@@ -3278,6 +3287,7 @@ const PantryPage = () => {
                             <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
                                 <SearchIcon color="var(--text-light)" size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
                                 <input
+                                    ref={addMenuSearchRef}
                                     autoFocus
                                     type="text"
                                     /* [P3-PANTRY-ADD-MOBILE · 2026-06-19] Teclado de búsqueda + sin
