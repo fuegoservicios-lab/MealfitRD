@@ -397,7 +397,7 @@ export function ModalAwareRoutes({ children }) {
 function PublicThemeLock() {
   const { pathname } = useLocation();
   useLayoutEffect(() => {
-    if (isPaperSurface(pathname)) {
+    if (isPaperSurface(pathname, { appEntry: IS_APP_HOST || NATIVE_NO_COMMERCE })) {
       document.documentElement.setAttribute('data-theme', 'paper');
       window.dispatchEvent(new Event('mealfit-theme-change'));
     } else {
@@ -442,7 +442,7 @@ function App() {
     // Si la carga inicial cae en una ruta de la superficie papel, initTheme() acaba
     // de aplicar la pref guardada (que podría ser 'light' u 'oscuro'); re-forzamos
     // 'paper' para no pisar el boot script ni el PublicThemeLock.
-    if (isPaperSurface(window.location.pathname)) {
+    if (isPaperSurface(window.location.pathname, { appEntry: IS_APP_HOST || NATIVE_NO_COMMERCE })) {
       document.documentElement.setAttribute('data-theme', 'paper');
       window.dispatchEvent(new Event('mealfit-theme-change'));
     }

@@ -56,6 +56,8 @@ export const PAPER_SURFACE_ROUTES = [
 
 export const PAPER_SURFACE_PREFIXES = ['/novedades/'];
 
-export const isPaperSurface = (pathname) =>
-    PAPER_SURFACE_ROUTES.includes(pathname)
-    || PAPER_SURFACE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+// La raíz de la app espera a sesión/perfil antes de redirigir. No es la portada.
+export const isPaperSurface = (pathname, { appEntry = false } = {}) =>
+    !(appEntry && pathname === '/')
+    && (PAPER_SURFACE_ROUTES.includes(pathname)
+        || PAPER_SURFACE_PREFIXES.some((prefix) => pathname.startsWith(prefix)));

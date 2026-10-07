@@ -181,7 +181,13 @@
       // resuelva, así que sin ella la carga en frío pinta un frame oscuro.
       var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor', '/research', '/novedades', '/supermercado', '/about', '/privacy', '/terms', '/cookies', '/medical', '/data-protection', '/ai-policy', '/refunds', '/acceptable-use', '/responsible-disclosure'];
       var PAPER_PFX = ['/novedades/'];
+      // Vite fija el modo también en Android (https://localhost), antes del bridge.
+      // La raíz nativa/app espera el perfil: debe conservar el tema de la app.
+      var APP_ENTRY = '%MODE%' === 'native'
+        || /^app\./i.test(location.hostname)
+        || location.protocol === 'capacitor:';
       function paperPath(p) {
+        if (p === '/' && APP_ENTRY) return false;
         if (PAPER.indexOf(p) !== -1) return true;
         for (var i = 0; i < PAPER_PFX.length; i++) {
           if (p.indexOf(PAPER_PFX[i]) === 0) return true;
@@ -378,6 +384,10 @@
   <link rel="preload" href="/fonts/QGYvz_MVcBeNP4NJtEtq.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2" as="font" type="font/woff2" crossorigin />
   <style>
+    /* Color del lienzo antes de cargar el CSS de React y al retirar el splash. */
+    html[data-theme="dark"] { background-color: #0B1120; }
+    html[data-theme="light"] { background-color: #F8FAFC; }
+    html[data-theme="paper"] { background-color: #FBFBFA; }
     #pwa-splash {
       display: flex;
       flex-direction: column;
