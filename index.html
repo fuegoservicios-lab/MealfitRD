@@ -3,11 +3,10 @@
 
 <head>
   <meta charset="UTF-8" />
-  <!-- Fondo de marca opaco hasta el borde: las esquinas transparentes del icono
-       circular dejaban ver un halo blanco al mostrarse en Google. PNG e ICO
-       usan la misma marca que el apple-touch-icon, con su fondo completo. -->
-  <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png?v=24" />
-  <link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48 64x64" href="/favicon.ico?v=24" />
+  <!-- La app conserva su favicon circular en las pestañas. La portada pública
+       enlaza /favicon.png con fondo completo para las búsquedas de Google. -->
+  <link rel="icon" type="image/png" sizes="256x256" href="/favicon-round.png" />
+  <link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48" href="/favicon-round.ico" />
   <!-- [P1-VIEWPORT-ZOOM-LOCK · 2026-07-09] Zoom BLOQUEADO (feel de app nativa).
        SUPERSEDE a P2-A11Y-VIEWPORT-ZOOM (2026-05-31, que habilitó pinch-zoom por
        WCAG 1.4.4 Resize Text). Reversión confirmada con el dueño: el zoom
