@@ -41,6 +41,7 @@ import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { useFotosDeComida } from '../../hooks/useFotosDeComidas';
 import { useAssessment } from '../../context/AssessmentContext';
 import { formatDate, formatNumber, formatPercent, getLocale, useT } from '../../i18n';
+import HealthSources from '../common/HealthSources';
 import { nombreDeRegistro, platoDelPlan } from '../../utils/nombreDeRegistro';
 import { lineaDeIngredienteLegible } from '../../utils/nombresDeAlimentos';
 import { mealDisplay, langDeCampo } from '../../utils/displayMeal';
@@ -387,6 +388,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                             )}
                         </section>
                     )}
+                    <HealthSources context="tracking" />
                 </div>
 
                 <div className={styles.footer} inert={ampliada || undefined}>

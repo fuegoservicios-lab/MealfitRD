@@ -29,6 +29,7 @@ import { requestAgentPrefill } from '../../utils/agentPrefill';
 // classify = SSOT del cálculo de las mini-barras (mismo que el panel de micros).
 // restoreMicrosPanel = "desocultar" el panel desde aquí (P3-MICROS-RESTORE).
 import { classify, restoreMicrosPanel } from './MicronutrientPanel';
+import HealthSources from '../common/HealthSources';
 // [P1-REASONING-DISMISS · 2026-06-26] "Volver a mostrar" el panel de Razonamiento.
 import { restoreInsightsPanel } from '../../utils/insightsPanel';
 import { useT } from '../../i18n';
@@ -186,7 +187,7 @@ function _insightTitle(insight, i, t) {
     // El local se llamaba `t`; renombrado a `txt` porque `t` es ahora la función
     // de traducción que entra por parámetro.
     const txt = (insight || '').toLowerCase();
-    if (txt.includes('diagnóstico') || txt.includes('diagnostico') || i === 0) return t('Diagnóstico');
+    if (txt.includes('diagnóstico') || txt.includes('diagnostico') || i === 0) return t('Resumen de tu perfil');
     if (txt.includes('estrategia') || txt.includes('acción') || txt.includes('accion') || i === 1) return t('Plan de Acción');
     if (txt.includes('chef') || i === 2) return t('Tip del Chef');
     return t('Nota');
@@ -205,6 +206,7 @@ function InsightsDetail({ data }) {
                     <strong>{_insightTitle(ins, i, t)}: </strong>{_insightClean(ins)}
                 </p>
             ))}
+            <HealthSources context="plan" text={insights.join(' ')} />
         </>
     );
 }

@@ -8,6 +8,7 @@ import BotAvatar from './BotAvatar';
 // porque react-markdown + remark deps (~60KB gzip) solo se descargan tras
 // el primer render de markdown.
 import LazyMarkdown from '../common/LazyMarkdown';
+import HealthSources from '../common/HealthSources';
 import { ThumbsUp, ThumbsDown, RefreshCw, Copy, Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { ejeDelGesto, decidirGestoVisor, arrastreDelVisor } from '../../utils/imageViewerGesture';
 import { fetchWithAuth } from '../../config/api';
@@ -409,6 +410,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     </div>
                 )}
 
+                {msg.role === 'model' && !msg.isStreaming && !isErrorBubble && <HealthSources context="chat" text={msg.content} />}
                 {/* Action bar for model messages — oculto en errores */}
                 {msg.role === 'model' && !msg.isStreaming && !isErrorBubble && (
                     <MessageActions

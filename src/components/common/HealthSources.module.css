@@ -1,0 +1,27 @@
+.sources {
+    margin: 1rem 0;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.sources summary {
+    color: var(--text-main);
+    cursor: pointer;
+    font-weight: 600;
+    min-height: 28px;
+}
+.sources summary:focus-visible, .sources a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+}
+.sources p { margin: 0.65rem 0; }
+.sources ul { margin: 0.75rem 0; padding-left: 1.2rem; }
+.sources li { margin-bottom: 0.7rem; }
+.sources a { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
+.sources li span { display: block; margin-top: 0.1rem; font-size: 0.78rem; }
+@media (pointer: coarse) { .sources summary { min-height: 44px; display: list-item; align-content: center; } }

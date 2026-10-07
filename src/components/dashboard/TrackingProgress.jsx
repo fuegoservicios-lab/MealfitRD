@@ -26,6 +26,7 @@ import LogMealModal from './LogMealModal';
 // [P1-PLAN-LOTE-105 · 2026-09-18] Los micros viven en ESTA tarjeta (antes «Micros de hoy» aparte): un solo fetch
 // del día alimenta macros y micros, y el diario de días anteriores pinta la misma lista.
 import MicrosList from './MicrosList';
+import HealthSources from '../common/HealthSources';
 import { resumirMicros, useMicrosSubtitulo } from './microsShared';
 import { formatNumber, formatPercent, useT, useTn } from '../../i18n';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
@@ -615,6 +616,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                 </div>
             )}
 
+            <HealthSources context="tracking" />
             {/* [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas
                 hoy — antes esta card solo exponía el CONTEO (subtitle arriba);
                 el diario era write-only (registrabas pero nunca veías/corregías

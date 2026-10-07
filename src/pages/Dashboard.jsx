@@ -104,6 +104,7 @@ import { mealTimingIssue, pantryCoverageIssue } from '../config/mealWindows';
 // que aún no existen (absorbe el skeleton que vivía inline en la fila de días).
 import PlanWeekNav from '../components/dashboard/PlanWeekNav';
 import EmptyState from '../components/common/EmptyState';
+import HealthSources from '../components/common/HealthSources';
 // [P1-PANTRY-STRICT-CONSENT · 2026-08-02] "Nevera estricta + consentimiento": modal que nombra
 // el/los ingrediente(s) que el chef necesita fuera de la Nevera real (nombre + cantidad + precio
 // RD$ estimado) y ofrece añadir a la lista / buscar otra opción / cancelar — nada entra a la
@@ -1675,7 +1676,7 @@ const DashboardInner = () => {
             id: _planMicroSig ? `insights_${_planMicroSig}` : undefined,
             kind: 'insights',
             title: t('Razonamiento de tu plan'),
-            message: t('Diagnóstico, plan de acción y tip del chef de tu plan actual.'),
+            message: t('Resumen de tu perfil, plan de acción y tip del chef de tu plan actual.'),
             severity: 'info',
             data: { insights },
         };
@@ -9828,7 +9829,7 @@ const DashboardInner = () => {
                                     icon = <Lightbulb size={20} />;
                                     // El `includes('diagnóstico')` de arriba mira el texto del BACKEND
                                     // (siempre es-DO): no se traduce, sería comparar contra otra cosa.
-                                    title = t('Diagnóstico');
+                                    title = t('Resumen de tu perfil');
                                     // [APPEARANCE-THEME · 2026-05-29] En oscuro: icono violeta
                                     // más claro + chip tinte translúcido (en claro el pastel
                                     // #F5F3FF se veía brilloso).
@@ -9886,6 +9887,7 @@ const DashboardInner = () => {
                                 );
                             })}
                         </div>
+                        <HealthSources context="plan" text={(planData.insights || []).join(' ')} />
                     </div>
                     )}
 

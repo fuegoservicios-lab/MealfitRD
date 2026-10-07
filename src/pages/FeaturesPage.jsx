@@ -208,7 +208,7 @@ const EXTRAS = [
     { Icon: Gauge, title: '17 micronutrientes', text: 'Tu plan se compara contra las referencias diarias (DRI) con un medidor de cobertura.' },
     { Icon: HeartPulse, title: 'Multi-condición clínica', text: `Combina varias condiciones (p. ej. DM2 + HTA + colesterol) con reglas que se respetan a la vez. Verificado en ${CLINICAL.monthLong}: ${CLINICAL.safetyPct} % de lo entregado sin violaciones en la matriz de ${CLINICAL.n} perfiles clínicos.` },
     { Icon: Droplet, title: 'Hidratación diaria', text: 'Meta de agua personalizada según tu peso y actividad, con racha de días para mantener el hábito.' },
-    { Icon: Lightbulb, title: 'Razonamiento del plan', text: 'Diagnóstico, plan de acción y un tip del chef explicando el porqué de cada plan que te entregamos.' },
+    { Icon: Lightbulb, title: 'Razonamiento del plan', text: 'Resumen de tu perfil, plan de acción y un tip del chef explicando el porqué de cada plan que te entregamos.' },
     { Icon: UserPlus, title: 'Empieza gratis', text: 'Plan Gratis sin tarjeta para descubrir el motor antes de decidir.' },
 ];
 

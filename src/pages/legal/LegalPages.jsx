@@ -7,6 +7,7 @@ import { nativeHidesCommerce } from '../../config/platform';
 // [P1-PAPER-LEGAL · 2026-08-02] `CalendarDays` salió con `.metaIcon`: bajo
 // papel el metadato de un pliego se ROTULA en mono, no se ilustra.
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
+import HealthSources from '../../components/common/HealthSources';
 // [P2-LANDING-COPY-TRUTH · 2026-08-14] Los Términos citaban precios y créditos a
 // mano y las tres cifras habían quedado obsoletas: prometían 15 créditos (el
 // backend entrega 10 desde P1-CREDITS-LADDER) y ofrecían un «Max anual» de
@@ -47,8 +48,13 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
     const { userProfile, session, isGuest } = useAssessment();
 
     useEffect(() => {
+        if (location.hash === '#fuentes') {
+            // Run after the shared route scroll reset, including the first lazy mount.
+            const frame = requestAnimationFrame(() => document.getElementById('fuentes')?.scrollIntoView({ block: 'start' }));
+            return () => cancelAnimationFrame(frame);
+        }
         window.scrollTo(0, 0);
-    }, []);
+    }, [location.hash]);
 
     // [P3-LEGAL-BACK-LINK · 2026-05-26 · refinado 3ª iteración 2026-05-26]
     // Back-link inteligente en las 4 páginas legales. Cadena de fallbacks:
@@ -396,7 +402,7 @@ export const Terms = () => (
    AVISO MÉDICO
    ============================================================================ */
 export const MedicalDisclaimer = () => (
-    <LegalLayout title="Aviso Médico" lastUpdated="28 de Septiembre, 2026">
+    <LegalLayout title="Aviso Médico" lastUpdated="7 de Octubre, 2026">
         <div className={styles.alertBox}>
             <p className={styles.alertTitle}>
                 <AlertTriangle size={20} /> IMPORTANTE
@@ -412,6 +418,13 @@ export const MedicalDisclaimer = () => (
         <p>Los planes de comidas, recetas, listas de compras, cálculos de macronutrientes y consejos del asistente conversacional son <strong>recomendaciones generales de carácter informativo y educativo</strong>, generadas algorítmicamente a partir de la información que usted nos proporciona (peso, altura, edad, género, objetivos, alergias declaradas y preferencias). Su precisión depende de la veracidad de esos datos.</p>
         <p>Nuestros cálculos siguen fórmulas nutricionales estándar (Mifflin-St Jeor para metabolismo basal, factor de actividad, balance de macronutrientes). Sin embargo, la composición real de los alimentos en cada caso particular puede variar según marca, preparación, frescura y origen, y los requerimientos individuales pueden divergir significativamente de los promedios poblacionales.</p>
 
+        <section id="fuentes">
+            <HealthSources context="all" expanded />
+            <h3>Cómo interpretar las estimaciones</h3>
+            <p>La ecuación Mifflin–St Jeor estima la energía en reposo de adultos a partir de peso, altura, edad y sexo. Cuando declaras un porcentaje de grasa corporal, el cálculo alternativo usa masa magra (370 + 21,6 × kg de masa magra). El gasto diario incorpora un factor estimado de actividad y un ajuste por objetivo; estos ajustes del producto no son una medición clínica ni una prescripción.</p>
+            <p>Las referencias DRI corresponden principalmente a personas sanas y varían con edad, sexo y etapa de vida. El sodio se compara con el límite general de la OMS. Los valores del catálogo proceden de datos nutricionales; las fotos y el texto del diario se estiman con IA y pueden diferir de la etiqueta, la porción real y el método de preparación. Un porcentaje bajo en un registro incompleto no demuestra una deficiencia.</p>
+            <p>Las referencias sobre proteína y entrenamiento se refieren a adultos sanos que entrenan fuerza; no establecen una dosis individual para enfermedad renal, embarazo u otras condiciones. En esos casos prevalecen las indicaciones de tu equipo médico. Las fuentes enlazadas ofrecen información general y no validan automáticamente cada respuesta de la IA.</p>
+        </section>
         <h3>2. Lo que Bioboros NO Hace</h3>
         <ul>
             <li>NO diagnostica enfermedades, deficiencias nutricionales, intolerancias, alergias ni trastornos alimentarios.</li>

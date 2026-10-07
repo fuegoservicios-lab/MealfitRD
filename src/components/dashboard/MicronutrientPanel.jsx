@@ -11,6 +11,7 @@ import { addNotification } from '../../utils/notifications';
 // los call sites viejos siguen funcionando y traducen igual (el motor lee el locale
 // activo en cada llamada, no al importar).
 import { t as _t, tn as _tn, useT, useTn } from '../../i18n';
+import HealthSources from '../common/HealthSources';
 import styles from './MicronutrientPanel.module.css';
 // [P1-PLAN-LOTE-225] Nombres, dosis y alimentos que compone el backend en español, traducidos al pintar.
 import { etiquetaMicro, textoSuplemento, alimentosSuplemento } from '../../utils/microsCopy';
@@ -367,6 +368,7 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                         </div>
                     )}
 
+                    <HealthSources context="tracking" />
                 </motion.section>
             )}
         </AnimatePresence>

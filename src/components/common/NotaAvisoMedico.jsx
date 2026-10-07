@@ -1,5 +1,7 @@
 import { useId, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Link, useLocation } from 'react-router-dom';
+import HealthSources from './HealthSources';
 import { Stethoscope } from 'lucide-react';
 import { apexUrl } from '../../config/site';
 import { BRAND } from '../../data/routeMeta';
@@ -9,6 +11,7 @@ import styles from './NotaAvisoMedico.module.css';
 
 const NotaAvisoMedico = () => {
     const t = useT();
+    const location = useLocation();
     const [open, setOpen] = useState(false);
     const titleId = useId();
     return (
@@ -29,6 +32,10 @@ const NotaAvisoMedico = () => {
                     <a href={apexUrl('/medical')} target="_blank" rel="noopener noreferrer" className={styles.enlace}>
                         {t('Aviso médico')}
                     </a>
+                    <HealthSources context="plan" />
+                    <Link to="/medical#fuentes" state={{ from: location.pathname }} onClick={() => setOpen(false)} className={styles.enlace}>
+                        {t('Fuentes de salud y nutrición')}
+                    </Link>
                 </Modal>, document.body
             )}
         </>
