@@ -30,7 +30,7 @@
 // iOS SAFARI: el <video> necesita `muted` (y `playsinline`) como CONTENT ATTRIBUTE
 // —no solo como prop de React, que solo escribe la property— o el autoplay queda
 // bloqueado en silencio. Mismo bug que P1-HERO-ORB-AUTOPLAY-MOBILE (2026-07-11).
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { Camera, Loader2, X } from 'lucide-react';
@@ -103,6 +103,8 @@ export default function CameraViewfinder({
     const [capturedPreviewUrl, setCapturedPreviewUrl] = useState(null);
     const [longBusy, setLongBusy] = useState(false);
     const videoRef = useRef(null);
+    const frameRef = useRef(null);
+    const [videoBounds, setVideoBounds] = useState(null);
     const streamRef = useRef(null);
     const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
 
@@ -115,6 +117,37 @@ export default function CameraViewfinder({
     }, []);
 
     const { containerRef } = useModalAccessibility({ isOpen, onClose });
+
+    // Tamaño explícito con la proporción REAL del vídeo: evita depender del
+    // object-fit del compositor de cámara de iOS dentro de un marco flexible.
+    useLayoutEffect(() => {
+        if (!isOpen || capturedPreviewUrl) return undefined;
+        const frame = frameRef.current;
+        const video = videoRef.current;
+        if (!frame || !video) return undefined;
+        const fitVideo = () => {
+            const { videoWidth, videoHeight } = video;
+            const { width: frameWidth, height: frameHeight } = frame.getBoundingClientRect();
+            if (!videoWidth || !videoHeight || !frameWidth || !frameHeight) return;
+            // Un píxel de cobertura evita líneas negras por el redondeo de WebKit.
+            const scale = Math.max((frameWidth + 1) / videoWidth, (frameHeight + 1) / videoHeight);
+            const width = videoWidth * scale;
+            const height = videoHeight * scale;
+            setVideoBounds((prev) => prev?.width === width && prev?.height === height ? prev : { width, height });
+        };
+        const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(fitVideo) : null;
+        observer?.observe(frame);
+        video.addEventListener('loadeddata', fitVideo);
+        video.addEventListener('resize', fitVideo);
+        window.addEventListener('resize', fitVideo);
+        fitVideo();
+        return () => {
+            observer?.disconnect();
+            video.removeEventListener('loadeddata', fitVideo);
+            video.removeEventListener('resize', fitVideo);
+            window.removeEventListener('resize', fitVideo);
+        };
+    }, [isOpen, capturedPreviewUrl, phase]);
 
     // Adquiere la cámara al abrir; el cleanup cubre CIERRE + UNMOUNT.
     useEffect(() => {
@@ -240,7 +273,7 @@ export default function CameraViewfinder({
             // desempata el orden del DOM, y confiar en eso es frágil — el mismo
             // modo de fallo que P1-MODAL-ABOVE-HEADER.
             position: 'fixed', inset: 0, zIndex: 1200,
-            background: 'rgba(15, 23, 42, 0.85)',
+            background: '#0f172a',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: 'max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px))',
             boxSizing: 'border-box',
@@ -285,7 +318,7 @@ export default function CameraViewfinder({
                 </div>
 
                 {/* Marco: video en vivo o foto congelada + retícula + barrido. */}
-                <div style={{
+                <div ref={frameRef} style={{
                     position: 'relative', width: '100%', aspectRatio: '3 / 4', maxHeight: '68svh', minHeight: 0,
                     borderRadius: '1.1rem', overflow: 'hidden', background: '#000',
                 }}>
@@ -296,7 +329,13 @@ export default function CameraViewfinder({
                             playsInline
                             autoPlay
                             aria-hidden="true"
-                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', visibility: phase === 'live' ? 'visible' : 'hidden' }}
+                            style={{
+                                position: 'absolute', left: '50%', top: '50%',
+                                width: videoBounds?.width ?? '100%', height: videoBounds?.height ?? '100%',
+                                maxWidth: 'none', maxHeight: 'none',
+                                transform: 'translate(-50%, -50%)', display: 'block',
+                                visibility: phase === 'live' ? 'visible' : 'hidden',
+                            }}
                         />
                     )}
 

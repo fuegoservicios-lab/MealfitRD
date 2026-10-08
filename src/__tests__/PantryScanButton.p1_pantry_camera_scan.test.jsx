@@ -159,6 +159,28 @@ describe('[P1-PANTRY-CAMERA-SCAN] PantryScanButton — visor de cámara en vivo'
         expect(stream.tracks[0].stop).toHaveBeenCalledTimes(1);
     });
 
+    it('la imagen cubre el marco sin deformarse, también al cambiar la orientación', async () => {
+        getUserMediaMock.mockResolvedValue(makeStream());
+        renderButton();
+        await openViewfinder();
+        const video = document.querySelector('video');
+        vi.spyOn(video.parentElement, 'getBoundingClientRect').mockReturnValue({ width: 360, height: 480 });
+        Object.defineProperty(video, 'videoWidth', { configurable: true, value: 1080 });
+        Object.defineProperty(video, 'videoHeight', { configurable: true, value: 1920 });
+        await waitForLive();
+        expect(parseFloat(video.style.width)).toBeCloseTo(361);
+        expect(parseFloat(video.style.height)).toBeCloseTo(641.7778);
+        expect(video).toHaveStyle({ maxWidth: 'none', transform: 'translate(-50%, -50%)' });
+        Object.defineProperty(video, 'videoWidth', { configurable: true, value: 1920 });
+        Object.defineProperty(video, 'videoHeight', { configurable: true, value: 1080 });
+        fireEvent(video, new Event('resize'));
+        expect(parseFloat(video.style.width)).toBeCloseTo(855.1111);
+        expect(parseFloat(video.style.height)).toBe(481);
+        expect(parseFloat(video.style.width) / parseFloat(video.style.height)).toBeCloseTo(1920 / 1080);
+        const overlay = screen.getByRole('dialog').parentElement;
+        expect(overlay).toHaveStyle({ background: '#0f172a' });
+    });
+
     describe('lifecycle de tracks del stream (la luz de la cámara NUNCA se queda prendida)', () => {
         it('para TODO track al cerrar el visor con el botón "Cerrar"', async () => {
             const stream = makeStream(2);
