@@ -37,6 +37,8 @@ import { Camera, Loader2, X } from 'lucide-react';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useT } from '../../i18n';
+import { nativePlatform } from '../../config/platform';
+import { startCameraCanvasPreview } from '../../utils/cameraCanvasPreview';
 
 // Captura el frame actual del <video> a un <canvas> en sus dimensiones REALES
 // (video.videoWidth/videoHeight — nunca el tamaño CSS del elemento). Produce el
@@ -104,6 +106,10 @@ export default function CameraViewfinder({
     const [longBusy, setLongBusy] = useState(false);
     const videoRef = useRef(null);
     const frameRef = useRef(null);
+    const previewCanvasRef = useRef(null);
+    const [canvasReady, setCanvasReady] = useState(false);
+    const [canvasFailed, setCanvasFailed] = useState(false);
+    const useCanvasPreview = nativePlatform() === 'ios' && !canvasFailed;
     const [videoBounds, setVideoBounds] = useState(null);
     const streamRef = useRef(null);
     const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -117,6 +123,21 @@ export default function CameraViewfinder({
     }, []);
 
     const { containerRef } = useModalAccessibility({ isOpen, onClose });
+
+    useEffect(() => {
+        if (!isOpen || phase !== 'live' || capturedPreviewUrl || !useCanvasPreview) return undefined;
+        const video = videoRef.current;
+        const canvas = previewCanvasRef.current;
+        const frame = frameRef.current;
+        if (!video || !canvas || !frame) return undefined;
+        return startCameraCanvasPreview(video, canvas, frame, {
+            onFirstFrame: () => setCanvasReady(true),
+            onError: (error) => {
+                console.error('CameraViewfinder preview:', error);
+                setCanvasFailed(true);
+            },
+        });
+    }, [isOpen, phase, capturedPreviewUrl, useCanvasPreview]);
 
     // Tamaño explícito con la proporción REAL del vídeo: evita depender del
     // object-fit del compositor de cámara de iOS dentro de un marco flexible.
@@ -157,6 +178,8 @@ export default function CameraViewfinder({
         setPhase('starting');
         setCapturedPreviewUrl(null);
         setLongBusy(false);
+        setCanvasReady(false);
+        setCanvasFailed(false);
 
         if (!navigator.mediaDevices?.getUserMedia) {
             setPhase('denied');
@@ -335,8 +358,18 @@ export default function CameraViewfinder({
                                 maxWidth: 'none', maxHeight: 'none',
                                 transform: 'translate(-50%, -50%)', display: 'block',
                                 visibility: phase === 'live' ? 'visible' : 'hidden',
+                                ...(useCanvasPreview ? {
+                                    opacity: 0, pointerEvents: 'none',
+                                } : {}),
                             }}
                         />
+                    )}
+
+                    {useCanvasPreview && !capturedPreviewUrl && phase !== 'denied' && (
+                        <canvas ref={previewCanvasRef} aria-hidden="true" style={{
+                            position: 'absolute', inset: 0, width: '100%', height: '100%',
+                            display: 'block', visibility: canvasReady ? 'visible' : 'hidden',
+                        }} />
                     )}
 
                     {capturedPreviewUrl && (
@@ -344,7 +377,7 @@ export default function CameraViewfinder({
                             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     )}
 
-                    {phase === 'starting' && !capturedPreviewUrl && (
+                    {(phase === 'starting' || (phase === 'live' && useCanvasPreview && !canvasReady)) && !capturedPreviewUrl && (
                         <div style={{
                             position: 'absolute', inset: 0, display: 'flex',
                             alignItems: 'center', justifyContent: 'center',
@@ -425,7 +458,7 @@ export default function CameraViewfinder({
                 {showControls && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.8rem' }}>
                         <button type="button" onClick={handleShutter}
-                            disabled={phase !== 'live'}
+                            disabled={phase !== 'live' || (useCanvasPreview && !canvasReady)}
                             aria-label={t('Tomar foto')}
                             className="mfvf-focusable"
                             style={{

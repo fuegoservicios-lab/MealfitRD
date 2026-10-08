@@ -16,14 +16,16 @@
 //      y llama el MISMO POST — cero drift de payload entre orígenes.
 //   6. prefers-reduced-motion desactiva el barrido (retícula estática + pulso).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() } }));
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
+vi.mock('../config/platform', async (importOriginal) => ({ ...await importOriginal(), nativePlatform: vi.fn(() => 'web') }));
 
 import { PantryScanButton } from '../components/pantry/PantryScanButton';
 import { fetchWithAuth } from '../config/api';
+import { nativePlatform } from '../config/platform';
 
 // setupTests.js define window.matchMedia con matches:false; algunos tests lo
 // reemplazan por asignación directa para simular prefers-reduced-motion true
@@ -78,6 +80,7 @@ describe('[P1-PANTRY-CAMERA-SCAN] PantryScanButton — visor de cámara en vivo'
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(nativePlatform).mockReturnValue('web');
         window.matchMedia = defaultMatchMedia(null);
 
         playMock = vi.fn().mockResolvedValue(undefined);
@@ -179,6 +182,38 @@ describe('[P1-PANTRY-CAMERA-SCAN] PantryScanButton — visor de cámara en vivo'
         expect(parseFloat(video.style.width) / parseFloat(video.style.height)).toBeCloseTo(1920 / 1080);
         const overlay = screen.getByRole('dialog').parentElement;
         expect(overlay).toHaveStyle({ background: '#0f172a' });
+    });
+
+    it('en iPhone presenta un canvas, espera su primer dibujo y cancela el loop al cerrar', async () => {
+        vi.mocked(nativePlatform).mockReturnValue('ios');
+        const drawImage = vi.fn();
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage });
+        let drawFrame;
+        vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { drawFrame = callback; return 41; });
+        const cancelFrame = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+        const stream = makeStream();
+        getUserMediaMock.mockResolvedValue(stream);
+        renderButton();
+        await openViewfinder();
+        const video = document.querySelector('video');
+        vi.spyOn(video.parentElement, 'getBoundingClientRect').mockReturnValue({ width: 360, height: 480 });
+        Object.defineProperty(video, 'readyState', { configurable: true, value: 2 });
+        Object.defineProperty(video, 'videoWidth', { configurable: true, value: 1080 });
+        Object.defineProperty(video, 'videoHeight', { configurable: true, value: 1920 });
+        await waitFor(() => expect(video.srcObject).toBeTruthy());
+        fireEvent.loadedData(video);
+        await waitFor(() => expect(drawFrame).toBeTypeOf('function'));
+        const shutter = screen.getByRole('button', { name: 'Tomar foto' });
+        expect(shutter).toBeDisabled();
+        act(() => drawFrame(0));
+        expect(shutter).toBeEnabled();
+        expect(video).toHaveStyle({ opacity: '0', pointerEvents: 'none' });
+        expect(parseFloat(video.style.width)).toBeGreaterThan(300);
+        expect(document.querySelector('canvas')).toHaveStyle({ visibility: 'visible' });
+        expect(drawImage).toHaveBeenCalledWith(video, 0, 240, 1080, 1440, 0, 0, expect.any(Number), expect.any(Number));
+        await userEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+        expect(cancelFrame).toHaveBeenCalledWith(41);
+        expect(stream.tracks[0].stop).toHaveBeenCalledOnce();
     });
 
     describe('lifecycle de tracks del stream (la luz de la cámara NUNCA se queda prendida)', () => {
