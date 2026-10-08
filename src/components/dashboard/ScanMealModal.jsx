@@ -650,6 +650,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
         return ocupadoPorPlato.current.get(id);
     }, [marcarCalculo]);
     const [viewfinderOpen, setViewfinderOpen] = useState(false);
+    const closeViewfinder = useCallback(() => setViewfinderOpen(false), []);
     const controladores = useRef(new Map());
     const urls = useRef(new Set());
     const secuencia = useRef(0);
@@ -708,6 +709,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
         isOpen,
         onClose,
         disableClose: guardando, // no cerrar mientras se registra (operación en vuelo)
+        isTopmost: () => !viewfinderOpen,
     });
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose, disabled: isBusy });
     // [P1-PLAN-LOTE-165 · 2026-09-22] En el iPhone el teclado tapaba el pie de la revisión: la hoja sube por encima.
@@ -1513,7 +1515,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
             hint={t('Encuadra el plato completo, de frente')}
             fileName="plato.jpg"
             onCapture={handleViewfinderCapture}
-            onClose={() => setViewfinderOpen(false)}
+            onClose={closeViewfinder}
             onFallbackToFile={handleViewfinderFallback}
         />
         </>

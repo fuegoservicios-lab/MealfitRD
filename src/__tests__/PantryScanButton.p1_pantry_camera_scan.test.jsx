@@ -63,6 +63,12 @@ const openViewfinder = async () => {
 };
 
 const waitForLive = async () => {
+    const video = document.querySelector('video');
+    await waitFor(() => expect(video.srcObject).toBeTruthy());
+    Object.defineProperty(video, 'readyState', { configurable: true, value: 2 });
+    if (!video.videoWidth) Object.defineProperty(video, 'videoWidth', { configurable: true, value: 1080 });
+    if (!video.videoHeight) Object.defineProperty(video, 'videoHeight', { configurable: true, value: 1920 });
+    fireEvent.loadedData(video);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Tomar foto' })).toBeEnabled());
 };
 
@@ -109,6 +115,48 @@ describe('[P1-PANTRY-CAMERA-SCAN] PantryScanButton — visor de cámara en vivo'
                 audio: false,
             }),
         );
+    });
+
+    it('mantiene el visor oculto y el disparador bloqueado hasta tener un fotograma con dimensiones', async () => {
+        getUserMediaMock.mockResolvedValue(makeStream());
+        renderButton();
+        await openViewfinder();
+        const video = document.querySelector('video');
+        await waitFor(() => expect(playMock).toHaveBeenCalled());
+        const shutter = screen.getByRole('button', { name: 'Tomar foto' });
+        expect(shutter).toBeDisabled();
+        expect(video).toHaveStyle({ visibility: 'hidden' });
+        Object.defineProperty(video, 'videoWidth', { configurable: true, value: 1080 });
+        Object.defineProperty(video, 'videoHeight', { configurable: true, value: 1920 });
+        Object.defineProperty(video, 'readyState', { configurable: true, value: 1 });
+        fireEvent.loadedData(video);
+        expect(shutter).toBeDisabled();
+        await waitForLive();
+        expect(video).toHaveStyle({ visibility: 'visible' });
+    });
+
+    it('abre fuera de los ancestros animados y prepara autoplay antes de reproducir', async () => {
+        const { container } = renderButton({ style: { transform: 'translateY(20px)' } });
+        getUserMediaMock.mockResolvedValue(makeStream());
+        playMock.mockImplementation(function () {
+            expect(this.hasAttribute('muted')).toBe(true);
+            expect(this.hasAttribute('playsinline')).toBe(true);
+            expect(this.defaultMuted).toBe(true);
+            return Promise.resolve();
+        });
+        await openViewfinder();
+        expect(container.contains(screen.getByRole('dialog'))).toBe(false);
+        await waitForLive();
+    });
+
+    it('ofrece subir foto y libera la cámara si falla la reproducción', async () => {
+        const stream = makeStream();
+        getUserMediaMock.mockResolvedValue(stream);
+        playMock.mockRejectedValue(new DOMException('Playback blocked', 'NotAllowedError'));
+        renderButton();
+        await openViewfinder();
+        await screen.findByText('No pudimos abrir la cámara. Puedes subir una foto en su lugar.');
+        expect(stream.tracks[0].stop).toHaveBeenCalledTimes(1);
     });
 
     describe('lifecycle de tracks del stream (la luz de la cámara NUNCA se queda prendida)', () => {
@@ -208,12 +256,12 @@ describe('[P1-PANTRY-CAMERA-SCAN] PantryScanButton — visor de cámara en vivo'
 
     it('el <video> monta con muted/playsinline como CONTENT ATTRIBUTE + defaultMuted (P1-HERO-ORB-AUTOPLAY-MOBILE)', async () => {
         getUserMediaMock.mockResolvedValue(makeStream(1));
-        const { container } = renderButton();
+        renderButton();
 
         await openViewfinder();
 
         const video = await waitFor(() => {
-            const v = container.querySelector('video');
+            const v = document.querySelector('video');
             expect(v).toBeTruthy();
             return v;
         });
@@ -302,7 +350,7 @@ describe('[P1-PANTRY-CAMERA-SCAN] PantryScanButton — visor de cámara en vivo'
     it('prefers-reduced-motion desactiva el barrido — retícula estática con pulso de opacidad', async () => {
         window.matchMedia = defaultMatchMedia('(prefers-reduced-motion: reduce)');
         getUserMediaMock.mockResolvedValue(makeStream(1));
-        const { container } = renderButton();
+        renderButton();
 
         await openViewfinder();
         await waitForLive();
@@ -312,20 +360,20 @@ describe('[P1-PANTRY-CAMERA-SCAN] PantryScanButton — visor de cámara en vivo'
         // que ahora usa también «Escanear comida». Lo que este caso protege no
         // cambió: con reduced-motion no hay barrido, y la retícula late en vez de
         // moverse.
-        expect(container.querySelector('.mfvf-sweep')).not.toBeInTheDocument();
-        const corner = container.querySelector('.mfvf-corner');
+        expect(document.querySelector('.mfvf-sweep')).not.toBeInTheDocument();
+        const corner = document.querySelector('.mfvf-corner');
         expect(corner).toBeTruthy();
         expect(corner.getAttribute('style')).toMatch(/mfvf-pulse/);
     });
 
     it('sin reduced-motion SÍ renderiza el barrido en loop', async () => {
         getUserMediaMock.mockResolvedValue(makeStream(1));
-        const { container } = renderButton();
+        renderButton();
 
         await openViewfinder();
         await waitForLive();
 
-        const sweep = container.querySelector('.mfvf-sweep');
+        const sweep = document.querySelector('.mfvf-sweep');
         expect(sweep).toBeTruthy();
         expect(sweep.getAttribute('style')).toMatch(/mfvf-sweep 1\.6s/);
     });

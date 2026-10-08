@@ -31,6 +31,7 @@
 // —no solo como prop de React, que solo escribe la property— o el autoplay queda
 // bloqueado en silencio. Mismo bug que P1-HERO-ORB-AUTOPLAY-MOBILE (2026-07-11).
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { Camera, Loader2, X } from 'lucide-react';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -119,6 +120,7 @@ export default function CameraViewfinder({
     useEffect(() => {
         if (!isOpen) return undefined;
         let cancelled = false;
+        let detachVideoEvents = () => {};
         setPhase('starting');
         setCapturedPreviewUrl(null);
         setLongBusy(false);
@@ -158,33 +160,48 @@ export default function CameraViewfinder({
                 return;
             }
             streamRef.current = stream;
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                const p = videoRef.current.play?.();
-                if (p?.catch) p.catch(() => { /* autoplay policy — el usuario ya ve el visor */ });
-            }
-            setPhase('live');
+            const video = videoRef.current;
+            if (!video) { stopStream(); return; }
+            // El permiso puede llegar antes que las dimensiones y el primer frame.
+            // Mantener el cargador evita mostrar el ajuste inicial del encuadre.
+            const markReady = () => {
+                if (!cancelled && streamRef.current === stream
+                    && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+                    setPhase('live');
+                }
+            };
+            video.addEventListener('loadeddata', markReady);
+            video.addEventListener('playing', markReady);
+            detachVideoEvents = () => {
+                video.removeEventListener('loadeddata', markReady);
+                video.removeEventListener('playing', markReady);
+            };
+            // iOS necesita los atributos ANTES de conectar y reproducir el stream.
+            video.muted = true;
+            video.defaultMuted = true;
+            video.setAttribute('muted', '');
+            video.setAttribute('playsinline', '');
+            video.srcObject = stream;
+            const p = video.play?.();
+            p?.then(markReady).catch(() => {
+                if (cancelled) return;
+                stopStream();
+                setPhase('denied');
+            });
+            markReady();
         }).catch((err) => {
             if (cancelled) return;
             console.error('CameraViewfinder:', err);
+            stopStream();
             setPhase('denied');
         });
 
         return () => {
             cancelled = true;
+            detachVideoEvents();
             stopStream();
         };
     }, [isOpen, stopStream]);
-
-    // iOS Safari: atributos de contenido, no solo props (ver cabecera).
-    useEffect(() => {
-        const el = videoRef.current;
-        if (!el || phase !== 'live') return;
-        el.muted = true;
-        el.defaultMuted = true;
-        el.setAttribute('muted', '');
-        el.setAttribute('playsinline', '');
-    }, [phase]);
 
     // Caption "todavía analizando" tras ~6s: una espera muda se lee como app colgada.
     useEffect(() => {
@@ -215,7 +232,8 @@ export default function CameraViewfinder({
 
     const showControls = !capturedPreviewUrl && phase !== 'denied';
 
-    return (
+    // Una página animada/transformada no debe convertirse en el viewport del visor.
+    return createPortal(
         <div style={{
             // 1200 y no 1000: el visor puede abrirse DESDE otro modal (el de
             // «Escanear comida» ya ocupa 1000). A igualdad de z-index solo
@@ -224,7 +242,8 @@ export default function CameraViewfinder({
             position: 'fixed', inset: 0, zIndex: 1200,
             background: 'rgba(15, 23, 42, 0.85)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '1rem',
+            padding: 'max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px))',
+            boxSizing: 'border-box',
         }}>
             <style>{`
                 @keyframes mfvf-spin { to { transform: rotate(360deg); } }
@@ -251,7 +270,7 @@ export default function CameraViewfinder({
                 aria-labelledby="mfvf-title"
                 tabIndex={-1}
                 style={{
-                    width: '100%', maxWidth: '460px', maxHeight: '95vh',
+                    width: '100%', maxWidth: '460px', maxHeight: '100%',
                     display: 'flex', flexDirection: 'column', gap: '0.85rem',
                     outline: 'none',
                 }}>
@@ -267,7 +286,7 @@ export default function CameraViewfinder({
 
                 {/* Marco: video en vivo o foto congelada + retícula + barrido. */}
                 <div style={{
-                    position: 'relative', width: '100%', aspectRatio: '3 / 4', maxHeight: '68vh',
+                    position: 'relative', width: '100%', aspectRatio: '3 / 4', maxHeight: '68svh', minHeight: 0,
                     borderRadius: '1.1rem', overflow: 'hidden', background: '#000',
                 }}>
                     {!capturedPreviewUrl && phase !== 'denied' && (
@@ -277,13 +296,13 @@ export default function CameraViewfinder({
                             playsInline
                             autoPlay
                             aria-hidden="true"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', visibility: phase === 'live' ? 'visible' : 'hidden' }}
                         />
                     )}
 
                     {capturedPreviewUrl && (
                         <img src={capturedPreviewUrl} alt={t('Foto capturada')}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     )}
 
                     {phase === 'starting' && !capturedPreviewUrl && (
@@ -393,7 +412,8 @@ export default function CameraViewfinder({
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }
 
