@@ -30,6 +30,7 @@ import HealthSources from '../common/HealthSources';
 import { resumirMicros, useMicrosSubtitulo } from './microsShared';
 import { formatNumber, formatPercent, useT, useTn } from '../../i18n';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
+import { macroReferences } from '../../utils/macroReferences';
 // [P1-PLAN-LOTE-721 · 2026-09-28] La fila abre la ficha del plato; la foto del escáner (solo en este dispositivo) sale
 // en miniatura. El almacén de fotos se importa dinámico dentro del hook: este trozo está en el techo de precache-guard.
 import { useIdsConFoto, useEnlazarFotosDelChat, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
@@ -164,7 +165,7 @@ const _buildConsumedSnapshot = ({ meals, totals, cacheKey }) => {
     };
 };
 
-const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets = null }) => {
+const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets = null, referenceProfile = null }) => {
     const t = useT();
     const tn = useTn();
     const subtituloMicros = useMicrosSubtitulo();
@@ -456,6 +457,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     useEffect(() => { if (consumirAbrirDiasAnteriores()) setHistoryOpen(true); }, []);
 
     const goalCal = parseInt(planData?.calories) || 2000;
+    const references = macroReferences(planData, referenceProfile);
     const goalPro = parseInt(planData?.macros?.protein) || 150;
     const goalCarb = parseInt(planData?.macros?.carbs) || 200;
     const goalFat = parseInt(planData?.macros?.fats) || 60;
@@ -570,6 +572,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     <ProgressBar
                         label={t('Proteína')}
                         consumed={displayedConsumed.protein} goal={goalPro} unit="g"
+                        reference={references.protein}
                         perc={percPro} icon={Dumbbell} darkIcon={ProteinIcon}
                         color="#3B82F6" lightColor="#93C5FD" gradient="linear-gradient(90deg, #93C5FD 0%, #3B82F6 100%)"
                     />
@@ -577,6 +580,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     <ProgressBar
                         label={t('Carbohidratos')}
                         consumed={displayedConsumed.carbs} goal={goalCarb} unit="g"
+                        reference={references.carbs}
                         perc={percCarb} icon={Wheat} color="#10B981" lightColor="#6EE7B7" gradient="linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)"
                         fillWhiteStroke
                     />
@@ -584,6 +588,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     <ProgressBar
                         label={t('Grasas')}
                         consumed={displayedConsumed.fats} goal={goalFat} unit="g"
+                        reference={references.fats}
                         perc={percFat} icon={Droplet} darkIcon={FatDropIcon}
                         color="#EC4899" lightColor="#F9A8D4" gradient="linear-gradient(90deg, #F9A8D4 0%, #EC4899 100%)"
                         fillIcon
@@ -598,6 +603,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     <ChevronRight size={14} className={styles.targetHelpChevron} aria-hidden="true" />
                 </summary>
                 <p>{t('Calorías y macros: metas del plan, no límites de seguridad. El porcentaje muestra tu consumo real.')}</p>
+                <p>{t('La referencia general marca el extremo superior del rango AMDR para adultos: proteína 35%, carbohidratos 65% y grasas 35% de la energía. Los gramos se calculan con las calorías de tu plan; el porcentaje de la barra se calcula con tu meta de cada macro.')}</p>
+                <p>{t('No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.')}</p>
             </details>
 
             {/* [P1-PLAN-LOTE-105 · 2026-09-18] Los micros, bajo las macros y ANTES de la lista de comidas: primero los
@@ -805,10 +812,12 @@ TrackingProgress.propTypes = {
     flatOnMobile: PropTypes.bool,
     // [P1-PLAN-LOTE-105] metas de los ocho micros (`/api/nutrition/targets.micros`); null = sin barra
     microTargets: PropTypes.object,
+    referenceProfile: PropTypes.object,
 };
 
 // --- Componente Interno para Barra Individual ---
-const ProgressBar = ({ label, consumed: consumedReal, goal, unit, perc, icon: Icon, darkIcon: DarkIcon, color, lightColor, gradient, large, fillIcon, fillWhiteStroke }) => {
+const ProgressBar = ({ label, consumed: consumedReal, goal, reference, unit, perc, icon: Icon, darkIcon: DarkIcon, color, lightColor, gradient, large, fillIcon, fillWhiteStroke }) => {
+    const t = useT();
     const isEmpty = perc === 0;
     // [P1-PLAN-LOTE-688] el número SUBE a la vista cuando el coach anota (la barra ya crecía con transición). Se sigue
     // llamando `consumed`: `formatNumber(consumed)` es el ancla de test_p3_i18n_metrica_coma_clavada.
@@ -823,26 +832,23 @@ const ProgressBar = ({ label, consumed: consumedReal, goal, unit, perc, icon: Ic
     // These are personalized plan goals, not health ceilings. Keep the nutrient's
     // color above the goal and the real percentage; only glow at exactly the goal.
     const isComplete = consumedReal === goal && goal > 0;
-    // [P3-TRACKING-FILL-MIN-VISUAL · 2026-05-22] Piso visual del fillWidth.
-    // Pre-fix: `Math.min(perc, 100)` mapeaba 1:1 entre % y ancho del fill.
-    // Cuando perc era bajo (proteína 7% inicio del día), el fill mide ~7% del
-    // track (~25-30px en desktop) y el badge "7%" no cabía cómodo aunque el
-    // texto se desbordara hacia el track con text-shadow doble layer
-    // (P3-TRACKING-PERC-INSIDE-ALWAYS) — el user reportó que aún se veía mal.
-    //
-    // Fix: si el % real es > 0 pero el fillWidth proporcional es menor a
-    // `_FILL_VISUAL_MIN` (18%), el fill se renderea con 18% visual width —
-    // suficiente para que el badge `{perc}%` quepa dentro cómodo. El número
-    // mostrado SIGUE siendo el real (e.g., "7%"), no la magnitud falseada.
-    //
-    // Trade-off: visual deja de ser 1:1 entre % y ancho. Aceptable porque:
-    //   (a) El número numérico ("11 / 158 g") muestra la magnitud real cruda.
-    //   (b) El badge "7%" dentro del fill comunica el % real con precisión.
-    //   (c) El user explícitamente pidió esta solución: "subir la barra de
-    //       los números mínimos para que se pueda visualizar".
-    const _FILL_VISUAL_MIN = 18;
-    const _percCapped = Math.min(perc, 100);
-    const fillWidth = perc <= 0 ? 0 : Math.max(_percCapped, _FILL_VISUAL_MIN);
+    const referencePerc = reference ? reference / goal * 100 : null;
+    const scaleMax = referencePerc ? referencePerc * 1.08 : 100;
+    const goalPosition = 100 / scaleMax * 100;
+    const referencePosition = referencePerc ? referencePerc / scaleMax * 100 : null;
+    // With reference ticks, geometry must remain proportional. Only the text
+    // badge has a minimum position so small values stay readable.
+    const proportionalWidth = Math.min(100, Math.max(0, perc / scaleMax * 100));
+    const fillWidth = referencePerc ? proportionalWidth : perc <= 0 ? 0 : Math.max(proportionalWidth, 18);
+    const badgePosition = Math.max(fillWidth, 18);
+    const endpoint = reference || goal;
+    const difference = endpoint - consumedReal;
+    const remaining = formatNumber(Math.abs(difference), { maximumFractionDigits: 1 });
+    const statusText = reference
+        ? difference > 0 ? t('A {n} g de la referencia', { n: remaining })
+            : difference < 0 ? t('{n} g sobre la referencia', { n: remaining }) : t('En la referencia')
+        : difference > 0 ? t('Faltan {n} {unit} para la meta', { n: remaining, unit })
+            : difference < 0 ? t('{n} {unit} sobre la meta', { n: remaining, unit }) : t('Meta alcanzada');
 
     const consumedTextColor = isEmpty ? 'var(--text-muted)' : 'var(--text-main)';
 
@@ -934,9 +940,9 @@ const ProgressBar = ({ label, consumed: consumedReal, goal, unit, perc, icon: Ic
                 role="progressbar"
                 aria-label={label}
                 aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.min(100, Math.max(0, perc))}
-                aria-valuetext={`${formatNumber(consumedReal)} / ${formatNumber(goal)} ${unit} (${formatPercent(perc)})`}
+                aria-valuemax={scaleMax}
+                aria-valuenow={Math.min(scaleMax, Math.max(0, perc))}
+                aria-valuetext={`${formatNumber(consumedReal)} / ${formatNumber(goal)} ${unit} (${formatPercent(perc)}). ${statusText}`}
                 style={{
                     height: large ? 12 : 10,
                     background: 'var(--bg-muted)',
@@ -950,6 +956,10 @@ const ProgressBar = ({ label, consumed: consumedReal, goal, unit, perc, icon: Ic
                         boxShadow: isComplete ? `0 0 12px ${color}66` : 'none',
                     }}
                 />
+                {reference && <>
+                    <span className={styles.goalMarker} style={{ left: `${goalPosition}%` }} aria-hidden="true" />
+                    <span className={styles.referenceMarker} style={{ left: `${referencePosition}%` }} aria-hidden="true" />
+                </>}
                 {/* [P3-TRACKING-BAR-INLINE-PERC · 2026-05-20] % blanco dentro
                     del fill (estilo carga de batería). Aplicado universalmente
                     (desktop + mobile) tras P3-TRACKING-PERC-DESKTOP.
@@ -969,12 +979,22 @@ const ProgressBar = ({ label, consumed: consumedReal, goal, unit, perc, icon: Ic
                 {!isEmpty && (
                     <span
                         className={styles.fillPerc}
-                        style={{ left: `${fillWidth}%` }}
+                        style={{ left: `${badgePosition}%` }}
                     >
                         {formatPercent(perc)}
                     </span>
                 )}
             </div>
+
+            <div className={styles.barGuide}>
+                <span><i className={styles.goalKey} aria-hidden="true" />{t('Meta')} {formatPercent(100)}</span>
+                {reference && <span title={t('Extremo superior del rango orientativo, calculado con las calorías del plan')}>
+                    <i className={styles.referenceKey} aria-hidden="true" />{t('Referencia general')} {formatPercent(referencePerc)}
+                </span>}
+            </div>
+            <p className={`${styles.barRemaining} ${reference && difference < 0 ? styles.referenceExceeded : ''}`}>
+                {statusText}{reference && <span> · {formatNumber(reference, { maximumFractionDigits: 1 })} g</span>}
+            </p>
 
             {!isEmpty && (
                 <div className={styles.percRow}>
@@ -997,6 +1017,7 @@ ProgressBar.propTypes = {
     label: PropTypes.string,
     consumed: PropTypes.number,
     goal: PropTypes.number,
+    reference: PropTypes.number,
     unit: PropTypes.string,
     perc: PropTypes.number,
     icon: PropTypes.elementType,

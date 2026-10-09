@@ -3915,5 +3915,18 @@
   "Calorías y macros: metas del plan, no límites de seguridad. El porcentaje muestra tu consumo real.": "Calorie e macro: obiettivi del piano, non limiti di sicurezza. La percentuale mostra il tuo consumo effettivo.",
   "Máximo recomendado": "Massimo raccomandato",
   "Sobre el máximo recomendado": "Oltre il massimo raccomandato",
-  "Sobre tus metas": "Informazioni sui tuoi obiettivi"
+  "Sobre tus metas": "Informazioni sui tuoi obiettivi",
+  "Meta": "Obiettivo",
+  "Referencia general": "Riferimento generale",
+  "A {n} g de la referencia": "{n} g sotto il riferimento",
+  "{n} g sobre la referencia": "{n} g sopra il riferimento",
+  "En la referencia": "Al riferimento",
+  "Faltan {n} {unit} para la meta": "Mancano {n} {unit} all’obiettivo",
+  "{n} {unit} sobre la meta": "{n} {unit} sopra l’obiettivo",
+  "Meta alcanzada": "Obiettivo raggiunto",
+  "A {n} {unit} del máximo recomendado": "{n} {unit} sotto il massimo raccomandato",
+  "Extremo superior del rango orientativo, calculado con las calorías del plan": "Estremo superiore dell’intervallo orientativo, calcolato con le calorie del piano",
+  "Rangos orientativos de macronutrientes en adultos (AMDR)": "Intervalli orientativi di macronutrienti per adulti (AMDR)",
+  "La referencia general marca el extremo superior del rango AMDR para adultos: proteína 35%, carbohidratos 65% y grasas 35% de la energía. Los gramos se calculan con las calorías de tu plan; el porcentaje de la barra se calcula con tu meta de cada macro.": "Il riferimento generale indica l’estremo superiore dell’intervallo AMDR per adulti: proteine 35%, carboidrati 65% e grassi 35% dell’energia. I grammi sono calcolati con le calorie del piano; la percentuale della barra è calcolata con l’obiettivo per ogni macro.",
+  "No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.": "Non è una soglia di pericolo né una quantità extra da mangiare. Gli intervalli si valutano insieme all’alimentazione completa. Se il profilo richiede indicazioni individuali o mancano dati, mostriamo solo l’obiettivo."
 }

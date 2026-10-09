@@ -3915,5 +3915,18 @@
   "Calorías y macros: metas del plan, no límites de seguridad. El porcentaje muestra tu consumo real.": "Calorias e macros: metas do plano, não limites de segurança. A porcentagem mostra seu consumo real.",
   "Máximo recomendado": "Máximo recomendado",
   "Sobre el máximo recomendado": "Acima do máximo recomendado",
-  "Sobre tus metas": "Sobre suas metas"
+  "Sobre tus metas": "Sobre suas metas",
+  "Meta": "Meta",
+  "Referencia general": "Referência geral",
+  "A {n} g de la referencia": "{n} g abaixo da referência",
+  "{n} g sobre la referencia": "{n} g acima da referência",
+  "En la referencia": "Na referência",
+  "Faltan {n} {unit} para la meta": "Faltam {n} {unit} para a meta",
+  "{n} {unit} sobre la meta": "{n} {unit} acima da meta",
+  "Meta alcanzada": "Meta atingida",
+  "A {n} {unit} del máximo recomendado": "{n} {unit} abaixo do máximo recomendado",
+  "Extremo superior del rango orientativo, calculado con las calorías del plan": "Extremo superior da faixa orientativa, calculado com as calorias do plano",
+  "Rangos orientativos de macronutrientes en adultos (AMDR)": "Faixas orientativas de macronutrientes para adultos (AMDR)",
+  "La referencia general marca el extremo superior del rango AMDR para adultos: proteína 35%, carbohidratos 65% y grasas 35% de la energía. Los gramos se calculan con las calorías de tu plan; el porcentaje de la barra se calcula con tu meta de cada macro.": "A referência geral marca o extremo superior da faixa AMDR para adultos: proteína 35%, carboidratos 65% e gorduras 35% da energia. Os gramas são calculados com as calorias do seu plano; o percentual da barra é calculado com a sua meta para cada macro.",
+  "No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.": "Não é um limite de perigo nem uma quantidade extra que você deva comer. As faixas são avaliadas junto com a alimentação completa. Se seu perfil requer orientação individual ou faltam dados, mostramos apenas sua meta."
 }

@@ -20,7 +20,8 @@ describe('referencias visibles de salud', () => {
     });
     it('incluye energía, catálogo, DRI y OMS junto al plan y al contador', () => {
         for (const context of ['plan', 'tracking']) {
-            expect(healthSourcesFor(context).map(s => s.id)).toEqual(['energy', 'foods', 'dri', 'diet']);
+            expect(healthSourcesFor(context).map(s => s.id)).toEqual(context === 'tracking'
+                ? ['amdr', 'energy', 'foods', 'dri', 'diet'] : ['energy', 'foods', 'dri', 'diet']);
         }
     });
     it('muestra fuentes oficiales enlazadas, alcance y acceso interno a todas las referencias', () => {

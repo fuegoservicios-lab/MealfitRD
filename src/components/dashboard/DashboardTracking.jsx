@@ -268,7 +268,7 @@ const DashboardTracking = ({ modo = 'contador' }) => {
                     // botones de registrar ya viven dentro.
                     // [P1-PLAN-LOTE-105] los micros van DENTRO de la misma tarjeta (metas de /nutrition/targets en
                     // los dos modos: en modo plan el plan trae las macros, no las metas DRI de los micros).
-                    <TrackingProgress planData={metasMacros} userId={userProfile?.id} flatOnMobile microTargets={targets?.micros || null} />
+                    <TrackingProgress planData={metasMacros} userId={userProfile?.id} flatOnMobile microTargets={targets?.micros || null} referenceProfile={formData} />
                 )}
             </div>
 

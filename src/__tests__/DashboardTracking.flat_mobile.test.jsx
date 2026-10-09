@@ -38,7 +38,7 @@ describe('contador sin tarjeticas en el teléfono', () => {
     it('solo el contador pide las secciones planas; el dashboard de plan no', () => {
         const tracking = src('src/components/dashboard/DashboardTracking.jsx');
         // [P1-PLAN-LOTE-105] los micros van dentro de la misma tarjeta (metas por prop); no hay tarjeta aparte
-        expect(tracking).toContain('<TrackingProgress planData={metasMacros} userId={userProfile?.id} flatOnMobile microTargets={targets?.micros || null} />');
+        expect(tracking).toContain('<TrackingProgress planData={metasMacros} userId={userProfile?.id} flatOnMobile microTargets={targets?.micros || null} referenceProfile={formData} />');
         expect(tracking).not.toContain('MicrosTracker');
         expect(tracking).toContain("|| 'guest'} flatOnMobile />");
         // [P1-PLAN-LOTE-103] el dashboard del plan ya no monta el contador: vive en la pestaña «Progreso»

@@ -48,6 +48,9 @@ const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true
                                     {meta ? ` / ${formatoMicro(target, f.unit)} ${f.unit}` : ` ${f.unit}`}
                                 </span>
                             </div>
+                            {!compact && techo && target > 0 && !sinDatos && valor < target && (
+                                <span className={styles.ceilingRemaining}>{t('A {n} {unit} del máximo recomendado', { n: formatoMicro(target - valor, f.unit), unit: f.unit })}</span>
+                            )}
                             {sobreMaximo && <span className={styles.limitNote}>{t('Sobre el máximo recomendado')}</span>}
                             <div className={styles.track} role="progressbar" aria-label={f.label} aria-valuemin={0} aria-valuemax={target || undefined} aria-valuenow={Math.round(valor)}>
                                 <div className={`${styles.fill} ${estado}`} style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }} />

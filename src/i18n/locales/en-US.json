@@ -3915,5 +3915,18 @@
   "Calorías y macros: metas del plan, no límites de seguridad. El porcentaje muestra tu consumo real.": "Calories and macros: plan goals, not safety limits. The percentage shows your actual intake.",
   "Máximo recomendado": "Recommended maximum",
   "Sobre el máximo recomendado": "Above the recommended maximum",
-  "Sobre tus metas": "About your goals"
+  "Sobre tus metas": "About your goals",
+  "Meta": "Goal",
+  "Referencia general": "General reference",
+  "A {n} g de la referencia": "{n} g below the reference",
+  "{n} g sobre la referencia": "{n} g above the reference",
+  "En la referencia": "At the reference",
+  "Faltan {n} {unit} para la meta": "{n} {unit} remaining to the goal",
+  "{n} {unit} sobre la meta": "{n} {unit} above the goal",
+  "Meta alcanzada": "Goal reached",
+  "A {n} {unit} del máximo recomendado": "{n} {unit} below the recommended maximum",
+  "Extremo superior del rango orientativo, calculado con las calorías del plan": "Upper end of the general range, calculated using plan calories",
+  "Rangos orientativos de macronutrientes en adultos (AMDR)": "General macronutrient ranges for adults (AMDR)",
+  "La referencia general marca el extremo superior del rango AMDR para adultos: proteína 35%, carbohidratos 65% y grasas 35% de la energía. Los gramos se calculan con las calorías de tu plan; el porcentaje de la barra se calcula con tu meta de cada macro.": "The general reference marks the upper end of the adult AMDR: protein 35%, carbohydrates 65% and fat 35% of energy. Grams are calculated from your plan calories; the bar percentage is calculated from your goal for each macro.",
+  "No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.": "This is not a danger threshold or an extra amount you should eat. Ranges are assessed alongside the whole diet. If your profile requires individual guidance or data is missing, we show only your goal."
 }

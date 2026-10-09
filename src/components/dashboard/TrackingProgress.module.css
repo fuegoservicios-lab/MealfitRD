@@ -374,6 +374,42 @@
     transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
 }
 
+.goalMarker, .referenceMarker {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    width: 0;
+    border-left: 2px solid var(--text-main);
+    opacity: .75;
+    /* Keep the center clear so a percentage crossing a tick remains legible. */
+    mask-image: linear-gradient(black 0 24%, transparent 24% 76%, black 76% 100%);
+    z-index: 2;
+    pointer-events: none;
+}
+.referenceMarker { border-left-style: dashed; }
+.barGuide {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .25rem .75rem;
+    margin-top: .5rem;
+    color: var(--text-muted);
+    font-size: .72rem;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+}
+.barGuide > span { display: inline-flex; align-items: center; gap: .3rem; }
+.goalKey, .referenceKey { height: 9px; border-left: 2px solid currentColor; }
+.referenceKey { border-left-style: dashed; }
+.barRemaining {
+    margin: .2rem 0 0;
+    color: var(--text-muted);
+    font-size: .75rem;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
+}
+.referenceExceeded { color: var(--warning-text, #92400e); }
+
 /* [P3-TRACKING-PERC-DESKTOP · 2026-05-20] Pill `.percRow` oculta globalmente.
    El % vive dentro del fill (battery style). Mantenemos la clase para que
    el JSX no necesite removerse (defensa contra futuro revert). */

@@ -3915,5 +3915,18 @@
   "Calorías y macros: metas del plan, no límites de seguridad. El porcentaje muestra tu consumo real.": "Calories et macros : objectifs du plan, pas des limites de sécurité. Le pourcentage indique votre consommation réelle.",
   "Máximo recomendado": "Maximum recommandé",
   "Sobre el máximo recomendado": "Au-dessus du maximum recommandé",
-  "Sobre tus metas": "À propos de vos objectifs"
+  "Sobre tus metas": "À propos de vos objectifs",
+  "Meta": "Objectif",
+  "Referencia general": "Repère général",
+  "A {n} g de la referencia": "{n} g sous le repère",
+  "{n} g sobre la referencia": "{n} g au-dessus du repère",
+  "En la referencia": "Au niveau du repère",
+  "Faltan {n} {unit} para la meta": "Il reste {n} {unit} pour atteindre l’objectif",
+  "{n} {unit} sobre la meta": "{n} {unit} au-dessus de l’objectif",
+  "Meta alcanzada": "Objectif atteint",
+  "A {n} {unit} del máximo recomendado": "{n} {unit} sous le maximum recommandé",
+  "Extremo superior del rango orientativo, calculado con las calorías del plan": "Extrémité supérieure de la plage indicative, calculée avec les calories du plan",
+  "Rangos orientativos de macronutrientes en adultos (AMDR)": "Plages indicatives de macronutriments pour adultes (AMDR)",
+  "La referencia general marca el extremo superior del rango AMDR para adultos: proteína 35%, carbohidratos 65% y grasas 35% de la energía. Los gramos se calculan con las calorías de tu plan; el porcentaje de la barra se calcula con tu meta de cada macro.": "Le repère général marque l’extrémité supérieure de la plage AMDR pour adultes : protéines 35 %, glucides 65 % et lipides 35 % de l’énergie. Les grammes sont calculés avec les calories de votre plan ; le pourcentage de la barre est calculé avec votre objectif pour chaque macro.",
+  "No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.": "Ce n’est pas un seuil de danger ni une quantité supplémentaire à consommer. Les plages sont évaluées avec l’ensemble de l’alimentation. Si votre profil nécessite des conseils individuels ou s’il manque des données, nous affichons uniquement votre objectif."
 }
