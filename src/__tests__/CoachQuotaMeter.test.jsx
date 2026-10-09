@@ -48,7 +48,9 @@ describe('CoachQuotaMeter', () => {
         const src = readFileSync(resolve(process.cwd(), 'src/pages/AgentPage.jsx'), 'utf8');
         expect(src).toContain("fetchWithAuth('/api/chat/quota')");
         expect(src).toContain('{!isMobile && <CoachQuotaMeter quota={coachQuota} />}');
-        expect(src).toContain('{isMobile && <CoachQuotaMeter quota={coachQuota} variant="row" />}');
+        expect(src).toContain('quota={isMobile ? coachQuota : null}');
+        const menu = readFileSync(resolve(process.cwd(), 'src/components/agent/AgentAccountMenu.jsx'), 'utf8');
+        expect(menu).toContain('<CoachQuotaMeter quota={quota} variant="row" />');
         expect(src).toContain('{isMobile && <CoachQuotaMeter quota={coachQuota} variant="caption" onlyWhenLow />}');
         expect(src).toContain("response.headers.get('X-Coach-Quota-Resets-At')");
         expect(src).toContain('userMessage: _quotaMessage');

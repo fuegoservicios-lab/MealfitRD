@@ -4,6 +4,8 @@ import { useAutosizeTextarea, CHAT_TEXTAREA_MAX_HEIGHT_PX } from '../utils/autos
 import { aplicarCambiosDeVoz } from '../utils/cambiosDeVoz';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
+import { useDashboardAccountActions } from '../context/DashboardAccountActions';
+import AgentAccountMenu from '../components/agent/AgentAccountMenu';
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] SSOT del modo (perfil → espejo local).
 import { isTrackingMode, navItemsFor, neveraActiva } from '../config/dashboardNav';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, AudioLines, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity } from 'lucide-react';
@@ -600,7 +602,11 @@ const AgentPage = () => {
     const [titlePollCount, setTitlePollCount] = useState(0);
     const [showNavMenu, setShowNavMenu] = useState(false);
     const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine !== false);
-    const navMenuRef = useRef(null);
+    const accountActions = useDashboardAccountActions();
+    const closeNavMenu = useCallback(() => setShowNavMenu(false), []);
+    useEffect(() => {
+        if (!isAgentRouteActive) setShowNavMenu(false);
+    }, [isAgentRouteActive]);
     const navMenuTriggerRef = useRef(null);
     const inputWrapperRef = useRef(null);
     const scrollToBottomRef = useRef(null);
@@ -640,43 +646,6 @@ const AgentPage = () => {
             window.removeEventListener('offline', markOffline);
         };
     }, []);
-
-    // Close nav menu on outside click
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (navMenuRef.current && !navMenuRef.current.contains(e.target)) {
-                setShowNavMenu(false);
-            }
-        };
-        if (showNavMenu) document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [showNavMenu]);
-
-    useEffect(() => {
-        if (!showNavMenu) return undefined;
-        const items = () => Array.from(navMenuRef.current?.querySelectorAll('[role="menuitem"]') || []);
-        const frame = requestAnimationFrame(() => items()[0]?.focus());
-        const handleMenuKeyDown = (event) => {
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                setShowNavMenu(false);
-                navMenuTriggerRef.current?.focus();
-                return;
-            }
-            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-            const options = items();
-            if (!options.length) return;
-            event.preventDefault();
-            const current = Math.max(0, options.indexOf(document.activeElement));
-            const direction = event.key === 'ArrowDown' ? 1 : -1;
-            options[(current + direction + options.length) % options.length].focus();
-        };
-        document.addEventListener('keydown', handleMenuKeyDown);
-        return () => {
-            cancelAnimationFrame(frame);
-            document.removeEventListener('keydown', handleMenuKeyDown);
-        };
-    }, [showNavMenu]);
 
     // [MOBILE-KEYBOARD-LIFT] Eleva el input wrapper sobre el teclado iOS.
     // Sin esto, el `position: sticky` no responde al keyboard porque iOS Safari
@@ -6225,7 +6194,7 @@ const AgentPage = () => {
                             en móvil vive en el menú ☰ y como línea sobre el cuadro de texto
                             cuando queda poco o nada (P2-COACH-QUOTA-MOBILE). */}
                         {!isMobile && <CoachQuotaMeter quota={coachQuota} />}
-                        <div ref={navMenuRef} className="nav-menu-wrapper" style={{ position: 'relative', marginRight: '-0.4rem' }}>
+                        <div className="nav-menu-wrapper" style={{ position: 'relative', marginRight: '-0.4rem' }}>
                             <button
                                 ref={navMenuTriggerRef}
                                 className="chat-header-btn"
@@ -6245,67 +6214,23 @@ const AgentPage = () => {
                                     transition: 'all 0.15s'
                                 }}
                                 aria-label={t('Abrir menú de navegación')}
-                                aria-haspopup="menu"
+                                aria-haspopup="dialog"
+                                aria-controls="agent-account-menu"
                                 aria-expanded={showNavMenu}
                             >
                                 <Menu size={24} strokeWidth={2} />
                             </button>
-                            {showNavMenu && (
-                                <div className="nav-dropdown" role="menu" aria-label={t('Navegación')} style={{
-                                    position: 'absolute',
-                                    top: '100%',
-                                    right: 0,
-                                    marginTop: '0.5rem',
-                                    background: 'var(--bg-card)',
-                                    backdropFilter: 'blur(20px)',
-                                    WebkitBackdropFilter: 'blur(20px)',
-                                    borderRadius: '1rem',
-                                    // [P2-NAV-MENU-EDGE · 2026-09-02] En oscuro el menú se fundía con la
-                                    // cabecera: mismo --bg-card y un anillo negro al 4 % sobre negro. Borde
-                                    // real + sombra del tema (la oscura es más densa) + anillo claro tenue.
-                                    border: '1px solid var(--border)',
-                                    boxShadow: 'var(--shadow-xl), 0 0 0 1px rgba(148, 163, 184, 0.12)',
-                                    padding: '0.5rem',
-                                    minWidth: '220px',
-                                    zIndex: 100,
-                                    animation: 'fadeSlideDown 0.2s ease'
-                                }}>
-                                    {isMobile && <CoachQuotaMeter quota={coachQuota} variant="row" />}
-                                    {menuItemsDelAgente(enModoContador, userProfile).map((item) => (
-                                        <button
-                                            role="menuitem"
-                                            key={item.path}
-                                            onClick={() => {
-                                                navigate(item.path, item.asDialog ? { state: { backgroundLocation: location } } : undefined);
-                                                setShowNavMenu(false);
-                                            }}
-                                            className="nav-dropdown-item"
-                                            style={{
-                                                width: '100%',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.75rem',
-                                                padding: '0.75rem 1rem',
-                                                background: 'transparent',
-                                                border: 'none',
-                                                borderRadius: '0.65rem',
-                                                color: 'var(--text-main)',
-                                                fontSize: '0.95rem',
-                                                fontWeight: 500,
-                                                cursor: 'pointer',
-                                                transition: 'all 0.15s ease',
-                                                textAlign: 'left'
-                                            }}
-                                            onTouchStart={e => e.currentTarget.style.background = 'var(--bg-muted)'}
-                                            onTouchEnd={e => e.currentTarget.style.background = 'transparent'}
-                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-muted)'}
-                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                            <item.icon size={20} strokeWidth={1.8} style={{ color: 'var(--text-muted)' }} />
-                                            {item.label}
-                                        </button>
-                                    ))}
-                                </div>
+                            {showNavMenu && isAgentRouteActive && accountActions && (
+                                <AgentAccountMenu
+                                    items={menuItemsDelAgente(enModoContador, userProfile)}
+                                    quota={isMobile ? coachQuota : null}
+                                    triggerRef={navMenuTriggerRef}
+                                    onClose={closeNavMenu}
+                                    onNavigate={item => navigate(item.path, item.asDialog ? { state: { backgroundLocation: location } } : undefined)}
+                                    onHelp={accountActions.onHelp}
+                                    onLogout={accountActions.onLogout}
+                                    logoutLabel={accountActions.logoutLabel}
+                                />
                             )}
                         </div>
                         </div>

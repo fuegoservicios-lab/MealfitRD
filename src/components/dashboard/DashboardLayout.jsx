@@ -13,6 +13,7 @@ import { LayoutDashboard, Activity, Settings, LogOut, Menu, X, Clock, Refrigerat
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
+import { DashboardAccountActionsContext } from '../../context/DashboardAccountActions';
 // [P1-PLAN-LOTE-680] Pestaña con candado → hoja «Guarda tu plan» (login sin salir del plan) en vez de /register.
 import { pedirCuentaInvitado } from '../../utils/hojaGuardarPlan';
 import { navItemsFor, isTrackingMode, repartoTelefono, neveraActiva } from '../../config/dashboardNav';
@@ -96,6 +97,8 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
     // [P2-HELP-CHATBOT · 2026-07-04] Panel del chatbot de ayuda.
     const [isHelpChatOpen, setIsHelpChatOpen] = useState(false);
+    const openAccountHelp = useCallback(() => setIsHelpChatOpen(true), []);
+    const requestAccountLogout = useCallback(() => setShowLogoutModal(true), []);
     const accountMenuRef = useRef(null);
 
     // [P3-AVATAR-CYCLE · 2026-06-20] Avatar elegido (en Ajustes); refleja el cambio
@@ -447,7 +450,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                     className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''} ${isSettings ? styles.bottomBarHidden : ''} ${(isRecipes || isPantry || isHistory) ? styles.recipesEdge : ''}`}
                     style={noPaddingMobile ? { padding: 0, maxWidth: '100vw', overflow: 'hidden', margin: 0, width: '100%', minWidth: 0 } : {}}
                 >
-                    {children}
+                    <DashboardAccountActionsContext.Provider value={{ onHelp: openAccountHelp, onLogout: requestAccountLogout, logoutLabel }}>
+                        {children}
+                    </DashboardAccountActionsContext.Provider>
                 </main>
             </div>
 
