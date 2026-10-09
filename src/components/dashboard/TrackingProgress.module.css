@@ -49,17 +49,20 @@
 .headerActions .scanBtn {
     flex: 1 1 auto;
     min-width: 0;
-    min-height: 44px;
+    min-height: 48px;
     justify-content: center;
 }
 
 .headerActions .shareBtn {
-    width: 44px;
-    min-height: 44px;
+    width: 48px;
+    min-height: 48px;
 }
 
 @container (max-width: 520px) {
-    .headerActions { grid-template-columns: minmax(0, 1fr); }
+    .headerActions {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.3rem;
+    }
 }
 
 .headerIcon {
@@ -204,60 +207,46 @@
     border: 1px solid rgba(99, 102, 241, 0.22);
 }
 
-/* [P2-DIARY-SCAN-MACROS · 2026-05-30] Botón "Escanear comida" del header.
-   [P1-SCAN-BTN-ACCENT · 2026-08-11] El acento indigo pasa a ser el estado EN REPOSO.
-
-   Era un ghost gris cuyo acento vivía SOLO en el `:hover` — y en un teléfono no hay
-   hover. En la pantalla del dueño ese acento era literalmente inalcanzable, así que el
-   único control de la tarjeta se veía siempre en el gris de algo apagado. Un botón que
-   solo se anuncia cuando ya lo estás tocando se anuncia tarde.
-
-   Tinte y no relleno sólido a propósito: el relleno sólido es lo más ruidoso de una
-   pantalla y aquí competiría con las cifras, que son el motivo de la tarjeta. Con borde
-   y texto de acento sobre un fondo teñido ya se lee como «esto se pulsa» sin robar la
-   mirada. Mismo criterio que el acento del landing.
-
-   Va en la MISMA regla y no en una segunda `.scanBtn` debajo: dos reglas con el mismo
-   selector se resuelven por orden, y el siguiente que lea la primera creerá que el botón
-   es gris. */
+/* Registrar comida es la acción principal; diario y compartir tienen menos peso visual. */
 /* [P1-MANUAL-FOOD-LOG · 2026-08-11] El botón de registro. [P1-PLAN-LOTE-85] Era un par
    (componedor + icono de cámara); ahora es uno solo y las dos vías se eligen dentro del componedor. */
 .logButtons {
     display: inline-flex;
     align-items: stretch;
-    gap: 0.4rem;
+    gap: 0.5rem;
+    min-width: 0;
 }
 
 .scanBtn {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.55rem;
     padding: 0.5rem 0.85rem;
-    border-radius: 9px;
-    border: 1px solid #C7D2FE;
-    background: rgba(99, 102, 241, 0.06);
-    color: #4F46E5;
-    font-size: 0.82rem;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background: linear-gradient(135deg, #4F46E5, #4338CA);
+    color: #fff;
+    box-shadow: 0 6px 18px -10px rgba(79, 70, 229, 0.55);
+    font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
     flex-shrink: 0;
 }
 
-.scanBtn svg { color: #6366F1; transition: color 0.15s ease; }
+.scanBtn svg { color: currentColor; flex-shrink: 0; }
 
 .scanBtn:hover {
-    border-color: #A5B4FC;
-    background: rgba(99, 102, 241, 0.13);
+    background: linear-gradient(135deg, #4338CA, #3730A3);
 }
 
-.scanBtn:hover svg { color: #6366F1; }
+.scanBtn:focus-visible,
+.shareBtn:focus-visible {
+    outline: 2px solid #818CF8;
+    outline-offset: 3px;
+}
 
-/* [P1-COMPARTIR-DIA · 2026-09-23] «Compartir mi día»: un icono ANTES de «Registrar comida», con la MISMA piel que
-   `.scanBtn` (borde, tinte, radio, hover y su oscuro) en reglas PROPIAS, no agrupadas: la regla de `.scanBtn` es
-   una sola a propósito (P1-SCAN-BTN-ACCENT). Que las dos pieles no se separen lo vigila ShareDaySheet.test.jsx.
-   Cuadrado y sin texto: una etiqueta más apretaría la cabecera. No estira (ni `flex: 1` ni `width: 100%`): quien
-   llena la fila en el teléfono sigue siendo `.scanBtn` (P2-SCANBTN-PAIR-MOBILE). */
+/* Compartir es secundario: cuadrado de ancho fijo, junto al registro que llena la fila. */
 .shareBtn {
     display: inline-flex;
     align-items: center;
@@ -265,7 +254,7 @@
     width: 38px;
     min-height: 38px;
     padding: 0;
-    border-radius: 9px;
+    border-radius: 14px;
     border: 1px solid #C7D2FE;
     background: rgba(99, 102, 241, 0.06);
     color: #4F46E5;
@@ -945,27 +934,7 @@
     box-shadow: var(--shadow-lg);
 }
 
-/* [P2-DIARY-SCAN-MACROS · 2026-05-30 · P1-SCAN-BTN-ACCENT · 2026-08-11] En oscuro el
-   acento también es el estado en reposo, por la misma razón: sin hover en el teléfono,
-   dejarlo en `--text-muted` habría mantenido el botón apagado justo donde se reportó.
-   El indigo se aclara (400 en vez de 600) porque sobre el slate el tono oscuro se
-   apaga — mismo par de siempre: el color y su fondo se eligen juntos. */
-:global(html[data-theme="dark"]) .scanBtn {
-    border-color: rgba(129, 140, 248, 0.45);
-    color: #A5B4FC;
-    background: rgba(99, 102, 241, 0.12);
-}
-
-:global(html[data-theme="dark"]) .scanBtn svg { color: #A5B4FC; }
-
-:global(html[data-theme="dark"]) .scanBtn:hover {
-    border-color: rgba(129, 140, 248, 0.75);
-    background: rgba(99, 102, 241, 0.2);
-}
-
-:global(html[data-theme="dark"]) .scanBtn:hover svg { color: #A5B4FC; }
-
-/* [P1-COMPARTIR-DIA · 2026-09-23] El oscuro de «Compartir mi día»: el de `.scanBtn`, valor por valor. */
+/* Compartir conserva un tinte suave en oscuro; Registrar comida usa el fondo sólido de base. */
 :global(html[data-theme="dark"]) .shareBtn {
     border-color: rgba(129, 140, 248, 0.45);
     color: #A5B4FC;

@@ -192,10 +192,10 @@ describe('TrackingProgress · compartir', () => {
         expect(src).toMatch(/_todaysMeals\.length > 0[\s\S]{0,200}aria-label=\{t\('Compartir mi día'\)\}/);
     });
 
-    it('el botón de compartir es un cuadrado fijo con la piel de «Registrar comida», que sigue llenando la fila', () => {
+    it('el botón de compartir mantiene ancho fijo mientras «Registrar comida» llena la fila', () => {
         // P2-SCANBTN-PAIR-MOBILE pide re-anclar el reparto flex si vuelve un segundo botón a `.logButtons`: dos
         // botones que estiran desbordan la fila, y el `overflow: hidden` de la tarjeta decapita al segundo. Y como la
-        // regla de `.scanBtn` es UNA (P1-SCAN-BTN-ACCENT), la piel de `.shareBtn` es una copia: que no se separe.
+        // registro conserva el protagonismo y compartir no absorbe el espacio de su etiqueta.
         const css = fs.readFileSync(path.resolve(__dirname, '..', 'components', 'dashboard', 'TrackingProgress.module.css'), 'utf8')
             .replace(/\/\*[\s\S]*?\*\//g, '');
         const reglas = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1].trim(), cuerpo: m[2] }));
@@ -210,17 +210,6 @@ describe('TrackingProgress · compartir', () => {
         }
         expect(decl(primera('.shareBtn'), 'width')).toBe('38px');
 
-        const OSCURO = ':global(html[data-theme="dark"]) ';
-        for (const [scan, share] of [
-            ['.scanBtn', '.shareBtn'], ['.scanBtn svg', '.shareBtn svg'], ['.scanBtn:hover', '.shareBtn:hover'],
-            [`${OSCURO}.scanBtn`, `${OSCURO}.shareBtn`], [`${OSCURO}.scanBtn svg`, `${OSCURO}.shareBtn svg`],
-            [`${OSCURO}.scanBtn:hover`, `${OSCURO}.shareBtn:hover`],
-        ]) {
-            expect(primera(share), `falta la regla ${share}`).not.toBe('');
-            for (const prop of ['border', 'border-color', 'border-radius', 'background', 'color']) {
-                expect(decl(primera(share), prop), `${share} { ${prop} }`).toBe(decl(primera(scan), prop));
-            }
-        }
     });
 });
 

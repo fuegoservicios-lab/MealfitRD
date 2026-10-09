@@ -469,12 +469,12 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.55rem;
+    gap: 0.6rem;
     min-height: 44px;
-    padding: 0.65rem 0.85rem;
-    border-radius: 9px;
-    border: 1px solid var(--border, #E2E8F0);
-    background: var(--bg-muted, #F1F5F9);
+    padding: 0.35rem 0.3rem;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background: transparent;
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-main);
@@ -482,12 +482,20 @@
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.trigger span { flex: 1; text-align: left; }
+.triggerLabel { flex: 1; text-align: left; }
+.triggerIcon {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: rgba(99, 102, 241, 0.1);
+}
 .trigger svg { color: var(--primary); flex-shrink: 0; transition: color 0.15s ease, transform 0.15s ease; }
 
 .trigger:hover {
-    border-color: var(--primary);
-    background: var(--bg-card);
+    background: rgba(99, 102, 241, 0.06);
 }
 
 .trigger:hover svg { color: var(--primary); }
