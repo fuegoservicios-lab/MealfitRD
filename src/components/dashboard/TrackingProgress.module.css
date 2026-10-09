@@ -224,8 +224,7 @@
     padding: 0.5rem 0.85rem;
     border-radius: 14px;
     border: 1px solid transparent;
-    /* Mismo degradado de marca que el botón Guardar alergias (NextButton). */
-    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-dark) 86%, #000) 0%, color-mix(in srgb, var(--secondary-dark) 86%, #000) 100%);
+    background: var(--button-primary-bg);
     color: #fff;
     box-shadow: 0 6px 18px -10px rgba(79, 70, 229, 0.55);
     font-size: 0.9rem;

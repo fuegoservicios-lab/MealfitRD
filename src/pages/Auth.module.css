@@ -518,7 +518,7 @@
     justify-content: center;
     gap: 0.5rem;
     color: #4338ca;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
+    background: rgba(99, 102, 241, 0.06);
     box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.28);
     font-weight: 700;
     font-size: 0.95rem;
@@ -528,7 +528,7 @@
 }
 
 .guestTryBtn:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.10), rgba(16, 185, 129, 0.10));
+    background: rgba(99, 102, 241, 0.10);
     box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.4);
 }
 
@@ -804,12 +804,12 @@
    lo veía con demasiado brillo) y hover muy contenido (solo sube tinte/borde). */
 :global(html[data-theme="dark"]) .guestTryBtn {
     color: #C7D2FE;
-    background: linear-gradient(135deg, rgba(129, 140, 248, 0.10), rgba(52, 211, 153, 0.08));
+    background: rgba(129, 140, 248, 0.10);
     box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.3);
 }
 
 :global(html[data-theme="dark"]) .guestTryBtn:hover {
-    background: linear-gradient(135deg, rgba(129, 140, 248, 0.15), rgba(52, 211, 153, 0.12));
+    background: rgba(129, 140, 248, 0.15);
     box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.45);
 }
 

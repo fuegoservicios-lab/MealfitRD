@@ -149,12 +149,9 @@ describe('lote 151 · el velo del ratón tiene la forma del control', () => {
         expect(flow).toContain('handleSkipToLastStep');
     });
 
-    it('el CTA del formulario contesta al ratón y está menos brillante en reposo', () => {
+    it('el CTA del formulario conserva su respuesta al ratón', () => {
         const btn = leer('src/components/assessment/questions/NextButton.jsx');
         expect(btn).toContain('data-hover="boton"');
-        expect(btn).toContain("color-mix(in srgb, var(--primary-dark) 86%, #000)");
-        expect(btn).toContain("color-mix(in srgb, var(--secondary-dark) 86%, #000)");
-        expect(btn).not.toContain("linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%)");
     });
 
     it('los chats recientes usan la utilidad común, no un hover a mano invisible en oscuro', () => {

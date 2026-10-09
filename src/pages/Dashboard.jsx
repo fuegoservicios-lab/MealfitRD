@@ -7888,7 +7888,7 @@ const DashboardInner = () => {
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '0.4rem',
-                            background: 'linear-gradient(135deg, #4F46E5 0%, #10B981 100%)',
+                            background: 'var(--button-primary-bg)',
                             color: 'white',
                             border: 'none',
                             borderRadius: '0.75rem',

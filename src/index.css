@@ -436,6 +436,7 @@
      bajo AA: parte del efecto era la tinta lavada.
      Aquí: `primary → primary-dark`, que en claro da L* 34,6 y texto blanco a
      7,89:1. La variante oscura vive en su bloque de tema. */
+  --button-primary-bg: #4F46E5;
   --cta-fill: linear-gradient(120deg, var(--primary), var(--primary-dark));
   --cta-shadow: 0 4px 14px -6px color-mix(in srgb, var(--primary) 55%, transparent);
   --cta-shadow-hover: 0 7px 20px -6px color-mix(in srgb, var(--primary) 75%, transparent);

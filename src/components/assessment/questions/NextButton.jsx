@@ -21,23 +21,16 @@ export const NextButton = ({ onClick, disabled, label, icon: Icon = ArrowRight, 
         // de index.css — NO inline — para que los estados puedan variarlo sin que la
         // especificidad del estilo inline lo gane. A pedido del usuario: sin
         // desplazamiento en hover/active y glow discreto (sombra tenue de un solo
-        // color). El gradiente/padding siguen inline.
+        // color). El fondo y el padding siguen inline.
         className="mf-cta-btn"
         // [P1-PLAN-LOTE-151] `.mf-cta-btn` ya traía su resplandor; `data-hover` añade
         // el brillo y el relieve del resto de la app, que ahora SE SUMAN al suyo.
         data-hover="boton"
         style={{
             padding: '1rem 3rem',
-            // [FORM-CTA-CALM-GRADIENT · 2026-07-11] A pedido del usuario ("los siento
-            // muy brillosos"): gradiente a las variantes `-dark` de marca (indigo/emerald
-            // 500) en vez de las aclaradas 400 — menos neón en modo oscuro, look más
-            // sobrio en claro. Scoped al CTA del formulario; no toca las vars globales.
-            // [P1-PLAN-LOTE-151] «aparte está muy brilloso». Segunda bajada: en julio ya se pasó de las
-            // variantes 400 a las `-dark`; ahora esas mismas con un 14 % de negro. Sigue siendo el gradiente
-            // de marca y el texto blanco gana contraste; el hover es el que pone el brillo, no el reposo.
             background: disabled
                 ? 'var(--bg-muted)'
-                : 'linear-gradient(135deg, color-mix(in srgb, var(--primary-dark) 86%, #000) 0%, color-mix(in srgb, var(--secondary-dark) 86%, #000) 100%)',
+                : 'var(--button-primary-bg)',
             color: disabled ? '#94A3B8' : 'white',
             border: 'none',
             borderRadius: '1rem',
