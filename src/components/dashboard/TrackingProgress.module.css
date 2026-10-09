@@ -224,20 +224,21 @@
     padding: 0.5rem 0.85rem;
     border-radius: 14px;
     border: 1px solid transparent;
-    background: linear-gradient(135deg, #4F46E5, #4338CA);
+    /* Mismo degradado de marca que el botón Guardar alergias (NextButton). */
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-dark) 86%, #000) 0%, color-mix(in srgb, var(--secondary-dark) 86%, #000) 100%);
     color: #fff;
     box-shadow: 0 6px 18px -10px rgba(79, 70, 229, 0.55);
     font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
-    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    transition: filter 0.15s ease;
     flex-shrink: 0;
 }
 
 .scanBtn svg { color: currentColor; flex-shrink: 0; }
 
 .scanBtn:hover {
-    background: linear-gradient(135deg, #4338CA, #3730A3);
+    filter: brightness(1.06);
 }
 
 .scanBtn:focus-visible,
