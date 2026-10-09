@@ -43,6 +43,13 @@ async function buscar(correo = 'ana@correo.com') {
 const ultima = () => peticiones[peticiones.length - 1];
 
 describe('[775] /admin · Cuentas', () => {
+    it('permite revertir una recarga gratuita de iPhone incluso en la cuenta administradora', async () => {
+        servidor([['/api/admin/cuentas/buscar', async () => respuesta({ cuenta: ficha({ es_admin: true, regalos: [
+            { id: 'g-ios', tipo: 'creditos_coach', usage_scope: 'ios_free', detalle: 'iPhone · Gratis · 1000 mensajes', estado: 'vigente', motivo: 'Continuidad' },
+        ] }) })]]);
+        await buscar();
+        expect(await screen.findByRole('button', { name: 'Revertir' })).toBeEnabled();
+    });
     it('recarga iPhone gratuitamente sin cambiar la suscripción y conserva la clave al reintentar', async () => {
         const free = { creditos: { usados: 90, regalo: 0, tope: 100 }, coach: { usados: 800, regalo: 0, tope: 1000 } };
         const attempts = [];

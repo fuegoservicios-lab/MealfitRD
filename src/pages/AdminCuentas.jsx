@@ -201,7 +201,7 @@ export function Ficha({ ficha, onAccion, onCambio, onVerDetalle, refVerDetalle }
                                     <span className={styles.regaloDetalle}>{r.detalle}</span>
                                     <span className={styles.sub}>{TEXTOS.lineaRegalo(TEXTOS.estado[r.estado] || r.estado, r.hasta && ultimoDia(r.hasta), r.motivo)}</span>
                                 </div>
-                                {r.estado === 'vigente' && !ficha.es_admin && (
+                                {r.estado === 'vigente' && (!ficha.es_admin || r.usage_scope === 'ios_free') && (
                                     <button type="button" className={styles.boton} onClick={() => onAccion({ tipo: 'revocar', regalo: r })}>{TEXTOS.revertir}</button>
                                 )}
                             </li>
