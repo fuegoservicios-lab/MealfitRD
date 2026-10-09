@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 import styles from './LegalPages.module.css';
-// [P1-PLAN-LOTE-849] Dentro de la app nativa, Términos no señala dónde se compra (Apple 3.1.1); la web lo dice entero.
-import { nativeHidesCommerce } from '../../config/platform';
+import { nativePlatform } from '../../config/platform';
+import { IOS_FREE_GENERATION, IOS_FREE_COACH } from '../../utils/iosFree';
 // [P1-PAPER-LEGAL · 2026-08-02] `CalendarDays` salió con `.metaIcon`: bajo
 // papel el metadato de un pliego se ROTULA en mono, no se ilustra.
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
@@ -326,7 +326,7 @@ export const Privacy = () => (
    TÉRMINOS DE SERVICIO
    ============================================================================ */
 export const Terms = () => (
-    <LegalLayout title="Términos de Servicio" lastUpdated="22 de Agosto, 2026">
+    <LegalLayout title="Términos de Servicio" lastUpdated="9 de Octubre, 2026">
         <p>Bienvenido a Bioboros. Al acceder o utilizar nuestra plataforma usted acepta los presentes Términos de Servicio, que constituyen un acuerdo legalmente vinculante entre usted y Bioboros. Por favor léalos con atención.</p>
 
         <h3>1. Naturaleza del Servicio</h3>
@@ -343,13 +343,15 @@ export const Terms = () => (
         </ul>
         <p>Usted es el único responsable de la confidencialidad de sus credenciales y de todas las actividades realizadas bajo su cuenta. Notifíquenos de inmediato cualquier acceso no autorizado.</p>
 
-        <h3>3. Suscripciones, Planes y Pagos</h3>
+        <h3>3. Acceso gratuito en iPhone y planes de otras plataformas</h3>
+        <p><strong>Aplicación para iPhone:</strong> todas las funciones actuales de la app de la App Store están disponibles gratuitamente, sin compra ni suscripción. Cada cuenta dispone de {IOS_FREE_GENERATION} créditos de generación y {IOS_FREE_COACH.toLocaleString('es')} mensajes del coach al mes, con renovación el primer día del mes. El administrador puede añadir recargas gratuitas de la misma cantidad, válidas durante 14 días; nunca dependen de un pago. Las suscripciones de otras plataformas no amplían el cupo ni desbloquean funciones en iPhone. Si agota el cupo, puede esperar su renovación o solicitar una recarga gratuita al equipo de soporte.</p>
+        {nativePlatform() !== 'ios' && <>
         <p>Ofrecemos un plan gratuito con {TIER_CREDITS.gratis} créditos mensuales y tres planes pagos:</p>
         <PlanesDelContrato />
         <p>Todos los pagos se procesan mediante PayPal. La suscripción se renueva automáticamente al final de cada período (mensual o anual) salvo que usted la cancele desde Ajustes o desde su cuenta de PayPal antes de la fecha de renovación. Las cancelaciones surten efecto al final del período facturado en curso — no realizamos prorrateo de devolución por períodos parcialmente consumidos.</p>
         <p><strong>Reembolsos:</strong> las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Puede cancelar en cualquier momento para detener las renovaciones futuras; conservará el acceso hasta el final del período ya pagado. El detalle está en la <strong>Política de Reembolsos y Cancelaciones</strong>.</p>
         <p>Reservamos el derecho de modificar los precios y planes con notificación previa de treinta (30) días para suscriptores existentes.</p>
-        <p><strong>Aplicación para iPhone:</strong> si usted usa Bioboros desde la app de la App Store, esa app <strong>no vende suscripciones ni incluye ninguna compra</strong>: sólo refleja el plan que usted tenga contratado.{nativeHidesCommerce() ? ' Apple no interviene en el cobro ni en la gestión de su suscripción.' : ' Todas las suscripciones se contratan, renuevan y cancelan exclusivamente en bioboros.com a través de PayPal, según se describe en esta sección. Apple no interviene en el cobro ni en la gestión de su suscripción.'}</p>
+        </>}
 
         <h3>4. Uso Aceptable</h3>
         <p>Usted se compromete a NO:</p>

@@ -1,10 +1,9 @@
 // [P1-IOS-NATIVE-SHELL · 2026-08-21] EL ÚNICO gate de plataforma del frontend.
 //
-// Bioboros se distribuye también como app nativa (Capacitor → App Store). Apple
-// (guidelines 3.1.1 / 3.1.3(b)) prohíbe que la app venda o ENLACE a compras externas:
-// el pago es sólo web (PayPal) y la app nativa se limita a REFLEJAR el tier contratado
-// fuera. Por eso en nativo no existe ninguna superficie de comercio: ni precios, ni
-// «Mejorar plan», ni PayPal, ni el landing de marketing.
+// Bioboros se distribuye también como app nativa (Capacitor → App Store).
+// iOS ofrece un cupo gratuito independiente de las suscripciones web, aplicado
+// por el servidor (ios_free.py) y reflejado por utils/iosFree.js. El comercio web
+// usa PayPal. En nativo no hay precios, «Mejorar plan», PayPal ni marketing comercial.
 //
 // Regla: ninguna superficie decide por su cuenta si está en nativo. Todas importan este
 // módulo. Es la lección de `CAMPOS_DERIVADOS_DEL_SERVIDOR` (AssessmentContext): cuando la
