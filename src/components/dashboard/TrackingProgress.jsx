@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share2, ChevronRight, Info } from 'lucide-react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share, ChevronRight, Info } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -531,7 +531,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                 title={t('Compartir mi día')}
                                 onClick={() => setShareOpen(true)}
                             >
-                                <Share2 size={18} strokeWidth={2.5} aria-hidden="true" />
+                                <Share size={20} strokeWidth={2.25} aria-hidden="true" />
                             </button>
                         )}
                         <button

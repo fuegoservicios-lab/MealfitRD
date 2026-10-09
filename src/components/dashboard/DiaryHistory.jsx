@@ -41,7 +41,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, ChevronRight, Trash2, Loader2, Plus, FlaskConical, Share2 } from 'lucide-react';
+import { X, CalendarDays, ChevronRight, Trash2, Loader2, Plus, FlaskConical, Share } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { confirmToast } from '../../utils/confirmToast';
@@ -505,7 +505,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     aria-label={etiquetaCompartir}
                                     title={etiquetaCompartir}
                                 >
-                                    <Share2 size={18} strokeWidth={2.25} aria-hidden="true" />
+                                    <Share size={20} strokeWidth={2.25} aria-hidden="true" />
                                 </button>
                             )}
                             <button
