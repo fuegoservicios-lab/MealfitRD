@@ -96,6 +96,13 @@
     color: var(--text-muted);
 }
 
+.limitNote {
+    margin: 0 0 6px;
+    color: var(--danger-text);
+    font-size: .75rem;
+    line-height: 1.4;
+}
+
 /* En la ficha y el diario, cada nutriente pone sus cifras debajo del nombre:
    «Sodio · máx.» y «1,103 / 2,000 mg» caben sin reducir ni recortar el texto. */
 .compact .list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }

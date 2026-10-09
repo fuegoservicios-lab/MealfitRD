@@ -35,18 +35,20 @@ const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true
                     const target = meta ? Number(meta.target) || 0 : 0;
                     const ratio = target > 0 ? valor / target : 0;
                     const techo = meta?.kind === 'ceiling';
+                    const sobreMaximo = techo && target > 0 && !sinDatos && valor > target;
                     const estado = !meta || sinDatos ? '' : techo
                         ? (ratio > 1 ? styles.over : ratio > 0.85 ? styles.near : styles.ok)
                         : (ratio >= 1 ? styles.done : '');
                     return (
                         <li key={f.key} className={styles.row}>
                             <div className={styles.rowTop}>
-                                <span className={styles.label}>{f.label}{techo && <span className={styles.tag}>{t('máx.')}</span>}</span>
+                                <span className={styles.label}>{f.label}{techo && <span className={styles.tag} title={t('Máximo recomendado')}>{t('máx.')}</span>}</span>
                                 <span className={styles.value}>
                                     <b>{formatoMicro(valor, f.unit)}</b>
                                     {meta ? ` / ${formatoMicro(target, f.unit)} ${f.unit}` : ` ${f.unit}`}
                                 </span>
                             </div>
+                            {sobreMaximo && <span className={styles.limitNote}>{t('Sobre el máximo recomendado')}</span>}
                             <div className={styles.track} role="progressbar" aria-label={f.label} aria-valuemin={0} aria-valuemax={target || undefined} aria-valuenow={Math.round(valor)}>
                                 <div className={`${styles.fill} ${estado}`} style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }} />
                             </div>
