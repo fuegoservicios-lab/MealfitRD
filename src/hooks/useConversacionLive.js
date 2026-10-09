@@ -187,7 +187,8 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, al
                     session_id: sessionIdRef.current,
                     locale: localeRef.current,
                     local_date: `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`,
-                    tz_offset: -ahora.getTimezoneOffset(),
+                    tz_offset: ahora.getTimezoneOffset(),
+                    tz_offset_convention: 'utc_minus_local',
                 }),
                 timeout: 25000,
             });
