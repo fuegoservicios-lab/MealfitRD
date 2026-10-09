@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share2, ChevronRight } from 'lucide-react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share2, ChevronRight, Info } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -548,7 +548,6 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                 )}
             </div>
 
-            <p className={styles.targetNote}>{t('Calorías y macros: metas del plan, no límites de seguridad. El porcentaje muestra tu consumo real.')}</p>
             <div className={styles.content}>
                 {/* Calorías (Main Bar) */}
                 <ProgressBar
@@ -591,6 +590,15 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     />
                 </div>
             </div>
+
+            <details className={styles.targetHelp}>
+                <summary>
+                    <Info size={14} aria-hidden="true" />
+                    <span>{t('Sobre tus metas')}</span>
+                    <ChevronRight size={14} className={styles.targetHelpChevron} aria-hidden="true" />
+                </summary>
+                <p>{t('Calorías y macros: metas del plan, no límites de seguridad. El porcentaje muestra tu consumo real.')}</p>
+            </details>
 
             {/* [P1-PLAN-LOTE-105 · 2026-09-18] Los micros, bajo las macros y ANTES de la lista de comidas: primero los
                 números del día, después las comidas que los produjeron. Misma lista que el diario de días anteriores. */}

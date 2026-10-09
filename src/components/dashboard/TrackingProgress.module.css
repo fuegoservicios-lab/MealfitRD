@@ -279,11 +279,40 @@
     min-width: 0;
 }
 
-.targetNote {
-    margin: 0 0 18px;
+.targetHelp {
+    margin-top: 14px;
     color: var(--text-muted);
-    font-size: .78rem;
+    font-size: .75rem;
     line-height: 1.5;
+}
+
+.targetHelp summary {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-height: 36px;
+    width: fit-content;
+    max-width: 100%;
+    margin-left: auto;
+    padding: 4px 0 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.targetHelp summary::-webkit-details-marker { display: none; }
+.targetHelp summary:hover { color: var(--text-main); }
+.targetHelp summary:focus-visible { outline: 2px solid #818CF8; outline-offset: 3px; }
+.targetHelp summary svg { flex-shrink: 0; }
+.targetHelp[open] .targetHelpChevron { transform: rotate(90deg); }
+.targetHelp p {
+    margin: 6px 0 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--bg-muted);
+    text-align: left;
+    overflow-wrap: anywhere;
 }
 
 .barIcon {
