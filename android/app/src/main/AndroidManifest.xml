@@ -73,6 +73,11 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Capacitor's WebChromeClient grants WebRTC audio only if BOTH permissions
+         are granted: RECORD_AUDIO (from SpeechRecognition) and MODIFY_AUDIO_SETTINGS.
+         Without the latter getUserMedia fails with NotAllowedError even while
+         native dictation works. This normal permission requires a new APK. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <!-- [P1-PLAN-LOTE-152 · 2026-09-21] Solo van AQUÍ los permisos que ningún plugin declara por su cuenta.
          Capacitor fusiona el manifiesto de cada plugin con éste, así que repetirlos sería ruido que luego
