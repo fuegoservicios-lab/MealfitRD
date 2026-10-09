@@ -37,6 +37,31 @@
     gap: 1rem;
 }
 
+.headerActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: 0.65rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.headerActions .scanBtn {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 44px;
+    justify-content: center;
+}
+
+.headerActions .shareBtn {
+    width: 44px;
+    min-height: 44px;
+}
+
+@container (max-width: 520px) {
+    .headerActions { grid-template-columns: minmax(0, 1fr); }
+}
+
 .headerIcon {
     width: 48px;
     height: 48px;

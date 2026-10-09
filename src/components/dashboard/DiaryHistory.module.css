@@ -464,43 +464,30 @@
 
 /* ------------------------------------------------------------ disparador */
 
-/* El disparador, visto DESDE LA CARD.
- *
- * La v1 era una caja con borde a todo el ancho: `.mealsSection` es una columna
- * flex, así que el `inline-flex` se estiraba por el `align-items: stretch` por
- * defecto y quedaba un rectángulo vacío con cuatro palabras en la esquina —
- * pesaba mucho más de lo que vale y se leía como un campo de formulario.
- *
- * Dos correcciones. `align-self: flex-end` lo devuelve a su tamaño y lo alinea
- * con "Escanear comida" de la cabecera: las acciones de la card quedan en una
- * misma columna a la derecha, que es una razón de alineación, no un capricho.
- * Y pierde el borde: `.scanBtn` es la acción principal y SÍ lo lleva; mirar el
- * pasado es secundario y no debe competir. La jerarquía la marca el peso, no
- * el tamaño.
- */
+/* Acceso al diario en la cabecera: visible incluso cuando hoy no hay comidas. */
 .trigger {
-    align-self: flex-end;
     display: inline-flex;
     align-items: center;
-    gap: 0.42rem;
-    margin-top: 0.15rem;
-    padding: 0.38rem 0.55rem;
-    border-radius: 8px;
-    border: 1px solid transparent;
-    background: transparent;
-    font-size: 0.78rem;
+    justify-content: center;
+    gap: 0.55rem;
+    min-height: 44px;
+    padding: 0.65rem 0.85rem;
+    border-radius: 9px;
+    border: 1px solid var(--border, #E2E8F0);
+    background: var(--bg-muted, #F1F5F9);
+    font-size: 0.85rem;
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--text-main);
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.trigger svg { color: rgba(148, 163, 184, 0.7); transition: color 0.15s ease, transform 0.15s ease; }
+.trigger span { flex: 1; text-align: left; }
+.trigger svg { color: var(--primary); flex-shrink: 0; transition: color 0.15s ease, transform 0.15s ease; }
 
 .trigger:hover {
-    color: var(--text-main);
-    border-color: var(--border, rgba(148, 163, 184, 0.18));
-    background: rgba(148, 163, 184, 0.07);
+    border-color: var(--primary);
+    background: var(--bg-card);
 }
 
 .trigger:hover svg { color: var(--primary); }

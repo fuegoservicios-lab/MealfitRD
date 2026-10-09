@@ -774,9 +774,9 @@ export const DiaryHistoryTrigger = ({ onClick }) => {
     const t = useT();
     return (
         <button type="button" className={styles.trigger} onClick={onClick}>
-            <CalendarDays size={14} />
-            {t('Ver días anteriores')}
-            <ChevronRight size={14} className={styles.triggerChevron} />
+            <CalendarDays size={18} strokeWidth={2.25} aria-hidden="true" />
+            <span>{t('Ver días anteriores')}</span>
+            <ChevronRight size={16} className={styles.triggerChevron} aria-hidden="true" />
         </button>
     );
 };

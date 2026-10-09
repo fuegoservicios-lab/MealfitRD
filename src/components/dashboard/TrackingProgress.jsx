@@ -510,8 +510,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                             número: la meta es contexto de largo plazo y los números de hoy
                             son el motivo por el que abres la tarjeta, así que encabezar con
                             ella empujaba el dato hacia abajo justo en la pantalla donde menos
-                            sitio hay. Al pie convive con «Ver días anteriores», que es el
-                            otro elemento de contexto y no de dato. */}
+                            sitio hay. */}
                     </div>
                 </div>
                 
@@ -522,7 +521,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     // viven DENTRO del componedor como un selector de dos opciones (el dueño:
                     // «desde afuera las dos opciones se ve un poco raro»). El escáner se abre
                     // desde ahí (`handleLogToScan`).
-                    <div className={styles.logButtons}>
+                    <div className={styles.headerActions}>
+                      <div className={styles.logButtons}>
                         {!loading && _todaysMeals.length > 0 && (
                             <button
                                 type="button"
@@ -542,6 +542,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                             <Plus size={18} strokeWidth={2.5} />
                             {t('Registrar comida')}
                         </button>
+                      </div>
+                      <DiaryHistoryTrigger onClick={() => setHistoryOpen(true)} />
                     </div>
                 ) : (
                     <div className={styles.guestBadge}>
@@ -705,11 +707,6 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                             )}
                         </>
                     )}
-                    {/* [P1-DIARY-HISTORY · 2026-07-31] FUERA del ternario a
-                        proposito: el dia vacio es precisamente cuando hace falta
-                        poder mirar atras (el caso reportado fue un panel en cero
-                        con la comida registrada en ayer). */}
-                    <DiaryHistoryTrigger onClick={() => setHistoryOpen(true)} />
                 </div>
             )}
 
