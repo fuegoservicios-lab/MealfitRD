@@ -18,6 +18,7 @@ import AdminFichaAmpliada from './AdminFichaAmpliada';
 import AdminPruebaDetalle from './AdminPruebaDetalle';
 import styles from './AdminCuentas.module.css';
 import { useAdminLoading, useAdminNavigationState } from '../hooks/useAdminNavigation';
+import { IOS_FREE_GENERATION, IOS_FREE_COACH } from '../utils/iosFree';
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
 const TEXTOS = {
@@ -129,7 +130,7 @@ function Medidor({ titulo, m, esAdmin }) {
     );
 }
 
-function Ficha({ ficha, onAccion, onCambio, onVerDetalle, refVerDetalle }) {
+export function Ficha({ ficha, onAccion, onCambio, onVerDetalle, refVerDetalle }) {
     const hayMejor = !ficha.es_admin && planesMejores(ficha.plan_pagado).length > 0;
     return (
         <article className={styles.ficha} aria-label={TEXTOS.cuenta(ficha.email)}>
@@ -137,6 +138,23 @@ function Ficha({ ficha, onAccion, onCambio, onVerDetalle, refVerDetalle }) {
                 <h3 className={styles.correo}>{ficha.email}</h3>
                 <p className={styles.sub}>{[ficha.nombre, TEXTOS.alta(dia(ficha.alta))].filter(Boolean).join(' · ')}</p>
             </header>
+            {ficha.ios_gratis && (
+                <section className={styles.iosGratis} aria-label="iPhone · Gratis">
+                    <div className={styles.iosCabecera}>
+                        <div>
+                            <h4 className={styles.historialTitulo}>iPhone · Gratis</h4>
+                            <p className={styles.sub}>Cupo mensual pensado para 14 días de uso frecuente. Independiente del plan de la web.</p>
+                        </div>
+                        <span className={styles.iosEtiqueta}>Sin pago</span>
+                    </div>
+                    <div className={styles.datos}>
+                        <Medidor titulo="Créditos gratuitos" m={ficha.ios_gratis.creditos} />
+                        <Medidor titulo="Mensajes gratuitos" m={ficha.ios_gratis.coach} />
+                    </div>
+                    <button type="button" className={styles.primario} onClick={() => onAccion({ tipo: 'ios_gratis' })}>Añadir recarga gratuita</button>
+                    <p className={styles.datoNota}>Cada recarga añade {IOS_FREE_COACH.toLocaleString('es-DO')} mensajes y {IOS_FREE_GENERATION} créditos, válidos durante 14 días. Puedes repetirla cuando haga falta.</p>
+                </section>
+            )}
             <div className={styles.datos}>
                 <div className={styles.dato}>
                     <span className={styles.datoEtiqueta}>{TEXTOS.plan}</span>
@@ -212,6 +230,7 @@ function Dialogo({ accion, ficha, onCerrar, onHecho }) {
     const [motivo, setMotivo] = useState('');
     const [enviando, setEnviando] = useState(false);
     const [error, setError] = useState('');
+    const [requestId] = useState(() => crypto.randomUUID());
 
     // [FIX ROUND 1 · 2026-09-28] SSOT a11y de modales custom (P2-CUSTOM-MODALS-A11Y): focus trap
     // (Tab/Shift+Tab ya NO se escapa a los botones de acción de la Ficha detrás del velo — antes
@@ -230,7 +249,13 @@ function Dialogo({ accion, ficha, onCerrar, onHecho }) {
     let boton;
     let valido;
     let peticion;
-    if (accion.tipo === 'creditos') {
+    if (accion.tipo === 'ios_gratis') {
+        titulo = 'Recarga gratuita para iPhone';
+        efecto = `Añadir ${IOS_FREE_COACH.toLocaleString('es-DO')} mensajes y ${IOS_FREE_GENERATION} créditos por 14 días. No cambia la suscripción de la web.`;
+        boton = 'Añadir recarga gratuita';
+        valido = Boolean(ficha.ios_gratis);
+        peticion = [`/api/admin/cuentas/${ficha.user_id}/ios-gratis/recargar`, { request_id: requestId, motivo }];
+    } else if (accion.tipo === 'creditos') {
         titulo = TEXTOS.tituloCreditos;
         efecto = `${m.usados}/${m.tope} → ${m.usados}/${m.tope + n}`;
         boton = TEXTOS.botonCreditos(n, medidor === 'coach');

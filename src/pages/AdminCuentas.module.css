@@ -56,3 +56,21 @@
     .fila { flex-direction: column; }
     .regalo { flex-direction: column; align-items: flex-start; }
 }
+.iosGratis {
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid rgba(129, 140, 248, .28);
+    border-radius: 18px;
+    background: rgba(79, 70, 229, .07);
+    display: grid;
+    gap: 14px;
+}
+.iosCabecera { display: flex; align-items: flex-start; gap: 16px; justify-content: space-between; }
+.iosCabecera h4 { margin: 0 0 6px; }
+.iosEtiqueta { padding: 5px 10px; border-radius: 20px; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); white-space: nowrap; font-size: 12px; }
+.iosGratis > button { min-height: 46px; }
+@media (max-width: 600px) {
+    .iosGratis { padding: 16px; }
+    .iosGratis > button { width: 100%; }
+    .iosCabecera { gap: 10px; }
+}

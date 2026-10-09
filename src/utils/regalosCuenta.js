@@ -3,6 +3,8 @@
 // El tope lo dice el servidor; lo de COBRO decide por el plan PAGADO (`plan_tier_pagado`); cada regalo se anuncia una
 // vez por dispositivo.
 import { TIER_CREDITS, tierDisplayName } from '../config/plans';
+import { nativePlatform } from '../config/platform';
+import { IOS_FREE_GENERATION } from './iosFree';
 // [P2-FRONTEND-LOCALSTORAGE-LINT · 2026-05-23] wrapper fail-safe (iOS Private Mode / cuota) en vez
 // de `localStorage.{get,set}Item` crudo — convención del repo, ya usada en AssessmentContext.jsx.
 import { safeLocalStorageGet, safeLocalStorageSet } from './safeLocalStorage';
@@ -12,6 +14,7 @@ const CLAVE_VISTOS = 'mealfit_regalos_vistos';
 /** Tope de créditos de planes. Manda el servidor (plan efectivo + regalos); sin él, `config/plans.js`. Antes vivía
  *  copiado a mano en AssessmentContext y a Ultra le decía «Ilimitado» cuando el servidor le pone 500. */
 export function limiteDePlanes(tier, servidor) {
+    if (nativePlatform() === 'ios') return servidor?.limit > 0 ? servidor.limit : IOS_FREE_GENERATION;
     if (tier === 'admin') return 'Ilimitado';
     if (servidor && typeof servidor.limit === 'number' && servidor.limit > 0) return servidor.limit;
     return TIER_CREDITS[tier] ?? TIER_CREDITS.gratis;

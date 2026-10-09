@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { iosFreeProfile } from '../utils/iosFree';
 // [P1-8 · 2026-07-09] Estabiliza las funciones plain expuestas (identidad constante,
 // siempre closure fresco) para poder memoizar el value sin re-render storm.
 import { useStableCallback } from '../hooks/useStableCallback';
@@ -471,7 +472,8 @@ export const AssessmentProvider = ({ children }) => {
     const serverGeneratingPlanIdRef = useRef(null);
 
     // Estado del Perfil Real (Base de Datos)
-    const [userProfile, setUserProfile] = useState(null);
+    const [storedUserProfile, setUserProfile] = useState(null);
+    const userProfile = useMemo(() => iosFreeProfile(storedUserProfile), [storedUserProfile]);
 
     // Navegación del Wizard (Pasos de la evaluación)
     // [P1-FORM-RESUME · 2026-06-19] Restaurar la posición persistida para reanudar

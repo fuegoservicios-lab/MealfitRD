@@ -43,6 +43,29 @@ async function buscar(correo = 'ana@correo.com') {
 const ultima = () => peticiones[peticiones.length - 1];
 
 describe('[775] /admin · Cuentas', () => {
+    it('recarga iPhone gratuitamente sin cambiar la suscripción y conserva la clave al reintentar', async () => {
+        const free = { creditos: { usados: 90, regalo: 0, tope: 100 }, coach: { usados: 800, regalo: 0, tope: 1000 } };
+        const attempts = [];
+        servidor([
+            ['/api/admin/cuentas/buscar', async () => respuesta({ cuenta: ficha({ ios_gratis: free }) })],
+            [`/api/admin/cuentas/${UID}/ios-gratis/recargar`, async (_url, options) => {
+                attempts.push(JSON.parse(options.body));
+                return attempts.length === 1 ? respuesta({ detail: 'Intenta de nuevo' }, 503) : respuesta({ cuenta: ficha({ ios_gratis: free }) });
+            }],
+        ]);
+        await buscar();
+        fireEvent.click(await screen.findByRole('button', { name: 'Añadir recarga gratuita' }));
+        const dialog = screen.getByRole('dialog');
+        fireEvent.change(within(dialog).getByLabelText('Motivo'), { target: { value: 'Continuidad gratuita' } });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Añadir recarga gratuita' }));
+        await screen.findByText('Intenta de nuevo');
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Añadir recarga gratuita' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        expect(attempts).toHaveLength(2);
+        expect(attempts[0]).toEqual(attempts[1]);
+        expect(attempts[0].request_id).toMatch(/^[\da-f-]{36}$/);
+        expect(attempts[0]).not.toHaveProperty('plan');
+    });
     beforeEach(() => vi.clearAllMocks());
 
     it('la pestaña cambia la vista y la búsqueda manda el correo con la cabecera de acción', async () => {
