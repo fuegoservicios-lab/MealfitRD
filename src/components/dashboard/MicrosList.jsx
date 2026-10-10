@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
+import { ChevronDown, FlaskConical } from 'lucide-react';
 import { useT } from '../../i18n';
 import { formatoMicro, filasMicros, cantidadMicro, coberturaMicro } from './microsShared';
 import styles from './MicrosList.module.css';
@@ -50,7 +51,10 @@ const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true
             </li>;
         })}</ul>
         <button type="button" className={styles.expand} aria-expanded={expanded} onClick={() => { setExpanded(!expanded); setGroup('all'); }}>
-            {expanded ? t('Mostrar menos') : t('Ver todos los nutrientes')}<span>{expanded ? '⌃' : `${rows.length} · ⌄`}</span>
+            <span className={styles.expandIcon} aria-hidden="true"><FlaskConical size={19} strokeWidth={1.8} /></span>
+            <span className={styles.expandLabel}>{expanded ? t('Mostrar menos') : t('Ver todos los nutrientes')}</span>
+            <span className={styles.expandCount} aria-hidden="true">{rows.length}</span>
+            <ChevronDown className={styles.expandChevron} size={20} strokeWidth={2} aria-hidden="true" />
         </button>
         {showNotes && <details className={styles.explanation}>
             <summary>{t('Sobre las referencias y los datos')}</summary>
