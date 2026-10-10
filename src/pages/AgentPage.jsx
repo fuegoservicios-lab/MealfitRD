@@ -404,6 +404,7 @@ const _durableRetryAttachments = (items) => (items || []).map((item) => ({
     image_url: item.image_url,
     description: item.description,
     kind: item.kind,
+    supplement_facts: item.supplement_facts,
     content_type: item.content_type || item.file?.type,
     name: item.name || item.file?.name || item.sourceFile?.name,
     status: 'ready',
@@ -3794,6 +3795,7 @@ const AgentPage = () => {
                         image_url: data.image_url || '',
                         description: data.analysis_failed ? null : data.description,
                         kind: data.photo_kind || 'plato',
+                        supplement_facts: data.supplement_facts || null,
                         // [P1-PLAN-LOTE-322] las dudas con opciones: bajo la respuesta del coach, como botones
                         dudas: Array.isArray(data.dudas) ? data.dudas : [],
                         analysis_failed: Boolean(data.analysis_failed),
@@ -3838,6 +3840,7 @@ const AgentPage = () => {
                         name: item.file?.name || item.sourceFile?.name,
                         description: item.description,
                         kind: item.kind,
+                        supplement_facts: item.supplement_facts,
                         image_url: item.image_url,
                     })).filter((item) => item.url);
                     return { ...message, attachments: remote, imageUrl: remote[0]?.url || message.imageUrl };
@@ -3890,6 +3893,7 @@ const AgentPage = () => {
                         ? (item.kind === 'otro' ? 'otro' : (item.kind === 'items' ? 'items' : (item.kind === 'etiqueta' ? 'etiqueta' : 'plato')))
                         : 'unavailable',
                     description: item.description || undefined,
+                    supplement_facts: item.supplement_facts || undefined,
                     reason: item.reason || (item.busy ? 'busy' : (item.description ? undefined : 'down')),
                 }));
                 const visionPayload = visionItems.length
