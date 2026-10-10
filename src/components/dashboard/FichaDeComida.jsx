@@ -356,7 +356,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                         <section className={styles.seccion} aria-label={t('Micronutrientes')}>
                             <details className={styles.receta}>
                                 <summary className={styles.recetaResumen}>{t('Micronutrientes')}</summary>
-                                <MicrosList micros={microsDeLaComida} coverage={{ con_datos: 1, total: 1 }} metas={microMetas} compact showNotes={false} />
+                                <MicrosList micros={microsDeLaComida} coverage={{ con_datos: 1, total: 1, by_nutrient: Object.fromEntries(Object.entries(meal?.micros?.coverage || {}).map(([key, c]) => [key, { known: c.known > 0 ? 1 : 0, total: 1, status: c.status, sources: meal?.micros?.provenance?.[key] || [] }])) }} metas={microMetas} compact showNotes={false} />
                             </details>
                         </section>
                     )}

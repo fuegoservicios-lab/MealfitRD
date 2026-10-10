@@ -1,81 +1,65 @@
-// [P1-PLAN-LOTE-103 · 2026-09-18 · fusionado P1-PLAN-LOTE-105] Los OCHO micros del dueño (fibra, sodio, potasio,
-// calcio, hierro, vitamina C, A y D), pintados a partir de lo que ya calculó el servidor.
-//
-// Nació como tarjeta propia («Micros de hoy») con su propio fetch. En el lote 105 se FUSIONA con el contador
-// de macros: una sola tarjeta («Tus macros y micros de hoy»), un solo fetch del día, y la misma lista sirve
-// para el diario de días anteriores, que hasta entonces solo enseñaba las macros. Por eso este fichero ya no
-// pide nada: recibe `micros` (totales del día), `coverage` (con cuántas comidas se calculó) y `metas`, y pinta.
-//
-// Cómo sabe lo que sabe: el backend resuelve los `ingredients` guardados en cada comida registrada contra el
-// catálogo (mismo resolutor que el informe de micros del plan) y devuelve por comida `micros` o `null`; una
-// comida por foto o con macros propias NO trae ingredientes y por tanto no trae micros. La lista lo dice
-// —«con datos de 2 de 3 comidas»— en vez de pintar un cero que parezca medido.
-//
-// Metas: `/api/nutrition/targets.micros` (DRI por sexo/edad/embarazo). El sodio es TECHO (OMS <2000 mg): su
-// barra avisa al pasarse; el resto es SUELO y celebra al llegar. Sin metas se muestran los totales sin barra:
-// nunca una barra contra un cero inventado.
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useT } from '../../i18n';
-import { formatoMicro, filasMicros } from './microsShared';
+import { formatoMicro, filasMicros, cantidadMicro, coberturaMicro } from './microsShared';
 import styles from './MicrosList.module.css';
-// `resumirMicros`, `useMicrosSubtitulo` y `filasMicros` viven en `microsShared.js` (no son componentes: react-refresh)
 
+const MINERALS = new Set(['sodium_mg', 'potassium_mg', 'calcium_mg', 'iron_mg', 'magnesium_mg', 'zinc_mg', 'selenium_mcg', 'iodine_mcg']);
 const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true }) => {
     const t = useT();
-    const cov = coverage || { con_datos: 0, total: 0 };
-    const sinDatos = !micros || cov.con_datos === 0;
+    const [expanded, setExpanded] = useState(false);
+    const [group, setGroup] = useState('all');
+    const rows = filasMicros(t);
+    const visible = (expanded ? rows : rows.slice(0, 8)).filter((f) => group === 'all' || (group === 'minerals' ? MINERALS.has(f.key) : f.key !== 'fiber_g' && !MINERALS.has(f.key)));
     const hayMetas = !!(metas && Object.keys(metas).length);
-
-    return (
-        <div className={compact ? `${styles.wrap} ${styles.compact}` : styles.wrap}>
-            <ul className={styles.list}>
-                {filasMicros(t).map((f) => {
-                    const valor = sinDatos ? 0 : Number(micros?.[f.key] || 0);
-                    const meta = hayMetas ? metas[f.key] : null;
-                    const target = meta ? Number(meta.target) || 0 : 0;
-                    const ratio = target > 0 ? valor / target : 0;
-                    const techo = meta?.kind === 'ceiling';
-                    const sobreMaximo = techo && target > 0 && !sinDatos && valor > target;
-                    const estado = !meta || sinDatos ? '' : techo
-                        ? (ratio > 1 ? styles.over : ratio > 0.85 ? styles.near : styles.ok)
-                        : (ratio >= 1 ? styles.done : '');
-                    return (
-                        <li key={f.key} className={styles.row}>
-                            <div className={styles.rowTop}>
-                                <span className={styles.label}>{f.label}{techo && <span className={styles.tag} title={t('Máximo recomendado')}>{t('máx.')}</span>}</span>
-                                <span className={styles.value}>
-                                    <b>{formatoMicro(valor, f.unit)}</b>
-                                    {meta ? ` / ${formatoMicro(target, f.unit)} ${f.unit}` : ` ${f.unit}`}
-                                </span>
-                            </div>
-                            {!compact && techo && target > 0 && !sinDatos && valor < target && (
-                                <span className={styles.ceilingRemaining}>{t('A {n} {unit} del máximo recomendado', { n: formatoMicro(target - valor, f.unit), unit: f.unit })}</span>
-                            )}
-                            {sobreMaximo && <span className={styles.limitNote}>{t('Sobre el máximo recomendado')}</span>}
-                            <div className={styles.track} role="progressbar" aria-label={f.label} aria-valuemin={0} aria-valuemax={target || undefined} aria-valuenow={Math.round(valor)}>
-                                <div className={`${styles.fill} ${estado}`} style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }} />
-                            </div>
-                        </li>
-                    );
-                })}
-            </ul>
-
-            {showNotes && coverage && cov.total > cov.con_datos && cov.con_datos > 0 && (
-                <p className={styles.note}>{t('Las comidas registradas por foto o con macros propias no traen micros.')}</p>
-            )}
-            {showNotes && coverage && !hayMetas && !sinDatos && (
-                <p className={styles.note}>{t('Sin metas todavía: completa sexo y edad en Configuración.')}</p>
-            )}
-        </div>
-    );
+    return <div className={`${styles.wrap} ${compact ? styles.compact : ''}`}>
+        {expanded && <div className={styles.filters} aria-label={t('Grupo de nutrientes')}>
+            {[['all', t('Todos')], ['minerals', t('Minerales')], ['vitamins', t('Vitaminas')]].map(([id, label]) => <button type="button" key={id} aria-pressed={group === id} onClick={() => setGroup(id)}>{label}</button>)}
+        </div>}
+        <ul className={styles.list}>{visible.map((f) => {
+            const value = cantidadMicro(micros?.[f.key]);
+            const cov = coberturaMicro(f.key, value, coverage);
+            const meta = metas?.[f.key];
+            const target = cantidadMicro(meta?.target) || 0;
+            const ratio = value !== null && target > 0 ? value / target : 0;
+            const techo = meta?.kind === 'ceiling';
+            const partial = cov.status === 'partial';
+            const status = value === null ? t('Sin datos') : partial ? t('Datos parciales') : t('Con datos');
+            const unit = f.key === 'vit_a_mcg' ? 'mcg RAE' : f.unit;
+            const state = value === null || !target ? '' : techo ? (ratio > 1 ? styles.over : ratio > .85 ? styles.near : styles.ok) : ratio >= 1 ? styles.done : '';
+            return <li className={styles.row} key={f.key}>
+                <div className={styles.rowTop}>
+                    <span className={styles.label}>{f.label}{techo && <span className={styles.tag} title={t('Máximo recomendado')}>{t('máx.')}</span>}</span>
+                    <span className={styles.value}><b>{partial && value !== null ? '≥ ' : ''}{formatoMicro(value, unit)}</b>{target > 0 ? ` / ${formatoMicro(target, unit)}` : ''} {unit}</span>
+                </div>
+                <div className={styles.track} {...(value !== null && target > 0 ? { role: 'progressbar', 'aria-label': f.label, 'aria-valuemin': 0, 'aria-valuemax': target, 'aria-valuenow': Math.min(value, target), 'aria-valuetext': `${formatoMicro(value, unit)} ${unit} · ${status}` } : {})}>
+                    <div className={`${styles.fill} ${state}`} style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }} />
+                </div>
+                <details className={styles.evidence}>
+                    <summary>{status}<span aria-hidden="true">⌄</span></summary>
+                    <p>{t('Datos de {known} de {total} comidas', { known: cov.known, total: cov.total })}</p>
+                    {partial && <p>{t('Subtotal conocido; los alimentos sin datos no cuentan como cero.')}</p>}
+                    {meta && <p>{techo ? t('Máximo recomendado') : t('Referencia diaria')}: {formatoMicro(target, unit)} {unit} · {meta.reference_type || 'DRI'}</p>}
+                    {f.key === 'folate_mcg' && <p>{t('DFE: equivalentes de folato dietético; no es la cantidad de ácido fólico.')}</p>}
+                    {f.key === 'vit_e_mg' && <p>{t('Vitamina E expresada como alfa-tocoferol.')}</p>}
+                    {meta?.source && <a href={meta.source} target="_blank" rel="noopener noreferrer">{t('Consultar la referencia')} ↗</a>}
+                    {(cov.sources || []).map((source, i) => <p key={i}>{source.url ? <a href={source.url} target="_blank" rel="noopener noreferrer">{source.source} · {source.description || source.fdc_id} ↗</a> : source.source}{source.retrieved_at ? ` · ${source.retrieved_at.slice(0, 10)}` : ''}</p>)}
+                </details>
+                {techo && value !== null && target > 0 && value > target && <span className={styles.limitNote}>{t('Sobre el máximo recomendado')}</span>}
+                {!compact && techo && !partial && value !== null && target > value && <span className={styles.ceilingRemaining}>{t('A {n} {unit} del máximo recomendado', { n: formatoMicro(target - value, unit), unit })}</span>}
+            </li>;
+        })}</ul>
+        <button type="button" className={styles.expand} aria-expanded={expanded} onClick={() => { setExpanded(!expanded); setGroup('all'); }}>
+            {expanded ? t('Mostrar menos') : t('Ver todos los nutrientes')}<span>{expanded ? '⌃' : `${rows.length} · ⌄`}</span>
+        </button>
+        {showNotes && <details className={styles.explanation}>
+            <summary>{t('Sobre las referencias y los datos')}</summary>
+            <p>{t('Las referencias diarias orientan tu alimentación; superarlas no significa peligro. No son un diagnóstico ni un límite universal de seguridad.')}</p>
+            <p>{t('El máximo de magnesio se aplica a suplementos, no al magnesio de los alimentos. B12 no tiene un máximo establecido; el folato requiere distinguir su forma.')}</p>
+            <p>{t('Los datos se calculan con los ingredientes registrados y el catálogo. Las fotos sin ingredientes pueden quedar sin datos. Una actualización del catálogo puede corregir días anteriores.')}</p>
+        </details>}
+        {showNotes && !hayMetas && <p className={styles.note}>{t('Sin metas todavía: completa sexo y edad en Configuración.')}</p>}
+    </div>;
 };
-
-MicrosList.propTypes = {
-    micros: PropTypes.object,
-    coverage: PropTypes.shape({ con_datos: PropTypes.number, total: PropTypes.number }),
-    metas: PropTypes.object,
-    compact: PropTypes.bool,
-    showNotes: PropTypes.bool,
-};
-
+MicrosList.propTypes = { micros: PropTypes.object, coverage: PropTypes.object, metas: PropTypes.object, compact: PropTypes.bool, showNotes: PropTypes.bool };
 export default MicrosList;

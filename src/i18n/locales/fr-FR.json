@@ -3345,7 +3345,6 @@
     "one": "Avec les données de {n} repas sur {total}",
     "other": "Avec les données de {n} repas sur {total}"
   },
-  "Las comidas registradas por foto o con macros propias no traen micros.": "Les repas enregistrés par photo ou avec des macros saisis n'apportent pas de micros.",
   "Sin metas todavía: completa sexo y edad en Configuración.": "Pas encore d'objectifs : renseignez le sexe et l'âge dans les Réglages.",
   "{n} comidas registradas": {
     "one": "{n} repas enregistré",
@@ -3928,5 +3927,26 @@
   "Extremo superior del rango orientativo, calculado con las calorías del plan": "Extrémité supérieure de la plage indicative, calculée avec les calories du plan",
   "Rangos orientativos de macronutrientes en adultos (AMDR)": "Plages indicatives de macronutriments pour adultes (AMDR)",
   "La referencia general marca el extremo superior del rango AMDR para adultos: proteína 35%, carbohidratos 65% y grasas 35% de la energía. Los gramos se calculan con las calorías de tu plan; el porcentaje de la barra se calcula con tu meta de cada macro.": "Le repère général marque l’extrémité supérieure de la plage AMDR pour adultes : protéines 35 %, glucides 65 % et lipides 35 % de l’énergie. Les grammes sont calculés avec les calories de votre plan ; le pourcentage de la barre est calculé avec votre objectif pour chaque macro.",
-  "No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.": "Ce n’est pas un seuil de danger ni une quantité supplémentaire à consommer. Les plages sont évaluées avec l’ensemble de l’alimentation. Si votre profil nécessite des conseils individuels ou s’il manque des données, nous affichons uniquement votre objectif."
+  "No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.": "Ce n’est pas un seuil de danger ni une quantité supplémentaire à consommer. Les plages sont évaluées avec l’ensemble de l’alimentation. Si votre profil nécessite des conseils individuels ou s’il manque des données, nous affichons uniquement votre objectif.",
+  "Folato (B9)": "Folates (B9)",
+  "Vitamina B6": "Vitamine B6",
+  "Yodo": "Iode",
+  "Grupo de nutrientes": "Groupe de nutriments",
+  "Minerales": "Minéraux",
+  "Vitaminas": "Vitamines",
+  "Sin datos": "Aucune donnée",
+  "Datos parciales": "Données partielles",
+  "Con datos": "Avec données",
+  "Datos de {known} de {total} comidas": "Données de {known} repas sur {total}",
+  "Subtotal conocido; los alimentos sin datos no cuentan como cero.": "Sous-total connu ; les aliments sans données ne comptent pas comme zéro.",
+  "Referencia diaria": "Référence quotidienne",
+  "DFE: equivalentes de folato dietético; no es la cantidad de ácido fólico.": "DFE : équivalents de folates alimentaires ; ce n’est pas la quantité d’acide folique.",
+  "Vitamina E expresada como alfa-tocoferol.": "Vitamine E exprimée en alpha-tocophérol.",
+  "Consultar la referencia": "Consulter la référence",
+  "Mostrar menos": "Afficher moins",
+  "Ver todos los nutrientes": "Voir tous les nutriments",
+  "Sobre las referencias y los datos": "À propos des références et des données",
+  "Las referencias diarias orientan tu alimentación; superarlas no significa peligro. No son un diagnóstico ni un límite universal de seguridad.": "Les références quotidiennes guident votre alimentation ; les dépasser ne signifie pas un danger. Elles ne constituent ni un diagnostic ni une limite universelle de sécurité.",
+  "El máximo de magnesio se aplica a suplementos, no al magnesio de los alimentos. B12 no tiene un máximo establecido; el folato requiere distinguir su forma.": "La limite du magnésium concerne les compléments, pas le magnésium des aliments. La B12 n’a pas de limite établie ; la forme des folates doit être distinguée.",
+  "Los datos se calculan con los ingredientes registrados y el catálogo. Las fotos sin ingredientes pueden quedar sin datos. Una actualización del catálogo puede corregir días anteriores.": "Les données sont calculées à partir des ingrédients enregistrés et du catalogue alimentaire. Les photos sans ingrédients peuvent manquer de données. Une mise à jour du catalogue peut corriger les jours précédents."
 }

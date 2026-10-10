@@ -46,19 +46,20 @@ describe('MicrosList', () => {
         }
         expect(screen.getByText('máx.')).toBeInTheDocument();
         const sodio = screen.getByRole('progressbar', { name: 'Sodio' });
-        expect(sodio.getAttribute('aria-valuenow')).toBe('2310');
+        expect(sodio.getAttribute('aria-valuenow')).toBe('2000');
+        expect(sodio.getAttribute('aria-valuetext')).toContain('2,310');
         expect(sodio.getAttribute('aria-valuemax')).toBe('2000');
         expect(sodio.firstChild.className).toMatch(/over/);
         expect(sodio.firstChild.style.width).toBe('100%');
         const fibra = screen.getByRole('progressbar', { name: 'Fibra' });
         expect(fibra.firstChild.style.width).toBe('51%');
-        expect(screen.getByText('Las comidas registradas por foto o con macros propias no traen micros.')).toBeInTheDocument();
+        expect(screen.getAllByText('Datos parciales')).toHaveLength(8);
     });
 
     it('sin metas no hay barra ni meta inventada', async () => {
         render(<MicrosList micros={HOY.totals.micros} coverage={HOY.totals.micros_coverage} metas={{}} />);
         await screen.findByText('Sin metas todavía: completa sexo y edad en Configuración.');
-        expect(screen.getByRole('progressbar', { name: 'Fibra' }).firstChild.style.width).toBe('0%');
+        expect(screen.queryByRole('progressbar', { name: 'Fibra' })).toBeNull();
         expect(screen.queryByText('/ 38 g')).toBeNull();
     });
 
@@ -68,9 +69,9 @@ describe('MicrosList', () => {
             { id: 'b', micros: null },
             { id: 'c', micros: { values: { fiber_g: 5.5, sodium_mg: 100 }, resolved: 1, total: 1 } },
         ];
-        expect(resumirMicros(meals)).toEqual({ micros: { fiber_g: 15.5, sodium_mg: 600 }, coverage: { con_datos: 2, total: 3 } });
-        expect(resumirMicros([{ id: 'x', micros: null }])).toEqual({ micros: null, coverage: { con_datos: 0, total: 1 } });
-        expect(resumirMicros(undefined)).toEqual({ micros: null, coverage: { con_datos: 0, total: 0 } });
+        expect(resumirMicros(meals)).toMatchObject({ micros: { fiber_g: 15.5, sodium_mg: 600, iodine_mcg: null }, coverage: { con_datos: 2, total: 3, by_nutrient: { fiber_g: { known: 2, total: 3, status: 'partial' } } } });
+        expect(resumirMicros([{ id: 'x', micros: null }])).toMatchObject({ micros: { fiber_g: null }, coverage: { con_datos: 0, total: 1 } });
+        expect(resumirMicros(undefined)).toMatchObject({ micros: { fiber_g: null }, coverage: { con_datos: 0, total: 0 } });
     });
 });
 

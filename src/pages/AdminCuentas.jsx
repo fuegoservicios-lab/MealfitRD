@@ -10,7 +10,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
-import { formatDate } from '../i18n';
+import { formatDate, formatNumber } from '../i18n';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { ultimoDiaDeRegalo } from '../utils/regalosCuenta';
 import AdminCuentasLista from './AdminCuentasLista';
@@ -139,20 +139,20 @@ export function Ficha({ ficha, onAccion, onCambio, onVerDetalle, refVerDetalle }
                 <p className={styles.sub}>{[ficha.nombre, TEXTOS.alta(dia(ficha.alta))].filter(Boolean).join(' · ')}</p>
             </header>
             {ficha.ios_gratis && (
-                <section className={styles.iosGratis} aria-label="iPhone · Gratis">
+                <section className={styles.iosGratis} aria-label="iPhone · Gratis"> {/* [I18N-EXEMPT: panel interno del equipo en español, como TEXTOS] */}
                     <div className={styles.iosCabecera}>
                         <div>
                             <h4 className={styles.historialTitulo}>iPhone · Gratis</h4>
-                            <p className={styles.sub}>Cupo mensual pensado para 14 días de uso frecuente. Independiente del plan de la web.</p>
+                            <p className={styles.sub}>Cupo mensual pensado para 14 días de uso frecuente. Independiente del plan de la web.</p> {/* [I18N-EXEMPT: panel interno del equipo en español, como TEXTOS] */}
                         </div>
-                        <span className={styles.iosEtiqueta}>Sin pago</span>
+                        <span className={styles.iosEtiqueta}>Sin pago</span> {/* [I18N-EXEMPT: panel interno del equipo en español, como TEXTOS] */}
                     </div>
                     <div className={styles.datos}>
                         <Medidor titulo="Créditos gratuitos" m={ficha.ios_gratis.creditos} />
                         <Medidor titulo="Mensajes gratuitos" m={ficha.ios_gratis.coach} />
                     </div>
-                    <button type="button" className={styles.primario} onClick={() => onAccion({ tipo: 'ios_gratis' })}>Añadir recarga gratuita</button>
-                    <p className={styles.datoNota}>Cada recarga añade {IOS_FREE_COACH.toLocaleString('es-DO')} mensajes y {IOS_FREE_GENERATION} créditos, válidos durante 14 días. Puedes repetirla cuando haga falta.</p>
+                    <button type="button" className={styles.primario} onClick={() => onAccion({ tipo: 'ios_gratis' })}>Añadir recarga gratuita</button> {/* [I18N-EXEMPT: panel interno del equipo en español, como TEXTOS] */}
+                    <p className={styles.datoNota}>Cada recarga añade {formatNumber(IOS_FREE_COACH)} mensajes y {IOS_FREE_GENERATION} créditos, válidos durante 14 días. Puedes repetirla cuando haga falta.</p> {/* [I18N-EXEMPT: panel interno del equipo en español, como TEXTOS] */}
                 </section>
             )}
             <div className={styles.datos}>
@@ -251,7 +251,7 @@ function Dialogo({ accion, ficha, onCerrar, onHecho }) {
     let peticion;
     if (accion.tipo === 'ios_gratis') {
         titulo = 'Recarga gratuita para iPhone';
-        efecto = `Añadir ${IOS_FREE_COACH.toLocaleString('es-DO')} mensajes y ${IOS_FREE_GENERATION} créditos por 14 días. No cambia la suscripción de la web.`;
+        efecto = `Añadir ${formatNumber(IOS_FREE_COACH)} mensajes y ${IOS_FREE_GENERATION} créditos por 14 días. No cambia la suscripción de la web.`;
         boton = 'Añadir recarga gratuita';
         valido = Boolean(ficha.ios_gratis);
         peticion = [`/api/admin/cuentas/${ficha.user_id}/ios-gratis/recargar`, { request_id: requestId, motivo }];

@@ -7,7 +7,7 @@
 // dibuja ANTES (al abrir la hoja) y aquí no se espera nada antes de llamar a `share`.
 import { t, formatDate, formatNumber, formatPercent } from '../i18n';
 import { isNativeApp, nativePluginAvailable } from '../config/platform';
-import { formatoMicro, filasMicros } from '../components/dashboard/microsShared';
+import { formatoMicro, filasMicros, cantidadMicro, coberturaMicro } from '../components/dashboard/microsShared';
 import { BRAND } from '../data/routeMeta';
 import { SITE_DOMAIN } from '../config/site';
 
@@ -42,7 +42,8 @@ export function resumenDelDia({ consumed, metas, microMetas = null, incluirComid
     const hayMicros = !!(c.micros && cobertura.con_datos > 0);
     const micros = hayMicros ? filasMicros(t).map((f) => {
         const mm = microMetas?.[f.key];
-        return { ...f, valor: Number(c.micros?.[f.key]) || 0, meta: mm ? Number(mm.target) || 0 : 0, techo: mm?.kind === 'ceiling' };
+        const valor = cantidadMicro(c.micros?.[f.key]);
+        return { ...f, valor, coverage: coberturaMicro(f.key, valor, cobertura), meta: mm ? Number(mm.target) || 0 : 0, techo: mm?.kind === 'ceiling' };
     }) : [];
     return {
         fecha,
@@ -98,9 +99,9 @@ export function textoDelDia(r) {
     });
     if (r.micros.length) {
         lineas.push('');
-        const lista = r.micros.map((f) => (f.techo && f.meta
+        const lista = r.micros.map((f) => f.valor === null ? `${f.label}: ${t('Sin datos')}` : (f.techo && f.meta
             ? t('{etiqueta} {valor} {unidad} (máx. {meta})', { etiqueta: f.label, valor: formatoMicro(f.valor, f.unit), unidad: f.unit, meta: formatoMicro(f.meta, f.unit) })
-            : `${f.label} ${formatoMicro(f.valor, f.unit)}${f.meta ? `/${formatoMicro(f.meta, f.unit)}` : ''} ${f.unit}`));
+            : `${f.label} ${formatoMicro(f.valor, f.unit)}${f.meta ? `/${formatoMicro(f.meta, f.unit)}` : ''} ${f.unit}`) + (f.coverage?.status === 'partial' ? ` (${t('Datos parciales')})` : ''));
         lineas.push(`🧪 ${lista.join(' · ')}`);
         if (r.cobertura.con_datos < r.cobertura.total) {
             lineas.push(t('(micros de {n} de {total} comidas)', { n: r.cobertura.con_datos, total: r.cobertura.total }));

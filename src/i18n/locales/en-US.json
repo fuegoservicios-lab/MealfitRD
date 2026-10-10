@@ -3345,7 +3345,6 @@
     "one": "With data from {n} of {total} meals",
     "other": "With data from {n} of {total} meals"
   },
-  "Las comidas registradas por foto o con macros propias no traen micros.": "Meals logged by photo or with custom macros carry no micros.",
   "Sin metas todavía: completa sexo y edad en Configuración.": "No targets yet: fill in sex and age in Settings.",
   "{n} comidas registradas": {
     "one": "{n} meal logged",
@@ -3928,5 +3927,26 @@
   "Extremo superior del rango orientativo, calculado con las calorías del plan": "Upper end of the general range, calculated using plan calories",
   "Rangos orientativos de macronutrientes en adultos (AMDR)": "General macronutrient ranges for adults (AMDR)",
   "La referencia general marca el extremo superior del rango AMDR para adultos: proteína 35%, carbohidratos 65% y grasas 35% de la energía. Los gramos se calculan con las calorías de tu plan; el porcentaje de la barra se calcula con tu meta de cada macro.": "The general reference marks the upper end of the adult AMDR: protein 35%, carbohydrates 65% and fat 35% of energy. Grams are calculated from your plan calories; the bar percentage is calculated from your goal for each macro.",
-  "No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.": "This is not a danger threshold or an extra amount you should eat. Ranges are assessed alongside the whole diet. If your profile requires individual guidance or data is missing, we show only your goal."
+  "No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.": "This is not a danger threshold or an extra amount you should eat. Ranges are assessed alongside the whole diet. If your profile requires individual guidance or data is missing, we show only your goal.",
+  "Folato (B9)": "Folate (B9)",
+  "Vitamina B6": "Vitamin B6",
+  "Yodo": "Iodine",
+  "Grupo de nutrientes": "Nutrient group",
+  "Minerales": "Minerals",
+  "Vitaminas": "Vitamins",
+  "Sin datos": "No data",
+  "Datos parciales": "Partial data",
+  "Con datos": "With data",
+  "Datos de {known} de {total} comidas": "Data from {known} of {total} meals",
+  "Subtotal conocido; los alimentos sin datos no cuentan como cero.": "Known subtotal; foods without data are not counted as zero.",
+  "Referencia diaria": "Daily reference",
+  "DFE: equivalentes de folato dietético; no es la cantidad de ácido fólico.": "DFE: dietary folate equivalents; this is not the amount of folic acid.",
+  "Vitamina E expresada como alfa-tocoferol.": "Vitamin E expressed as alpha-tocopherol.",
+  "Consultar la referencia": "View the reference",
+  "Mostrar menos": "Show less",
+  "Ver todos los nutrientes": "View all nutrients",
+  "Sobre las referencias y los datos": "About references and data",
+  "Las referencias diarias orientan tu alimentación; superarlas no significa peligro. No son un diagnóstico ni un límite universal de seguridad.": "Daily references guide your diet; exceeding them does not mean danger. They are not a diagnosis or a universal safety limit.",
+  "El máximo de magnesio se aplica a suplementos, no al magnesio de los alimentos. B12 no tiene un máximo establecido; el folato requiere distinguir su forma.": "The magnesium upper limit applies to supplements, not magnesium in food. B12 has no established upper limit; the form of folate matters.",
+  "Los datos se calculan con los ingredientes registrados y el catálogo. Las fotos sin ingredientes pueden quedar sin datos. Una actualización del catálogo puede corregir días anteriores.": "Data are calculated from recorded ingredients and the food catalog. Photos without ingredients may have no data. Catalog updates may correct previous days."
 }

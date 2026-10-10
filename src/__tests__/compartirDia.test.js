@@ -24,7 +24,8 @@ describe('resumenDelDia', () => {
         const r = resumenDelDia({ consumed: CONSUMED, metas: METAS, microMetas: MICRO_METAS });
         expect(r.calorias).toMatchObject({ valor: 1205, meta: 2050, pct: 59 });
         expect(r.macros.map((m) => m.pct)).toEqual([54, 50, 74]);
-        expect(r.micros).toHaveLength(8);
+        expect(r.micros).toHaveLength(17);
+        expect(r.micros.find((m) => m.key === 'iodine_mcg').valor).toBeNull();
         expect(r.micros.find((m) => m.key === 'sodium_mg')).toMatchObject({ valor: 684, meta: 2000, techo: true });
         expect(r.cobertura).toEqual({ con_datos: 1, total: 2 });
         expect(r.comidas).toEqual([]);           // privacidad por defecto

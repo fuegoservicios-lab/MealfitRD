@@ -21,7 +21,7 @@ export function healthSourcesFor(context, text = '') {
     if (context === 'tracking') ids.add('amdr');
     if (/calori|kcal|energ|metabol|tdee|deficit|peso|weight|poids/.test(words)) ids.add('energy');
     if (/comid|alimen|food|meal|kcal|carbo|gras|fat|nutri|portion/.test(words)) ids.add('foods');
-    if (/vitamin|mineral|fibra|fiber|fibre|agua|water|eau|hidrat|hydrat|hierro|iron|ferro|potas|calci|micronutr/.test(words)) ids.add('dri');
+    if (/vitamin|mineral|fibra|fiber|fibre|agua|water|eau|hidrat|hydrat|hierro|iron|ferro|potas|calci|micronutr|magnes|zinc|folat|selen|iodine|yodo|iode/.test(words)) ids.add('dri');
     if (/sodio|sodium|sal\b|salt|sugar|azucar|acucar|sucre|verdura|veget|fruta|fruit|dieta|diet|salud|health|sante/.test(words)) ids.add('diet');
     if (/prote[iy]n|muscul|muscle|fuerza|strength/.test(words)) ids.add('protein');
     if (/diabet|gluc|insulin/.test(words)) ids.add('diabetes');

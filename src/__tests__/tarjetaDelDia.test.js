@@ -73,8 +73,8 @@ describe('dibujarTarjetaDelDia', () => {
             microMetas: { fiber_g: { target: 38, kind: 'floor' }, sodium_mg: { target: 2000, kind: 'ceiling' } },
         }));
         const todos = textos.map((x) => x.s).join(' | ');
-        expect(textos.some((x) => /^2[.,\s]?310 \/ 2[.,\s]?000 mg$/.test(x.s)), todos).toBe(true);
-        expect(textos.some((x) => /^12[.,]4 \/ 38 g$/.test(x.s)), todos).toBe(true);
+        expect(textos.some((x) => /^≥ 2[.,\s]?310 \/ 2[.,\s]?000 mg$/.test(x.s)), todos).toBe(true);
+        expect(textos.some((x) => /^≥ 12[.,]4 \/ 38 g$/.test(x.s)), todos).toBe(true);
         const conMax = textos.filter((x) => /m[aá]x/i.test(x.s));
         expect(conMax.map((x) => x.s), 'la etiqueta se pinta sola y ningún valor la lleva dentro').toEqual(['MÁX.']);
         const [etiqueta] = conMax;

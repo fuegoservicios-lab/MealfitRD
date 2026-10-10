@@ -13,7 +13,7 @@ const FUENTE = '"Outfit", system-ui, -apple-system, "Segoe UI", sans-serif';
 // [P1-PLAN-LOTE-300 · 2026-09-25] Rediseño (el dueño: «más visual, más atractivo y profesional»): anillo grande de
 // calorías, tres anillos de macros, el brote de la marca. Formato 4:5 (1080×1350, el que mejor luce en WhatsApp e
 // Instagram) o historia 9:16 (1080×1920), con el contenido centrado en vertical si sobra alto.
-const ALTO = { cabecera: 250, anillo: 520, macros: 330, microsCab: 110, microFila: 112, comidasCab: 90, comida: 58, pie: 190, comidasBuffer: 50 };
+const ALTO = { cabecera: 250, anillo: 520, macros: 330, microsCab: 110, microFila: 160, comidasCab: 90, comida: 58, pie: 190, comidasBuffer: 50 };
 export const FORMATOS = { publicacion: 1350, historia: 1920 };
 const COLOR = {
     calories: ['#FCD34D', '#F59E0B'], protein: ['#93C5FD', '#3B82F6'], carbs: ['#6EE7B7', '#10B981'], fats: ['#F9A8D4', '#EC4899'],
@@ -242,17 +242,18 @@ export async function dibujarTarjetaDelDia(r, { formato = 'publicacion' } = {}) 
             // El valor lleva el formato de todos también en los techos («2,310 / 2,000 mg»): «2,310 mg · máx. 2,0…» no
             // cabía. El techo lo dice la etiqueta «máx.» junto al nombre, como en la tarjeta de la app (MicrosList).
             // El valor va primero: el nombre y la etiqueta se quedan con el ancho que sobra.
-            const valor = f.meta ? `${formatoMicro(f.valor, f.unit)} / ${formatoMicro(f.meta, f.unit)} ${f.unit}` : `${formatoMicro(f.valor, f.unit)} ${f.unit}`;
-            const anchoValor = _texto(ctx, valor, x + col, yy, { tam: 28, peso: 800, color: TINTA.blanco, alinear: 'right', max: col * 0.62 });
+            const valor = f.valor === null ? t('Sin datos') : `${f.coverage?.status === 'partial' ? '≥ ' : ''}${formatoMicro(f.valor, f.unit)}${f.meta ? ` / ${formatoMicro(f.meta, f.unit)}` : ''} ${f.unit}`;
+            _texto(ctx, valor, x, yy + 36, { tam: 28, peso: 800, color: TINTA.blanco, max: col });
             const maximo = f.techo ? t('máx.') : '';
             const anchoEtiqueta = maximo ? _anchoEtiqueta(ctx, maximo) + ETIQUETA.aire : 0;
             const anchoNombre = _texto(ctx, f.label, x, yy, {
-                tam: 30, peso: 700, color: TINTA.texto, max: Math.max(60, col - anchoValor - 16 - anchoEtiqueta),
+                tam: 30, peso: 700, color: TINTA.texto, max: col - anchoEtiqueta,
             });
             if (maximo) _etiqueta(ctx, maximo, x + anchoNombre + ETIQUETA.aire, yy - 11);   // centro de las mayúsculas a 30 px
             const pct = f.meta ? (f.valor / f.meta) * 100 : 0;
             const colores = f.techo ? (pct > 100 ? ['#F87171', '#EF4444'] : ['#67E8F9', '#22D3EE']) : ['#6EE7B7', '#10B981'];
-            _barra(ctx, x, yy + 22, col, 12, pct, colores);
+            _barra(ctx, x, yy + 60, col, 12, pct, colores);
+            if (f.coverage?.status === 'partial' && f.valor !== null) _texto(ctx, t('Datos parciales'), x, yy + 98, { tam: 23, color: TINTA.apagado, max: col });
         });
         y += Math.ceil(r.micros.length / 2) * ALTO.microFila;
     }

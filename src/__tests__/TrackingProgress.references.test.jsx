@@ -58,6 +58,8 @@ describe('General macro references, separate from personal goals', () => {
     it('shows a sodium maximum distance only with actual data and a supplied ceiling', () => {
         const { rerender } = render(<MicrosList micros={{ sodium_mg: 1103 }} coverage={{ con_datos: 1, total: 2 }}
             metas={{ sodium_mg: { kind: 'ceiling', target: 2000 } }} />);
+        expect(screen.queryByText('A 897 mg del máximo recomendado')).not.toBeInTheDocument();
+        rerender(<MicrosList micros={{ sodium_mg: 1103 }} coverage={{ con_datos: 1, total: 1, by_nutrient: { sodium_mg: { known: 1, total: 1, status: 'complete' } } }} metas={{ sodium_mg: { kind: 'ceiling', target: 2000 } }} />);
         expect(screen.getByText('A 897 mg del máximo recomendado')).toBeInTheDocument();
         rerender(<MicrosList micros={null} coverage={{ con_datos: 0, total: 2 }} metas={{ sodium_mg: { kind: 'ceiling', target: 2000 } }} />);
         expect(screen.queryByText(/del máximo recomendado/)).not.toBeInTheDocument();

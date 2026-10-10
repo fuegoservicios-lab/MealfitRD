@@ -3345,7 +3345,6 @@
     "one": "Com dados de {n} de {total} refeições",
     "other": "Com dados de {n} de {total} refeições"
   },
-  "Las comidas registradas por foto o con macros propias no traen micros.": "Refeições registradas por foto ou com macros próprios não trazem micros.",
   "Sin metas todavía: completa sexo y edad en Configuración.": "Ainda sem metas: preencha sexo e idade em Configurações.",
   "{n} comidas registradas": {
     "one": "{n} refeição registrada",
@@ -3928,5 +3927,26 @@
   "Extremo superior del rango orientativo, calculado con las calorías del plan": "Extremo superior da faixa orientativa, calculado com as calorias do plano",
   "Rangos orientativos de macronutrientes en adultos (AMDR)": "Faixas orientativas de macronutrientes para adultos (AMDR)",
   "La referencia general marca el extremo superior del rango AMDR para adultos: proteína 35%, carbohidratos 65% y grasas 35% de la energía. Los gramos se calculan con las calorías de tu plan; el porcentaje de la barra se calcula con tu meta de cada macro.": "A referência geral marca o extremo superior da faixa AMDR para adultos: proteína 35%, carboidratos 65% e gorduras 35% da energia. Os gramas são calculados com as calorias do seu plano; o percentual da barra é calculado com a sua meta para cada macro.",
-  "No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.": "Não é um limite de perigo nem uma quantidade extra que você deva comer. As faixas são avaliadas junto com a alimentação completa. Se seu perfil requer orientação individual ou faltam dados, mostramos apenas sua meta."
+  "No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.": "Não é um limite de perigo nem uma quantidade extra que você deva comer. As faixas são avaliadas junto com a alimentação completa. Se seu perfil requer orientação individual ou faltam dados, mostramos apenas sua meta.",
+  "Folato (B9)": "Folato (B9)",
+  "Vitamina B6": "Vitamina B6",
+  "Yodo": "Iodo",
+  "Grupo de nutrientes": "Grupo de nutrientes",
+  "Minerales": "Minerais",
+  "Vitaminas": "Vitaminas",
+  "Sin datos": "Sem dados",
+  "Datos parciales": "Dados parciais",
+  "Con datos": "Com dados",
+  "Datos de {known} de {total} comidas": "Dados de {known} de {total} refeições",
+  "Subtotal conocido; los alimentos sin datos no cuentan como cero.": "Subtotal conhecido; alimentos sem dados não contam como zero.",
+  "Referencia diaria": "Referência diária",
+  "DFE: equivalentes de folato dietético; no es la cantidad de ácido fólico.": "DFE: equivalentes de folato dietético; não é a quantidade de ácido fólico.",
+  "Vitamina E expresada como alfa-tocoferol.": "Vitamina E expressa como alfa-tocoferol.",
+  "Consultar la referencia": "Consultar a referência",
+  "Mostrar menos": "Mostrar menos",
+  "Ver todos los nutrientes": "Ver todos os nutrientes",
+  "Sobre las referencias y los datos": "Sobre as referências e os dados",
+  "Las referencias diarias orientan tu alimentación; superarlas no significa peligro. No son un diagnóstico ni un límite universal de seguridad.": "As referências diárias orientam sua alimentação; ultrapassá-las não significa perigo. Não são um diagnóstico nem um limite universal de segurança.",
+  "El máximo de magnesio se aplica a suplementos, no al magnesio de los alimentos. B12 no tiene un máximo establecido; el folato requiere distinguir su forma.": "O limite de magnésio se aplica a suplementos, não ao magnésio dos alimentos. B12 não tem limite estabelecido; é preciso distinguir a forma do folato.",
+  "Los datos se calculan con los ingredientes registrados y el catálogo. Las fotos sin ingredientes pueden quedar sin datos. Una actualización del catálogo puede corregir días anteriores.": "Os dados são calculados com os ingredientes registrados e o catálogo de alimentos. Fotos sem ingredientes podem ficar sem dados. Uma atualização do catálogo pode corrigir dias anteriores."
 }

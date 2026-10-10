@@ -4,6 +4,7 @@ import { useAssessment } from '../../context/AssessmentContext';
 import styles from './LegalPages.module.css';
 import { nativePlatform } from '../../config/platform';
 import { IOS_FREE_GENERATION, IOS_FREE_COACH } from '../../utils/iosFree';
+import { formatNumber } from '../../i18n';
 // [P1-PAPER-LEGAL · 2026-08-02] `CalendarDays` salió con `.metaIcon`: bajo
 // papel el metadato de un pliego se ROTULA en mono, no se ilustra.
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
@@ -344,7 +345,7 @@ export const Terms = () => (
         <p>Usted es el único responsable de la confidencialidad de sus credenciales y de todas las actividades realizadas bajo su cuenta. Notifíquenos de inmediato cualquier acceso no autorizado.</p>
 
         <h3>3. Acceso gratuito en iPhone y planes de otras plataformas</h3>
-        <p><strong>Aplicación para iPhone:</strong> todas las funciones actuales de la app de la App Store están disponibles gratuitamente, sin compra ni suscripción. Cada cuenta dispone de {IOS_FREE_GENERATION} créditos de generación y {IOS_FREE_COACH.toLocaleString('es')} mensajes del coach al mes, con renovación el primer día del mes. El administrador puede añadir recargas gratuitas de la misma cantidad, válidas durante 14 días; nunca dependen de un pago. Las suscripciones de otras plataformas no amplían el cupo ni desbloquean funciones en iPhone. Si agota el cupo, puede esperar su renovación o solicitar una recarga gratuita al equipo de soporte.</p>
+        <p><strong>Aplicación para iPhone:</strong> todas las funciones actuales de la app de la App Store están disponibles gratuitamente, sin compra ni suscripción. Cada cuenta dispone de {IOS_FREE_GENERATION} créditos de generación y {formatNumber(IOS_FREE_COACH)} mensajes del coach al mes, con renovación el primer día del mes. El administrador puede añadir recargas gratuitas de la misma cantidad, válidas durante 14 días; nunca dependen de un pago. Las suscripciones de otras plataformas no amplían el cupo ni desbloquean funciones en iPhone. Si agota el cupo, puede esperar su renovación o solicitar una recarga gratuita al equipo de soporte.</p>
         {nativePlatform() !== 'ios' && <>
         <p>Ofrecemos un plan gratuito con {TIER_CREDITS.gratis} créditos mensuales y tres planes pagos:</p>
         <PlanesDelContrato />

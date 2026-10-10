@@ -1,0 +1,11 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import MicrosList from '../../../src/components/dashboard/MicrosList';
+import { I18nProvider } from '../../../src/i18n';
+import '../../../src/index.css';
+import targets from './targets.json';
+import { dibujarTarjetaDelDia } from '../../../src/utils/tarjetaDelDia';
+import { resumenDelDia } from '../../../src/utils/compartirDia';
+const micros = { fiber_g: 21, sodium_mg: 900, potassium_mg: 2100, calcium_mg: 640, iron_mg: 9, vit_c_mg: 80, vit_a_mcg: 300, vit_d_mcg: 2.1, magnesium_mg: 320, zinc_mg: 7, b12_mcg: .015, folate_mcg: 230, vit_e_mg: 8, vit_k_mcg: 95, selenium_mcg: 45, vit_b6_mg: .6, iodine_mcg: null };
+const coverage = { con_datos: 2, total: 3, by_nutrient: Object.fromEntries(Object.keys(micros).map((key) => [key, { known: key === 'iodine_mcg' ? 0 : 2, total: 3, status: key === 'iodine_mcg' ? 'none' : 'partial' }])) };
+createRoot(document.getElementById('root')).render(<I18nProvider><main style={{ maxWidth: 740, width: 'calc(100% - 32px)', margin: '24px auto', padding: '24px 16px', background: 'var(--bg-card)', borderRadius: 20 }}><h2>Micros</h2><p style={{ color: '#94a3b8', marginBottom: 24 }}>Con datos de 2 de 3 comidas</p><MicrosList micros={micros} coverage={coverage} metas={targets} /><button id="share-test" onClick={async () => { const blob = await dibujarTarjetaDelDia(resumenDelDia({ consumed: { calories: 1450, protein: 90, carbs: 170, fats: 40, meals: [{},{},{}], micros, microsCoverage: coverage }, metas: { calories: 2050, protein: 134, carbs: 251, fats: 57 }, microMetas: targets })); const img = document.createElement('img'); img.id = 'shared-card'; img.src = URL.createObjectURL(blob); img.style.width = '100%'; document.body.appendChild(img); }}>Preview PNG</button></main></I18nProvider>);

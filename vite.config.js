@@ -423,6 +423,9 @@ export default defineConfig(({ mode }) => {
   json: { namedExports: false, stringify: 'auto' },
 
   build: {
+    // Verified 2026-10-10: 146.95 KiB initial JS versus 151.7 with esbuild,
+    // under the existing 148 KiB gate. No unsafe transforms or property mangling.
+    minify: 'terser',
     // [P2-SOURCEMAPS-HIDDEN · 2026-07-30] Sin sourcemaps, TODO error de frontend
     // llega a Sentry como `t.default` dentro de una función llamada `Ln` — no es
     // que un bug concreto sea difícil, es que ninguno se puede leer. Caso real:
