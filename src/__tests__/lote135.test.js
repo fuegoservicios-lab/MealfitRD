@@ -60,15 +60,15 @@ describe('lote 135 · la invitación al plan: una vez por semana y por usuario',
         expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: true, nueva: true });   // el servidor SÍ manda sobre el «1»
     });
 
-    it('SIN PARPADEO: dentro de sus 24 h la tarjeta nace A LA VISTA desde el espejo, sin esperar a la red', async () => {
+    it('SIN PARPADEO: dentro de su minuto la tarjeta nace A LA VISTA desde el espejo, sin esperar a la red', async () => {
         // el dueño: «desaparece 1 segundo y vuelve a aparecer cuando salgo del apartado y vuelvo, no quiero que pase eso»
         fetchWithAuth.mockResolvedValueOnce({ ok: true, json: async () => ({ visible: true, next_at: null }) });
         expect(estadoLocal(CLAVE, 'u1', AHORA)).toBe('desconocido');
         expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: true, nueva: true });   // abre la semana
-        expect(estadoLocal(CLAVE, 'u1', AHORA + 60 * 1000)).toBe('visible');                          // la vuelta al contador
+        expect(estadoLocal(CLAVE, 'u1', AHORA + 30 * 1000)).toBe('visible');                          // la vuelta al contador
         fetchWithAuth.mockRejectedValueOnce(new Error('sin red'));
-        expect(await leerInvitacion(CLAVE, 'u1', AHORA + 60 * 1000)).toEqual({ visible: true, nueva: false });
-        // pasadas sus 24 h se esconde SOLA y sin preguntar a nadie, hasta cumplir la semana
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA + 30 * 1000)).toEqual({ visible: true, nueva: false });
+        // pasado su minuto se esconde SOLA y sin preguntar a nadie, hasta cumplir la semana
         fetchWithAuth.mockClear();
         expect(estadoLocal(CLAVE, 'u1', AHORA + A_LA_VISTA_MS + 1)).toBe('escondida');
         expect(await leerInvitacion(CLAVE, 'u1', AHORA + A_LA_VISTA_MS + 1)).toEqual({ visible: false, nueva: false });
@@ -89,7 +89,7 @@ describe('lote 135 · la invitación al plan: una vez por semana y por usuario',
         const dt = leer('src/components/dashboard/DashboardTracking.jsx');
         expect(dt).toContain("const [dismissed, setDismissed] = useState(() => estadoLocal(_DISMISS_KEY, userId) !== 'visible');");
         expect(dt).toContain("if (local !== 'desconocido') setDismissed(local !== 'visible');");
-        expect(dt).toContain("if (r.nueva) anotarInvitacion(_DISMISS_KEY, userId, 'seen');");
+        expect(dt).toContain("if (r.nueva && visible) anotarInvitacion(_DISMISS_KEY, userId, 'seen');");
         expect(dt).toContain("document.addEventListener('visibilitychange', alVolver);");
         expect(dt.split('onClick={descartar}').length - 1).toBe(2);      // las dos ofertas: encender y reanudar
         expect(dt).toContain("_DISMISS_KEY = 'mealfit_turnon_card_dismissed'");

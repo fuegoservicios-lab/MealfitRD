@@ -6,7 +6,7 @@
 //
 // Por qué la veía «tan seguido»: el descarte vivía SOLO en el localStorage del dispositivo. Cada binario nuevo de
 // TestFlight, cada navegador y la PWA traen un almacén distinto, así que «Ahora no» valía para ESE almacén. Ahora la
-// cuenta la lleva el servidor (`GET/PATCH /api/user/preferences/plan-invite`, backend/plan_invite.py): vista → 24 h a la
+// cuenta la lleva el servidor (`GET/PATCH /api/user/preferences/plan-invite`, backend/plan_invite.py): vista → 1 min a la
 // vista → escondida hasta los 7 días; «Ahora no» → escondida en el acto, 7 días.
 //
 // EL ESPEJO LOCAL (misma clave de siempre) guarda la SEMANA entera, `{ u, visibleUntil, until }`:
@@ -20,7 +20,7 @@ import { fetchWithAuth } from '../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from './safeLocalStorage';
 
 export const SEMANA_MS = 7 * 24 * 60 * 60 * 1000;
-export const A_LA_VISTA_MS = 24 * 60 * 60 * 1000;
+export const A_LA_VISTA_MS = 60 * 1000;
 const RUTA = '/api/user/preferences/plan-invite';
 
 function _espejo(clave, userId) {
@@ -28,14 +28,20 @@ function _espejo(clave, userId) {
         const raw = safeLocalStorageGet(clave, null);
         if (!raw || raw === '1') return null;
         const doc = JSON.parse(raw);
-        return doc && doc.u === String(userId || '') ? doc : null;
+        if (!doc || doc.u !== String(userId || '')) return null;
+        // Previous releases stored a 24-hour window. Keep its original start,
+        // so upgrading or reopening the app does not grant another full minute.
+        if (doc.v !== 2 && Number.isFinite(Number(doc.until))) {
+            doc.visibleUntil = Math.min(Number(doc.visibleUntil) || 0, Number(doc.until) - SEMANA_MS + A_LA_VISTA_MS);
+        }
+        return doc;
     } catch {
         return null;
     }
 }
 
 function _guardar(clave, userId, visibleUntil, until) {
-    safeLocalStorageSet(clave, JSON.stringify({ u: String(userId || ''), visibleUntil, until }));
+    safeLocalStorageSet(clave, JSON.stringify({ v: 2, u: String(userId || ''), visibleUntil, until }));
 }
 
 /** Lo que el espejo local sabe SIN red: 'visible' | 'escondida' | 'desconocido'. Síncrona: decide cómo NACE la tarjeta. */
@@ -49,6 +55,12 @@ export function estadoLocal(clave, userId, ahora = Date.now()) {
 /** Hasta cuándo (ms) está escondida para `userId` según el espejo; 0 = no lo está o no se sabe (incluye el «1» heredado). */
 export function escondidaHasta(clave, userId, ahora = Date.now()) {
     return estadoLocal(clave, userId, ahora) === 'escondida' ? Number(_espejo(clave, userId).until) : 0;
+}
+
+/** Time left in this invitation, shared across tab changes and component remounts. */
+export function tiempoVisibleRestante(clave, userId, ahora = Date.now()) {
+    const doc = _espejo(clave, userId);
+    return doc ? Math.max(0, Math.min(A_LA_VISTA_MS, Number(doc.visibleUntil || 0) - ahora)) : A_LA_VISTA_MS;
 }
 
 /**
@@ -75,6 +87,12 @@ export async function leerInvitacion(clave, userId, ahora = Date.now()) {
             const vuelve = Date.parse(datos.next_at || '');
             _guardar(clave, userId, 0, Number.isFinite(vuelve) && vuelve > ahora ? vuelve : ahora + A_LA_VISTA_MS);
             return { visible: false, nueva: false };
+        }
+        const limite = Date.parse(datos?.visible_until || '');
+        const vuelve = Date.parse(datos?.next_at || '');
+        if (Number.isFinite(limite) && Number.isFinite(vuelve)) {
+            _guardar(clave, userId, limite, vuelve);
+            return { visible: limite > ahora, nueva: false };
         }
         return abrir();
     } catch {

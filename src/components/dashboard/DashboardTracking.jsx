@@ -21,7 +21,7 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalS
 import { reanudarPlanes } from '../../utils/planModeResume';
 import { useAssessment } from '../../context/AssessmentContext';
 import { missingPlanQuestionsCount } from '../../config/formValidation';
-import { leerInvitacion, anotarInvitacion, estadoLocal } from '../../utils/planInvite';
+import { leerInvitacion, anotarInvitacion, estadoLocal, tiempoVisibleRestante } from '../../utils/planInvite';
 import { pedirCompletarFormulario } from '../../utils/completarFormulario';
 import { useT, useTn } from '../../i18n';
 import TrackingProgress from './TrackingProgress';
@@ -38,12 +38,13 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
     const { updateData, session, userProfile } = useAssessment();
     const userId = session?.user?.id || userProfile?.id || '';
     // [P1-PLAN-LOTE-135 · 2026-09-20] Una vez por SEMANA y por USUARIO (utils/planInvite.js). NACE como diga el espejo
-    // local, sin esperar a la red: a la vista si está dentro de sus 24 h, escondida si no. La primera versión nacía
+    // local, sin esperar a la red: a la vista si está dentro de su minuto, escondida si no. La primera versión nacía
     // SIEMPRE escondida y reaparecía un segundo después en cada entrada al contador, empujando todo hacia abajo (el
     // dueño: «desaparece 1 segundo y vuelve a aparecer cuando salgo del apartado y vuelvo, no quiero que pase eso»).
     // El servidor se consulta igual, en segundo plano, y corrige (p. ej. descartada en otro dispositivo). Se vuelve a
     // preguntar al volver a la app: el dashboard es keep-alive y la tarjeta del lunes seguiría pintada el jueves.
     const [dismissed, setDismissed] = useState(() => estadoLocal(_DISMISS_KEY, userId) !== 'visible');
+    const [visibleUntil, setVisibleUntil] = useState(() => Date.now() + tiempoVisibleRestante(_DISMISS_KEY, userId));
     useEffect(() => {
         if (!userId) return undefined;
         let vivo = true;
@@ -51,10 +52,14 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
             // el `userId` puede llegar un render después que la tarjeta: lo que el espejo ya sabe se aplica en el acto
             const local = estadoLocal(_DISMISS_KEY, userId);
             if (local !== 'desconocido') setDismissed(local !== 'visible');
+            setVisibleUntil(Date.now() + tiempoVisibleRestante(_DISMISS_KEY, userId));
             leerInvitacion(_DISMISS_KEY, userId).then((r) => {
                 if (!vivo) return;
-                setDismissed(!r.visible);
-                if (r.nueva) anotarInvitacion(_DISMISS_KEY, userId, 'seen');   // solo la vista que ABRE la semana
+                // A delayed response must not reopen an invitation that expired while loading.
+                const visible = r.visible && estadoLocal(_DISMISS_KEY, userId) !== 'escondida';
+                setDismissed(!visible);
+                setVisibleUntil(Date.now() + tiempoVisibleRestante(_DISMISS_KEY, userId));
+                if (r.nueva && visible) anotarInvitacion(_DISMISS_KEY, userId, 'seen');   // solo la vista que ABRE la semana
             });
         };
         const alVolver = () => { if (document.visibilityState === 'visible') preguntar(); };
@@ -66,6 +71,13 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
         anotarInvitacion(_DISMISS_KEY, userId, 'dismiss');
         setDismissed(true);
     };
+    useEffect(() => {
+        if (dismissed || !userId) return undefined;
+        // Expiration is not an explicit «Ahora no». The original seen time
+        // already keeps this invitation hidden for the rest of the week.
+        const timer = window.setTimeout(() => setDismissed(true), Math.max(0, visibleUntil - Date.now()));
+        return () => window.clearTimeout(timer);
+    }, [dismissed, userId, visibleUntil]);
     // [AUDIT-FORM-COPY · 2026-08-12] En PREGUNTAS (la unidad de la pantalla),
     // no en campos: «Tus Medidas» son 4 campos y UNA pregunta.
     const faltan = missingPlanQuestionsCount(formData || {});
@@ -157,6 +169,8 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
         </div>
     );
 };
+
+export { TurnOnPlanCard };
 
 // [P1-PLAN-LOTE-103 · 2026-09-18] `modo`: «contador» (sin generador: las metas salen de /api/nutrition/targets y va
 // la invitación a encender el plan) o «plan» (la pestaña «Progreso» del modo plan: las metas son las del plan
