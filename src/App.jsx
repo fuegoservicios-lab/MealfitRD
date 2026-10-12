@@ -84,6 +84,16 @@ const ProbarSinCuenta = lazy(() => import('./pages/ProbarSinCuenta'));
 const DashboardLayout = lazy(cargarLayoutDelPanel);
 const Assessment = lazy(() => import('./pages/Assessment'));
 const Plan = lazy(() => import('./pages/Plan'));
+const NotificationOnboarding = lazy(() => import('./components/dashboard/NotificationOnboarding'));
+
+// Fuera de las páginas: el aviso también llega al agente en modo contador y
+// permanece estable al pasar de la generación al panel. No se carga en marketing.
+function NotificationWelcomeHost() {
+  const { pathname } = useLocation();
+  if (pathname !== '/plan' && pathname !== '/dashboard' && !pathname.startsWith('/dashboard/')) return null;
+  if (pathname === '/dashboard/settings') return null;
+  return <Suspense fallback={null}><NotificationOnboarding /></Suspense>;
+}
 const Dashboard = lazy(cargarPagina.hoy);
 
 const Pantry = lazy(cargarPagina.nevera);
@@ -479,6 +489,7 @@ function App() {
         <PublicThemeLock />
         {/* [P3-ROUTE-TITLE · 2026-06-29] Título de pestaña coherente por ruta. */}
         <RouteTitle />
+        <NotificationWelcomeHost />
         {/* [P3-APP-SUBDOMAIN-ROUTING · 2026-06-28] Apex → app.* para rutas de app. */}
         <ApexAppRedirect />
         {/* [P1-PLAN-LOTE-109] Aqui vivia el componente IOSInstallPrompt, el aviso «Instala Bioboros /

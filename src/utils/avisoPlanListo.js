@@ -63,10 +63,10 @@ export function decidir({ estado, firmaAntes, firmaAhora, hayFlag }) {
     return hayFlag ? 'seguir' : 'parar';
 }
 
-/** Al empezar a generar en la app nativa: pide el permiso de notificaciones si aún no se ha decidido. */
+/** Al empezar a generar: aprovecha el permiso existente. El aviso de bienvenida pide consentimiento al pulsar Activar. */
 export function prepararAvisoPlanListo() {
     if (!isNativeApp()) return;
-    permisoAvisosLocales({ pedir: true })
+    permisoAvisosLocales({ pedir: false })
         // [P1-PLAN-LOTE-280] con el permiso, también la push nativa: el servidor avisará aunque Android cierre la app
         .then((p) => (p === 'granted' ? import('../native/pushNativa').then((m) => m.registrarSiHayPermiso()) : null))
         .catch(() => {});

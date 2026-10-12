@@ -8,9 +8,6 @@ import { useAssessment, conservarPlanId } from '../context/AssessmentContext';
 import { pedirCuentaInvitado } from '../utils/hojaGuardarPlan';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-// [P1-PLAN-LOTE-133] Web Push en navegador/PWA y avisos locales en la app nativa, detrás de UNA fachada
-import { estadoDeAvisos, activarAvisos } from '../utils/avisosDeComida';
-
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
     Zap, Flame, ArrowRight, CheckCircle,
@@ -1974,29 +1971,6 @@ const DashboardInner = () => {
     // Si el usuario vuelve a los mismos valores con los que registró compras,
     // la nevera ya tiene esas cantidades → no mostrar botón de nuevo.
 
-    // Estado para el modal de Onboarding de Alertas Inteligentes
-    const [showPushOnboarding, setShowPushOnboarding] = useState(false);
-    const [isPushEnabling, setIsPushEnabling] = useState(false);
-
-    // [P3-DASH-MODALS-A11Y · 2026-05-30] a11y SSOT para el modal de Onboarding
-    // Push. Era el ÚNICO modal del Dashboard sin useModalAccessibility (el restock
-    // modal inline ~línea 209 sí lo usa): overlay full-screen sin role=dialog/ESC/
-    // focus-trap/restore. Dismiss memoizado (identidad estable → el effect del hook
-    // no se re-arma robando foco); ESC = dismiss = marca "visto" (misma semántica
-    // que el botón "Quizá más tarde"). `disableClose=isPushEnabling` evita cerrar
-    // mid-request. Declarado ARRIBA de los early-returns (~731/754) para cumplir
-    // rules-of-hooks. SSOT del dismiss — reemplaza al viejo handleDismissPushOnboarding.
-    const dismissPushOnboarding = useCallback(() => {
-        setShowPushOnboarding(false);
-        // safeLocalStorageSet — raw setItem lanza en iOS Private Mode (P1-PROD-FINAL-3).
-        safeLocalStorageSet('mealfit_push_onboarding_seen', 'true');
-    }, []);
-    const { containerRef: pushOnboardingRef } = useModalAccessibility({
-        isOpen: showPushOnboarding,
-        onClose: dismissPushOnboarding,
-        disableClose: isPushEnabling,
-    });
-
     // Guard contra race condition: evita que la rotación automática dispare handleNewPlan()
     // al mismo tiempo que una acción manual del usuario (movido a useRegeneratePlan)
 
@@ -3440,85 +3414,6 @@ const DashboardInner = () => {
             entry_point
         });
     };
-
-    // --- NUEVO: ONBOARDING DE ALERTAS INTELIGENTES (WEB PUSH) ---
-    useEffect(() => {
-        if (!loadingData && userProfile) {
-            // Evaluamos si es un usuario recién registrado basándonos en la fecha de creación
-            // Consideramos "nuevo" si su cuenta se creó hace menos de unas 2-24 horas, o simplemente
-            // miramos el planCount === 1 (es su primer plan generado)
-            // Por ejemplo, aquí usamos planCount === 1 como proxy de "usuario nuevo", 
-            // ya que está entrando por primera vez con su primer plan.
-            const isNewUser = formData?.isNewUser || planCount === 1;
-
-            // [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23]
-            // safeLocalStorageGet en lugar de raw getItem: iOS Private Mode
-            // lanzaba SecurityError aquí y el callback del useEffect moría
-            // silenciosamente. Onboarding push nunca se disparaba para
-            // usuarios nuevos en Private Mode.
-            const hasSeenOnboarding = safeLocalStorageGet('mealfit_push_onboarding_seen');
-
-            if (isNewUser && !hasSeenOnboarding) {
-                // [P1-PLAN-LOTE-133] Se ofrece donde los avisos PUEDEN funcionar y aún no están encendidos ni bloqueados.
-                // Antes la puerta era `Notification.permission === 'default'`, que en la app nativa no existe: a quien
-                // usa el iPhone jamás se le ofrecían.
-                let cancelado = false;
-                let timer = null;
-                estadoDeAvisos().then((estado) => {
-                    if (cancelado || estado.activo || estado.bloqueado) return;
-                    if (estado.canal !== 'web-push' && estado.canal !== 'local') return;
-                    // Pequeño retraso para que la interfaz se asiente primero antes de mostrar el modal
-                    timer = setTimeout(() => {
-                        setShowPushOnboarding(true);
-                        // [P1-PUSH-ONBOARDING-SEEN-ON-SHOW · 2026-07-09] Marcar 'visto' al MOSTRARLO, no solo al
-                        // activar/descartar. Bug reportado en iOS (móvil): el user activó las alertas pero el
-                        // modal reapareció al reabrir/reiniciar la app — el flag no se había persistido a tiempo
-                        // o el re-trigger corrió antes del handler. Marcando al mostrar, el onboarding aparece a
-                        // lo sumo UNA vez por dispositivo (activar/descartar/navegar → no reaparece). El usuario
-                        // siempre puede activarlas desde Ajustes si las omitió.
-                        safeLocalStorageSet('mealfit_push_onboarding_seen', 'true');
-                    }, 2000);
-                }).catch(() => { /* sin estado legible no se ofrece nada */ });
-                return () => { cancelado = true; if (timer) clearTimeout(timer); };
-            }
-        }
-    }, [loadingData, userProfile, planCount, formData]);
-
-    const handleEnablePush = async () => {
-        setIsPushEnabling(true);
-        try {
-            // [P1-PLAN-LOTE-133] El resultado MANDA: antes se descartaba (la función no lanza, devuelve un código) y el
-            // «¡activadas!» salía aunque el navegador o el servidor hubieran rechazado la suscripción.
-            const r = await activarAvisos();
-            if (r.ok) {
-                toast.success(t('¡Alertas Inteligentes activadas!'), {
-                    description: t('Te avisaremos si olvidas registrar una comida.'),
-                    icon: '🧠'
-                });
-            } else if (r.code === 'permiso_denegado') {
-                toast.info(t('Notificaciones omitidas'), {
-                    description: t('Puedes activarlas más adelante desde Ajustes.')
-                });
-            } else {
-                toast.error(t('No se pudieron activar las alertas'), {
-                    description: t('Puedes activarlas más adelante desde Ajustes.')
-                });
-            }
-        } catch (error) {
-            console.error("Error activando notificaciones:", error);
-        } finally {
-            setIsPushEnabling(false);
-            setShowPushOnboarding(false);
-            // [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorageSet — raw setItem
-            // dentro del finally lanzaba uncaught en iOS Private Mode tras
-            // habilitar push, dejando el modal re-disparable en mount.
-            safeLocalStorageSet('mealfit_push_onboarding_seen', 'true');
-        }
-    };
-
-    // [P3-DASH-MODALS-A11Y · 2026-05-30] `handleDismissPushOnboarding` reemplazado
-    // por `dismissPushOnboarding` (useCallback memoizado, declarado arriba junto al
-    // hook useModalAccessibility del modal). SSOT único del dismiss.
 
     const handleDownloadShoppingList = async () => {
         // [P1-6] Early return si ya hay una descarga en vuelo. `disabled` del
@@ -9899,105 +9794,6 @@ const DashboardInner = () => {
 
 
             {listaImagenes && <ListaImagenPreview imagenes={listaImagenes} onClose={() => setListaImagenes(null)} />}
-            {/* MODAL DE ONBOARDING WEB PUSH (Alertas Inteligentes) */}
-            <AnimatePresence>
-                {showPushOnboarding && (
-                    <div style={{
-                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                        backgroundColor: 'rgba(15, 23, 42, 0.7)',
-                        backdropFilter: 'blur(8px)',
-                        zIndex: 99999,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        padding: '1rem'
-                    }}>
-                        <motion.div
-                            ref={pushOnboardingRef}
-                            role="dialog"
-                            aria-modal="true"
-                            aria-labelledby="push-onboarding-title"
-                            tabIndex={-1}
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            style={{
-                                background: 'var(--bg-card)',
-                                borderRadius: '24px',
-                                padding: '2.5rem 2rem',
-                                width: '100%', maxWidth: '420px',
-                                position: 'relative',
-                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                                textAlign: 'center',
-                                overflow: 'hidden'
-                            }}
-                        >
-                            {/* Decorative background circle */}
-                            <div style={{
-                                position: 'absolute', top: '-50px', left: '50%', transform: 'translateX(-50%)',
-                                width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, rgba(255,255,255,0) 70%)',
-                                borderRadius: '50%', zIndex: 0
-                            }}></div>
-
-                            <div style={{
-                                width: '64px', height: '64px', borderRadius: '20px',
-                                background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                margin: '0 auto 1.5rem auto', position: 'relative', zIndex: 1,
-                                boxShadow: '0 8px 16px rgba(99, 102, 241, 0.3)'
-                            }}>
-                                <Brain size={32} color="#FFFFFF" strokeWidth={2} />
-                            </div>
-
-                            <h2 id="push-onboarding-title" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.75rem', position: 'relative', zIndex: 1 }}>
-                                {t('Activa tu Coach nutricional IA')}
-                            </h2>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem', position: 'relative', zIndex: 1 }}>
-                                {t('Déjame mandarte un aviso a tu celular a la hora de comer para que nunca olvides tu rutina y alcances tus metas más rápido.')}
-                            </p>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative', zIndex: 1 }}>
-                                <button data-hover="boton"
-                                    onClick={handleEnablePush}
-                                    disabled={isPushEnabling}
-                                    style={{
-                                        background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
-                                        color: '#FFFFFF', border: 'none',
-                                        padding: '1rem', borderRadius: '1rem',
-                                        fontWeight: 700, fontSize: '1rem',
-                                        cursor: isPushEnabling ? 'wait' : 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
-                                        opacity: isPushEnabling ? 0.7 : 1,
-                                        transform: isPushEnabling ? 'scale(0.98)' : 'scale(1)',
-                                        transition: 'all 0.2s'
-                                    }}
-                                >
-                                    {isPushEnabling ? (
-                                        <><Loader2 size={20} className="spin-animation" /> {t('Activando...')}</>
-                                    ) : (
-                                        <>{t('¡Sí, encender alertas!')}</>
-                                    )}
-                                </button>
-
-                                <button data-hover="fila"
-                                    onClick={dismissPushOnboarding}
-                                    disabled={isPushEnabling}
-                                    style={{
-                                        background: 'transparent', color: 'var(--text-muted)', border: 'none',
-                                        padding: '0.75rem', borderRadius: '1rem',
-                                        fontWeight: 600, fontSize: '0.9rem',
-                                        cursor: 'pointer',
-                                        transition: 'color 0.2s'
-                                    }}
-                                >
-                                    {t('Quizá más tarde')}
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
             {/* --- MODAL CONFIRMACIÓN ONE-CLICK RESTOCK --- */}
             {/* [P2-CUSTOM-MODALS-A11Y · 2026-05-24] ref + role/aria-modal/
                 aria-labelledby + tabIndex={-1} sobre el contenido del modal.

@@ -72,7 +72,8 @@ describe('[P2-CUSTOM-MODALS-A11Y] hook SSOT', () => {
     });
 
     it('restaura focus al trigger original al cerrar (cleanup)', () => {
-        expect(hookSrc).toMatch(/triggerRef\.current\s*=\s*document\.activeElement/);
+        expect(hookSrc).toMatch(/const trigger = returnFocusRef\?\.current \|\| document\.activeElement/);
+        expect(hookSrc).toMatch(/triggerRef\.current = containerRef\.current\?\.contains\(trigger\) \? null : trigger/);
         // [P1-PLAN-LOTE-101] con `preventScroll`: devolver el foco no desplaza el documento
         expect(hookSrc).toMatch(/triggerRef\.current\.focus\s*\(\s*\{\s*preventScroll:\s*true\s*\}\s*\)/);
     });
@@ -187,30 +188,7 @@ describe('[P2-CUSTOM-MODALS-A11Y] Dashboard restock modal integration', () => {
 //   - "Mobile More Menu" (DashboardLayout.jsx) — overlay full-screen con acción
 //     destructiva (Cerrar Sesión) sin las defensas a11y; el popover de cuenta
 //     desktop equivalente ya tenía ESC + click-outside.
-describe('[P3-DASH-MODALS-A11Y] Push Onboarding modal (Dashboard.jsx)', () => {
-    it('marker presente', () => {
-        expect(dashboardSrc).toMatch(/\[P3-DASH-MODALS-A11Y\s*·\s*2026-05-30\]/);
-    });
-
-    it('invoca useModalAccessibility con isOpen=showPushOnboarding + disableClose=isPushEnabling', () => {
-        expect(dashboardSrc).toMatch(/useModalAccessibility\s*\(\s*\{[\s\S]*?isOpen:\s*showPushOnboarding/);
-        expect(dashboardSrc).toMatch(/onClose:\s*dismissPushOnboarding/);
-        expect(dashboardSrc).toMatch(/disableClose:\s*isPushEnabling/);
-    });
-
-    it('modal root tiene role="dialog" + aria-modal + aria-labelledby + tabIndex + ref + heading id', () => {
-        expect(dashboardSrc).toMatch(/aria-labelledby\s*=\s*["']push-onboarding-title["']/);
-        expect(dashboardSrc).toMatch(/id\s*=\s*["']push-onboarding-title["']/);
-        const idx = dashboardSrc.indexOf('aria-labelledby="push-onboarding-title"');
-        expect(idx).toBeGreaterThan(-1);
-        const around = dashboardSrc.slice(Math.max(0, idx - 400), idx + 400);
-        expect(around).toMatch(/role\s*=\s*["']dialog["']/);
-        expect(around).toMatch(/aria-modal\s*=\s*["']true["']/);
-        expect(around).toMatch(/tabIndex\s*=\s*\{\s*-1\s*\}/);
-        expect(around).toMatch(/ref\s*=\s*\{\s*pushOnboardingRef\s*\}/);
-    });
-});
-
+// La bienvenida compartida se verifica con interacciones en NotificationOnboarding.test.jsx.
 
 describe('[P3-DASH-MODALS-A11Y] Mobile More Menu (DashboardLayout.jsx)', () => {
     it('marker presente', () => {

@@ -143,10 +143,10 @@ describe('[228] el vigía en la app nativa', () => {
 });
 
 describe('[228] cableado', () => {
-    it('pide el permiso al empezar a generar', async () => {
+    it('no pide permiso automáticamente al empezar a generar', async () => {
         permiso = 'prompt';
         prepararAvisoPlanListo();
-        expect(permisoAvisosLocales).toHaveBeenCalledWith({ pedir: true });
+        expect(permisoAvisosLocales).toHaveBeenCalledWith({ pedir: false });
         permiso = 'granted';
         expect(SRC('pages/Plan.jsx')).toContain("import('../utils/avisoPlanListo').then((m) => m.prepararAvisoPlanListo())");
     });

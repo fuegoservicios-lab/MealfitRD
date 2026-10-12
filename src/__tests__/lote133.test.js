@@ -111,10 +111,10 @@ describe('lote 133 · el interruptor de Configuración', () => {
 
 describe('lote 133 · lo demás que hacía falta', () => {
     it('el aviso de bienvenida respeta el resultado y también se ofrece en la app nativa', () => {
-        const db = leer('src/pages/Dashboard.jsx');
-        expect(db).toContain('const r = await activarAvisos();');
+        const db = leer('src/components/dashboard/NotificationOnboarding.jsx');
+        expect(db).toContain('const result = await activarAvisos();');
         expect(db).not.toContain('await subscribeToPushNotifications(userProfile.id);');
-        expect(db).toContain("if (estado.canal !== 'web-push' && estado.canal !== 'local') return;");
+        expect(db).toContain("if (status.canal !== 'local' && status.canal !== 'web-push') return;");
     });
 
     it('cerrar sesión apaga los avisos de ESTA cuenta en este dispositivo, antes de soltar el token', () => {
