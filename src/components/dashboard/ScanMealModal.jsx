@@ -524,6 +524,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
 
             <section className={styles.section} aria-labelledby={`${ids}-cuanto`}>
                 <h3 id={`${ids}-cuanto`} className={styles.sectionTitle}>{t('¿Cuánto comiste?')}</h3>
+                {plato.food_facts && <p>{t('Una porción de la etiqueta: {porcion}', { porcion: plato.food_facts.serving_text })}</p>}
                 {/* [P1-MEAL-SCAN-POLISH] Porción en fila (`fieldRow`): los multiplicadores a lo ancho. */}
                 <div className={styles.fieldRow}>
                     <span className={styles.fieldLabel}>{t('Porción')}</span>
@@ -1018,6 +1019,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                         // entiende desde siempre: "<qty> <unit> de <nombre>". Se guardan con la comida (son su
                         // detalle) y, si el interruptor lo pide, se descuentan de la Nevera.
                         ingredients: ingredientesParaGuardar(p),
+                        food_facts: p.food_facts || undefined,
+                        label_servings: p.food_facts ? p.porcion : undefined,
                         deduct_pantry: descontar,
                         // [P1-PLAN-LOTE-578] cuánto corrigió a la IA (solo conteos); respeta la analítica desactivada
                         scan_meta: isAnalyticsOptedOut() ? undefined : (resumenDeCorrecciones(p) || undefined),

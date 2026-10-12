@@ -86,8 +86,8 @@ describe('la tarjeta fusionada', () => {
         // borrar la única comida con micros → cobertura 0 de 1 y fibra a 0, sin volver a pedir el día
         const llamadas = fetchWithAuth.mock.calls.length;
         fireEvent.click(screen.getByRole('button', { name: 'Eliminar Mangú con huevo del diario' }));
-        await screen.findByText('Ninguna de estas comidas trae micros (foto o macros propias).');
-        expect(screen.getByRole('progressbar', { name: 'Fibra' }).getAttribute('aria-valuenow')).toBe('0');
+        await screen.findByText('Faltan datos de micronutrientes. Añade la etiqueta del alimento en el chat.');
+        expect(screen.queryByRole('progressbar', { name: 'Fibra' })).toBeNull(); // unknown is not zero
         const despues = fetchWithAuth.mock.calls.slice(llamadas).map((c) => String(c[0]));
         expect(despues.filter((u) => u.startsWith('/api/diary/consumed/') && !u.includes('?'))).toHaveLength(1); // solo el DELETE
     });

@@ -1,4 +1,5 @@
 {
+  "Una porción de la etiqueta: {porcion}": "One label serving: {porcion}",
   " (Anual)": " (Annual)",
   " (Mensual)": " (Monthly)",
   " (estimado según tus metas)": " (estimated from your goals)",
@@ -3351,7 +3352,7 @@
     "other": "{n} meals logged"
   },
   "Micros": "Micros",
-  "Ninguna de estas comidas trae micros (foto o macros propias).": "None of these meals carry micros (photo or custom macros).",
+  "Faltan datos de micronutrientes. Añade la etiqueta del alimento en el chat.": "Micronutrient data is missing. Add the food label in the chat.",
   "Extras y snacks": "Extras and snacks",
   "Ver 2 semanas más": "Show 2 more weeks",
   "Últimos 7 días: media de {kcal} kcal en {n} días con registro": {

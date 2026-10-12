@@ -85,7 +85,7 @@ export const useMicrosSubtitulo = () => {
     return (coverage) => {
         if (!coverage) return t('Cargando registros...');
         if (coverage.total === 0) return t('Registra una comida y aquí verás sus micros.');
-        if (coverage.con_datos === 0) return t('Ninguna de estas comidas trae micros (foto o macros propias).');
+        if (coverage.con_datos === 0) return t('Faltan datos de micronutrientes. Añade la etiqueta del alimento en el chat.');
         return tn(coverage.con_datos, 'Con datos de {n} de {total} comidas', 'Con datos de {n} de {total} comidas', { n: coverage.con_datos, total: coverage.total });
     };
 };

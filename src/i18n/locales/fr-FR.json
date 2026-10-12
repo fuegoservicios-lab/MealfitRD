@@ -1,4 +1,5 @@
 {
+  "Una porción de la etiqueta: {porcion}": "Une portion de l’étiquette : {porcion}",
   " (Anual)": " (Annuel)",
   " (Mensual)": " (Mensuel)",
   " (estimado según tus metas)": " (estimation selon vos objectifs)",
@@ -3351,7 +3352,7 @@
     "other": "{n} repas enregistrés"
   },
   "Micros": "Micros",
-  "Ninguna de estas comidas trae micros (foto o macros propias).": "Aucun de ces repas n’apporte de micros (photo ou macros personnalisés).",
+  "Faltan datos de micronutrientes. Añade la etiqueta del alimento en el chat.": "Données sur les micronutriments manquantes. Ajoutez l’étiquette dans le chat.",
   "Extras y snacks": "Extras et collations",
   "Ver 2 semanas más": "Voir 2 semaines de plus",
   "Últimos 7 días: media de {kcal} kcal en {n} días con registro": {

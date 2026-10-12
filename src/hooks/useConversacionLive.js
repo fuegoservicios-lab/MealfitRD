@@ -16,6 +16,7 @@ import { i18nKey } from '../i18n';
 import { sonarModoVoz, DURACION_SONIDO_VOZ_MS } from '../utils/sonidosModoVoz';
 import { crearVigiaDeSilencio, hayActividadDeAudio } from '../utils/cierreVozPorSilencio';
 import { capturarMicrofonoDeVoz } from '../utils/capturaMicrofono';
+import { prepararConexionVoz } from '../utils/prepararConexionVoz';
 import { avisarFalloDeVozEnVivo } from '../utils/diagnosticoVoz';
 
 export const LIVE_SONDEO_MS = 2000;
@@ -160,9 +161,6 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, al
             // The opening tone selects playback. WebKit rejects getUserMedia in that category with
             // InvalidStateError, so select capture-compatible audio BEFORE requesting the microphone.
             try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch { /* sin API */ }
-            c.micro = await capturarMicrofonoDeVoz();
-            if (conexionRef.current !== c || !abiertoRef.current) { soltar(c); return; }
-            c.micro.getTracks().forEach((tr) => { tr.enabled = false; });
             fase = 'webrtc';
             c.pc = new RTCPeerConnection();
             c.audio = document.createElement('audio');
@@ -170,13 +168,13 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, al
             c.audio.setAttribute('playsinline', '');
             document.body.appendChild(c.audio);
             c.pc.ontrack = (e) => { if (conexionRef.current === c) c.audio.srcObject = e.streams[0]; };
-            c.micro.getTracks().forEach((tr) => c.pc.addTrack(tr, c.micro));
             c.dc = c.pc.createDataChannel('oai-events');
             c.dc.onmessage = (m) => { if (conexionRef.current !== c) return; try { alEvento(JSON.parse(m.data)); } catch { /* evento ilegible */ } };
             fase = 'oferta';
-            const oferta = await c.pc.createOffer();
-            fase = 'sdp_local';
-            await c.pc.setLocalDescription(oferta);
+            const oferta = await prepararConexionVoz(c.pc, capturarMicrofonoDeVoz,
+                () => conexionRef.current === c && abiertoRef.current && !c.soltada,
+                (stream) => { c.micro = stream; });
+            if (!oferta) { soltar(c); return; }
             const ahora = new Date();
             fase = 'servidor';
             const r = await fetchWithAuth('/api/chat/live/sesion', {

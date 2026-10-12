@@ -69,6 +69,7 @@ export function platoDesdeAnalisis(data, nombrePorDefecto = '') {
         base,
         componentes: desglose ? componentes : componentes.map((c) => ({ ...c, macros: null })),
         desglose,
+        food_facts: data?.photo_kind === 'etiqueta' ? data.food_facts || null : null,
         porcion: 1,
         ajuste: _cero(),
         // [P1-PLAN-LOTE-305] lo que la foto no deja saber (el análisis lo declara; máx. 2)
@@ -335,6 +336,7 @@ export function kcalDelComponente(c) {
 
 /** Una macro tecleada: se guarda como diferencia con lo derivado (ver cabecera). */
 export function conMacroTecleada(plato, k, raw) {
+    plato = { ...plato, food_facts: null };
     const v = clampMacro(k, raw);
     return { ...plato, ajuste: { ...plato.ajuste, [k]: v - macrosDerivadas(plato)[k] } };
 }
@@ -399,6 +401,7 @@ export function conIngredienteCambiado(plato, key, nombre, macros, anteriores, c
  *  Nombre, ingredientes (en gramos si los trae; si no, 1 porción) y macros salen de ahí; las dudas de la foto se van
  *  (eran sobre lo que la IA creyó ver). Lo demás del plato (id, foto, estado) se conserva. Sin líneas, no cambia. */
 export function platoDesdeDescripcion(plato, data) {
+    plato = { ...plato, food_facts: null };
     const lineas = (Array.isArray(data?.lineas) ? data.lineas : []).filter((l) => l && l.name);
     if (!lineas.length) return plato;
     const componentes = lineas.slice(0, 30).map((l, i) => {

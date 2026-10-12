@@ -1,4 +1,5 @@
 {
+  "Una porción de la etiqueta: {porcion}": "Una porzione dell’etichetta: {porcion}",
   " (Anual)": " (Annuale)",
   " (Mensual)": " (Mensile)",
   " (estimado según tus metas)": " (stima in base ai tuoi obiettivi)",
@@ -3351,7 +3352,7 @@
     "other": "{n} pasti registrati"
   },
   "Micros": "Micro",
-  "Ninguna de estas comidas trae micros (foto o macros propias).": "Nessuno di questi pasti porta micro (foto o macro personalizzati).",
+  "Faltan datos de micronutrientes. Añade la etiqueta del alimento en el chat.": "Mancano dati sui micronutrienti. Aggiungi l’etichetta nella chat.",
   "Extras y snacks": "Extra e spuntini",
   "Ver 2 semanas más": "Vedi altre 2 settimane",
   "Últimos 7 días: media de {kcal} kcal en {n} días con registro": {
