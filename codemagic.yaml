@@ -224,7 +224,7 @@ workflows:
           xcode-project use-profiles --project "$XCODE_PROJECT"
 
       - name: Build number = max(último de TestFlight + 1, contador de Codemagic)
-        # Apple rechaza un build number repetido. MARKETING_VERSION (1.0) se toca a
+        # Apple rechaza un build number repetido. MARKETING_VERSION se toca a
         # mano al publicar.
         #
         # [Build #7, 2026-08-22] «The bundle version must be higher than the
