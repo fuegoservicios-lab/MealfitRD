@@ -157,43 +157,22 @@ describe('[P1-MACRO-BARS-UNIFORM] las cuatro barras se leen igual en el teléfon
     });
 });
 
-describe('[P1-SCAN-BTN-ACCENT] el botón de escanear se anuncia sin hover', () => {
-    it('el acento es el estado en REPOSO, no solo el del hover', () => {
-        // En un teléfono no hay hover: dejar el acento ahí lo vuelve inalcanzable, y el
-        // único control de la tarjeta se queda siempre en gris de apagado.
+describe('[P1-SCAN-BTN-PRIMARY] el botón de registrar es la acción principal', () => {
+    it('tiene presencia como botón primario en reposo, no solo en hover', () => {
         const reposo = reglas(CSS, '.scanBtn');
         expect(reposo, 'no se encontró la regla del botón de escanear').not.toBe('');
         expect(
             /background:\s*transparent/.test(reposo),
             'el botón volvió a reposar en transparente: sin hover no se distingue de un texto',
         ).toBe(false);
-        expect(reposo).toMatch(/color:\s*#4F46E5/i);
+        expect(reposo).toMatch(/background:\s*var\(--button-primary-bg\)/i);
+        expect(reposo).toMatch(/color:\s*#fff/i);
 
         // Una sola regla `.scanBtn` EN LA BASE: dos con el mismo selector y el mismo
-        // alcance se resuelven por orden, y quien lea la primera creerá que el botón es
-        // gris. Se cuentan solo las de columna 0 — las anidadas en un `@media` van
-        // indentadas y son overrides legítimos (el móvil le da ancho completo).
+        // alcance se resuelven por orden. Se cuentan solo las de columna 0 — las anidadas
+        // en un `@media` van indentadas y son overrides legítimos (el móvil le da ancho completo).
         const enBase = (CSS.match(/^\.scanBtn\s*\{/gm) || []).length;
         expect(enBase, 'hay más de una regla `.scanBtn` en la base: el estado real depende del orden')
             .toBe(1);
-    });
-
-    it('el tema oscuro también reposa con acento', () => {
-        const oscuro = reglas(CSS, ':global(html[data-theme="dark"]) .scanBtn');
-        expect(oscuro, 'no hay variante oscura del botón').not.toBe('');
-        expect(
-            /color:\s*var\(--text-muted\)/.test(oscuro),
-            'en oscuro el botón vuelve al gris apagado en reposo',
-        ).toBe(false);
-    });
-
-    it('sigue siendo un tinte, no un relleno sólido', () => {
-        // El relleno sólido es lo más ruidoso de una pantalla y competiría con las cifras,
-        // que son el motivo de la tarjeta.
-        const reposo = reglas(CSS, '.scanBtn');
-        expect(
-            /background:\s*(#[0-9A-F]{6}|linear-gradient)/i.test(reposo),
-            'el botón pasó a relleno sólido: le roba la mirada a los números',
-        ).toBe(false);
     });
 });

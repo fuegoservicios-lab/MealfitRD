@@ -206,5 +206,8 @@
        superior es parte de la identidad que el dueño eligió — ahí no se toca nada. */
     :global(html:not([data-theme="dark"])) .page {
         background: var(--bg-page, #F8FAFC);
+        margin: -0.65rem -0.85rem -2rem;
+        padding: 1rem 1rem 2.5rem;
+        min-height: calc(100dvh - var(--dash-header-h, 66.2px));
     }
 }

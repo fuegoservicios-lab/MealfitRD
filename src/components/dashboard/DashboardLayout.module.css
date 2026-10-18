@@ -598,6 +598,14 @@
         max-width: 100vw !important;
         overflow: hidden !important;
     }
+
+    :global(html:not([data-theme="dark"])) .container {
+        background-color: var(--bg-page, #F8FAFC);
+    }
+
+    :global(html:not([data-theme="dark"])) .container::before {
+        opacity: 0;
+    }
 }
 
 /* ============================================================================

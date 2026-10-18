@@ -250,4 +250,12 @@
   .card.flatMobile .body { display: contents; }
   .card.flatMobile .head { order: -1; }
   .card.flatMobile .vessel { margin-bottom: 18px; }
+
+  :global(html:not([data-theme='dark'])) .card.flatMobile .vessel {
+    background: color-mix(in srgb, var(--water-3) 7%, #FFFFFF);
+    border: 1px solid color-mix(in srgb, var(--water-3) 22%, var(--border));
+  }
+  :global(html:not([data-theme='dark'])) .card.flatMobile .stepper {
+    background: #FFFFFF;
+  }
 }
