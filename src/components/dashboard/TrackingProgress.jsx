@@ -79,6 +79,7 @@ const _getMealTypeLabels = (t) => ({
     cena: t('Cena'),
     merienda: t('Merienda'),
     snack: t('Snack'),
+    suplemento: t('Suplemento'),
     // [P1-PLAN-LOTE-721] el default del componedor; sin entrada salía «Extra» capitalizado a mano en todos los idiomas
     extra: t('Extra'),
 });

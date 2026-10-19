@@ -77,6 +77,19 @@ describe('getEatenSlotIndices — REGLA DE MATCH', () => {
         expect(getEatenSlotIndices(null, null).size).toBe(0);
         expect(getEatenSlotIndices(FOUR_MEALS, [{ meal_type: 'bogus', calories: 1 }]).size).toBe(0);
     });
+
+    it('does not mark breakfast as eaten for supplement or 0-cal creatine', () => {
+        const threeMeals = [{ meal: 'Desayuno' }, { meal: 'Almuerzo' }, { meal: 'Cena' }];
+        const idxSupp = getEatenSlotIndices(threeMeals, [
+            { meal_type: 'suplemento', meal_name: '1 cápsula de creatina', calories: 0 },
+        ]);
+        expect(idxSupp.size).toBe(0);
+
+        const idxSuppFlag = getEatenSlotIndices(threeMeals, [
+            { meal_type: 'desayuno', meal_name: '1 cápsula de creatina', calories: 0, suplemento: 'Creatina' },
+        ]);
+        expect(idxSuppFlag.size).toBe(0);
+    });
 });
 
 describe('getEatenSlotIndices — REGLA DE AMBIGÜEDAD (el corazón del fix)', () => {

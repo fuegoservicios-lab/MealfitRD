@@ -60,6 +60,7 @@ const getFranjas = (t) => {
         merienda: { texto: t('Merienda'), color: '#F472B6' },
         cena: { texto: t('Cena'), color: '#818CF8' },
         snack: { texto: t('Snack'), color: '#94A3B8' },
+        suplemento: { texto: t('Suplemento'), color: '#A78BFA' },
         extra: { texto: t('Extra'), color: '#94A3B8' },
     };
 };
