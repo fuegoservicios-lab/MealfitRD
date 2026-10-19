@@ -31,14 +31,16 @@ export function getStoredThemePref() {
     }
 }
 
-/** Resuelve una preferencia a booleano isDark (system → prefers-color-scheme). */
+/** Resuelve una preferencia a booleano isDark.
+ *  [P1-SYSTEM-DEFAULT-DARK · 2026-10-19] Decisión de producto: la apariencia de
+ *  sistema tiene 'dark' como predeterminado (la app es oscura por defecto).
+ *  Solo si la preferencia es explícitamente 'light' se resuelve a claro. */
 export function resolveIsDark(pref) {
     if (pref === 'dark') return true;
     if (pref === 'light') return false;
-    // 'system' (o cualquier valor raro): seguir al SO.
-    return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-        ? window.matchMedia('(prefers-color-scheme: dark)').matches
-        : false;
+    // 'system' (o cualquier valor sin preferencia explícita):
+    // oscuro como predeterminado.
+    return true;
 }
 
 /**

@@ -205,9 +205,7 @@
           localStorage.setItem('mealfit_theme_dark_default_v1', '1');
         }
         var pref = localStorage.getItem('mealfit_theme') || 'dark';
-        var dark = pref === 'dark' ? true
-          : pref === 'light' ? false
-          : !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var dark = pref === 'light' ? false : true;
         var theme = dark ? 'dark' : 'light';
         if (paperPath(location.pathname)) theme = 'paper';
         document.documentElement.setAttribute('data-theme', theme);

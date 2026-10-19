@@ -40,7 +40,7 @@ describe('App entry keeps its theme while auth/profile are loading', () => {
         expect(bootTheme({ ...environment, pref: 'dark' })).toBe('dark');
         expect(bootTheme({ ...environment, pref: 'light' })).toBe('light');
         expect(bootTheme({ ...environment, pref: 'system', systemDark: true })).toBe('dark');
-        expect(bootTheme({ ...environment, pref: 'system', systemDark: false })).toBe('light');
+        expect(bootTheme({ ...environment, pref: 'system', systemDark: false })).toBe('dark');
         expect(bootTheme({ ...environment, blockedStorage: true })).toBe('dark');
         expect(isPaperSurface('/', { appEntry: true })).toBe(false);
     });
