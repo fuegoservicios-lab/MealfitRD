@@ -743,7 +743,7 @@ function Hilo({ raiz, sesion, onCerrar, onInvalido }) {
     useAvisoAlDetalle(error, onInvalido);
     // Al abrir el hilo, el foco va a su título (el botón que lo abrió ya no está en pantalla).
     useEffect(() => { tituloRef.current?.focus({ preventScroll: true }); }, []);
-    const mensajes = objetos(datos?.mensajes);
+    const mensajes = objetos(datos?.mensajes).filter((m) => !String(m.texto || '').startsWith('[SYSTEM_TITLE]'));
     let cuerpo;
     if (error) cuerpo = <Aviso error={error} onReintentar={recargar} noEncontrado={TEXTOS.hiloNoEncontrado} />;
     else if (!datos) cuerpo = <Cargando />;
