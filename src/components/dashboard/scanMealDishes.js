@@ -401,9 +401,9 @@ export function conIngredienteCambiado(plato, key, nombre, macros, anteriores, c
  *  Nombre, ingredientes (en gramos si los trae; si no, 1 porción) y macros salen de ahí; las dudas de la foto se van
  *  (eran sobre lo que la IA creyó ver). Lo demás del plato (id, foto, estado) se conserva. Sin líneas, no cambia. */
 export function platoDesdeDescripcion(plato, data) {
-    plato = { ...plato, food_facts: null };
     const lineas = (Array.isArray(data?.lineas) ? data.lineas : []).filter((l) => l && l.name);
     if (!lineas.length) return plato;
+    plato = { ...plato, food_facts: null };
     const componentes = lineas.slice(0, 30).map((l, i) => {
         const gramos = Number(l.grams) > 0 ? Number(l.grams) : 0;
         const m = l.macros || {};
@@ -437,6 +437,87 @@ export function platoDesdeDescripcion(plato, data) {
         detalles: {},
         cambios: {},
         // [P1-PLAN-LOTE-578] «Descríbelo» reemplaza todo lo de la foto: queda dicho para el panel.
+        redescrito: true,
+    };
+}
+
+/** [P1-SCAN-AI-ASSISTANT-MODAL · 2026-10-20] Añade un ingrediente/alimento nuevo al plato.
+ *  Entra con sus macros estimadas, pasa a estar marcado, y actualiza el total del plato. */
+export function conComponenteAgregado(plato, item) {
+    if (!item || !item.name) return plato;
+    const q = Number(item.qty) > 0 ? Number(item.qty) : 1;
+    const m = item.macros || {};
+    const nuevo = {
+        key: `add_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+        name: String(item.name).slice(0, 60),
+        display: String(item.display || '').slice(0, 60),
+        unit: String(item.unit || 'unidad').slice(0, 20),
+        q0: q,
+        qty: q,
+        checked: true,
+        macros: {
+            calories: _noNegativo(m.calories),
+            protein: _noNegativo(m.protein),
+            carbs: _noNegativo(m.carbs),
+            healthy_fats: _noNegativo(m.healthy_fats),
+        },
+    };
+    const componentesPrev = (plato.componentes || []).map((c) => ({
+        ...c,
+        macros: c.macros || { calories: 0, protein: 0, carbs: 0, healthy_fats: 0 },
+    }));
+    const componentes = [...componentesPrev, nuevo];
+    const base = componentes.reduce((acc, c) => {
+        if (!c.checked) return acc;
+        return MACROS.reduce((a, k) => ({ ...a, [k]: a[k] + (c.macros?.[k] || 0) }), acc);
+    }, _cero());
+    return {
+        ...plato,
+        componentes,
+        desglose: true,
+        base: MACROS.reduce((acc, k) => ({ ...acc, [k]: clampMacro(k, Math.max(plato.base?.[k] || 0, base[k])) }), {}),
+    };
+}
+
+/** [P1-SCAN-AI-ASSISTANT-MODAL · 2026-10-20] El plato ajustado por el asistente de IA con lenguaje natural.
+ *  Reemplaza o ajusta los componentes, recalcula la base y conserva las claves de estado. */
+export function platoConAjusteIA(plato, data) {
+    const rawComps = Array.isArray(data?.componentes) ? data.componentes : [];
+    if (!rawComps.length && !data?.nombre) return plato;
+    const componentes = rawComps.map((it, i) => {
+        const q0 = Number(it.qty) > 0 ? Number(it.qty) : 1;
+        const m = it.macros || {};
+        return {
+            key: `ia${i}_${Date.now().toString(36)}`,
+            name: String(it.name || '').slice(0, 60),
+            display: String(it.display || '').slice(0, 60),
+            unit: String(it.unit || 'unidad').slice(0, 20),
+            q0,
+            qty: q0,
+            checked: true,
+            macros: {
+                calories: _noNegativo(m.calories),
+                protein: _noNegativo(m.protein),
+                carbs: _noNegativo(m.carbs),
+                healthy_fats: _noNegativo(m.healthy_fats),
+            },
+        };
+    });
+    const base = componentes.reduce((acc, c) => MACROS.reduce((a, k) => ({ ...a, [k]: a[k] + c.macros[k] }), acc), _cero());
+    return {
+        ...plato,
+        nombre: String(data?.nombre || data?.name || '').trim().slice(0, 200) || plato.nombre,
+        base: MACROS.reduce((acc, k) => ({ ...acc, [k]: clampMacro(k, base[k]) }), {}),
+        componentes,
+        desglose: true,
+        porcion: 1,
+        ajuste: _cero(),
+        dudas: [],
+        respuestas: {},
+        confirmadas: {},
+        aplicadas: {},
+        detalles: {},
+        cambios: {},
         redescrito: true,
     };
 }

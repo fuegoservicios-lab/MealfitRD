@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import {
     Camera, Image as ImageIcon, Loader2, Check, X, AlertTriangle, ChevronRight, ChevronDown, Trash2, RotateCcw,
-    Refrigerator, Pencil,
+    Refrigerator, Pencil, Sparkles, Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -66,6 +66,8 @@ import {
     conRespuestaEscrita,
     ingredienteDeLaDuda,
     conIngredienteCambiado,
+    conComponenteAgregado,
+    platoConAjusteIA,
     esNombreOriginal,
     platoDesdeDescripcion,
     destinoDelPlato,
@@ -461,6 +463,61 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
             setCalculandoCorreccion(null);
         }
     };
+    // [P1-SCAN-AI-ASSISTANT-MODAL · 2026-10-20] Ajuste inteligente con IA de todo el plato en lenguaje natural
+    const ajustarPlatoConIA = async (texto) => {
+        setCorrigiendo(null);
+        setCalculandoCorreccion('ai_adjust');
+        try {
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;
+            const res = await fetchWithAuth('/api/diary/scan/ajustar-plato', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nombre: plato.nombre,
+                    componentes: plato.componentes,
+                    instruccion: texto,
+                    locale: getLocale(),
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data?.operation_failed || !Array.isArray(data?.componentes)) {
+                throw new Error('error al ajustar plato');
+            }
+            onCambiar((p) => platoConAjusteIA(p, data));
+            toast.success(t('Plato ajustado con éxito.'));
+        } catch {
+            toast.error(t('No pudimos ajustar el plato con esa indicación; inténtalo de nuevo o edita los ingredientes.'));
+        } finally {
+            setCalculandoCorreccion(null);
+        }
+    };
+    // [P1-SCAN-AI-ASSISTANT-MODAL · 2026-10-20] Añadir alimento/ingrediente individual al plato
+    const agregarIngrediente = async (texto) => {
+        setCorrigiendo(null);
+        setCalculandoCorreccion('add_ing');
+        try {
+            if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;
+            const res = await fetchWithAuth('/api/diary/scan/agregar-ingrediente', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    plato: plato.nombre,
+                    texto: texto,
+                    locale: getLocale(),
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data?.operation_failed || !data?.item?.name) {
+                throw new Error('error al agregar ingrediente');
+            }
+            onCambiar((p) => conComponenteAgregado(p, data.item));
+            toast.success(t('Alimento añadido a tu plato.'));
+        } catch {
+            toast.error(t('No pudimos estimar ese alimento; inténtalo de nuevo o ajusta las calorías a mano.'));
+        } finally {
+            setCalculandoCorreccion(null);
+        }
+    };
     const m = macrosDelPlato(plato);
     const ids = `scan-${plato.id}`;
     return (
@@ -495,6 +552,58 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
                     placeholder={t('Ej: Mangú con salami')}
                     aria-label={t('Nombre')}
                 />
+                {/* [P1-SCAN-AI-ASSISTANT-MODAL · 2026-10-20] Acciones de ajuste inteligente y descripción */}
+                <div className={styles.plateActionsRow}>
+                    {corrigiendo !== 'ai_adjust' && corrigiendo !== '*' && (
+                        <button
+                            type="button"
+                            className={styles.aiAdjustBtn}
+                            disabled={bloqueado || calculandoCorreccion !== null}
+                            onClick={() => setCorrigiendo('ai_adjust')}
+                        >
+                            <Sparkles size={14} className={styles.sparkleIcon} aria-hidden="true" />
+                            {t('Ajustar plato con IA')}
+                        </button>
+                    )}
+                    {corrigiendo !== '*' && corrigiendo !== 'ai_adjust' && (
+                        <button
+                            type="button"
+                            className={styles.corregirPlato}
+                            disabled={bloqueado || calculandoCorreccion !== null}
+                            onClick={() => setCorrigiendo('*')}
+                        >
+                            {t('¿No es esto? Descríbelo')}
+                        </button>
+                    )}
+                </div>
+
+                {corrigiendo === 'ai_adjust' && (
+                    <div className={styles.aiAdjustBox}>
+                        <div className={styles.aiAdjustHeader}>
+                            <Sparkles size={15} className={styles.sparkleIcon} aria-hidden="true" />
+                            <strong>{t('Dile a la IA qué cambiar o agregar')}</strong>
+                        </div>
+                        <CorregirConTexto
+                            etiqueta={t('Instrucciones para la IA')}
+                            placeholder={t("Ej: 'Quítale la ensalada y ponle 2 huevos fritos', 'cambia el arroz por moro'")}
+                            minimo={3}
+                            bloqueado={bloqueado}
+                            onAplicar={ajustarPlatoConIA}
+                            onCerrar={() => setCorrigiendo(null)}
+                        />
+                        <span className={styles.corregirAyuda}>
+                            {t('La IA ajustará los componentes, cantidades y macros de tu comida sin perder lo que comiste.')}
+                        </span>
+                    </div>
+                )}
+
+                {calculandoCorreccion === 'ai_adjust' && (
+                    <div role="status" className={styles.aiCalculandoBox}>
+                        <Loader2 size={16} className={styles.spinner} aria-hidden="true" />
+                        <span>{t('Ajustando plato con IA…')}</span>
+                    </div>
+                )}
+
                 {/* [P1-PLAN-LOTE-365] el dueño: «no puedo decir que es una simple batida de lechosa con leche» */}
                 {corrigiendo === '*' ? (
                     <>
@@ -510,16 +619,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
                     </>
                 ) : calculandoCorreccion === '*' ? (
                     <span role="status" className={styles.corregirEstado}>{t('Calculando…')}</span>
-                ) : (
-                    <button
-                        type="button"
-                        className={styles.corregirPlato}
-                        disabled={bloqueado || calculandoCorreccion !== null}
-                        onClick={() => setCorrigiendo('*')}
-                    >
-                        {t('¿No es esto? Descríbelo')}
-                    </button>
-                )}
+                ) : null}
             </section>
 
             <section className={styles.section} aria-labelledby={`${ids}-cuanto`}>
@@ -556,19 +656,58 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
                         onChange={(v) => onCambiar((x) => conMacroTecleada(x, 'healthy_fats', v))} />
                 </div>
 
-                {/* [P1-PHOTO-DEDUCTS · 2026-08-07] Componentes detectados, confirmables uno a uno. Se pinta solo si la
-                    IA detectó algo: un bloque vacío sugeriría que el escáner falló, cuando lo normal en platos
-                    difíciles de desglosar es registrar las macros. [P1-PLAN-LOTE-224] Con desglose, cada fila mueve
-                    las macros de arriba. */}
-                {plato.componentes.length > 0 && (
-                    <div className={styles.componentsBlock}>
+                {/* [P1-PHOTO-DEDUCTS · 2026-08-07] Componentes detectados, confirmables uno a uno.
+                    [P1-SCAN-AI-ASSISTANT-MODAL · 2026-10-20] Botón para añadir alimento extra a este plato. */}
+                <div className={styles.componentsBlock}>
+                    <div className={styles.componentsHeaderRow}>
                         <h4 className={styles.componentsTitle}>{t('Ingredientes que detectamos')}</h4>
-                        <p className={styles.componentsHint}>
-                            {plato.desglose
-                                ? t('Desmarca lo que no comiste o ajusta la cantidad: las calorías se recalculan solas.')
-                                // [P1-PLAN-LOTE-382] sin desglose, desmarcar no mueve las calorías: decirlo
-                                : t('Desmarca lo que no lleve o ajusta la cantidad. Las calorías de arriba no cambian solas: corrígelas si hace falta.')}
-                        </p>
+                        {corrigiendo !== 'add_ing' && (
+                            <button
+                                type="button"
+                                className={styles.addIngredientBtn}
+                                disabled={bloqueado || calculandoCorreccion !== null}
+                                onClick={() => setCorrigiendo('add_ing')}
+                            >
+                                <Plus size={14} aria-hidden="true" />
+                                <span>{t('Añadir alimento')}</span>
+                            </button>
+                        )}
+                    </div>
+
+                    {corrigiendo === 'add_ing' && (
+                        <div className={styles.addIngredientBox}>
+                            <div className={styles.addIngredientHeader}>
+                                <strong>{t('Añadir alimento o ingrediente')}</strong>
+                            </div>
+                            <CorregirConTexto
+                                etiqueta={t('Alimento a añadir')}
+                                placeholder={t('Ej: 1 taza de café con leche, 150g pechuga, 1 manzana…')}
+                                minimo={2}
+                                bloqueado={bloqueado}
+                                onAplicar={agregarIngrediente}
+                                onCerrar={() => setCorrigiendo(null)}
+                            />
+                            <span className={styles.corregirAyuda}>
+                                {t('Calculamos sus macros automáticamente y lo sumamos a este plato.')}
+                            </span>
+                        </div>
+                    )}
+
+                    {calculandoCorreccion === 'add_ing' && (
+                        <div role="status" className={styles.aiCalculandoBox}>
+                            <Loader2 size={16} className={styles.spinner} aria-hidden="true" />
+                            <span>{t('Calculando y añadiendo alimento…')}</span>
+                        </div>
+                    )}
+
+                    <p className={styles.componentsHint}>
+                        {plato.desglose
+                            ? t('Desmarca lo que no comiste o ajusta la cantidad: las calorías se recalculan solas.')
+                            // [P1-PLAN-LOTE-382] sin desglose, desmarcar no mueve las calorías: decirlo
+                            : t('Desmarca lo que no lleve o ajusta la cantidad. Las calorías de arriba no cambian solas: corrígelas si hace falta.')}
+                    </p>
+
+                    {plato.componentes.length > 0 ? (
                         <ul className={styles.componentList}>
                             {plato.componentes.map((c) => (
                                 <FilaComponente
@@ -586,8 +725,12 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
                                 />
                             ))}
                         </ul>
-                    </div>
-                )}
+                    ) : (
+                        <p className={styles.noComponentsHint}>
+                            {t('No hay ingredientes detectados en la foto. Puedes añadir alimentos con el botón de arriba.')}
+                        </p>
+                    )}
+                </div>
             </section>
         </>
     );
@@ -619,6 +762,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
     // [P1-PLAN-LOTE-224] Los platos de este registro, en el orden en que llegaron las fotos. Cada uno:
     // { id, file, previewUrl, estado: 'analizando' | 'listo' | 'error', fallo, guardado, …campos de scanMealDishes }.
     const [platos, setPlatos] = useState([]);
+    // [P1-SCAN-AI-ASSISTANT-MODAL · 2026-10-20] Escribir otro plato a mano sin foto
+    const [escribiendoNuevoPlato, setEscribiendoNuevoPlato] = useState(false);
     // [P1-PLAN-LOTE-362] ¿hay un «Otra…» abierto o calculándose? (esconde «Volver a escanear»)
     const [editandoDuda, setEditandoDuda] = useState(false);
     const platosRef = useRef([]);
@@ -926,6 +1071,44 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
         setPlatos((prev) => prev.map((p) => (p.id === id ? fn(p) : p)));
     }, []);
 
+    // [P1-SCAN-AI-ASSISTANT-MODAL · 2026-10-20] Añadir otro plato escribiéndolo
+    const agregarPlatoPorTexto = useCallback(async (texto) => {
+        setEscribiendoNuevoPlato(false);
+        if (faltaPermisoIA() && !(await asegurarConsentimientoIA())) return;
+        const nuevoId = `plato-${++secuencia.current}`;
+        const placeholderPlato = {
+            id: nuevoId,
+            file: null,
+            previewUrl: null,
+            estado: 'analizando',
+            fallo: null,
+            guardado: false,
+        };
+        if (platosRef.current.length > 0) setAbierto(null);
+        platosRef.current = [...platosRef.current, placeholderPlato];
+        setPlatos((prev) => [...prev, placeholderPlato]);
+        try {
+            const res = await fetchWithAuth('/api/diary/consumed/estimate-plate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: texto, locale: getLocale() }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data?.operation_failed || !Array.isArray(data?.lineas) || !data.lineas.length) {
+                throw new Error('fallo estimar plato');
+            }
+            _ponerPlato(nuevoId, {
+                estado: 'listo',
+                fallo: null,
+                ...platoDesdeDescripcion({ id: nuevoId }, data),
+            });
+            setAbierto(nuevoId);
+        } catch {
+            toast.error(t('No pudimos calcular tu plato ahora; intenta describirlo con más detalle o agrega los alimentos a mano.'));
+            quitarPlato(nuevoId);
+        }
+    }, [t, _ponerPlato, quitarPlato]);
+
     const onCameraChange = (e) => { agregarFotos(e.target.files); e.target.value = ''; };
     const onGalleryChange = (e) => { agregarFotos(e.target.files); e.target.value = ''; };
 
@@ -1144,7 +1327,14 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
     const renderUnSolo = (p) => (
         <>
             <div className={`${styles.previewWrap} ${p.estado !== 'analizando' ? styles.previewCompact : ''}`}>
-                {p.previewUrl && <img src={p.previewUrl} alt={t('Foto de la comida')} className={styles.previewImg} />}
+                {p.previewUrl ? (
+                    <img src={p.previewUrl} alt={t('Foto de la comida')} className={styles.previewImg} />
+                ) : (
+                    <div className={styles.previewManual}>
+                        <Pencil size={22} className={styles.manualIcon} aria-hidden="true" />
+                        <span>{p.nombre || t('Plato escrito')}</span>
+                    </div>
+                )}
                 {p.estado === 'analizando' && (
                     <div className={styles.scanningOverlay}>
                         <Loader2 size={28} className={styles.spinner} aria-hidden="true" />
@@ -1156,7 +1346,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                 {/* [P1-PLAN-LOTE-362] se esconde mientras se escribe/calcula un «Otra…»: parecía el botón de guardar */}
                 {p.estado === 'listo' && !guardando && !editandoDuda && (
                     <button type="button" className={styles.previewRetake} onClick={() => { quitarPlato(p.id); setError(null); }}>
-                        <RotateCcw size={14} aria-hidden="true" /> {t('Volver a escanear')}
+                        <RotateCcw size={14} aria-hidden="true" /> {p.previewUrl ? t('Volver a escanear') : t('Quitar plato')}
                     </button>
                 )}
             </div>
@@ -1198,7 +1388,11 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                         aria-expanded={listo && !p.guardado ? esAbierto : undefined}
                     >
                         <span className={styles.platoThumbWrap}>
-                            {p.previewUrl && <img src={p.previewUrl} alt="" className={styles.platoThumb} />}
+                            {p.previewUrl ? (
+                                <img src={p.previewUrl} alt="" className={styles.platoThumb} />
+                            ) : (
+                                <span className={styles.platoThumbIcon}><Pencil size={18} aria-hidden="true" /></span>
+                            )}
                             {p.estado === 'analizando' && (
                                 <span className={styles.platoThumbSpin}><Loader2 size={18} className={styles.spinner} aria-hidden="true" /></span>
                             )}
@@ -1400,9 +1594,28 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                                         </button>
                                     )}
                                     <button type="button" className={styles.addBtn} onClick={openGallery}>
-                                        <ImageIcon size={16} aria-hidden="true" /> {isCoarsePointer ? t('De la galería') : t('Añadir otro plato')}
+                                        <ImageIcon size={16} aria-hidden="true" /> {isCoarsePointer ? t('De la galería') : t('Añadir foto')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles.addBtn}
+                                        onClick={() => setEscribiendoNuevoPlato(true)}
+                                    >
+                                        <Pencil size={16} aria-hidden="true" /> {t('Escribir plato')}
                                     </button>
                                 </div>
+                                {escribiendoNuevoPlato && (
+                                    <div className={styles.nuevoPlatoInline}>
+                                        <CorregirConTexto
+                                            etiqueta={t('¿Qué otro plato o alimento comiste?')}
+                                            placeholder={t('Ej: Batida de avena con leche y guineo')}
+                                            minimo={3}
+                                            bloqueado={guardando}
+                                            onAplicar={agregarPlatoPorTexto}
+                                            onCerrar={() => setEscribiendoNuevoPlato(false)}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
 
