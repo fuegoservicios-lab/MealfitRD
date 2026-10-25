@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
-import { ChevronDown, FlaskConical, Info } from 'lucide-react';
+import { BookOpen, ChevronDown, FlaskConical, Info } from 'lucide-react';
 import { useT } from '../../i18n';
+import { healthSourcesFor } from '../../data/healthSources';
+import { HealthSourcesPanel } from '../common/HealthSources';
 import { formatoMicro, filasMicros, cantidadMicro, coberturaMicro } from './microsShared';
 import styles from './MicrosList.module.css';
 
 const MINERALS = new Set(['sodium_mg', 'potassium_mg', 'calcium_mg', 'iron_mg', 'magnesium_mg', 'zinc_mg', 'selenium_mcg', 'iodine_mcg']);
-const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true }) => {
+const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true, sourcesContext = null }) => {
     const t = useT();
     const [expanded, setExpanded] = useState(false);
     const [group, setGroup] = useState('all');
+    const [panel, setPanel] = useState(null);
+    const nSources = sourcesContext ? healthSourcesFor(sourcesContext, '').length : 0;
     const rows = filasMicros(t);
     const visible = (expanded ? rows : rows.slice(0, 8)).filter((f) => group === 'all' || (group === 'minerals' ? MINERALS.has(f.key) : f.key !== 'fiber_g' && !MINERALS.has(f.key)));
     const hayMetas = !!(metas && Object.keys(metas).length);
@@ -62,20 +66,33 @@ const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true
             <span className={styles.expandCount} aria-hidden="true">{rows.length}</span>
             <ChevronDown className={styles.expandChevron} size={16} strokeWidth={2.2} aria-hidden="true" />
         </button>
-        {showNotes && <details className={styles.explanation}>
-            <summary>
-                <Info size={14} aria-hidden="true" />
-                <span>{t('Sobre las referencias y los datos')}</span>
-                <ChevronDown className={styles.expandChevron} size={14} strokeWidth={2} aria-hidden="true" />
-            </summary>
-            <div className={styles.explanationBody}>
-                <p>{t('Las referencias diarias orientan tu alimentación; superarlas no significa peligro. No son un diagnóstico ni un límite universal de seguridad.')}</p>
-                <p>{t('El máximo de magnesio se aplica a suplementos, no al magnesio de los alimentos. B12 no tiene un máximo establecido; el folato requiere distinguir su forma.')}</p>
-                <p>{t('Los datos se calculan con los ingredientes registrados y el catálogo. Las fotos sin ingredientes pueden quedar sin datos. Una actualización del catálogo puede corregir días anteriores.')}</p>
+        {/* Pie discreto: «Sobre los datos» y «Fuentes» en una sola fila; se abre un panel debajo. */}
+        {showNotes && <div className={styles.footer}>
+            <div className={styles.footerLinks}>
+                <button type="button" className={styles.footerLink} aria-expanded={panel === 'refs'} aria-controls="micros-panel" onClick={() => setPanel(panel === 'refs' ? null : 'refs')}>
+                    <Info size={14} aria-hidden="true" />
+                    <span>{t('Sobre los datos')}</span>
+                    <ChevronDown className={styles.footerChevron} size={13} strokeWidth={2.2} aria-hidden="true" />
+                </button>
+                {nSources > 0 && <>
+                    <span className={styles.footerSep} aria-hidden="true">·</span>
+                    <button type="button" className={styles.footerLink} aria-expanded={panel === 'sources'} aria-controls="micros-panel" aria-label={t('Fuentes de salud y nutrición')} onClick={() => setPanel(panel === 'sources' ? null : 'sources')}>
+                        <BookOpen size={14} aria-hidden="true" />
+                        <span>{t('Fuentes')} ({nSources})</span>
+                        <ChevronDown className={styles.footerChevron} size={13} strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                </>}
             </div>
-        </details>}
+            {panel && <div id="micros-panel" className={styles.explanationBody}>
+                {panel === 'refs' ? <>
+                    <p>{t('Las referencias diarias orientan tu alimentación; superarlas no significa peligro. No son un diagnóstico ni un límite universal de seguridad.')}</p>
+                    <p>{t('El máximo de magnesio se aplica a suplementos, no al magnesio de los alimentos. B12 no tiene un máximo establecido; el folato requiere distinguir su forma.')}</p>
+                    <p>{t('Los datos se calculan con los ingredientes registrados y el catálogo. Las fotos sin ingredientes pueden quedar sin datos. Una actualización del catálogo puede corregir días anteriores.')}</p>
+                </> : <HealthSourcesPanel context={sourcesContext} />}
+            </div>}
+        </div>}
         {showNotes && !hayMetas && <p className={styles.note}>{t('Sin metas todavía: completa sexo y edad en Configuración.')}</p>}
     </div>;
 };
-MicrosList.propTypes = { micros: PropTypes.object, coverage: PropTypes.object, metas: PropTypes.object, compact: PropTypes.bool, showNotes: PropTypes.bool };
+MicrosList.propTypes = { micros: PropTypes.object, coverage: PropTypes.object, metas: PropTypes.object, compact: PropTypes.bool, showNotes: PropTypes.bool, sourcesContext: PropTypes.string };
 export default MicrosList;

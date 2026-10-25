@@ -248,6 +248,31 @@
 }
 @media (hover: hover) { .filters button[aria-pressed="false"]:hover { color: var(--text-main); } }
 
+/* Pie discreto: «Sobre los datos · Fuentes (5)» en una sola fila centrada. */
+.footer { margin-top: 14px; font-size: 0.78rem; color: var(--text-muted); }
+.footerLinks { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 6px; }
+.footerSep { opacity: .5; }
+.footerLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 36px;
+    padding: 4px 6px;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color .18s ease;
+}
+.footerLink[aria-expanded="true"] { color: var(--text-main); }
+.footerChevron { transition: transform .2s ease; }
+.footerLink[aria-expanded="true"] .footerChevron { transform: rotate(180deg); }
+@media (hover: hover) { .footerLink:hover { color: var(--text-main); } }
+.footer .explanationBody { text-align: left; }
+
 /* «Sobre las referencias y los datos»: nota informativa ligera (mismo patrón que «Sobre tus metas»). */
 .explanation {
     margin-top: 12px;

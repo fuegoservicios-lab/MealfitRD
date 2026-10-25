@@ -12,7 +12,6 @@ export default function HealthSources({ context = 'plan', text = '', expanded = 
 
 function SourceDetails({ context, sources, expanded }) {
     const t = useT();
-    const inRouter = useInRouterContext();
     return (
         <details className={styles.sources} open={expanded || undefined}>
             <summary aria-label={t('Fuentes de salud y nutrición')}>
@@ -21,6 +20,22 @@ function SourceDetails({ context, sources, expanded }) {
                 <span className={styles.count} aria-hidden="true">{sources.length}</span>
                 <ChevronDown className={styles.chevron} size={16} aria-hidden="true" />
             </summary>
+            <SourcesContent context={context} sources={sources} />
+        </details>
+    );
+}
+
+/* Solo el contenido (sin el desplegable), para incrustarlo en otro panel — p. ej. el pie de Micros en Progreso. */
+export function HealthSourcesPanel({ context = 'tracking', text = '' }) {
+    const sources = healthSourcesFor(context, text);
+    if (!sources.length) return null;
+    return <div className={`${styles.sources} ${styles.bare}`}><SourcesContent context={context} sources={sources} /></div>;
+}
+
+function SourcesContent({ context, sources }) {
+    const t = useT();
+    const inRouter = useInRouterContext();
+    return (
             <div className={styles.content}>
                 <p>{t('Estas referencias explican los cálculos y las recomendaciones generales. Las estimaciones de la IA y las necesidades individuales pueden variar; no constituyen un diagnóstico.')}</p>
                 <ul>
@@ -38,7 +53,6 @@ function SourceDetails({ context, sources, expanded }) {
                     ? <SourcesLink>{t('Ver todas las fuentes y los límites de las estimaciones')}<ArrowRight size={15} aria-hidden="true" /></SourcesLink>
                     : <a className={styles.more} href="/medical#fuentes">{t('Ver todas las fuentes y los límites de las estimaciones')}<ArrowRight size={15} aria-hidden="true" /></a>)}
             </div>
-        </details>
     );
 }
 

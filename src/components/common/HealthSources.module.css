@@ -94,3 +94,8 @@
 .reference, .more { display: flex; align-items: baseline; gap: 0.5rem; }
 .reference svg, .more svg { flex-shrink: 0; align-self: center; }
 .more { padding-top: 0.65rem; font-weight: 600; }
+
+/* Panel incrustado (sin desplegable propio). */
+.sources.bare, :global(html:not([data-theme="dark"])) .sources.bare { margin: 0; border: 0; background: transparent; }
+.bare .content { border-top: 0; padding: 0; }
+

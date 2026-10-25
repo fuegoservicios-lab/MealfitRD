@@ -706,11 +706,12 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         micros={displayedConsumed.micros}
                         coverage={loading ? null : coberturaMicros}
                         metas={microTargets}
+                        sourcesContext="tracking"
                     />
                 </div>
             )}
 
-            <HealthSources context="tracking" />
+            {!isLoggedIn && <HealthSources context="tracking" />}
 
             {/* [P1-GOAL-ETA · 2026-07-03] Plazo estimado hasta la meta de peso —
                 plan_data.goal_eta lo calcula el backend con el déficit REAL entregado
