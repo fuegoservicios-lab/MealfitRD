@@ -67,16 +67,16 @@
 .sources, :global(html:not([data-theme="dark"])) .sources {
     margin-top: 1.6rem;
     border: 0;
-    border-top: 1px dashed color-mix(in srgb, var(--text-muted) 28%, transparent);
+    border-top: 1px solid color-mix(in srgb, var(--text-muted) 16%, transparent);
     border-radius: 0;
     background: transparent;
 }
-.sources summary { min-height: 44px; padding: 8px 2px; gap: 8px; border-radius: 0; font-size: 0.76rem; font-weight: 500; }
+.sources summary { min-height: 44px; padding: 8px 2px; gap: 8px; border-radius: 0; font-size: 0.78rem; font-weight: 500; }
 .sources[open] summary { border-radius: 0; }
 .sourceIcon { width: auto; height: auto; background: transparent; border-radius: 0; }
-.count { background: transparent; min-width: 0; padding: 0; height: auto; font-weight: 600; }
-.count::before { content: '('; }
-.count::after { content: ')'; }
+.heading { flex: 0 1 auto; }
+.count { min-width: 20px; height: 18px; padding: 0 6px; font-size: 0.68rem; }
+.chevron { margin-left: auto; }
 @media (hover: hover) { .sources summary:hover { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .chevron, .sources summary { transition: none; } }
 .content { padding: 0.1rem 0.9rem 0.9rem; border-top: 1px solid color-mix(in srgb, var(--text-muted) 14%, transparent); }
