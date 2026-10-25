@@ -57,16 +57,16 @@ const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true
             </li>;
         })}</ul>
         <button type="button" className={styles.expand} aria-expanded={expanded} onClick={() => { setExpanded(!expanded); setGroup('all'); }}>
-            <span className={styles.expandIcon} aria-hidden="true"><FlaskConical size={17} strokeWidth={1.9} /></span>
+            <span className={styles.expandIcon} aria-hidden="true"><FlaskConical size={17} strokeWidth={2.2} /></span>
             <span className={styles.expandLabel}>{expanded ? t('Mostrar menos') : t('Ver todos los nutrientes')}</span>
             <span className={styles.expandCount} aria-hidden="true">{rows.length}</span>
-            <ChevronDown className={styles.expandChevron} size={16} strokeWidth={2} aria-hidden="true" />
+            <ChevronDown className={styles.expandChevron} size={16} strokeWidth={2.2} aria-hidden="true" />
         </button>
         {showNotes && <details className={styles.explanation}>
             <summary>
-                <span className={styles.expandIcon} aria-hidden="true"><Info size={17} strokeWidth={1.9} /></span>
-                <span className={styles.expandLabel}>{t('Sobre las referencias y los datos')}</span>
-                <ChevronDown className={styles.expandChevron} size={16} strokeWidth={2} aria-hidden="true" />
+                <Info size={14} aria-hidden="true" />
+                <span>{t('Sobre las referencias y los datos')}</span>
+                <ChevronDown className={styles.expandChevron} size={14} strokeWidth={2} aria-hidden="true" />
             </summary>
             <div className={styles.explanationBody}>
                 <p>{t('Las referencias diarias orientan tu alimentación; superarlas no significa peligro. No son un diagnóstico ni un límite universal de seguridad.')}</p>
