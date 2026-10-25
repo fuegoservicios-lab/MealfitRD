@@ -551,6 +551,82 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         {t('Inicia sesión para registrar comidas')}
                     </div>
                 )}
+
+                {/* [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas
+                    hoy — ubicada directamente bajo «Registrar comida» y «Ver días
+                    anteriores» para tener confirmación y acceso inmediato a la
+                    ficha del plato y al botón de eliminar sin bajar al final. */}
+                {isLoggedIn && !loading && (
+                    <div className={styles.mealsSection}>
+                        {_todaysMeals.length === 0 ? (
+                            <p className={styles.mealsEmpty}>
+                                {t('Aún no registras comidas hoy. Usa «Registrar comida», escanéala o cuéntaselo a tu coach en el chat.')}
+                            </p>
+                        ) : (
+                            <>
+                                <ul className={styles.mealsList}>
+                                    {visibleMeals.map((meal, idx) => (
+                                        <li
+                                            key={meal.id || `${meal.meal_name}-${meal.consumed_at || idx}`}
+                                            className={styles.mealRow}
+                                        >
+                                            {/* [P1-PLAN-LOTE-721] la fila abre la ficha del plato (sin id —una fila vieja en caché— no) */}
+                                            <button
+                                                type="button"
+                                                className={styles.mealOpen}
+                                                onClick={() => setFichaMeal(meal)}
+                                                disabled={!meal.id}
+                                            >
+                                                {meal.id && idsConFoto.has(meal.id) && (
+                                                    <MiniaturaDeComida userId={userId} mealId={meal.id} className={styles.mealThumb} />
+                                                )}
+                                                <span className={styles.mealInfo}>
+                                                    {/* [P1-PLAN-LOTE-225] el nombre en el idioma del usuario (el dato no cambia) */}
+                                                    <span className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t)}</span>
+                                                    <span className={styles.mealMeta}>
+                                                        {_mealTypeLabel(meal.meal_type, t)} · {Math.round(meal.calories) || 0} kcal
+                                                    </span>
+                                                </span>
+                                                {meal.id && <ChevronRight size={16} strokeWidth={2.4} className={styles.mealChevron} aria-hidden="true" />}
+                                            </button>
+                                            {meal.id && (
+                                                <button
+                                                    type="button"
+                                                    className={styles.mealDeleteBtn}
+                                                    aria-label={t('Eliminar {nombre} del diario', { nombre: nombreDeRegistro(meal.meal_name, planData, t) })}
+                                                    onClick={() => handleDeleteMeal(meal)}
+                                                    disabled={deletingMealId === meal.id}
+                                                >
+                                                    {deletingMealId === meal.id
+                                                        ? <Loader2 size={16} className="spin-animation" aria-hidden="true" />
+                                                        : <Trash2 size={16} strokeWidth={2.5} aria-hidden="true" />}
+                                                </button>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                                {hiddenMealsCount > 0 && (
+                                    <button
+                                        type="button"
+                                        className={styles.mealsShowMore}
+                                        onClick={() => setMealsExpanded(true)}
+                                    >
+                                        {t('Ver {n} más', { n: hiddenMealsCount })}
+                                    </button>
+                                )}
+                                {mealsExpanded && _todaysMeals.length > _MEALS_VISIBLE_CAP && (
+                                    <button
+                                        type="button"
+                                        className={styles.mealsShowMore}
+                                        onClick={() => setMealsExpanded(false)}
+                                    >
+                                        {t('Ver menos')}
+                                    </button>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className={styles.content}>
@@ -632,84 +708,6 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
             )}
 
             <HealthSources context="tracking" />
-            {/* [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas
-                hoy — antes esta card solo exponía el CONTEO (subtitle arriba);
-                el diario era write-only (registrabas pero nunca veías/corregías
-                qué quedó guardado). Solo para logueados: para invitados
-                `displayedConsumed.meals` siempre es [] (no hay fetch, ver el
-                guard `!userId || userId === 'guest'` en fetchConsumed) y el
-                guestBadge de arriba ya cubre el CTA de login. */}
-            {isLoggedIn && !loading && (
-                <div className={styles.mealsSection}>
-                    {_todaysMeals.length === 0 ? (
-                        <p className={styles.mealsEmpty}>
-                            {t('Aún no registras comidas hoy. Usa «Registrar comida», escanéala o cuéntaselo a tu coach en el chat.')}
-                        </p>
-                    ) : (
-                        <>
-                            <ul className={styles.mealsList}>
-                                {visibleMeals.map((meal, idx) => (
-                                    <li
-                                        key={meal.id || `${meal.meal_name}-${meal.consumed_at || idx}`}
-                                        className={styles.mealRow}
-                                    >
-                                        {/* [P1-PLAN-LOTE-721] la fila abre la ficha del plato (sin id —una fila vieja en caché— no) */}
-                                        <button
-                                            type="button"
-                                            className={styles.mealOpen}
-                                            onClick={() => setFichaMeal(meal)}
-                                            disabled={!meal.id}
-                                        >
-                                            {meal.id && idsConFoto.has(meal.id) && (
-                                                <MiniaturaDeComida userId={userId} mealId={meal.id} className={styles.mealThumb} />
-                                            )}
-                                            <span className={styles.mealInfo}>
-                                                {/* [P1-PLAN-LOTE-225] el nombre en el idioma del usuario (el dato no cambia) */}
-                                                <span className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t)}</span>
-                                                <span className={styles.mealMeta}>
-                                                    {_mealTypeLabel(meal.meal_type, t)} · {Math.round(meal.calories) || 0} kcal
-                                                </span>
-                                            </span>
-                                            {meal.id && <ChevronRight size={16} strokeWidth={2.4} className={styles.mealChevron} aria-hidden="true" />}
-                                        </button>
-                                        {meal.id && (
-                                            <button
-                                                type="button"
-                                                className={styles.mealDeleteBtn}
-                                                aria-label={t('Eliminar {nombre} del diario', { nombre: nombreDeRegistro(meal.meal_name, planData, t) })}
-                                                onClick={() => handleDeleteMeal(meal)}
-                                                disabled={deletingMealId === meal.id}
-                                            >
-                                                {deletingMealId === meal.id
-                                                    ? <Loader2 size={16} className="spin-animation" aria-hidden="true" />
-                                                    : <Trash2 size={16} strokeWidth={2.5} aria-hidden="true" />}
-                                            </button>
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
-                            {hiddenMealsCount > 0 && (
-                                <button
-                                    type="button"
-                                    className={styles.mealsShowMore}
-                                    onClick={() => setMealsExpanded(true)}
-                                >
-                                    {t('Ver {n} más', { n: hiddenMealsCount })}
-                                </button>
-                            )}
-                            {mealsExpanded && _todaysMeals.length > _MEALS_VISIBLE_CAP && (
-                                <button
-                                    type="button"
-                                    className={styles.mealsShowMore}
-                                    onClick={() => setMealsExpanded(false)}
-                                >
-                                    {t('Ver menos')}
-                                </button>
-                            )}
-                        </>
-                    )}
-                </div>
-            )}
 
             {/* [P1-GOAL-ETA · 2026-07-03] Plazo estimado hasta la meta de peso —
                 plan_data.goal_eta lo calcula el backend con el déficit REAL entregado
