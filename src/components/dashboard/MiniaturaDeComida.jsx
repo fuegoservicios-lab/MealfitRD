@@ -11,12 +11,12 @@ const MiniaturaDeComida = ({ userId, mealId, className }) => {
     const fotos = useFotosDeComida(userId, mealId, 'mini');
     const url = fotos[0]?.url;
     if (!url) return null;
-    if (fotos.length === 1) return <img src={url} alt="" aria-hidden="true" className={className} width={36} height={36} decoding="async" />;
+    if (fotos.length === 1) return <img src={url} alt="" aria-hidden="true" className={className} width={36} height={36} decoding="sync" />;
     const etiqueta = t('{n} fotos', { n: fotos.length });
     return (
         <span className={`${className || ''} ${styles.stack}`} role="img" aria-label={etiqueta} title={etiqueta}>
-            <img src={fotos[1].url} alt="" aria-hidden="true" className={styles.rear} width={36} height={36} decoding="async" />
-            <img src={url} alt="" aria-hidden="true" className={styles.cover} width={36} height={36} decoding="async" />
+            <img src={fotos[1].url} alt="" aria-hidden="true" className={styles.rear} width={36} height={36} decoding="sync" />
+            <img src={url} alt="" aria-hidden="true" className={styles.cover} width={36} height={36} decoding="sync" />
             <span className={styles.count} aria-hidden="true">{fotos.length}</span>
         </span>
     );

@@ -337,11 +337,14 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     // P1-DAILY-NOT-CYCLE · 2026-07-28] El endpoint YA acota a
                     // "hoy" (ver docstring de `_buildConsumedSnapshot`) — no
                     // hay nada adicional que filtrar por plan aquí.
-                    setConsumed(_buildConsumedSnapshot({
+                    const nextSnapshot = _buildConsumedSnapshot({
                         meals: data.meals,
                         totals: data.totals,
                         cacheKey: consumedCacheKey,
-                    }));
+                    });
+                    setConsumed((prev) => (
+                        prev && JSON.stringify(prev) === JSON.stringify(nextSnapshot) ? prev : nextSnapshot
+                    ));
                 }
             } catch (err) {
                 console.error("Error fetching consumed meals:", err);
