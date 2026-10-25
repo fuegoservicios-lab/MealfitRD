@@ -63,6 +63,21 @@
 }
 .chevron { flex-shrink: 0; color: var(--text-muted); transition: transform .2s ease; }
 .sources[open] .chevron { transform: rotate(180deg); }
+/* Pie de página bibliográfico: plano, sin tarjeta, para no parecerse a los botones de arriba. */
+.sources, :global(html:not([data-theme="dark"])) .sources {
+    margin-top: 1.6rem;
+    border: 0;
+    border-top: 1px dashed color-mix(in srgb, var(--text-muted) 28%, transparent);
+    border-radius: 0;
+    background: transparent;
+}
+.sources summary { min-height: 44px; padding: 8px 2px; gap: 8px; border-radius: 0; font-size: 0.76rem; font-weight: 500; }
+.sources[open] summary { border-radius: 0; }
+.sourceIcon { width: auto; height: auto; background: transparent; border-radius: 0; }
+.count { background: transparent; min-width: 0; padding: 0; height: auto; font-weight: 600; }
+.count::before { content: '('; }
+.count::after { content: ')'; }
+@media (hover: hover) { .sources summary:hover { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .chevron, .sources summary { transition: none; } }
 .content { padding: 0.1rem 0.9rem 0.9rem; border-top: 1px solid color-mix(in srgb, var(--text-muted) 14%, transparent); }
 .sources summary:focus-visible, .sources a:focus-visible {
