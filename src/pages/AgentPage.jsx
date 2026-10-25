@@ -3775,6 +3775,9 @@ const AgentPage = () => {
                     uploadForm.append('session_id', currentSessionId);
                     uploadForm.append('purpose', 'chat');
                     uploadForm.append('tz_offset_mins', currentTzOffset.toString());
+                    if (userMsg && typeof userMsg === 'string' && userMsg.trim()) {
+                        uploadForm.append('aclaracion', userMsg.trim());
+                    }
                     const response = await fetchWithAuth('/api/diary/upload', {
                         method: 'POST', body: uploadForm, signal: controller.signal,
                     });
