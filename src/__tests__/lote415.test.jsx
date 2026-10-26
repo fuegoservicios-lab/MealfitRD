@@ -36,13 +36,16 @@ describe('[415] la hoja del escáner no depende de dónde la monten', () => {
         expect(getByTestId('caja').contains(titulo)).toBe(false);
     });
 
-    it('el chat monta las dos hojas FUERA de la caja de escribir', () => {
+    it('el chat fusiona las acciones escanear y anotar directamente en el compositor sin modales externos', () => {
         const AGENT = read('src/pages/AgentPage.jsx');
-        const cajaEnPantalla = AGENT.indexOf('{messages.length === 0 && renderInputArea(true)}');
-        expect(cajaEnPantalla).toBeGreaterThan(AGENT.indexOf('const renderInputArea = (isCentered = false) => ('));
-        for (const tipo of ['escanear', 'anotar']) {
-            const montaje = AGENT.indexOf(`{hojaDeComida?.tipo === '${tipo}' && (`);
-            expect(montaje, tipo).toBeGreaterThan(cajaEnPantalla);
-        }
+        // Los modales ya no se montan en el chat (fusión 100% con el agente IA)
+        expect(AGENT).not.toContain('<ScanMealModal');
+        expect(AGENT).not.toContain('<LogMealModal');
+        expect(AGENT).not.toContain('hojaDeComida');
+        // Las acciones disparan el selector nativo y el prellenado conversacional
+        expect(AGENT).toContain("a.accion === 'escanear'");
+        expect(AGENT).toContain('openAttachmentPicker()');
+        expect(AGENT).toContain("a.accion === 'anotar'");
+        expect(AGENT).toContain('prefijoAnotarComida()');
     });
 });

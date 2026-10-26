@@ -9,7 +9,7 @@
 //     ligero, sin desayuno por la mañana…);
 //   · y la de tu modo (plan: «¿Qué me toca ahora?»; contador: «¿Cómo voy hoy?»).
 import { describe, it, expect } from 'vitest';
-import { atajosDelChat } from '../utils/atajosDelChat';
+import { atajosDelChat, prefijoAnotarComida } from '../utils/atajosDelChat';
 
 const t = (s, v = {}) => Object.entries(v).reduce((a, [k, x]) => a.replace(`{${k}}`, x), s);
 const metas = { calories: 2050, protein: 134, carbs: 251, fats: 57 };
@@ -55,5 +55,13 @@ describe('[411] atajos del chat', () => {
         const a = atajosDelChat({ hora: 17, modoContador: false, t, metas, totales: { calories: 1200, protein: 60, carbs: 100, fats: 80 } });
         expect(a.length).toBeLessThanOrEqual(4);
         expect(new Set(textos(a)).size).toBe(a.length);
+    });
+
+    it('prefijoAnotarComida sugiere el verbo correcto según la franja horaria', () => {
+        expect(prefijoAnotarComida(7)).toBe('Desayuné ');
+        expect(prefijoAnotarComida(13)).toBe('Almorcé ');
+        expect(prefijoAnotarComida(17)).toBe('Merendé ');
+        expect(prefijoAnotarComida(21)).toBe('Cené ');
+        expect(prefijoAnotarComida(2)).toBe('Cené ');
     });
 });

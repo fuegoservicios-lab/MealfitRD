@@ -33,9 +33,6 @@ import BotAvatar from '../components/agent/BotAvatar';
 // se monta keep-alive para todos los que abren el chat. Espejo de LazyMarkdown.
 import { VIRTUALIZE_THRESHOLD } from '../components/agent/virtualizeThreshold';
 const VirtualizedMessageList = lazy(() => import('../components/agent/VirtualizedMessageList'));
-// [P1-PLAN-LOTE-411] los atajos «Escanear mi plato» y «Anotar comida» abren sus hojas aquí mismo (bajo demanda)
-const ScanMealModal = lazy(() => import('../components/dashboard/ScanMealModal'));
-const LogMealModal = lazy(() => import('../components/dashboard/LogMealModal'));
 import { SidebarRecientes } from '../components/agent/SidebarRecientes';
 import { safeJSONParse } from '../utils/safeJSONParse';
 // [P2-NEW-LOCALSTORAGE-MIGRATION-DEBT · 2026-05-15] Ver ChatWidget.jsx para
@@ -158,7 +155,7 @@ const CLAVE_BURBUJA_EXPLICADA = 'mealfit_voz_burbuja_explicada';
 import { useToqueSinFoco } from '../hooks/useToqueSinFoco';
 import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAcompana, duracionDeApertura, insetDeApertura, CURVA_TECLADO, KB_PAD_ABIERTO_REM, RELEVO_MARGEN_MS } from '../utils/keyboardChoreography';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
-import { atajosDelChat, metasEnNumeros } from '../utils/atajosDelChat';
+import { atajosDelChat, metasEnNumeros, prefijoAnotarComida } from '../utils/atajosDelChat';
 import { useResumenDeHoy, leerResumenDeHoy } from '../hooks/useResumenDeHoy';
 import { saludoDelCoach, franjaDeLaHora } from '../utils/saludoDelCoach';
 import { nativeHidesCommerce } from '../config/platform';
@@ -593,8 +590,6 @@ const AgentPage = () => {
     // saludo tiene su propio cálculo porque es una función pura fuera de React;
     // el menú se pinta aquí dentro y necesita el suyo. Mismo SSOT, dos ámbitos.
     const enModoContador = isTrackingMode(userProfile, planData);
-    // [P1-PLAN-LOTE-411] la hoja que abrió un atajo: { tipo: 'escanear'|'anotar', mealType?, daysAgo? }
-    const [hojaDeComida, setHojaDeComida] = useState(null);
     const navigate = useNavigate();
     // [P1-SETTINGS-DIALOG · 2026-08-10] Ubicación de fondo para abrir la
     // configuración como ventana sin desmontar la conversación.
@@ -4968,7 +4963,26 @@ const AgentPage = () => {
                             key={a.id}
                             type="button"
                             className={a.tipo === 'accion' ? 'chat-quick-chip chat-quick-chip-accion' : 'chat-quick-chip'}
-                            onClick={() => (a.tipo === 'accion' ? setHojaDeComida({ tipo: a.accion }) : handleSend(a.mensaje))}
+                            onClick={() => {
+                                if (a.tipo === 'accion') {
+                                    if (a.accion === 'escanear') {
+                                        void openAttachmentPicker();
+                                    } else if (a.accion === 'anotar') {
+                                        const prefijo = prefijoAnotarComida();
+                                        setInput((prev) => (prev && prev.trim() ? prev : prefijo));
+                                        setTimeout(() => {
+                                            const campo = chatInputRef.current;
+                                            if (campo) {
+                                                campo.focus();
+                                                const len = campo.value.length;
+                                                campo.setSelectionRange?.(len, len);
+                                            }
+                                        }, 50);
+                                    }
+                                } else {
+                                    handleSend(a.mensaje);
+                                }
+                            }}
                         >
                             {a.texto}
                         </button>
@@ -6552,29 +6566,7 @@ const AgentPage = () => {
                 </Suspense>
             )}
 
-            {/* [P1-PLAN-LOTE-411 → 415] Las hojas de los atajos, FUERA de la caja de escribir: dentro, la caja
-                (`will-change: transform` + `z-index: 10`) encerraba la del escáner bajo la barra de pestañas, y su
-                `onPointerDownCapture` tomaba cada toque en la hoja por un toque en el compositor. */}
-            {hojaDeComida?.tipo === 'anotar' && (
-                <Suspense fallback={null}>
-                    <LogMealModal
-                        userId={chatUserId}
-                        onClose={() => setHojaDeComida(null)}
-                        onScan={(d) => setHojaDeComida({ tipo: 'escanear', ...(d || {}) })}
-                    />
-                </Suspense>
-            )}
-            {hojaDeComida?.tipo === 'escanear' && (
-                <Suspense fallback={null}>
-                    <ScanMealModal
-                        isOpen
-                        userId={chatUserId}
-                        onClose={() => setHojaDeComida(null)}
-                        initialMealType={hojaDeComida.mealType}
-                        initialDaysAgo={hojaDeComida.daysAgo || 0}
-                    />
-                </Suspense>
-            )}
+
 
             <AttachmentSourceSheet
                 open={showAttachmentSource}

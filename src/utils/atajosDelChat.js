@@ -9,6 +9,14 @@ const MAX = 4;
 const _n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
 const _g = (v) => _n(String(v ?? '').replace(/[^\d.]/g, ''));   // «198g» → 198
 
+/** Prefijo contextual para «Anotar comida» según la hora local. */
+export function prefijoAnotarComida(hora = new Date().getHours()) {
+    if (hora >= 5 && hora < 11) return 'Desayuné ';
+    if (hora >= 11 && hora < 16) return 'Almorcé ';
+    if (hora >= 16 && hora < 19) return 'Merendé ';
+    return 'Cené ';
+}
+
 /** Las metas de macros en números, vengan del plan o de /api/nutrition/targets (`macros: { protein: '198g' }`). */
 export function metasEnNumeros(m) {
     if (!m) return null;
