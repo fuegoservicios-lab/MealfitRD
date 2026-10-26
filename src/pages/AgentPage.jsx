@@ -4969,7 +4969,15 @@ const AgentPage = () => {
                                         void openAttachmentPicker();
                                     } else if (a.accion === 'anotar') {
                                         const prefijo = prefijoAnotarComida();
-                                        setInput((prev) => (prev && prev.trim() ? prev : prefijo));
+                                        setInput((prev) => {
+                                            const t = (prev || '').trim();
+                                            if (!t) return prefijo;
+                                            const lower = t.toLowerCase();
+                                            if (lower.startsWith('desayun') || lower.startsWith('almorc') || lower.startsWith('merend') || lower.startsWith('cen') || lower.startsWith('comi')) {
+                                                return prev;
+                                            }
+                                            return prefijo + t;
+                                        });
                                         setTimeout(() => {
                                             const campo = chatInputRef.current;
                                             if (campo) {
