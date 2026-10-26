@@ -617,7 +617,7 @@ const InteractiveAssessmentFlow = () => {
             // imposible. Ahora la vía para lo no listado es el chip «Otra
             // condición», que es una señal ESTRUCTURADA — no prosa que haya que
             // parsear (ver el rationale del gate en QMedical.jsx).
-            subtitle: t('Marca las que tengas, «Ninguna» si no, u «Otra condición» si no está en la lista.'),
+            subtitle: t('Marca las que tengas para cuidar tu salud. Si no tienes ninguna condición médica, pulsa el botón «Ninguna» para continuar.'),
             hasInternalNext: true,
             fields: ['medicalConditions'],
             component: <QMedical onManualAdvance={nextStep} />

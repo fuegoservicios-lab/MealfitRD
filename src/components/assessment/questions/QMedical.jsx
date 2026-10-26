@@ -8,7 +8,7 @@ import { SENTINELS } from '../../../config/sentinels';
 import { MAX_MEDICAL_CONDITIONS } from '../../../config/formValidation';
 import {
     Activity, AlertTriangle, Baby, Ban, BatteryLow, Bone, Brain, CircleHelp, Croissant,
-    Droplet, Droplets, Filter, Flame, HeartPulse, Milk, Pill, Slice, Syringe, TestTube, Venus,
+    Droplet, Droplets, Filter, Flame, HeartPulse, Milk, Pill, ShieldCheck, Slice, Syringe, TestTube, Venus,
 } from 'lucide-react';
 import { ChipOption, PREGNANCY_CHIP_LABELS, toggleArrayWithExclusiveSentinel } from './_shared';
 import { NextButton } from './NextButton';
@@ -277,9 +277,10 @@ export const QMedical = ({ onManualAdvance, nextLabel }) => {
                     onToggle={handleToggle}
                 />
                 <ChipOption
-                    val={SENTINEL} label={sentinelLabel} icon={Ban}
+                    val={SENTINEL} label={sentinelLabel} icon={ShieldCheck}
                     isSelected={(formData.medicalConditions || []).includes(SENTINEL)}
                     onToggle={handleToggle}
+                    isSentinel={true}
                 />
             </div>
             {/* [P1-MEDICAL-SCOPE-GATE · 2026-08-09] El aviso de alcance. Se dice
@@ -380,7 +381,7 @@ export const QMedical = ({ onManualAdvance, nextLabel }) => {
                 los 14 chips simplemente no se captura — el input "Otro medicamento..." fue retirado
                 (decisión de producto, alcance acotado al checklist). */}
             <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '-0.75rem' }}>
-                {t('Medicamentos actuales (opcional)')}
+                {t('Medicamentos actuales (opcional) — si no tomas medicamentos, pulsa «Ninguno»')}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
                 {/* [P1-MEDICAL-SCOPE-GATE · 2026-08-09] «Antidepresivo IMAO» es el
@@ -409,9 +410,10 @@ export const QMedical = ({ onManualAdvance, nextLabel }) => {
                 {/* [P3-MED-NONE-CHIP · 2026-07-01] Sentinel "Ninguno" exclusivo: al
                     marcarlo se deseleccionan los demás medicamentos. */}
                 <ChipOption
-                    val={MED_SENTINEL} label={MED_SENTINEL === 'Ninguno' ? t('Ninguno') : MED_SENTINEL} icon={Ban}
+                    val={MED_SENTINEL} label={MED_SENTINEL === 'Ninguno' ? t('Ninguno') : MED_SENTINEL} icon={ShieldCheck}
                     isSelected={noMedications}
                     onToggle={handleMedToggle}
+                    isSentinel={true}
                 />
             </div>
             {/* [P1-MEDICATION-FREETEXT · 2026-06-19 · ELIMINADO P1-MEDICAL-CONDITIONS-CAP · 2026-08-01]

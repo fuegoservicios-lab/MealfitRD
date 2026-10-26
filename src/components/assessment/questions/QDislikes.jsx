@@ -3,7 +3,7 @@ import { useAssessment } from '../../../context/AssessmentContext';
 import { Input } from '../../common/FormUI';
 // [P1-FORM-2] SSOT de sentinels exclusivos — rationale completo en QAllergies.jsx y config/sentinels.js.
 import { SENTINELS } from '../../../config/sentinels';
-import { Ban, Bean, Beef, Cloud, Fish, Layers, Leaf, LeafyGreen, Shrimp, Sprout, TreeDeciduous } from 'lucide-react';
+import { Ban, Bean, Beef, CheckCircle2, Cloud, Fish, Layers, Leaf, LeafyGreen, Shrimp, Sprout, TreeDeciduous } from 'lucide-react';
 import { ChipOption, toggleArrayWithExclusiveSentinel } from './_shared';
 import { NextButton } from './NextButton';
 import { useT } from '../../../i18n';
@@ -78,9 +78,10 @@ export const QDislikes = ({ onManualAdvance }) => {
                     />
                 ))}
                 <ChipOption
-                    val={SENTINEL} label={sentinelLabel} icon={Ban}
+                    val={SENTINEL} label={sentinelLabel} icon={CheckCircle2}
                     isSelected={(formData.dislikes || []).includes(SENTINEL)}
                     onToggle={handleToggle}
+                    isSentinel={true}
                 />
             </div>
             {/* [P3-FORM-SENTINEL-LOCKS-FREETEXT · 2026-07-01] Si el usuario marca

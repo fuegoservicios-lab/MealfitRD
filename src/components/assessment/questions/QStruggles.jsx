@@ -3,7 +3,7 @@ import { useAssessment } from '../../../context/AssessmentContext';
 import { Input } from '../../common/FormUI';
 // [P1-FORM-2] SSOT de sentinels exclusivos — rationale completo en QAllergies.jsx y config/sentinels.js.
 import { SENTINELS } from '../../../config/sentinels';
-import { AlertTriangle, Ban, Clock, Frown, HelpCircle, Users, XCircle } from 'lucide-react';
+import { AlertTriangle, Ban, CheckCircle2, Clock, Frown, HelpCircle, Users, XCircle } from 'lucide-react';
 import { ChipOption, toggleArrayWithExclusiveSentinel } from './_shared';
 import { NextButton } from './NextButton';
 import { useT } from '../../../i18n';
@@ -48,9 +48,10 @@ export const QStruggles = ({ onManualAdvance }) => {
                 ))}
 
                 <ChipOption
-                    val={SENTINEL} label={sentinelLabel} icon={Ban}
+                    val={SENTINEL} label={sentinelLabel} icon={CheckCircle2}
                     isSelected={(formData.struggles || []).includes(SENTINEL)}
                     onToggle={handleToggle}
+                    isSentinel={true}
                 />
             </div>
             {/* [P3-FORM-SENTINEL-LOCKS-FREETEXT · 2026-07-01] "Ninguno" bloquea el free-text. */}

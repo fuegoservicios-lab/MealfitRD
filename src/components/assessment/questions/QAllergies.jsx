@@ -8,7 +8,7 @@ import { Input } from '../../common/FormUI';
 // `frontend/src/config/sentinels.js` para el contrato con backend
 // (`_SENTINEL_NONE_VALUES` en `graph_orchestrator.py`).
 import { SENTINELS } from '../../../config/sentinels';
-import { Ban, Egg, Fish, Leaf, Milk, Nut, Shrimp, Wheat } from 'lucide-react';
+import { Ban, Egg, Fish, Leaf, Milk, Nut, ShieldCheck, Shrimp, Wheat } from 'lucide-react';
 import { ChipOption, toggleArrayWithExclusiveSentinel } from './_shared';
 import { NextButton } from './NextButton';
 import { useT } from '../../../i18n';
@@ -107,9 +107,10 @@ export const QAllergies = ({ onManualAdvance, nextLabel }) => {
                     <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={(formData.allergies || []).includes(opt.val)} onToggle={handleToggle} />
                 ))}
                 <ChipOption
-                    val={SENTINEL} label={sentinelLabel} icon={Ban}
+                    val={SENTINEL} label={sentinelLabel} icon={ShieldCheck}
                     isSelected={(formData.allergies || []).includes(SENTINEL)}
                     onToggle={handleToggle}
+                    isSentinel={true}
                 />
             </div>
             {/* [P3-FORM-SENTINEL-LOCKS-FREETEXT · 2026-07-01] "Ninguna" bloquea el

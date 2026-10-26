@@ -66,27 +66,60 @@ export const DietOption = ({ val, label, icon: Icon, desc, isSelected, onSelect 
 // deshabilitado pero sigue operable, que es justo el comportamiento que
 // necesitamos. El estilo visual (opacidad + cursor + hover neutralizado) vive
 // en CSS vía `aria-disabled` (index.css `.mf-opt-chip[aria-disabled="true"]`).
-export const ChipOption = ({ val, label, icon: Icon, isSelected, onToggle, disabled = false }) => (
-    <div
-        onClick={() => onToggle(val)}
-        onKeyDown={handleActivationKey(() => onToggle(val))}
-        role="button"
-        aria-pressed={isSelected}
-        aria-disabled={disabled || undefined}
-        tabIndex={0}
-        className="mf-opt-chip"
-        style={{
-            padding: '0.75rem 1rem', borderRadius: 'var(--radius-lg)',
-            display: 'flex', alignItems: 'center', gap: '0.75rem',
-            ...(isSelected ? { border: '1px solid var(--secondary)', backgroundColor: 'rgba(16, 185, 129, 0.12)' } : {})
-        }}
-    >
-        {Icon && <Icon size={18} color={isSelected ? 'var(--secondary)' : 'var(--text-muted)'} />}
-        <span style={{ fontSize: '0.9rem', fontWeight: isSelected ? 600 : 400, color: isSelected ? 'var(--ink-good)' : 'var(--text-main)' }}>
-            {label}
-        </span>
-    </div>
-);
+export const ChipOption = ({
+    val,
+    label,
+    icon: Icon,
+    isSelected,
+    onToggle,
+    disabled = false,
+    isSentinel = false,
+}) => {
+    // [UI-SENTINEL-POP · 2026-10-26] Si es el botón de escape positivo ("Ninguna" / "Ninguno"),
+    // le damos un estilo esmeralda llamativo y nítido para que el usuario sano lo identifique
+    // en 0.5s sin tener que rebuscar entre una lista de enfermedades o alérgenos.
+    const sentinelStyle = isSentinel ? {
+        border: isSelected ? '1.5px solid #10B981' : '1.5px solid rgba(16, 185, 129, 0.5)',
+        backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.22)' : 'rgba(16, 185, 129, 0.08)',
+        boxShadow: isSelected
+            ? '0 0 0 2px rgba(16, 185, 129, 0.25), 0 2px 10px rgba(16, 185, 129, 0.25)'
+            : '0 2px 8px rgba(16, 185, 129, 0.1)',
+    } : (isSelected ? { border: '1px solid var(--secondary)', backgroundColor: 'rgba(16, 185, 129, 0.12)' } : {});
+
+    return (
+        <div
+            onClick={() => onToggle(val)}
+            onKeyDown={handleActivationKey(() => onToggle(val))}
+            role="button"
+            aria-pressed={isSelected}
+            aria-disabled={disabled || undefined}
+            tabIndex={0}
+            className="mf-opt-chip"
+            style={{
+                padding: '0.75rem 1rem', borderRadius: 'var(--radius-lg)',
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                transition: 'all 0.2s ease',
+                ...sentinelStyle,
+            }}
+        >
+            {Icon && (
+                <Icon
+                    size={18}
+                    color={isSentinel ? (isSelected ? '#10B981' : '#34D399') : (isSelected ? 'var(--secondary)' : 'var(--text-muted)')}
+                    strokeWidth={isSentinel ? 2.4 : 2}
+                />
+            )}
+            <span style={{
+                fontSize: '0.9rem',
+                fontWeight: (isSelected || isSentinel) ? 700 : 400,
+                color: isSentinel ? (isSelected ? '#10B981' : 'var(--text-main)') : (isSelected ? 'var(--ink-good)' : 'var(--text-main)'),
+                letterSpacing: isSentinel ? '0.01em' : 'normal',
+            }}>
+                {label}
+            </span>
+        </div>
+    );
+};
 
 // [FORM-OPT-HOVER · 2026-07-03] Base en `.mf-opt-card`; el seleccionado inline
 // usa el `color` dinámico de cada objetivo (por eso no puede vivir en CSS).
