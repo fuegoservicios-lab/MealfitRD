@@ -6,6 +6,38 @@ import { useFotosDeComida } from '../../hooks/useFotosDeComidas';
 import { useT } from '../../i18n';
 import styles from './MiniaturaDeComida.module.css';
 
+const GalleryIcon = () => (
+    <svg
+        className={styles.galleryIcon}
+        viewBox="0 0 16 16"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+    >
+        <rect
+            x="4"
+            y="1.5"
+            width="10.5"
+            height="10.5"
+            rx="2"
+            stroke="currentColor"
+            strokeWidth="1.25"
+            strokeOpacity="0.85"
+        />
+        <rect
+            x="1.5"
+            y="4"
+            width="10.5"
+            height="10.5"
+            rx="2"
+            fill="currentColor"
+            fillOpacity="0.25"
+            stroke="currentColor"
+            strokeWidth="1.25"
+        />
+    </svg>
+);
+
 const MiniaturaDeComida = ({ userId, mealId, className }) => {
     const t = useT();
     const fotos = useFotosDeComida(userId, mealId, 'mini');
@@ -17,7 +49,10 @@ const MiniaturaDeComida = ({ userId, mealId, className }) => {
         <span className={`${className || ''} ${styles.stack}`} role="img" aria-label={etiqueta} title={etiqueta}>
             <img src={fotos[1].url} alt="" aria-hidden="true" className={styles.rear} width={36} height={36} decoding="sync" />
             <img src={url} alt="" aria-hidden="true" className={styles.cover} width={36} height={36} decoding="sync" />
-            <span className={styles.count} aria-hidden="true">{fotos.length}</span>
+            <span className={styles.count} aria-hidden="true">
+                <GalleryIcon />
+                <span>{fotos.length}</span>
+            </span>
         </span>
     );
 };
