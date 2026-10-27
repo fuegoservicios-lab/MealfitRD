@@ -388,26 +388,6 @@
     transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
 }
 
-.fillExceeded {
-    position: relative;
-}
-
-.fillExceeded::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 24px;
-    background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.35));
-    border-radius: 0 99px 99px 0;
-    pointer-events: none;
-}
-
-:global(html[data-theme="dark"]) .fillExceeded::after {
-    background: linear-gradient(90deg, transparent, rgba(248, 113, 113, 0.4));
-}
-
 .goalMarker, .referenceMarker {
     position: absolute;
     top: 2px;
@@ -442,31 +422,7 @@
     line-height: 1.45;
     font-variant-numeric: tabular-nums;
 }
-.referenceExceeded {
-    color: #D97706;
-    font-weight: 600;
-}
-
-.referenceExceeded::before {
-    content: '';
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    margin-right: 0.35rem;
-    vertical-align: middle;
-    border-radius: 50%;
-    background-color: #F59E0B;
-    box-shadow: 0 0 6px rgba(245, 158, 11, 0.7);
-}
-
-:global(html[data-theme="dark"]) .referenceExceeded {
-    color: #FBBF24;
-}
-
-:global(html[data-theme="dark"]) .referenceExceeded::before {
-    background-color: #FBBF24;
-    box-shadow: 0 0 6px rgba(251, 191, 36, 0.8);
-}
+.referenceExceeded { color: var(--warning-text, #92400e); }
 
 /* [P3-TRACKING-PERC-DESKTOP · 2026-05-20] Pill `.percRow` oculta globalmente.
    El % vive dentro del fill (battery style). Mantenemos la clase para que
@@ -518,19 +474,7 @@
     transform: translateX(-100%);
     transition: left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
     pointer-events: none;
-    z-index: 3;
-}
-
-.fillPercExceeded {
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    border-radius: 99px;
-    height: calc(100% - 4px);
-    top: 2px;
-    padding: 0 0.45rem;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    z-index: 1;
 }
 
 /* [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas hoy. Antes

@@ -844,7 +844,6 @@ const ProgressBar = ({ label, consumed: consumedReal, goal, reference, unit, per
     const endpoint = reference || goal;
     const difference = endpoint - consumedReal;
     const remaining = formatNumber(Math.abs(difference), { maximumFractionDigits: 1 });
-    const isExceeded = difference < 0;
     const statusText = reference
         ? difference > 0 ? t('A {n} g de la referencia', { n: remaining })
             : difference < 0 ? t('{n} g sobre la referencia', { n: remaining }) : t('En la referencia')
@@ -950,7 +949,7 @@ const ProgressBar = ({ label, consumed: consumedReal, goal, reference, unit, per
                 }}
             >
                 <div
-                    className={`${styles.fill} ${isExceeded ? styles.fillExceeded : ''}`}
+                    className={styles.fill}
                     style={{
                         width: `${fillWidth}%`,
                         background: gradient,
@@ -979,7 +978,7 @@ const ProgressBar = ({ label, consumed: consumedReal, goal, reference, unit, per
                     user rechazó visualmente — battery style consistente. */}
                 {!isEmpty && (
                     <span
-                        className={`${styles.fillPerc} ${isExceeded ? styles.fillPercExceeded : ''}`}
+                        className={styles.fillPerc}
                         style={{ left: `${badgePosition}%` }}
                     >
                         {formatPercent(perc)}
@@ -993,7 +992,7 @@ const ProgressBar = ({ label, consumed: consumedReal, goal, reference, unit, per
                     <i className={styles.referenceKey} aria-hidden="true" />{t('Referencia general')} {formatPercent(referencePerc)}
                 </span>}
             </div>
-            <p className={`${styles.barRemaining} ${isExceeded ? styles.referenceExceeded : ''}`}>
+            <p className={`${styles.barRemaining} ${reference && difference < 0 ? styles.referenceExceeded : ''}`}>
                 {statusText}{reference && <span> · {formatNumber(reference, { maximumFractionDigits: 1 })} g</span>}
             </p>
 
