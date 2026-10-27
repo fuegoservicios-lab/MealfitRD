@@ -4678,15 +4678,11 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             setRecalcLock,
             withRecalcLock,
     }), [
-        session, loadingAuth, loadingData, loadingProfile, planSyncFailed, retryPlanSync,
-        loadingSensitive, userProfile, _updateUserProfile, currentStep, setCurrentStep,
-        maxReachedStep, setMaxReachedStep, direction, _nextStep, _prevStep, formData,
-        _updateData, planData, setPlanData, _saveGeneratedPlan, likedMeals, _toggleMealLike,
+        session, loadingAuth, loadingData, loadingProfile, planSyncFailed, retryPlanSync, loadingSensitive, userProfile, _updateUserProfile, currentStep, setCurrentStep,
+        maxReachedStep, setMaxReachedStep, direction, _nextStep, _prevStep, formData, _updateData, planData, setPlanData, _saveGeneratedPlan, likedMeals, _toggleMealLike,
         dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, dayRegenIndex, mealRegenInFlight, _resetApp, _resetForNewAssessment,
-        effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
-        creditosServidor, regalosRecientes,
-        isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
-        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restartPlanPoll, restoreSessionData, serverGeneratingPlanId,
+        effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining, creditosServidor, regalosRecientes,
+        isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan, _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restartPlanPoll, restoreSessionData, serverGeneratingPlanId,
         setRecalcLock, withRecalcLock, esperarTraduccionDelDia,
     ]);
 

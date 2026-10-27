@@ -57,7 +57,7 @@
     border-radius: 999px;
     background: color-mix(in srgb, var(--src-accent) 14%, transparent);
     color: var(--src-accent);
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
 }
@@ -75,7 +75,7 @@
 .sources[open] summary { border-radius: 0; }
 .sourceIcon { width: auto; height: auto; background: transparent; border-radius: 0; }
 .heading { flex: 0 1 auto; }
-.count { min-width: 20px; height: 18px; padding: 0 6px; font-size: 0.68rem; }
+.count { min-width: 20px; height: 18px; padding: 0 6px; font-size: 0.75rem; }
 .chevron { margin-left: auto; }
 @media (hover: hover) { .sources summary:hover { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .chevron, .sources summary { transition: none; } }
@@ -90,7 +90,7 @@
 .sources li:first-child { padding-top: 0; }
 .sources li:last-child { border-bottom: 0; padding-bottom: 0; }
 .sources a { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
-.publisher { display: block; margin-bottom: 0.25rem; font-size: 0.73rem; line-height: 1.45; }
+.publisher { display: block; margin-bottom: 0.25rem; font-size: 0.75rem; line-height: 1.45; }
 .reference, .more { display: flex; align-items: baseline; gap: 0.5rem; }
 .reference svg, .more svg { flex-shrink: 0; align-self: center; }
 .more { padding-top: 0.65rem; font-weight: 600; }

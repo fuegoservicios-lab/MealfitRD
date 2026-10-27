@@ -138,7 +138,7 @@ export const QAppMode = ({ onAutoAdvance }) => {
                                     {t('Plan de comidas con IA')}
                                 </h3>
                                 <span style={{
-                                    fontSize: '0.68rem',
+                                    fontSize: '0.75rem',
                                     fontWeight: 700,
                                     padding: '0.12rem 0.5rem',
                                     borderRadius: 999,
