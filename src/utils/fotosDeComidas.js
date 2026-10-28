@@ -295,6 +295,32 @@ export async function borrarFotoDeComida(userId, mealId) {
     if (hecho !== null) _avisar(userId);
 }
 
+/** [P1-MULTI-PHOTO-MATCH] Elimina un adjunto específico de una comida (evita fotos mezcladas en multi-foto). */
+export async function removerAdjuntoDeComida(userId, mealId, attachmentId) {
+    if (!_valido(userId) || !_valido(mealId) || !attachmentId) return false;
+    const ok = await _conAlmacen('readwrite', (s) => {
+        const req = s.get(_clave(userId, mealId));
+        req.onsuccess = () => {
+            const anterior = req.result;
+            if (!anterior || anterior.userId !== userId) return;
+            const fotos = _fotos(anterior).filter((f) => f.id !== attachmentId);
+            if (!fotos.length) {
+                s.delete(_clave(userId, mealId));
+            } else {
+                s.put({
+                    ...anterior,
+                    fotos,
+                    foto: fotos[0].foto,
+                    mini: fotos[0].mini,
+                });
+            }
+        };
+        return true;
+    });
+    if (ok !== null) _avisar(userId);
+    return true;
+}
+
 /** Al borrar la cuenta: todas las fotos de ese usuario en este dispositivo. */
 export async function borrarFotosDelUsuario(userId) {
     if (!_valido(userId)) return;

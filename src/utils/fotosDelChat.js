@@ -28,7 +28,7 @@
 //
 // Nada de esto lanza hacia la interfaz: si algo falla, la comida sale sin foto, como antes.
 // Las correcciones se enlazan por el ID que confirma el servidor, aunque la fila sea anterior a la foto.
-import { guardarFotoDeComida, idsConFoto, idsDeFotosDeComida } from './fotosDeComidas';
+import { guardarFotoDeComida, idsConFoto, idsDeFotosDeComida, removerAdjuntoDeComida } from './fotosDeComidas';
 import { fetchWithAuth } from '../config/api';
 
 export const VENTANA_MS = 45 * 60 * 1000;
@@ -121,7 +121,12 @@ export function fotoParaComida(fotos, creada, textoDeLaComida = '') {
             if (turnos > MAX_TURNOS_DESPUES) return false;
             return turnos === 0 || hablanDeLoMismo(f.desc, textoDeLaComida);
         })
-        .sort((a, b) => Number(b.t) - Number(a.t));
+        .sort((a, b) => {
+            const matchA = textoDeLaComida && hablanDeLoMismo(a.desc, textoDeLaComida) ? 1 : 0;
+            const matchB = textoDeLaComida && hablanDeLoMismo(b.desc, textoDeLaComida) ? 1 : 0;
+            if (matchA !== matchB) return matchB - matchA;
+            return Number(b.t) - Number(a.t);
+        });
     return candidatas[0] || null;
 }
 
@@ -132,7 +137,11 @@ export function fotosParaComida(fotos, creada, texto = '') {
     const grupo = fotos.filter((f) => f.t === primera.t && f.ses === primera.ses
         && fotoParaComida([f], creada, texto));
     const coincidentes = grupo.filter((f) => hablanDeLoMismo(f.desc, texto));
-    return (coincidentes.length ? coincidentes : [primera]).slice(0, 4);
+    if (coincidentes.length) return coincidentes.slice(0, 4);
+    if (grupo.length > 1 && !hablanDeLoMismo(primera.desc, texto)) {
+        return [];
+    }
+    return [primera];
 }
 
 const _fechaLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -271,6 +280,25 @@ export async function vincularFotosDelChat(userId, {
             && typeof enlace.image_url === 'string'
             && (enlace.image_url === `/api/chat/attachments/${enlace.attachment_id}`
                 || enlace.image_url.startsWith(`/api/chat/attachments/${enlace.attachment_id}?`)));
+
+        // [P1-MULTI-PHOTO-MATCH] Si una comida tiene en caché un adjunto que el servidor asignó a OTRA comida,
+        // removerlo para que no queden fotos cruzadas (ej. guineo con la foto del sancocho).
+        const attachmentOwner = new Map();
+        for (const enlace of validas) {
+            attachmentOwner.set(enlace.attachment_id, enlace.meal_id);
+        }
+        for (const enlace of validas) {
+            const mealId = enlace.meal_id;
+            if (!conocidas.has(mealId)) conocidas.set(mealId, await idsDeFotosDeComida(userId, mealId));
+            const ids = conocidas.get(mealId);
+            for (const attId of ids) {
+                const owner = attachmentOwner.get(attId);
+                if (owner && owner !== mealId) {
+                    await removerAdjuntoDeComida(userId, mealId, attId);
+                    ids.delete(attId);
+                }
+            }
+        }
         for (const enlace of validas) {
             if (!conocidas.has(enlace.meal_id)) conocidas.set(enlace.meal_id, await idsDeFotosDeComida(userId, enlace.meal_id));
             const ids = conocidas.get(enlace.meal_id);
