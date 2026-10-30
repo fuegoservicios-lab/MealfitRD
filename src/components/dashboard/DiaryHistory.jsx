@@ -852,14 +852,6 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                 })}
                             </div>
                         </div>
-
-                        <div className={styles.selectedDayHeader}>
-                            <span className={styles.selectedDayNum}>{fecha.getDate()}</span>
-                            <span className={styles.selectedDayText}>
-                                {getDiasLargo(t)[fecha.getDay()].slice(0, 3).toUpperCase()}
-                                {esHoy ? ` · ${t('Hoy')}` : esAyer ? ` · ${t('Ayer')}` : ''}
-                            </span>
-                        </div>
                     </>
                 )}
 
