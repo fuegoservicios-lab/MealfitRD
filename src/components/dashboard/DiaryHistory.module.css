@@ -75,8 +75,58 @@
     color: var(--text-muted);
 }
 
-.dateTitle {
+.headTitleRow {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.75rem;
     margin-top: 0.22rem;
+    flex-wrap: wrap;
+}
+
+.viewTabs {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    gap: 2px;
+    border-radius: 8px;
+    background: rgba(148, 163, 184, 0.1);
+    border: 1px solid var(--border, rgba(148, 163, 184, 0.14));
+    flex-shrink: 0;
+}
+
+.viewTab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    border: 0;
+    background: transparent;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.viewTab:hover {
+    color: var(--text-main);
+}
+
+.viewTabActive {
+    background: var(--bg-card, #FFFFFF);
+    color: var(--primary, #818CF8);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+:global(html[data-theme="dark"]) .viewTabActive {
+    background: rgba(255, 255, 255, 0.14);
+    color: #FFFFFF;
+}
+
+.dateTitle {
     font-size: 1.28rem;
     font-weight: 800;
     letter-spacing: -0.03em;   /* mismo tracking que el wordmark */
@@ -187,6 +237,12 @@
     bottom: 0;
     border-radius: 999px;
     background: linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%);
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.railFillComplete {
+    background: linear-gradient(180deg, #34D399 0%, #10B981 100%) !important;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.45);
 }
 
 .railEmpty {
@@ -293,6 +349,12 @@
     height: 100%;
     border-radius: 999px;
     background: linear-gradient(90deg, #FBBF24, #F59E0B);
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.quotaFillComplete {
+    background: linear-gradient(90deg, #34D399, #10B981) !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
 }
 
 .macroRow {
@@ -682,4 +744,224 @@
     font-size: 0.75rem;
     color: var(--text-muted);
     text-align: right;
+}
+
+/* --------------------------------------- vista mensual (cuadrícula estilo calendario) */
+
+.calendarContainer {
+    padding: 0.5rem 1.15rem 0.85rem;
+    background: rgba(148, 163, 184, 0.03);
+    border-bottom: 1px solid var(--border, rgba(148, 163, 184, 0.1));
+}
+
+.calHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.85rem;
+}
+
+.calTitle {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+    text-transform: uppercase;
+}
+
+.calRightActions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.calNavBtn {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    border: 1px solid var(--border, rgba(148, 163, 184, 0.16));
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.calNavBtn:hover:not(:disabled) {
+    color: var(--text-main);
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.3);
+}
+
+.calNavBtn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+}
+
+.calTodayBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border, rgba(148, 163, 184, 0.25));
+    background: rgba(148, 163, 184, 0.06);
+    color: var(--text-main);
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.calTodayBtn:hover {
+    background: rgba(129, 140, 248, 0.15);
+    border-color: #818CF8;
+    color: var(--primary);
+}
+
+.calTodayNum {
+    font-variant-numeric: tabular-nums;
+}
+
+.calWeekHeader {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    gap: 4px;
+    margin-bottom: 0.4rem;
+}
+
+.calWeekLetter {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    padding: 3px 0;
+}
+
+.calSunday {
+    color: #EF4444 !important;
+    font-weight: 800;
+}
+
+.calGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.calCell {
+    aspect-ratio: 1;
+    min-height: 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: rgba(148, 163, 184, 0.05);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    padding: 2px;
+}
+
+:global(html[data-theme="dark"]) .calCell {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.calCell:hover:not(:disabled) {
+    background: rgba(148, 163, 184, 0.12);
+}
+
+:global(html[data-theme="dark"]) .calCell:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.calCellOtherMonth {
+    opacity: 0.32;
+    color: var(--text-muted);
+}
+
+.calCellFuture {
+    opacity: 0.18;
+    cursor: not-allowed;
+}
+
+.calCellActive {
+    border: 2px solid #FFFFFF !important;
+    background: rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.22);
+}
+
+:global(html[data-theme="light"]) .calCellActive {
+    border: 2px solid #1E1B4B !important;
+    background: rgba(30, 27, 75, 0.08) !important;
+    box-shadow: 0 0 8px rgba(30, 27, 75, 0.15);
+}
+
+.calCellToday:not(.calCellActive) {
+    border: 1px dashed #818CF8;
+}
+
+.calCellNum {
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.calCellActive .calCellNum {
+    font-weight: 800;
+}
+
+.calCellIndicator {
+    height: 4px;
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.calCellDot {
+    width: 14px;
+    height: 3px;
+    border-radius: 999px;
+}
+
+.calCellDotGreen {
+    background: #10B981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.calCellDotYellow {
+    background: #F59E0B;
+}
+
+.selectedDayHeader {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.85rem 1.15rem 0.2rem;
+}
+
+.selectedDayNum {
+    font-size: 1.85rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.selectedDayText {
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-muted);
 }

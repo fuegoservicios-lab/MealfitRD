@@ -41,7 +41,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, ChevronRight, Trash2, Loader2, Plus, FlaskConical, Share } from 'lucide-react';
+import { X, CalendarDays, ChevronRight, ChevronLeft, Trash2, Loader2, Plus, FlaskConical, Share } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { confirmToast } from '../../utils/confirmToast';
@@ -148,6 +148,45 @@ const mediodiaDe = (iso) => {
 /** Cuántos días atrás queda `iso` respecto a hoy (local). */
 const diasAtras = (iso, hoyISO) => Math.round((desdeISO(hoyISO) - desdeISO(iso)) / 86400000);
 
+/** Genera las celdas de la cuadrícula mensual (7 columnas, empezando en domingo). */
+const getMesCalendario = (calDate) => {
+    const y = calDate.getFullYear();
+    const m = calDate.getMonth();
+    const primerDia = new Date(y, m, 1, 12, 0, 0, 0);
+    const startPadding = primerDia.getDay(); // 0 = Domingo
+    const diasEnMes = new Date(y, m + 1, 0, 12, 0, 0, 0).getDate();
+    const diasEnMesAnt = new Date(y, m, 0, 12, 0, 0, 0).getDate();
+
+    const celdas = [];
+    for (let p = startPadding - 1; p >= 0; p -= 1) {
+        const diaNum = diasEnMesAnt - p;
+        const fecha = new Date(y, m - 1, diaNum, 12, 0, 0, 0);
+        celdas.push({
+            day: diaNum,
+            iso: aISO(fecha),
+            currentMonth: false,
+        });
+    }
+    for (let d = 1; d <= diasEnMes; d += 1) {
+        const fecha = new Date(y, m, d, 12, 0, 0, 0);
+        celdas.push({
+            day: d,
+            iso: aISO(fecha),
+            currentMonth: true,
+        });
+    }
+    const rem = (7 - (celdas.length % 7)) % 7;
+    for (let n = 1; n <= rem; n += 1) {
+        const fecha = new Date(y, m + 1, n, 12, 0, 0, 0);
+        celdas.push({
+            day: n,
+            iso: aISO(fecha),
+            currentMonth: false,
+        });
+    }
+    return celdas;
+};
+
 const aFecha = (raw) => {
     if (!raw) return null;
     const d = new Date(raw);
@@ -195,7 +234,55 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const hoyISO = useMemo(() => aISO(new Date()), [open]); // eslint-disable-line react-hooks/exhaustive-deps
     const [selected, setSelected] = useState(hoyISO);
     useEffect(() => { if (open) setSelected(aISO(new Date())); }, [open]);
+    const [modoVista, setModoVista] = useState('tira'); // 'tira' | 'calendario'
+    const [calDate, setCalDate] = useState(() => {
+        const d = new Date();
+        return new Date(d.getFullYear(), d.getMonth(), 1, 12, 0, 0, 0);
+    });
+    useEffect(() => {
+        if (open) {
+            const hoy = new Date();
+            setCalDate(new Date(hoy.getFullYear(), hoy.getMonth(), 1, 12, 0, 0, 0));
+        }
+    }, [open]);
     const [maxDias, setMaxDias] = useState(DIAS_TIRA);
+
+    // Al abrir calendario, asegurar al menos 90 días de datos (3 meses)
+    useEffect(() => {
+        if (modoVista === 'calendario' && maxDias < 90) {
+            setMaxDias(90);
+        }
+    }, [modoVista, maxDias]);
+
+    const cambiarMes = useCallback((delta) => {
+        setCalDate((actual) => {
+            const siguiente = new Date(actual.getFullYear(), actual.getMonth() + delta, 1, 12, 0, 0, 0);
+            const hoy = new Date();
+            if (siguiente.getFullYear() > hoy.getFullYear() ||
+                (siguiente.getFullYear() === hoy.getFullYear() && siguiente.getMonth() > hoy.getMonth())) {
+                return actual;
+            }
+            const diasAtrasMes = Math.ceil((hoy - siguiente) / 86400000) + 35;
+            if (diasAtrasMes > maxDias) {
+                setMaxDias(Math.min(365, Math.max(90, diasAtrasMes)));
+            }
+            return siguiente;
+        });
+    }, [maxDias]);
+
+    const esMesActual = useMemo(() => {
+        const hoy = new Date();
+        return calDate.getFullYear() === hoy.getFullYear() && calDate.getMonth() === hoy.getMonth();
+    }, [calDate]);
+
+    const diasSemanaLetras = useMemo(() => {
+        return [0, 1, 2, 3, 4, 5, 6].map((i) => {
+            const d = new Date(2026, 9, 25 + i, 12, 0, 0, 0);
+            return diaLetra(d);
+        });
+    }, []);
+
+    const calDias = useMemo(() => getMesCalendario(calDate), [calDate]);
     const [resumen, setResumen] = useState([]);
     const [dia, setDia] = useState(null);
     const [cargando, setCargando] = useState(false);
@@ -516,76 +603,220 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                             </button>
                         </div>
                     </div>
-                    <div>
-                        <h2 className={styles.dateTitle}>
-                            {t('{diaSemana} {dia} de {mes}', {
-                                diaSemana: getDiasLargo(t)[fecha.getDay()],
-                                dia: fecha.getDate(),
-                                mes: getMeses(t)[fecha.getMonth()],
-                            })}
-                        </h2>
-                        {(esHoy || esAyer) && (
-                            <div className={styles.dateRelative}>{esHoy ? t('Hoy') : t('Ayer')}</div>
-                        )}
+                    <div className={styles.headTitleRow}>
+                        <div>
+                            <h2 className={styles.dateTitle}>
+                                {t('{diaSemana} {dia} de {mes}', {
+                                    diaSemana: getDiasLargo(t)[fecha.getDay()],
+                                    dia: fecha.getDate(),
+                                    mes: getMeses(t)[fecha.getMonth()],
+                                })}
+                            </h2>
+                            {(esHoy || esAyer) && (
+                                <div className={styles.dateRelative}>{esHoy ? t('Hoy') : t('Ayer')}</div>
+                            )}
+                        </div>
+                        <div className={styles.viewTabs} aria-label={t('Modo de vista')}>
+                            <button
+                                type="button" aria-pressed={modoVista === 'tira'}
+                                className={`${styles.viewTab} ${modoVista === 'tira' ? styles.viewTabActive : ''}`}
+                                onClick={() => setModoVista('tira')}
+                            >
+                                {t('Tira')}
+                            </button>
+                            <button
+                                type="button" aria-pressed={modoVista === 'calendario'}
+                                className={`${styles.viewTab} ${modoVista === 'calendario' ? styles.viewTabActive : ''}`}
+                                onClick={() => {
+                                    setModoVista('calendario');
+                                    const d = desdeISO(selected);
+                                    setCalDate(new Date(d.getFullYear(), d.getMonth(), 1, 12, 0, 0, 0));
+                                }}
+                            >
+                                <CalendarDays size={13} aria-hidden="true" />
+                                {t('Mes')}
+                            </button>
+                        </div>
                     </div>
                 </header>
 
-                <div ref={stripRef} className={styles.strip} role="tablist" aria-label={t('Elegir día')}>
-                    {/* [P1-PLAN-LOTE-105] la tira crece hacia atrás de dos en dos semanas, hasta el tope del endpoint */}
-                    {maxDias < DIAS_MAX && (
-                        <button
-                            type="button"
-                            className={styles.moreDays}
-                            onClick={() => setMaxDias((n) => Math.min(DIAS_MAX, n + DIAS_TIRA))}
-                            title={t('Ver 2 semanas más')}
-                            aria-label={t('Ver 2 semanas más')}
-                        >
-                            +14
-                        </button>
-                    )}
-                    {dias.map((iso) => {
-                        const d = desdeISO(iso);
-                        const r = porFecha.get(iso);
-                        const kcal = r?.calories || 0;
-                        const conDatos = (r?.meals_count || 0) > 0;
-                        const alto = pct(kcal, targetCalories);
-                        const activo = iso === selected;
-                        return (
-                            <button
-                                key={iso}
-                                ref={activo ? activoRef : null}
-                                type="button" role="tab" aria-selected={activo}
-                                className={`${styles.dayBtn} ${activo ? styles.dayBtnActive : ''}`}
-                                onClick={() => setSelected(iso)}
-                                title={conDatos
-                                    ? t('{kcal} kcal · {n} comida(s)', { kcal, n: r.meals_count })
-                                    : t('Sin registro')}
-                            >
-                                <span className={styles.dayLetter}>{diaLetra(d)}</span>
-                                <span className={`${styles.rail} ${conDatos ? '' : styles.railEmpty}`}>
-                                    {conDatos && (
-                                        <motion.span
-                                            className={styles.railFill}
-                                            initial={{ height: 0 }}
-                                            animate={{ height: `${Math.max(alto, 8)}%` }}
-                                            transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
-                                        />
-                                    )}
-                                </span>
-                                <span className={styles.dayNum}>{d.getDate()}</span>
-                                <span className={iso === hoyISO ? styles.todayDot : styles.todayDotHidden} />
-                            </button>
-                        );
-                    })}
-                </div>
+                {modoVista === 'tira' ? (
+                    <>
+                        <div ref={stripRef} className={styles.strip} role="tablist" aria-label={t('Elegir día')}>
+                            {/* [P1-PLAN-LOTE-105] la tira crece hacia atrás de dos en dos semanas, hasta el tope del endpoint */}
+                            {maxDias < DIAS_MAX && (
+                                <button
+                                    type="button"
+                                    className={styles.moreDays}
+                                    onClick={() => setMaxDias((n) => Math.min(DIAS_MAX, n + DIAS_TIRA))}
+                                    title={t('Ver 2 semanas más')}
+                                    aria-label={t('Ver 2 semanas más')}
+                                >
+                                    +14
+                                </button>
+                            )}
+                            {dias.map((iso) => {
+                                const d = desdeISO(iso);
+                                const r = porFecha.get(iso);
+                                const kcal = r?.calories || 0;
+                                const conDatos = (r?.meals_count || 0) > 0;
+                                const alto = pct(kcal, targetCalories);
+                                const activo = iso === selected;
+                                const completo = targetCalories > 0 && kcal >= targetCalories;
+                                return (
+                                    <button
+                                        key={iso}
+                                        ref={activo ? activoRef : null}
+                                        type="button" role="tab" aria-selected={activo}
+                                        className={`${styles.dayBtn} ${activo ? styles.dayBtnActive : ''}`}
+                                        onClick={() => setSelected(iso)}
+                                        title={conDatos
+                                            ? t('{kcal} kcal · {n} comida(s)', { kcal, n: r.meals_count })
+                                            : t('Sin registro')}
+                                    >
+                                        <span className={styles.dayLetter}>{diaLetra(d)}</span>
+                                        <span className={`${styles.rail} ${conDatos ? '' : styles.railEmpty}`}>
+                                            {conDatos && (
+                                                <motion.span
+                                                    className={`${styles.railFill} ${completo ? styles.railFillComplete : ''}`}
+                                                    initial={{ height: 0 }}
+                                                    animate={{ height: `${Math.max(alto, 8)}%` }}
+                                                    transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+                                                />
+                                            )}
+                                        </span>
+                                        <span className={styles.dayNum}>{d.getDate()}</span>
+                                        <span className={iso === hoyISO ? styles.todayDot : styles.todayDotHidden} />
+                                    </button>
+                                );
+                            })}
+                        </div>
 
-                {semana && (
-                    <div className={styles.weekLine}>
-                        {tn(semana.n,
-                            'Últimos 7 días: media de {kcal} kcal en {n} día con registro',
-                            'Últimos 7 días: media de {kcal} kcal en {n} días con registro',
-                            { kcal: formatNumber(semana.media), n: semana.n })}
-                    </div>
+                        {semana && (
+                            <div className={styles.weekLine}>
+                                {tn(semana.n,
+                                    'Últimos 7 días: media de {kcal} kcal en {n} día con registro',
+                                    'Últimos 7 días: media de {kcal} kcal en {n} días con registro',
+                                    { kcal: formatNumber(semana.media), n: semana.n })}
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <div className={styles.calendarContainer}>
+                            <div className={styles.calHeader}>
+                                <button
+                                    type="button"
+                                    className={styles.calNavBtn}
+                                    onClick={() => cambiarMes(-1)}
+                                    aria-label={t('Mes anterior')}
+                                    title={t('Mes anterior')}
+                                >
+                                    <ChevronLeft size={18} strokeWidth={2.25} aria-hidden="true" />
+                                </button>
+                                <div className={styles.calTitle}>
+                                    {getMeses(t)[calDate.getMonth()].toUpperCase()} {calDate.getFullYear()}
+                                </div>
+                                <div className={styles.calRightActions}>
+                                    <button
+                                        type="button"
+                                        className={styles.calNavBtn}
+                                        onClick={() => cambiarMes(1)}
+                                        disabled={esMesActual}
+                                        aria-label={t('Mes siguiente')}
+                                        title={t('Mes siguiente')}
+                                    >
+                                        <ChevronRight size={18} strokeWidth={2.25} aria-hidden="true" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles.calTodayBtn}
+                                        onClick={() => {
+                                            const hoy = new Date();
+                                            setSelected(hoyISO);
+                                            setCalDate(new Date(hoy.getFullYear(), hoy.getMonth(), 1, 12, 0, 0, 0));
+                                        }}
+                                        aria-label={t('Ir a hoy ({dia})', { dia: new Date().getDate() })}
+                                        title={t('Ir a hoy ({dia})', { dia: new Date().getDate() })}
+                                    >
+                                        <span className={styles.calTodayNum}>{new Date().getDate()}</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className={styles.calWeekHeader}>
+                                {diasSemanaLetras.map((letra, idx) => (
+                                    <span
+                                        key={idx}
+                                        className={`${styles.calWeekLetter} ${idx === 0 ? styles.calSunday : ''}`}
+                                    >
+                                        {letra}
+                                    </span>
+                                ))}
+                            </div>
+
+                            <div className={styles.calGrid} role="grid" aria-label={t('Calendario mensual')}>
+                                {calDias.map((c, i) => {
+                                    const iso = c.iso;
+                                    const r = porFecha.get(iso);
+                                    const kcal = r?.calories || 0;
+                                    const conDatos = (r?.meals_count || 0) > 0;
+                                    const completo = targetCalories > 0 && kcal >= targetCalories;
+                                    const activo = iso === selected;
+                                    const esHoyDia = iso === hoyISO;
+                                    const esFuturo = iso > hoyISO;
+
+                                    return (
+                                        <button
+                                            key={iso || i}
+                                            type="button"
+                                            role="gridcell"
+                                            aria-selected={activo}
+                                            disabled={esFuturo}
+                                            className={`
+                                                ${styles.calCell}
+                                                ${!c.currentMonth ? styles.calCellOtherMonth : ''}
+                                                ${activo ? styles.calCellActive : ''}
+                                                ${esHoyDia ? styles.calCellToday : ''}
+                                                ${esFuturo ? styles.calCellFuture : ''}
+                                            `}
+                                            onClick={() => {
+                                                if (esFuturo) return;
+                                                setSelected(iso);
+                                                if (!c.currentMonth) {
+                                                    const d = desdeISO(iso);
+                                                    setCalDate(new Date(d.getFullYear(), d.getMonth(), 1, 12, 0, 0, 0));
+                                                }
+                                            }}
+                                            title={conDatos
+                                                ? t('{kcal} kcal · {n} comida(s)', { kcal, n: r.meals_count })
+                                                : t('Sin registro')}
+                                        >
+                                            <span className={styles.calCellNum}>{c.day}</span>
+                                            <span className={styles.calCellIndicator}>
+                                                {conDatos && (
+                                                    <span
+                                                        className={`
+                                                            ${styles.calCellDot}
+                                                            ${completo ? styles.calCellDotGreen : styles.calCellDotYellow}
+                                                        `}
+                                                    />
+                                                )}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className={styles.selectedDayHeader}>
+                            <span className={styles.selectedDayNum}>{fecha.getDate()}</span>
+                            <span className={styles.selectedDayText}>
+                                {getDiasLargo(t)[fecha.getDay()].slice(0, 3).toUpperCase()}
+                                {esHoy ? ` · ${t('Hoy')}` : esAyer ? ` · ${t('Ayer')}` : ''}
+                            </span>
+                        </div>
+                    </>
                 )}
 
                 <div className={styles.quota}>
@@ -595,7 +826,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     </div>
                     <div className={styles.quotaBar}>
                         <motion.div
-                            className={styles.quotaFill}
+                            className={`${styles.quotaFill} ${targetCalories > 0 && num(totales.calories) >= targetCalories ? styles.quotaFillComplete : ''}`}
                             initial={{ width: 0 }}
                             animate={{ width: `${pct(totales.calories, targetCalories)}%` }}
                             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
