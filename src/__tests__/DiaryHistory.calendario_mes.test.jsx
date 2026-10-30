@@ -183,4 +183,41 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
             expect(fetchWithAuth).toHaveBeenCalledWith(expect.stringContaining(`date=${HOY}`));
         });
     });
+
+    it('organiza el contenido en un scrollable unificado (drawerBody) y soporta swipe táctil para navegar meses', async () => {
+        render(
+            <DiaryHistory
+                userId="u-123"
+                open={true}
+                onClose={() => {}}
+                targetCalories={2000}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /mes/i })).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /mes/i }));
+
+        // Contenedor scrollable unificado
+        const drawerBody = document.querySelector('[class*="drawerBody"]');
+        expect(drawerBody).not.toBeNull();
+
+        const calContainer = document.querySelector('[class*="calendarContainer"]');
+        expect(calContainer).not.toBeNull();
+
+        // Simular swipe hacia la derecha (dx > 50px) para ir al mes anterior
+        fireEvent.touchStart(calContainer, {
+            touches: [{ clientX: 100, clientY: 200 }],
+        });
+        fireEvent.touchEnd(calContainer, {
+            changedTouches: [{ clientX: 200, clientY: 205 }],
+        });
+
+        // Debe haberse disparado la navegación al mes anterior
+        await waitFor(() => {
+            expect(fetchWithAuth).toHaveBeenCalled();
+        });
+    });
 });

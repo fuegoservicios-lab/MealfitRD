@@ -303,6 +303,32 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const cierreRef = useRef(null);
     const stripRef = useRef(null);
     const activoRef = useRef(null);
+    const bodyScrollRef = useRef(null);
+    const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
+
+    const handleCalTouchStart = useCallback((e) => {
+        if (e.touches && e.touches[0]) {
+            touchStartRef.current = {
+                x: e.touches[0].clientX,
+                y: e.touches[0].clientY,
+                time: Date.now(),
+            };
+        }
+    }, []);
+
+    const handleCalTouchEnd = useCallback((e) => {
+        if (!e.changedTouches || !e.changedTouches[0]) return;
+        const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
+        const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+        const dt = Date.now() - touchStartRef.current.time;
+        if (dt < 450 && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.6) {
+            if (dx > 0) {
+                cambiarMes(-1);
+            } else if (dx < 0 && !esMesActual) {
+                cambiarMes(1);
+            }
+        }
+    }, [cambiarMes, esMesActual]);
 
     const tzOffset = useMemo(() => new Date().getTimezoneOffset(), []);
 
@@ -620,7 +646,14 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                             <button
                                 type="button" aria-pressed={modoVista === 'tira'}
                                 className={`${styles.viewTab} ${modoVista === 'tira' ? styles.viewTabActive : ''}`}
-                                onClick={() => setModoVista('tira')}
+                                onClick={() => {
+                                    setModoVista('tira');
+                                    if (typeof bodyScrollRef.current?.scrollTo === 'function') {
+                                        bodyScrollRef.current.scrollTo({ top: 0, behavior: 'instant' });
+                                    } else if (bodyScrollRef.current) {
+                                        bodyScrollRef.current.scrollTop = 0;
+                                    }
+                                }}
                             >
                                 {t('Tira')}
                             </button>
@@ -631,6 +664,11 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     setModoVista('calendario');
                                     const d = desdeISO(selected);
                                     setCalDate(new Date(d.getFullYear(), d.getMonth(), 1, 12, 0, 0, 0));
+                                    if (typeof bodyScrollRef.current?.scrollTo === 'function') {
+                                        bodyScrollRef.current.scrollTo({ top: 0, behavior: 'instant' });
+                                    } else if (bodyScrollRef.current) {
+                                        bodyScrollRef.current.scrollTop = 0;
+                                    }
                                 }}
                             >
                                 <CalendarDays size={13} aria-hidden="true" />
@@ -639,6 +677,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         </div>
                     </div>
                 </header>
+
+                <div ref={bodyScrollRef} className={styles.drawerBody}>
 
                 {modoVista === 'tira' ? (
                     <>
@@ -703,7 +743,11 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     </>
                 ) : (
                     <>
-                        <div className={styles.calendarContainer}>
+                        <div
+                            className={styles.calendarContainer}
+                            onTouchStart={handleCalTouchStart}
+                            onTouchEnd={handleCalTouchEnd}
+                        >
                             <div className={styles.calHeader}>
                                 <button
                                     type="button"
@@ -939,6 +983,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                             <MicrosList micros={totales.micros || null} coverage={coberturaMicros} metas={targetMicros} compact showNotes={false} />
                         </section>
                     )}
+                </div>
                 </div>
             </motion.aside>
 
