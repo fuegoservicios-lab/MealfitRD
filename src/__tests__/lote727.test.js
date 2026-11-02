@@ -128,6 +128,28 @@ describe('el caso de los limoncillos', () => {
         await vincularFotosDelChat(UID, { ...s, ahora: T0 + 2000, cierraTurnoDe: CHAT });
         expect(lista().map((f) => [f.id, f.turnos])).toEqual([['a', 1], ['b', 0]]);
     });
+
+    it('una foto de plato servido NUNCA se enlaza a un suplemento', async () => {
+        recordarFotosDelChat(UID, [{
+            attachment_id: 'papas-huevo',
+            kind: 'plato',
+            description: 'papas fritas con 2 huevos fritos',
+            image_url: '/a/papas',
+            file: blob(),
+        }], { ahora: T0, sesion: CHAT });
+
+        // Un suplemento registrado posteriormente o en el mismo chat no debe heredar la foto del plato
+        const s = servidor([{
+            id: 'meal-creatina',
+            meal_name: '5 cápsulas de Creatine 5000',
+            meal_type: 'suplemento',
+            created_at: new Date(T0 + 1000).toISOString(),
+            source: 'chat',
+        }]);
+
+        await vincularFotosDelChat(UID, { ...s, ahora: T0 + 1500, cierraTurnoDe: CHAT });
+        expect(vi.mocked(guardarFotoDeComida)).not.toHaveBeenCalled();
+    });
 });
 
 describe('enganches', () => {

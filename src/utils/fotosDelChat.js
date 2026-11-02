@@ -112,11 +112,14 @@ export function recordarFotosDelChat(userId, subidas, { ahora = Date.now(), sesi
 
 /** Qué foto le toca a una comida creada en `creada` (ms), o null. `textoDeLaComida` (nombre + ingredientes) decide
  *  las fotos de turnos anteriores; sin él solo valen las del mismo turno. Pura: se prueba sin red. */
-export function fotoParaComida(fotos, creada, textoDeLaComida = '') {
+export function fotoParaComida(fotos, creada, textoDeLaComida = '', tipoComida = '') {
+    const esSuplemento = tipoComida === 'suplemento' || /suplemento|creatina|pastilla|c[aá]psula/i.test(textoDeLaComida);
     const candidatas = (Array.isArray(fotos) ? fotos : [])
         .filter((f) => Number(f.t) <= creada + 5000 && creada - Number(f.t) <= VENTANA_MS)
         .filter((f) => f.enlazadaEn == null || Math.abs(creada - Number(f.enlazadaEn)) <= MISMO_TURNO_MS)
         .filter((f) => {
+            // [P1-SUPPLEMENT-PHOTO-SHIELD · 2026-11-01] Una foto de plato servido ('plato') NUNCA se pega a un suplemento
+            if (esSuplemento && f.kind === 'plato') return false;
             const turnos = Number(f.turnos) || 0;
             if (turnos > MAX_TURNOS_DESPUES) return false;
             return turnos === 0 || hablanDeLoMismo(f.desc, textoDeLaComida);
@@ -130,12 +133,12 @@ export function fotoParaComida(fotos, creada, textoDeLaComida = '') {
     return candidatas[0] || null;
 }
 
-export function fotosParaComida(fotos, creada, texto = '') {
-    const primera = fotoParaComida(fotos, creada, texto);
+export function fotosParaComida(fotos, creada, texto = '', tipoComida = '') {
+    const primera = fotoParaComida(fotos, creada, texto, tipoComida);
     if (!primera) return [];
     // Only images from the same upload group: a previous turn cannot leak into the gallery.
     const grupo = fotos.filter((f) => f.t === primera.t && f.ses === primera.ses
-        && fotoParaComida([f], creada, texto));
+        && fotoParaComida([f], creada, texto, tipoComida));
     const coincidentes = grupo.filter((f) => hablanDeLoMismo(f.desc, texto));
     if (coincidentes.length) return coincidentes.slice(0, 4);
     if (grupo.length > 1 && !hablanDeLoMismo(primera.desc, texto)) {
@@ -241,7 +244,8 @@ export async function vincularFotosDelChat(userId, {
             let detalle = null;
             try { detalle = await fetchJson(`/api/diary/meal/${m.id}`); } catch { detalle = null; }
             if (detalle?.meal?.source !== 'chat') continue;
-            const elegidas = fotosParaComida(fotos, creada, _textoDeLaComida(detalle.meal));
+            const tipo = detalle?.meal?.meal_type || m?.meal_type || '';
+            const elegidas = fotosParaComida(fotos, creada, _textoDeLaComida(detalle.meal), tipo);
             for (const foto of elegidas) {
             let blob = _blobs.get(foto.id) || null;
             if (!blob && foto.url && typeof fetchBlob === 'function') {
