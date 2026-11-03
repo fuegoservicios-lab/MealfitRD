@@ -95,8 +95,9 @@ export function getEatenSlotIndices(dayMeals, consumedTodayMeals) {
   const eatenKeys = new Set();
   const slotKcals = new Map();
   (Array.isArray(consumedTodayMeals) ? consumedTodayMeals : []).forEach((row) => {
-    const isSupp = String(row?.meal_type || '').toLowerCase() === 'suplemento' || !!row?.suplemento;
-    if (isSupp) return;
+    const rawType = String(row?.meal_type || '').toLowerCase();
+    const isExcluded = rawType === 'suplemento' || rawType === 'complemento' || !!row?.suplemento;
+    if (isExcluded) return;
     const key = canonicalSlotKey(row && row.meal_type);
     if (key) {
       const c = Number(row?.calories) || 0;
