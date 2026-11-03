@@ -12,6 +12,7 @@ import path from 'node:path';
 import DiaryHistory from '../components/dashboard/DiaryHistory';
 import { fetchWithAuth } from '../config/api';
 import { fechaLarga } from '../utils/compartirDia';
+import { getBiologicalDate } from '../utils/diaBiologico';
 
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('../components/dashboard/ScanMealModal', () => ({ default: () => null }));
@@ -36,7 +37,7 @@ vi.mock('framer-motion', async () => {
 
 const respuesta = (body) => ({ ok: true, status: 200, json: async () => body });
 const aISO = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const _h = new Date();
+const _h = getBiologicalDate(new Date());
 const HOY = aISO(_h);
 const AYER_FECHA = new Date(_h.getFullYear(), _h.getMonth(), _h.getDate() - 1, 12);
 const AYER = aISO(AYER_FECHA);
@@ -101,7 +102,7 @@ describe('[P1-COMPARTIR-DIA-PASADO] compartir desde el Diario', () => {
         expect(within(hoja).getByText(fechaLarga(AYER_FECHA))).toBeInTheDocument();
         const texto = textoCompartido();
         expect(texto).toContain(fechaLarga(AYER_FECHA));
-        expect(texto).not.toContain(fechaLarga(new Date()));
+        expect(texto).not.toContain(fechaLarga(_h));
         expect(texto).toMatch(/1[.,\s]?825 \/ 2[.,\s]?050 kcal/);
         expect(texto).toMatch(/113 \/ 134 g/);
         expect(texto).toMatch(/78 \/ 57 g/);
@@ -118,7 +119,7 @@ describe('[P1-COMPARTIR-DIA-PASADO] compartir desde el Diario', () => {
         await waitFor(() => expect(boton).not.toBeDisabled());
         fireEvent.click(boton);
         const hoja = await screen.findByRole('dialog', { name: 'Compartir tu día' });
-        expect(textoCompartido()).toContain(fechaLarga(new Date()));
+        expect(textoCompartido()).toContain(fechaLarga(_h));
         fireEvent.click(within(hoja).getByRole('button', { name: 'Cerrar' }));
         await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Compartir tu día' })).toBeNull());
 

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import DiaryHistory from '../components/dashboard/DiaryHistory';
 import { fetchWithAuth } from '../config/api';
+import { getBiologicalDate } from '../utils/diaBiologico';
 
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('../components/dashboard/ScanMealModal', () => ({ default: () => null }));
@@ -24,7 +25,7 @@ vi.mock('framer-motion', async () => {
 
 const respuesta = (body) => ({ ok: true, status: 200, json: async () => body });
 const aISO = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const _h = new Date();
+const _h = getBiologicalDate(new Date());
 const HOY = aISO(_h);
 const AYER_FECHA = new Date(_h.getFullYear(), _h.getMonth(), _h.getDate() - 1, 12);
 const AYER = aISO(AYER_FECHA);

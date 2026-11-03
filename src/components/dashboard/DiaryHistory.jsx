@@ -258,7 +258,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const cambiarMes = useCallback((delta) => {
         setCalDate((actual) => {
             const siguiente = new Date(actual.getFullYear(), actual.getMonth() + delta, 1, 12, 0, 0, 0);
-            const hoy = new Date();
+            const hoy = getBiologicalDate(new Date());
             if (siguiente.getFullYear() > hoy.getFullYear() ||
                 (siguiente.getFullYear() === hoy.getFullYear() && siguiente.getMonth() > hoy.getMonth())) {
                 return actual;
@@ -272,7 +272,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     }, [maxDias]);
 
     const esMesActual = useMemo(() => {
-        const hoy = new Date();
+        const hoy = getBiologicalDate(new Date());
         return calDate.getFullYear() === hoy.getFullYear() && calDate.getMonth() === hoy.getMonth();
     }, [calDate]);
 

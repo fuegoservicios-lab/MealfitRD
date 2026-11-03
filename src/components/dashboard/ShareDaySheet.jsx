@@ -24,6 +24,7 @@ import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
 import { useAssessment } from '../../context/AssessmentContext';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
+import { getBiologicalDate } from '../../utils/diaBiologico';
 import styles from './ShareDaySheet.module.css';
 
 const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMetas = null, fecha = null }) => {
@@ -47,7 +48,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     // `new Date()` nuevo en cada render del padre redibujaría la imagen sin parar. Sin `fecha`, hoy.
     const instante = fecha instanceof Date ? fecha.getTime() : NaN;
     const conFecha = Number.isFinite(instante);
-    const fechaDelDia = useMemo(() => (Number.isFinite(instante) ? new Date(instante) : new Date()), [instante]);
+    const fechaDelDia = useMemo(() => (Number.isFinite(instante) ? new Date(instante) : getBiologicalDate(new Date())), [instante]);
     const delDia = useMemo(() => consumed || consumidoDelDiario(diario), [consumed, diario]);
 
     // [P1-PLAN-LOTE-225 · 2026-09-24] Los nombres de lo comido, en el idioma del usuario (utils/nombreDeRegistro.js).

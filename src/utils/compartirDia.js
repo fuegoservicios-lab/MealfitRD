@@ -10,6 +10,7 @@ import { isNativeApp, nativePluginAvailable } from '../config/platform';
 import { formatoMicro, filasMicros, cantidadMicro, coberturaMicro } from '../components/dashboard/microsShared';
 import { BRAND } from '../data/routeMeta';
 import { SITE_DOMAIN } from '../config/site';
+import { getBiologicalDate } from './diaBiologico';
 
 // El pie de la imagen y el cierre del texto: el dominio sale de SU SSOT (`config/site.js`, P1-DOMAIN-CUTOVER-BIOBOROS),
 // no de un literal que el próximo cambio de dominio olvidaría. `SITIO` queda como alias: lo importa `tarjetaDelDia.js`.
@@ -29,7 +30,7 @@ const _pct = (valor, meta) => (meta > 0 ? Math.round((valor / meta) * 100) : 0);
 /** Los números que se comparten, ya decididos: la imagen y el texto no redondean ni eligen nada. */
 // [P1-PLAN-LOTE-225 · 2026-09-24] `nombrar`: cómo se LEE el nombre de cada comida (utils/nombreDeRegistro.js); por
 // defecto, tal cual.
-export function resumenDelDia({ consumed, metas, microMetas = null, incluirComidas = false, fecha = new Date(), nombrar = null }) {
+export function resumenDelDia({ consumed, metas, microMetas = null, incluirComidas = false, fecha = getBiologicalDate(new Date()), nombrar = null }) {
     const c = consumed || {};
     const m = metas || {};
     const comidas = Array.isArray(c.meals) ? c.meals : [];
