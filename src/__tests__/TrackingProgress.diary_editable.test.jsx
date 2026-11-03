@@ -210,4 +210,48 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         });
         expect(screen.getByText(/Aún no registras comidas hoy/)).toBeInTheDocument();
     });
+
+    it('[BB-025] separa complementos y bebidas ligeras en su propio apartado y adapta subtítulo', async () => {
+        const _COMPLEMENT_TEA = {
+            id: 'meal-tea',
+            meal_name: 'Taza de té o infusión herbal sin azúcar',
+            calories: 2,
+            protein: 0,
+            carbs: 0,
+            healthy_fats: 0,
+            meal_type: 'complemento',
+        };
+        vi.mocked(fetchWithAuth).mockResolvedValue(_mockGetResponse([_COMPLEMENT_TEA]));
+
+        render(<TrackingProgress userId="user-tea" planData={_PLAN_DATA} />);
+        await waitFor(() => screen.getByText('Taza de té o infusión herbal sin azúcar'));
+
+        // Subtítulo adaptado: no dice "1 comida registrada"
+        expect(screen.getByText('1 complemento')).toBeInTheDocument();
+        expect(screen.queryByText('1 comida registrada')).toBeNull();
+
+        // Apartado separado para complementos
+        expect(screen.getByText(/Complementos y bebidas/)).toBeInTheDocument();
+        expect(screen.getByText(/Complemento · 2 kcal/)).toBeInTheDocument();
+    });
+
+    it('[BB-025] muestra comidas principales y complementos juntos en subtítulo si ambos existen', async () => {
+        const _COMPLEMENT_TEA = {
+            id: 'meal-tea',
+            meal_name: 'Taza de té o infusión herbal sin azúcar',
+            calories: 2,
+            protein: 0,
+            carbs: 0,
+            healthy_fats: 0,
+            meal_type: 'complemento',
+        };
+        vi.mocked(fetchWithAuth).mockResolvedValue(_mockGetResponse([_MEAL_1, _COMPLEMENT_TEA]));
+
+        render(<TrackingProgress userId="user-combo" planData={_PLAN_DATA} />);
+        await waitFor(() => screen.getByText('Pollo con arroz'));
+        await waitFor(() => screen.getByText('Taza de té o infusión herbal sin azúcar'));
+
+        // Subtítulo con desglose
+        expect(screen.getByText('1 comida · 1 complemento')).toBeInTheDocument();
+    });
 });

@@ -584,6 +584,39 @@
     white-space: nowrap;
 }
 
+/* [BB-025 / P1-DIARY-COMPLEMENTS-SECTION · 2026-11-03] */
+.complementsDivider {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+    margin-bottom: 0.1rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted, #64748B);
+}
+
+.complementsDividerLine {
+    flex: 1;
+    height: 1px;
+    background: var(--border, #E2E8F0);
+}
+
+.complementsList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.complementRow {
+    opacity: 0.95;
+}
+
 .mealMeta {
     font-size: 0.76rem;
     color: var(--text-muted);

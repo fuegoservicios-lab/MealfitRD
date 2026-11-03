@@ -81,6 +81,8 @@ const _getMealTypeLabels = (t) => ({
     merienda: t('Merienda'),
     snack: t('Snack'),
     suplemento: t('Suplemento'),
+    // [BB-025 / P1-DIARY-COMPLEMENTS-SECTION · 2026-11-03]
+    complemento: t('Complemento'),
     // [P1-PLAN-LOTE-721] el default del componedor; sin entrada salía «Extra» capitalizado a mano en todos los idiomas
     extra: t('Extra'),
 });
@@ -468,9 +470,14 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
 
     // [P1-DIARY-EDITABLE · 2026-07-28] Filas visibles de la lista de comidas
     // — cap `_MEALS_VISIBLE_CAP` salvo que el usuario pulse "Ver más".
+    // [BB-025 / P1-DIARY-COMPLEMENTS-SECTION · 2026-11-03] Separar comidas reales de complementos/bebidas ligeras.
     const _todaysMeals = displayedConsumed.meals || [];
-    const visibleMeals = mealsExpanded ? _todaysMeals : _todaysMeals.slice(0, _MEALS_VISIBLE_CAP);
-    const hiddenMealsCount = _todaysMeals.length - visibleMeals.length;
+    const _esComplemento = (m) => m?.meal_type === 'complemento' || m?.meal_type === 'suplemento';
+    const _mainMeals = _todaysMeals.filter((m) => !_esComplemento(m));
+    const _complements = _todaysMeals.filter(_esComplemento);
+
+    const visibleMeals = mealsExpanded ? _mainMeals : _mainMeals.slice(0, _MEALS_VISIBLE_CAP);
+    const hiddenMealsCount = _mainMeals.length - visibleMeals.length;
     // [P1-PLAN-LOTE-105] cobertura de micros del día (un snapshot cacheado de antes del lote no la trae: se deriva)
     const coberturaMicros = displayedConsumed.microsCoverage || { con_datos: 0, total: _todaysMeals.length };
 
@@ -534,12 +541,16 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         <p className={styles.subtitle}>
                             {loading
                                 ? t('Cargando registros...')
+                                : _complements.length > 0
+                                ? (_mainMeals.length === 0
+                                    ? tn(_complements.length, '{n} complemento', '{n} complementos', { n: _complements.length })
+                                    : `${tn(_mainMeals.length, '{n} comida', '{n} comidas', { n: _mainMeals.length })} · ${tn(_complements.length, '{n} complemento', '{n} complementos', { n: _complements.length })}`)
                                 : tn(
-                                    displayedConsumed.meals.length,
+                                    _mainMeals.length,
                                     // [P1-PLAN-LOTE-104] sin «hoy»: el título ya lo dice (el dueño: «no quiero que se repita»)
                                     '{n} comida registrada',
                                     '{n} comidas registradas',
-                                    { n: displayedConsumed.meals.length }
+                                    { n: _mainMeals.length }
                                 )}
                         </p>
                         {/* [P1-MACRO-ROW-MOBILE · 2026-08-11] La nota de la meta (P1-GOAL-ETA)
@@ -651,7 +662,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                         {t('Ver {n} más', { n: hiddenMealsCount })}
                                     </button>
                                 )}
-                                {mealsExpanded && _todaysMeals.length > _MEALS_VISIBLE_CAP && (
+                                {mealsExpanded && _mainMeals.length > _MEALS_VISIBLE_CAP && (
                                     <button
                                         type="button"
                                         className={styles.mealsShowMore}
@@ -659,6 +670,56 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                     >
                                         {t('Ver menos')}
                                     </button>
+                                )}
+
+                                {/* [BB-025 / P1-DIARY-COMPLEMENTS-SECTION · 2026-11-03]
+                                    Apartado separado para Bebidas Ligeras y Complementos (té, infusiones, suplementos) */}
+                                {_complements.length > 0 && (
+                                    <>
+                                        <div className={styles.complementsDivider}>
+                                            <span>{t('Complementos y bebidas')} ({_complements.length})</span>
+                                            <div className={styles.complementsDividerLine} aria-hidden="true" />
+                                        </div>
+                                        <ul className={styles.complementsList}>
+                                            {_complements.map((comp, idx) => (
+                                                <li
+                                                    key={comp.id || `${comp.meal_name}-${comp.consumed_at || idx}`}
+                                                    className={`${styles.mealRow} ${styles.complementRow}`}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        className={styles.mealOpen}
+                                                        onClick={() => setFichaMeal(comp)}
+                                                        disabled={!comp.id}
+                                                    >
+                                                        {comp.id && idsConFoto.has(comp.id) && (
+                                                            <MiniaturaDeComida userId={userId} mealId={comp.id} className={styles.mealThumb} />
+                                                        )}
+                                                        <span className={styles.mealInfo}>
+                                                            <span className={styles.mealName}>{nombreDeRegistro(comp.meal_name, planData, t)}</span>
+                                                            <span className={styles.mealMeta}>
+                                                                {_mealTypeLabel(comp.meal_type, t)} · {Math.round(comp.calories) || 0} kcal
+                                                            </span>
+                                                        </span>
+                                                        {comp.id && <ChevronRight size={16} strokeWidth={2.4} className={styles.mealChevron} aria-hidden="true" />}
+                                                    </button>
+                                                    {comp.id && (
+                                                        <button
+                                                            type="button"
+                                                            className={styles.mealDeleteBtn}
+                                                            aria-label={t('Eliminar {nombre} del diario', { nombre: nombreDeRegistro(comp.meal_name, planData, t) })}
+                                                            onClick={() => handleDeleteMeal(comp)}
+                                                            disabled={deletingMealId === comp.id}
+                                                        >
+                                                            {deletingMealId === comp.id
+                                                                ? <Loader2 size={16} className="spin-animation" aria-hidden="true" />
+                                                                : <Trash2 size={16} strokeWidth={2.5} aria-hidden="true" />}
+                                                        </button>
+                                                    )}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </>
                                 )}
                             </>
                         )}
