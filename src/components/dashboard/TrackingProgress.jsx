@@ -482,6 +482,43 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     const percCarb = calcPerc(displayedConsumed.carbs, goalCarb);
     const percFat = calcPerc(displayedConsumed.fats, goalFat);
 
+    // [BB-024 / P1-CALORIE-BAR-GOAL-SEMANTICS · 2026-11-03]
+    // Semántica de la Barra Verde Esmeralda según el objetivo del usuario (BB-001):
+    // Banda de Éxito (Green Zone) entre 90% y 105% (con tolerancia hasta 110%).
+    // Si supera el 110% en modo pérdida de grasa (déficit) o mantenimiento,
+    // pasa de verde a tono ámbar/naranja (#F97316) sin romper la estética.
+    const rawGoal = String(
+        referenceProfile?.mainGoal
+        || planData?.userParams?.mainGoal
+        || planData?.mainGoal
+        || planData?.goal
+        || 'lose_fat'
+    ).toLowerCase();
+    const isMuscle = rawGoal.includes('muscle') || rawGoal.includes('músculo') || rawGoal.includes('musculo');
+    const ratioCal = goalCal > 0 ? (displayedConsumed.calories || 0) / goalCal : 0;
+
+    const isCalorieGreenZone = ratioCal >= 0.90 && (isMuscle ? ratioCal <= 1.15 : ratioCal <= 1.10);
+    const isCalorieOverLimit = isMuscle ? ratioCal > 1.15 : ratioCal > 1.10;
+
+    let calColor = '#F59E0B';
+    let calLightColor = '#FCD34D';
+    let calGradient = 'linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%)';
+    let calIsComplete = false;
+    let calStatusOverride = null;
+
+    if (isCalorieGreenZone) {
+        calColor = '#10B981';
+        calLightColor = '#6EE7B7';
+        calGradient = 'linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)';
+        calIsComplete = true;
+        calStatusOverride = t('Meta del día alcanzada');
+    } else if (isCalorieOverLimit) {
+        calColor = '#F97316';
+        calLightColor = '#FDBA74';
+        calGradient = 'linear-gradient(90deg, #FDBA74 0%, #F97316 100%)';
+        calIsComplete = false;
+    }
+
     return (
         // [P1-PLAN-LOTE-88 · 2026-09-17] `flatOnMobile`: en ≤480px la sección pierde el marco de tarjeta
         // (borde, fondo, sombra y relleno) y usa el ancho entero. Lo pide el padre; hoy solo el contador.
@@ -635,7 +672,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     label={t('Calorías')}
                     consumed={displayedConsumed.calories} goal={goalCal} unit="kcal"
                     perc={percCal} icon={Flame} darkIcon={FlameMacroIcon}
-                    color="#F59E0B" lightColor="#FCD34D" gradient="linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%)"
+                    color={calColor} lightColor={calLightColor} gradient={calGradient}
+                    isComplete={calIsComplete} statusOverride={calStatusOverride}
                     fillIcon
                     large
                 />
@@ -813,7 +851,24 @@ TrackingProgress.propTypes = {
 };
 
 // --- Componente Interno para Barra Individual ---
-const ProgressBar = ({ label, consumed: consumedReal, goal, reference, unit, perc, icon: Icon, darkIcon: DarkIcon, color, lightColor, gradient, large, fillIcon, fillWhiteStroke }) => {
+const ProgressBar = ({
+    label,
+    consumed: consumedReal,
+    goal,
+    reference,
+    unit,
+    perc,
+    icon: Icon,
+    darkIcon: DarkIcon,
+    color,
+    lightColor,
+    gradient,
+    large,
+    fillIcon,
+    fillWhiteStroke,
+    statusOverride,
+    isComplete: isCompleteOverride,
+}) => {
     const t = useT();
     const isEmpty = perc === 0;
     // [P1-PLAN-LOTE-688] el número SUBE a la vista cuando el coach anota (la barra ya crecía con transición). Se sigue
@@ -826,9 +881,12 @@ const ProgressBar = ({ label, consumed: consumedReal, goal, reference, unit, per
     const isDark = isDarkActive();
     const doFillSolid = fillIcon && isDark;
     const doFillWhite = fillWhiteStroke && isDark;
-    // These are personalized plan goals, not health ceilings. Keep the nutrient's
-    // color above the goal and the real percentage; only glow at exactly the goal.
-    const isComplete = consumedReal === goal && goal > 0;
+    // [BB-024 / P1-CALORIE-BAR-GOAL-SEMANTICS · 2026-11-03]
+    // Si isCompleteOverride viene definido (ej. Green Zone en calorías), se usa;
+    // de lo contrario, glow exacto por defecto cuando consumedReal === goal.
+    const isComplete = isCompleteOverride !== undefined
+        ? Boolean(isCompleteOverride)
+        : (consumedReal === goal && goal > 0);
     const referencePerc = reference ? reference / goal * 100 : null;
     const scaleMax = referencePerc ? referencePerc * 1.08 : 100;
     const goalPosition = 100 / scaleMax * 100;
@@ -841,11 +899,12 @@ const ProgressBar = ({ label, consumed: consumedReal, goal, reference, unit, per
     const endpoint = reference || goal;
     const difference = endpoint - consumedReal;
     const remaining = formatNumber(Math.abs(difference), { maximumFractionDigits: 1 });
-    const statusText = reference
+    const defaultStatusText = reference
         ? difference > 0 ? t('A {n} g de la referencia', { n: remaining })
             : difference < 0 ? t('{n} g sobre la referencia', { n: remaining }) : t('En la referencia')
         : difference > 0 ? t('Faltan {n} {unit} para la meta', { n: remaining, unit })
             : difference < 0 ? t('{n} {unit} sobre la meta', { n: remaining, unit }) : t('Meta alcanzada');
+    const statusText = statusOverride || defaultStatusText;
 
     const consumedTextColor = isEmpty ? 'var(--text-muted)' : 'var(--text-main)';
 
@@ -1024,7 +1083,9 @@ ProgressBar.propTypes = {
     gradient: PropTypes.string,
     large: PropTypes.bool,
     fillIcon: PropTypes.bool,
-    fillWhiteStroke: PropTypes.bool
+    fillWhiteStroke: PropTypes.bool,
+    statusOverride: PropTypes.string,
+    isComplete: PropTypes.bool,
 };
 
 export default TrackingProgress;

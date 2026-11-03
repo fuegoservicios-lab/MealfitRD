@@ -3921,6 +3921,7 @@
   "Faltan {n} {unit} para la meta": "Il reste {n} {unit} pour atteindre l’objectif",
   "{n} {unit} sobre la meta": "{n} {unit} au-dessus de l’objectif",
   "Meta alcanzada": "Objectif atteint",
+  "Meta del día alcanzada": "Objectif du jour atteint",
   "A {n} {unit} del máximo recomendado": "{n} {unit} sous le maximum recommandé",
   "Extremo superior del rango orientativo, calculado con las calorías del plan": "Extrémité supérieure de la plage indicative, calculée avec les calories du plan",
   "Rangos orientativos de macronutrientes en adultos (AMDR)": "Plages indicatives de macronutriments pour adultes (AMDR)",

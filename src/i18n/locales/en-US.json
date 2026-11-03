@@ -3921,6 +3921,7 @@
   "Faltan {n} {unit} para la meta": "{n} {unit} remaining to the goal",
   "{n} {unit} sobre la meta": "{n} {unit} above the goal",
   "Meta alcanzada": "Goal reached",
+  "Meta del día alcanzada": "Daily goal reached",
   "A {n} {unit} del máximo recomendado": "{n} {unit} below the recommended maximum",
   "Extremo superior del rango orientativo, calculado con las calorías del plan": "Upper end of the general range, calculated using plan calories",
   "Rangos orientativos de macronutrientes en adultos (AMDR)": "General macronutrient ranges for adults (AMDR)",
