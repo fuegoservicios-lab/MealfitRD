@@ -50,6 +50,7 @@ import {
 // asignado a un import lo trata react-hooks/exhaustive-deps como dependencia
 // inestable; a scope de módulo es estable y no ensucia los deps arrays.
 import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY } from '../utils/chatCacheKeys';
+import { getBiologicalDateStr } from '../utils/diaBiologico';
 const _CHAT_SESSIONS_CACHE_KEY = CHAT_SESSIONS_CACHE_KEY;
 const _CHAT_CACHE_KEY = CHAT_MESSAGES_CACHE_KEY;
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
@@ -3947,7 +3948,7 @@ const AgentPage = () => {
                 });
 
                 const now = new Date();
-                const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const localDateStr = getBiologicalDateStr(now);
 
                 // [P1-CHAT-STOP-POWER · 2026-07-12] El controller ya nació al
                 // inicio del try (cubre también el análisis de foto).

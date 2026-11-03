@@ -35,6 +35,7 @@ import { macroReferences } from '../../utils/macroReferences';
 // en miniatura. El almacén de fotos se importa dinámico dentro del hook: este trozo está en el techo de precache-guard.
 import { useIdsConFoto, useEnlazarFotosDelChat, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
 import MiniaturaDeComida from './MiniaturaDeComida';
+import { getBiologicalDateStr } from '../../utils/diaBiologico';
 import styles from './TrackingProgress.module.css';
 
 // [P1-COMPARTIR-DIA · 2026-09-23] La hoja se carga al abrirla: canvas + textos no pesan en el panel.
@@ -104,8 +105,7 @@ const _MEALS_VISIBLE_CAP = 4;
 // producción (17:44 UTC / renovación 18:41 UTC, mismo día local).
 const _getConsumedCacheKey = (userId) => {
     if (!userId) return null;
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const dateStr = getBiologicalDateStr();
     return `${_CONSUMED_CACHE_KEY_PREFIX}${userId}_${dateStr}`;
 };
 
@@ -321,12 +321,9 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                 return;
             }
             try {
-                // Calculate local date and timezone offset
+                // Calculate local biological date and timezone offset
                 const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0');
-                const day = String(now.getDate()).padStart(2, '0');
-                const dateStr = `${year}-${month}-${day}`;
+                const dateStr = getBiologicalDateStr(now);
                 const tzOffset = now.getTimezoneOffset();
 
                 const res = await fetchWithAuth(`/api/diary/consumed/${userId}?date=${dateStr}&tzOffset=${tzOffset}`);

@@ -18,6 +18,7 @@ import { crearVigiaDeSilencio, hayActividadDeAudio } from '../utils/cierreVozPor
 import { capturarMicrofonoDeVoz } from '../utils/capturaMicrofono';
 import { prepararConexionVoz } from '../utils/prepararConexionVoz';
 import { avisarFalloDeVozEnVivo } from '../utils/diagnosticoVoz';
+import { getBiologicalDateStr } from '../utils/diaBiologico';
 
 export const LIVE_SONDEO_MS = 2000;
 
@@ -184,7 +185,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, al
                     sdp: oferta.sdp,
                     session_id: sessionIdRef.current,
                     locale: localeRef.current,
-                    local_date: `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`,
+                    local_date: getBiologicalDateStr(ahora),
                     tz_offset: ahora.getTimezoneOffset(),
                     tz_offset_convention: 'utc_minus_local',
                 }),

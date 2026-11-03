@@ -30,6 +30,7 @@
 // Las correcciones se enlazan por el ID que confirma el servidor, aunque la fila sea anterior a la foto.
 import { guardarFotoDeComida, idsConFoto, idsDeFotosDeComida, removerAdjuntoDeComida } from './fotosDeComidas';
 import { fetchWithAuth } from '../config/api';
+import { getBiologicalDate, getBiologicalDateStr } from './diaBiologico';
 
 export const VENTANA_MS = 45 * 60 * 1000;
 export const MISMO_TURNO_MS = 2 * 60 * 1000;
@@ -225,9 +226,11 @@ export async function vincularFotosDelChat(userId, {
         const desde = Math.min(...fotos.map((f) => Number(f.t))) - 5000;
         const tz = new Date().getTimezoneOffset();
         let comidas = [];
-        for (const d of [new Date(ahora), new Date(ahora - 86400000)]) {
+        const dHoy = getBiologicalDate(ahora);
+        const dAyer = new Date(dHoy.getTime() - 86400000);
+        for (const d of [dHoy, dAyer]) {
             try {
-                const data = await fetchJson(`/api/diary/consumed/${userId}?date=${_fechaLocal(d)}&tzOffset=${tz}`);
+                const data = await fetchJson(`/api/diary/consumed/${userId}?date=${getBiologicalDateStr(d)}&tzOffset=${tz}`);
                 if (Array.isArray(data?.meals)) comidas = comidas.concat(data.meals);
             } catch { /* ese día sin datos */ }
         }

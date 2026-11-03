@@ -11,13 +11,12 @@
 // vuelve a montar y pide de nuevo: lo borrado allí se ve aquí.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchWithAuth } from '../config/api';
+import { getBiologicalDateStr } from '../utils/diaBiologico';
 
 const _hoyUrl = (userId) => {
     const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    return `/api/diary/consumed/${userId}?date=${y}-${m}-${d}&tzOffset=${now.getTimezoneOffset()}`;
+    const dateStr = getBiologicalDateStr(now);
+    return `/api/diary/consumed/${userId}?date=${dateStr}&tzOffset=${now.getTimezoneOffset()}`;
 };
 
 /** Las comidas de hoy, o null si no hay usuario / no hay red (se conserva lo último visto). */

@@ -47,6 +47,7 @@ import { lineaDeIngredienteLegible } from '../../utils/nombresDeAlimentos';
 import { mealDisplay, langDeCampo } from '../../utils/displayMeal';
 import { numberRecipeSteps, parseRecipeStep, glossAnnotationLabel } from '../../utils/recipeSteps';
 import { mensajeDeError } from '../../utils/errorCopy';
+import { isSameBiologicalDay, isPreviousBiologicalDay } from '../../utils/diaBiologico';
 import MicrosList from './MicrosList';
 import styles from './FichaDeComida.module.css';
 
@@ -164,15 +165,13 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     const consumido = aFecha(meal?.consumed_at);
     const creado = aFecha(detalle.meal?.created_at || meal?.created_at);
     // Una comida anotada OTRO día lleva la hora del registro, no la de la comida: entonces se dice cuándo se anotó.
-    const horaFiable = !!consumido && (!creado || mismoDia(creado, consumido));
-    const hoy = new Date();
-    const ayer = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 1, 12);
+    const horaFiable = !!consumido && (!creado || isSameBiologicalDay(creado, consumido));
     const franja = getFranjas(t)[String(meal?.meal_type || '').toLowerCase()]
         || { texto: meal?.meal_type ? String(meal.meal_type) : t('Comida'), color: '#94A3B8' };
     let dia = null;
     if (consumido) {
-        if (mismoDia(consumido, hoy)) dia = t('Hoy');
-        else if (mismoDia(consumido, ayer)) dia = t('Ayer');
+        if (isSameBiologicalDay(consumido, new Date())) dia = t('Hoy');
+        else if (isPreviousBiologicalDay(consumido, new Date())) dia = t('Ayer');
         else dia = formatDate(consumido, { weekday: 'short', day: 'numeric', month: 'short' });
     }
     const cuando = [dia, horaFiable ? formatDate(consumido, { timeStyle: 'short' }) : null].filter(Boolean).join(' · ');

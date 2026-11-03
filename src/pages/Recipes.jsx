@@ -43,6 +43,7 @@ import EmptyState from '../components/common/EmptyState';
 // (PDF, ventana de días) y le pasa datos.
 import { RecipesView } from '../components/recipes/RecipesView';
 import { MobileRecipes } from '../components/recipes/MobileRecipes';
+import { getBiologicalDateStr } from '../utils/diaBiologico';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener ×2).
 import { useIsMobile } from '../hooks/useMediaQuery';
 // [P3-AJI-MORRON-DISPLAY · 2026-06-22] Terminología RD: pimiento dulce → "ají morrón"
@@ -278,9 +279,9 @@ const Recipes = () => {
         _consumedFetchedRef.current = true;
         (async () => {
             try {
-                // Mismo cálculo local de date/tzOffset que TrackingProgress.jsx.
+                // Mismo cálculo biológico de date/tzOffset que TrackingProgress.jsx.
                 const now = new Date();
-                const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const dateStr = getBiologicalDateStr(now);
                 const tzOffset = now.getTimezoneOffset();
                 const res = await fetchWithAuth(`/api/diary/consumed/${uid}?date=${dateStr}&tzOffset=${tzOffset}`);
                 const data = await res.json();
