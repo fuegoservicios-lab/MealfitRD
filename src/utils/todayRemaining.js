@@ -75,6 +75,9 @@ export function canonicalSlotKey(mealType) {
   return _SLOT_CANON_MAP[norm] || null;
 }
 
+// [P1-PHOTO-DRINK-IDENTITY · 2026-11-03] Umbral mínimo de kcal para considerar un slot como comido.
+export const SLOT_MIN_KCAL_TO_COUNT = 50;
+
 /**
  * Índices (dentro de `dayMeals`, SIN filtrar — los mismos índices que usa
  * el swap, ver marker P2-SWAP-INDEX-COUPLING en Dashboard.jsx) de los
@@ -90,12 +93,23 @@ export function getEatenSlotIndices(dayMeals, consumedTodayMeals) {
   if (!Array.isArray(dayMeals) || dayMeals.length === 0) return eatenIndices;
 
   const eatenKeys = new Set();
+  const slotKcals = new Map();
   (Array.isArray(consumedTodayMeals) ? consumedTodayMeals : []).forEach((row) => {
     const isSupp = String(row?.meal_type || '').toLowerCase() === 'suplemento' || !!row?.suplemento;
     if (isSupp) return;
     const key = canonicalSlotKey(row && row.meal_type);
-    if (key) eatenKeys.add(key);
+    if (key) {
+      const c = Number(row?.calories) || 0;
+      slotKcals.set(key, (slotKcals.get(key) || 0) + c);
+    }
   });
+
+  slotKcals.forEach((cals, key) => {
+    if (cals >= SLOT_MIN_KCAL_TO_COUNT) {
+      eatenKeys.add(key);
+    }
+  });
+
   if (eatenKeys.size === 0) return eatenIndices;
 
   const groups = new Map();

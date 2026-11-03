@@ -90,6 +90,21 @@ describe('getEatenSlotIndices — REGLA DE MATCH', () => {
         ]);
         expect(idxSuppFlag.size).toBe(0);
     });
+
+    it('does not mark a slot as eaten for a light beverage < 50 kcal (P1-PHOTO-DRINK-IDENTITY)', () => {
+        const threeMeals = [{ meal: 'Desayuno' }, { meal: 'Almuerzo' }, { meal: 'Cena' }];
+        const idxTea = getEatenSlotIndices(threeMeals, [
+            { meal_type: 'desayuno', meal_name: 'Té herbal sin azúcar', calories: 2 },
+        ]);
+        expect(idxTea.size).toBe(0);
+
+        // Pero cuando se acumulan >= 50 kcal, sí se marca
+        const idxFull = getEatenSlotIndices(threeMeals, [
+            { meal_type: 'desayuno', meal_name: 'Té herbal', calories: 2 },
+            { meal_type: 'desayuno', meal_name: 'Huevos revueltos', calories: 250 },
+        ]);
+        expect([...idxFull]).toEqual([0]);
+    });
 });
 
 describe('getEatenSlotIndices — REGLA DE AMBIGÜEDAD (el corazón del fix)', () => {
