@@ -472,7 +472,19 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // — cap `_MEALS_VISIBLE_CAP` salvo que el usuario pulse "Ver más".
     // [BB-025 / P1-DIARY-COMPLEMENTS-SECTION · 2026-11-03] Separar comidas reales de complementos/bebidas ligeras.
     const _todaysMeals = displayedConsumed.meals || [];
-    const _esComplemento = (m) => m?.meal_type === 'complemento' || m?.meal_type === 'suplemento';
+    const _isLightDrinkName = (name) => {
+        if (!name) return false;
+        const n = String(name).toLowerCase();
+        return /t[eé]|infusi[oó]n|caf[eé]\s+(negro|solo)|agua\s+con\s+lim[oó]n|caldo\s+ligero/i.test(n);
+    };
+    const _esComplemento = (m) => {
+        const mt = String(m?.meal_type || '').toLowerCase();
+        if (mt === 'complemento' || mt === 'suplemento') return true;
+        if ((Number(m?.calories) || 0) <= 50 && _isLightDrinkName(m?.meal_name)) {
+            return true;
+        }
+        return false;
+    };
     const _mainMeals = _todaysMeals.filter((m) => !_esComplemento(m));
     const _complements = _todaysMeals.filter(_esComplemento);
 
@@ -698,7 +710,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                                         <span className={styles.mealInfo}>
                                                             <span className={styles.mealName}>{nombreDeRegistro(comp.meal_name, planData, t)}</span>
                                                             <span className={styles.mealMeta}>
-                                                                {_mealTypeLabel(comp.meal_type, t)} · {Math.round(comp.calories) || 0} kcal
+                                                                {_mealTypeLabel(comp.meal_type === 'suplemento' ? 'suplemento' : 'complemento', t)} · {Math.round(comp.calories) || 0} kcal
                                                             </span>
                                                         </span>
                                                         {comp.id && <ChevronRight size={16} strokeWidth={2.4} className={styles.mealChevron} aria-hidden="true" />}
