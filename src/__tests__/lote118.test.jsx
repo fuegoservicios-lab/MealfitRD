@@ -49,7 +49,7 @@ describe('la barra', () => {
         expect(abrir).toHaveAttribute('aria-expanded', 'false');
         // plegada, las pestañas no se alcanzan con el teclado ni las anuncia el lector
         // por atributo y no por rol: un elemento `aria-hidden` no tiene nombre accesible, que es justo lo que se comprueba
-        const agente = () => document.querySelector('nav button[aria-label="Agente"]');
+        const agente = () => document.querySelector('nav button[aria-label="Coach"]');
         expect(agente()).toHaveAttribute('tabindex', '-1');
         expect(agente()).toHaveAttribute('aria-hidden', 'true');
         fireEvent.click(abrir);
@@ -68,7 +68,7 @@ describe('la barra', () => {
 
     it('un deslizamiento hacia abajo la pliega y NO cuenta como toque en la pestaña donde empezó', () => {
         pintar();
-        const pestana = screen.getByRole('button', { name: 'Agente', hidden: true });
+        const pestana = screen.getByRole('button', { name: 'Coach', hidden: true });
         fireEvent.touchStart(pestana, { touches: [{ clientX: 100, clientY: 760 }] });
         fireEvent.touchMove(pestana, { touches: [{ clientX: 101, clientY: 790 }] });
         fireEvent.touchMove(pestana, { touches: [{ clientX: 101, clientY: 815 }] });

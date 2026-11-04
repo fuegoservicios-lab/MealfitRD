@@ -55,12 +55,12 @@ describe('repartoTelefono', () => {
 describe('la barra', () => {
     it('modo plan: 5 pestañas, sin Historial', () => {
         pintar();
-        expect(pestanas()).toEqual(['Plan', 'Progreso', 'Agente', 'Nevera', 'Recetas']);
+        expect(pestanas()).toEqual(['Plan', 'Progreso', 'Coach', 'Nevera', 'Recetas']);
     });
     it('modo contador: conserva el Historial', () => {
         perfil.plan_mode = 'tracking';
         pintar();
-        expect(pestanas()).toEqual(['Agente', 'Progreso', 'Nevera', 'Historial']);
+        expect(pestanas()).toEqual(['Coach', 'Progreso', 'Nevera', 'Historial']);
     });
     it('el menú ☰ recibe lo que la barra suelta, del mismo SSOT', () => {
         const layout = leer('components/dashboard/DashboardLayout.jsx');
