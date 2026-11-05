@@ -1,0 +1,3 @@
+## 2024-05-19 - Regex Aggregation Optimization
+**Learning:** Evaluating multiple sequential string replacements against static dictionaries or "stop words" inside a React component (like `normalizeNameAlt` in `Dashboard.jsx`) by looping over an array of pre-compiled regexes causes unnecessary execution overhead.
+**Action:** When evaluating multiple sequential string replacements against static "stop words", aggregate them into a single pre-compiled `RegExp` object (e.g., using `join('|')`) outside of the React component to optimize execution time and reduce instantiation overhead from O(N) to O(1).
