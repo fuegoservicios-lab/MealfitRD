@@ -43,6 +43,8 @@ import { useTecladoDeHoja, estilosDeHojaConTeclado } from '../../hooks/useTeclad
 // prohíbe.
 import { coerceCountry, DEFAULT_COUNTRY, COUNTRY_SYSTEM_UI } from '../../config/countries';
 import { useAssessment } from '../../context/AssessmentContext';
+import { safeLocalStorageGet, safeLocalStorageRemove } from '../../utils/safeLocalStorage';
+import { CHAT_MESSAGES_CACHE_KEY } from '../../utils/chatCacheKeys';
 // [P1-NEVERA-OPCIONAL · 2026-09-23] Mismo SSOT que la nav del dashboard.
 import { neveraActiva } from '../../config/dashboardNav';
 import {
@@ -1207,6 +1209,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                         deduct_pantry: descontar,
                         // [P1-PLAN-LOTE-578] cuánto corrigió a la IA (solo conteos); respeta la analítica desactivada
                         scan_meta: isAnalyticsOptedOut() ? undefined : (resumenDeCorrecciones(p) || undefined),
+                        session_id: safeLocalStorageGet('mealfit_current_session', null) || undefined,
                     }),
                 });
                 const data = await res.json().catch(() => null);
@@ -1236,6 +1239,9 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
 
         // Refresca la tarjeta de progreso (mismo evento que usa el chat).
         window.dispatchEvent(new Event('mealfit:refresh-inventory'));
+        // [P1-DIARY-CHAT-BRIDGE · 2026-11-05] Invalidar caché local de chat y notificar al Coach
+        safeLocalStorageRemove(CHAT_MESSAGES_CACHE_KEY);
+        window.dispatchEvent(new Event('mealfit:refresh-chat'));
         const nuevos = registrados.filter((r) => !r.data.already_logged);
         if (!nuevos.length) {
             toast.info(t('Esa comida ya estaba registrada hace un momento.'));

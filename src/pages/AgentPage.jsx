@@ -3137,6 +3137,17 @@ const AgentPage = () => {
     }, [setMessages, setIsLoadingHistory, _setWelcomeIfAbsent, _setFotoPendienteMem]);
     useEffect(() => { fetchSessionMessagesRef.current = fetchSessionMessages; }, [fetchSessionMessages]);   // [P1-PLAN-LOTE-905]
 
+    // [P1-DIARY-CHAT-BRIDGE · 2026-11-05] Refrescar chat en vivo cuando se registra comida manual desde el diario
+    useEffect(() => {
+        const alRefrescarChat = () => {
+            if (currentSessionIdRef.current && !isLoadingRef.current) {
+                fetchSessionMessages(currentSessionIdRef.current);
+            }
+        };
+        window.addEventListener('mealfit:refresh-chat', alRefrescarChat);
+        return () => window.removeEventListener('mealfit:refresh-chat', alRefrescarChat);
+    }, [fetchSessionMessages]);
+
     // [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Borrar un chat era UN toque sin vuelta atrás, y en el
     // teléfono la papelera vive a 1 cm del título en cada fila. Ahora el toque abre una hoja de
     // confirmación con el título del chat; solo «Eliminar» ejecuta el DELETE.

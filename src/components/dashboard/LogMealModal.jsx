@@ -51,7 +51,8 @@ import { neveraActiva } from '../../config/dashboardNav';
 import Chips from './Chips';
 import { getDayOptionsCon as _getDayOptionsCon } from './dayOptions';
 import { readFrequentFoodsCache, writeFrequentFoodsCache, mismaListaFrecuente } from '../../utils/frequentFoodsCache';
-import { safeLocalStorageGet } from '../../utils/safeLocalStorage';
+import { safeLocalStorageGet, safeLocalStorageRemove } from '../../utils/safeLocalStorage';
+import { CHAT_MESSAGES_CACHE_KEY } from '../../utils/chatCacheKeys';
 import {
     getCachedMasterList, setCachedMasterList, getCachedDishes, setCachedDishes,
 } from '../../utils/pantryCache';
@@ -241,6 +242,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
         if (!lines.length || saving || borradorAbierto) return;
         setSaving(true);
         try {
+            const currentSessionId = safeLocalStorageGet('mealfit_current_session', null);
             const res = await fetchWithAuth('/api/diary/consumed/manual', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -255,6 +257,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                     deduct_pantry: neveraOn && deductPantry && hayQueDescontar,
                     // [P1-PLAN-LOTE-721] la ficha del plato dirá «Con estimación de la IA» (etiqueta; no toca la aritmética)
                     origin: lines.some((l) => l.estimated) ? 'estimate' : undefined,
+                    session_id: currentSessionId || undefined,
                 }),
             });
             const data = await res.json().catch(() => null);
@@ -273,6 +276,9 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
             }
             // Mismo evento que el escáner y el chat: la tarjeta de progreso refetchea.
             window.dispatchEvent(new Event('mealfit:refresh-inventory'));
+            // [P1-DIARY-CHAT-BRIDGE · 2026-11-05] Invalidar caché local de chat y notificar al Coach
+            safeLocalStorageRemove(CHAT_MESSAGES_CACHE_KEY);
+            window.dispatchEvent(new Event('mealfit:refresh-chat'));
             if (data.already_logged) {
                 toast.info(t('Esa comida ya estaba registrada hace un momento.'));
             } else {

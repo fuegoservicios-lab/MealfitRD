@@ -40,6 +40,8 @@ import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { useFotosDeComida } from '../../hooks/useFotosDeComidas';
 import { useAssessment } from '../../context/AssessmentContext';
+import { safeLocalStorageGet, safeLocalStorageRemove } from '../../utils/safeLocalStorage';
+import { CHAT_MESSAGES_CACHE_KEY } from '../../utils/chatCacheKeys';
 import { formatDate, formatNumber, formatPercent, getLocale, useT } from '../../i18n';
 import HealthSources from '../common/HealthSources';
 import { nombreDeRegistro, platoDelPlan } from '../../utils/nombreDeRegistro';
@@ -202,10 +204,16 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
         if (repitiendo || !meal?.id) return;
         setRepitiendo(true);
         try {
+            const sid = safeLocalStorageGet('mealfit_current_session', null);
             const res = await fetchWithAuth('/api/diary/consumed/repeat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ source_meal_id: meal.id, meal_type: meal.meal_type || undefined, days_ago: 0 }),
+                body: JSON.stringify({
+                    source_meal_id: meal.id,
+                    meal_type: meal.meal_type || undefined,
+                    days_ago: 0,
+                    session_id: sid || undefined,
+                }),
             });
             const data = await res.json().catch(() => null);
             if (!res.ok || !data?.success) {
@@ -216,6 +224,9 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
             }
             // El mismo evento que el escáner, el componedor y el chat: la tarjeta y el cajón vuelven a pedir el día.
             window.dispatchEvent(new Event('mealfit:refresh-inventory'));
+            // [P1-DIARY-CHAT-BRIDGE · 2026-11-05] Invalidar caché local de chat y notificar al Coach
+            safeLocalStorageRemove(CHAT_MESSAGES_CACHE_KEY);
+            window.dispatchEvent(new Event('mealfit:refresh-chat'));
             if (data.already_logged) toast.info(t('Esa comida ya estaba registrada hace un momento.'));
             else toast.success(t('Registrada otra vez hoy: {kcal} kcal.', { kcal }));
             onClose?.();
