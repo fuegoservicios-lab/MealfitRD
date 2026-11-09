@@ -5306,7 +5306,7 @@ const AgentPage = () => {
                                     >
                                         {isListening ? (
                                             <span className="chat-mic-activity" aria-hidden="true">
-                                                <i /><i /><i />
+                                                <Square size={13} fill="currentColor" strokeWidth={0} />
                                             </span>
                                         ) : (
                                             <Mic size={21} strokeWidth={2.1} aria-hidden="true" />
@@ -5315,8 +5315,8 @@ const AgentPage = () => {
                                 )}
                                 {/* [P1-PLAN-LOTE-682] El modo voz: conversar hablando, con el coach contestando en voz alta.
                                     Ocupa el sitio de ENVIAR cuando la caja está vacía (con texto, manda enviar).
-                                    Disponible también con el generador de planes encendido. */}
-                                {vozCoach.disponible && !input.trim() && attachments.length === 0 && (
+                                    [BB-046] Se oculta mientras se dicta (!isListening) para no competir con el botón de detener. */}
+                                {vozCoach.disponible && !isListening && !input.trim() && attachments.length === 0 && (
                                     <button
                                         type="button"
                                         className="chat-voz-btn"
@@ -5755,49 +5755,31 @@ const AgentPage = () => {
                 .chat-mic-btn:hover { color: var(--primary); background: var(--bg-muted); }
                 .chat-mic-btn:active { transform: scale(0.9); }
                 .chat-mic-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
-                /* [P1-PLAN-LOTE-725] Dictando = rojo de grabación (el modo voz es el degradado azul con ondas). */
+                /* [BB-046 · 2026-11-09] Dictando = estilo ChatGPT/Gemini: botón de parada oscuro con halo azul y cuadrado blanco (el modo voz se oculta mientras se dicta). */
                 .chat-mic-btn.escuchando {
                     color: #fff;
-                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-                    box-shadow: 0 6px 18px -6px rgba(220, 38, 38, 0.7);
+                    background: #1e293b;
+                    border: 2px solid #3b82f6;
+                    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35), 0 4px 14px rgba(59, 130, 246, 0.35);
+                    animation: chat-mic-pulse 2s ease-in-out infinite;
                 }
                 .chat-mic-activity {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    gap: 3px;
                     width: 21px;
                     height: 21px;
                     pointer-events: none;
                 }
-                .chat-mic-activity i {
-                    display: block;
-                    width: 3px;
-                    height: 12px;
-                    border-radius: 2px;
-                    background: currentColor;
-                    animation: chat-mic-actividad 0.9s ease-in-out infinite;
-                }
-                .chat-mic-activity i:nth-child(2) { height: 21px; animation-delay: -0.3s; }
-                .chat-mic-activity i:nth-child(3) { height: 15px; animation-delay: -0.6s; }
-                @keyframes chat-mic-actividad {
-                    0%, 100% { transform: scaleY(0.45); }
-                    50% { transform: scaleY(1); }
-                }
-                .chat-mic-btn.escuchando::before,
-                .chat-mic-btn.escuchando::after {
-                    content: '';
-                    position: absolute;
-                    inset: 0;
-                    border-radius: 50%;
-                    border: 2px solid rgba(239, 68, 68, 0.55);
-                    animation: chat-mic-anillo 1.8s ease-out infinite;
-                    pointer-events: none;
-                }
-                .chat-mic-btn.escuchando::after { animation-delay: 0.9s; }
-                @keyframes chat-mic-anillo {
-                    0% { transform: scale(1); opacity: 0.7; }
-                    100% { transform: scale(1.75); opacity: 0; }
+                @keyframes chat-mic-pulse {
+                    0%, 100% {
+                        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35), 0 2px 10px rgba(59, 130, 246, 0.25);
+                        transform: scale(1);
+                    }
+                    50% {
+                        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.6), 0 4px 18px rgba(59, 130, 246, 0.45);
+                        transform: scale(1.04);
+                    }
                 }
                 /* [P1-PLAN-LOTE-682] El boton del modo voz: relleno como ENVIAR (es la accion principal con la caja
                    vacia) y con un brillo que respira para que se descubra sin explicarlo. */
@@ -5838,15 +5820,12 @@ const AgentPage = () => {
                     50% { transform: scale(1.18); opacity: 1; }
                 }
                 .input-wrapper.dictando .input-box-dictable {
-                    border-color: color-mix(in srgb, #ef4444 60%, var(--border)) !important;
-                    box-shadow: 0 0 0 3px color-mix(in srgb, #ef4444 16%, transparent) !important;
+                    border-color: color-mix(in srgb, #3b82f6 70%, var(--border)) !important;
+                    box-shadow: 0 0 0 3px color-mix(in srgb, #3b82f6 20%, transparent) !important;
                 }
                 @media (prefers-reduced-motion: reduce) {
                     .chat-mic-btn { transition: none; }
-                    .chat-mic-activity i { animation: none; }
-                    .chat-mic-btn.escuchando::before,
-                    .chat-mic-btn.escuchando::after { animation: none; opacity: 0.45; transform: scale(1.18); }
-                    .chat-mic-btn.escuchando::after { display: none; }
+                    .chat-mic-btn.escuchando { animation: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4); }
                     .chat-voz-btn { transition: none; }
                     .chat-voz-btn::after { animation: none; opacity: 0; }
                 }
