@@ -185,8 +185,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     // dashboard del PLAN (micronutrientes del plan, calidad del plan, reposición de la lista): en modo contador nadie
     // los produce, así que la campana era un control muerto cuyo vacío hablaba de «calidad del plan», y con un plan en
     // pausa conservaba avisos viejos con acciones que ya no llevan a ningún sitio («Ir a mi plan» ⇒ esta misma pantalla).
-    const showNotifCenter = location.pathname.replace(/\/$/, '') === '/dashboard'
-        && !isTrackingMode(userProfile, planData);
+    // [BB-050 · 2026-11-09] El centro de notificaciones (campana) también se muestra en modo contador (/dashboard)
+    // para alojar ahí la invitación a activar/reanudar el plan en lugar de mostrarla a primera vista en pantalla.
+    const showNotifCenter = location.pathname.replace(/\/$/, '') === '/dashboard';
     // [P3-RECIPES-EDGE-MOBILE · 2026-06-24] Recetas va edge-to-edge en móvil
     // (sin el padding horizontal del mainContent) para máxima visibilidad —
     // conservando header y BottomTabBar (a diferencia de noPaddingMobile).

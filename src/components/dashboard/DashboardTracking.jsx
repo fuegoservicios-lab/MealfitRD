@@ -21,7 +21,7 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalS
 import { reanudarPlanes } from '../../utils/planModeResume';
 import { useAssessment } from '../../context/AssessmentContext';
 import { missingPlanQuestionsCount } from '../../config/formValidation';
-import { leerInvitacion, anotarInvitacion, estadoLocal, tiempoVisibleRestante } from '../../utils/planInvite';
+import { leerInvitacion, leerInvitacionCentro, anotarInvitacion, estadoLocal, descartadaLocal, tiempoVisibleRestante } from '../../utils/planInvite';
 import { pedirCompletarFormulario } from '../../utils/completarFormulario';
 import { useT, useTn } from '../../i18n';
 import TrackingProgress from './TrackingProgress';
@@ -31,79 +31,78 @@ import styles from './DashboardTracking.module.css';
 // Cuántas preguntas del contrato de PLAN le faltan — un hecho, no un adjetivo.
 const _DISMISS_KEY = 'mealfit_turnon_card_dismissed';
 
-const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
+const TurnOnPlanCard = ({ formData, hayPlanPausado = false, inNotificationCenter = false, onActionDone, onDismissChange }) => {
     const t = useT();
     const tn = useTn();
     const navigate = useNavigate();
     const { updateData, session, userProfile } = useAssessment();
     const userId = session?.user?.id || userProfile?.id || '';
-    // [P1-PLAN-LOTE-135 · 2026-09-20] Una vez por SEMANA y por USUARIO (utils/planInvite.js). NACE como diga el espejo
-    // local, sin esperar a la red: a la vista si está dentro de su minuto, escondida si no. La primera versión nacía
-    // SIEMPRE escondida y reaparecía un segundo después en cada entrada al contador, empujando todo hacia abajo (el
-    // dueño: «desaparece 1 segundo y vuelve a aparecer cuando salgo del apartado y vuelvo, no quiero que pase eso»).
-    // El servidor se consulta igual, en segundo plano, y corrige (p. ej. descartada en otro dispositivo). Se vuelve a
-    // preguntar al volver a la app: el dashboard es keep-alive y la tarjeta del lunes seguiría pintada el jueves.
+    // [P1-PLAN-LOTE-135 · 2026-09-20] [BB-050 · 2026-11-09] Una vez por SEMANA y por USUARIO (utils/planInvite.js).
+    // En el centro de notificaciones (`inNotificationCenter`) permanece guardada hasta que el usuario decida
+    // explícitamente «Encender el plan» / «Reanudar el plan» o «Ahora no».
     const [dismissed, setDismissed] = useState(() => estadoLocal(_DISMISS_KEY, userId) !== 'visible');
     const [visibleUntil, setVisibleUntil] = useState(() => Date.now() + tiempoVisibleRestante(_DISMISS_KEY, userId));
     useEffect(() => {
+        onDismissChange?.(dismissed);
+    }, [dismissed, onDismissChange]);
+    useEffect(() => {
+        if (inNotificationCenter) {
+            setDismissed(descartadaLocal(_DISMISS_KEY, userId));
+        }
         if (!userId) return undefined;
         let vivo = true;
         const preguntar = () => {
-            // el `userId` puede llegar un render después que la tarjeta: lo que el espejo ya sabe se aplica en el acto
+            if (inNotificationCenter) {
+                setDismissed(descartadaLocal(_DISMISS_KEY, userId));
+                leerInvitacionCentro(_DISMISS_KEY, userId).then((r) => {
+                    if (!vivo) return;
+                    setDismissed(!r.visible || descartadaLocal(_DISMISS_KEY, userId));
+                });
+                return;
+            }
             const local = estadoLocal(_DISMISS_KEY, userId);
             if (local !== 'desconocido') setDismissed(local !== 'visible');
             setVisibleUntil(Date.now() + tiempoVisibleRestante(_DISMISS_KEY, userId));
             leerInvitacion(_DISMISS_KEY, userId).then((r) => {
                 if (!vivo) return;
-                // A delayed response must not reopen an invitation that expired while loading.
                 const visible = r.visible && estadoLocal(_DISMISS_KEY, userId) !== 'escondida';
                 setDismissed(!visible);
                 setVisibleUntil(Date.now() + tiempoVisibleRestante(_DISMISS_KEY, userId));
-                if (r.nueva && visible) anotarInvitacion(_DISMISS_KEY, userId, 'seen');   // solo la vista que ABRE la semana
+                if (r.nueva && visible) anotarInvitacion(_DISMISS_KEY, userId, 'seen');
             });
         };
         const alVolver = () => { if (document.visibilityState === 'visible') preguntar(); };
         preguntar();
         document.addEventListener('visibilitychange', alVolver);
         return () => { vivo = false; document.removeEventListener('visibilitychange', alVolver); };
-    }, [userId]);
+    }, [userId, inNotificationCenter]);
     const descartar = () => {
         anotarInvitacion(_DISMISS_KEY, userId, 'dismiss');
         setDismissed(true);
     };
     useEffect(() => {
-        if (dismissed || !userId) return undefined;
+        if (inNotificationCenter || dismissed || !userId) return undefined;
         // Expiration is not an explicit «Ahora no». The original seen time
         // already keeps this invitation hidden for the rest of the week.
         const timer = window.setTimeout(() => setDismissed(true), Math.max(0, visibleUntil - Date.now()));
         return () => window.clearTimeout(timer);
-    }, [dismissed, userId, visibleUntil]);
+    }, [inNotificationCenter, dismissed, userId, visibleUntil]);
     // [AUDIT-FORM-COPY · 2026-08-12] En PREGUNTAS (la unidad de la pantalla),
     // no en campos: «Tus Medidas» son 4 campos y UNA pregunta.
     const faltan = missingPlanQuestionsCount(formData || {});
 
-    // [P1-SETTINGS-TRACKING-COHERENCE · 2026-08-12] Encender el plan cambia la RAMA
-    // del wizard ANTES de navegar. Sin esto, formData.appMode seguía en 'tracking' y
-    // la puerta aterrizaba en «Listo: tu contador» (paso 10 de la rama corta) — una
-    // tarjeta que promete encender el plan y te deja en el final del modo contador.
-    // El flip de appMode dispara el reset de índice del wizard (modo distinto ⇒ el
-    // paso persistido se tira) y la rama del plan pregunta los 12 que faltan.
-    // [P1-PLAN-LOTE-164 · 2026-09-22] Y el formulario pregunta SOLO lo que falta: la misma marca que el interruptor
-    // de Configuración (utils/completarFormulario.js). Sin ella, «la rama del plan pregunta los 12 que faltan» era
-    // verdad a medias: los preguntaba, pero dentro de los 26 pasos, repitiendo los 9 que ya contestó.
     const irAlPlan = () => {
+        onActionDone?.();
         pedirCompletarFormulario();
         updateData('appMode', 'plan');
         navigate('/assessment');
     };
 
-    // [P1-TRACKING-WINS · 2026-08-14] Con un plan PAUSADO la tarjeta cambia de
-    // oferta: «Encender el plan» manda al wizard y cuesta 1 crédito — venderle
-    // eso a quien YA tiene un plan guardado sería cobrarle por lo suyo. La
-    // acción correcta es Reanudar (gratis, el mismo PUT quota-exento de la nota
-    // de pausa y de Configuración). Bajo «contador manda» esta tarjeta es LA
-    // puerta de vuelta dentro del dashboard: la nota de pausa de DashboardInner
-    // quedó inalcanzable para usuarios en tracking.
+    const handleReanudar = () => {
+        onActionDone?.();
+        reanudarPlanes();
+    };
+
     if (hayPlanPausado) {
         if (dismissed) return null;
         return (
@@ -113,7 +112,7 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
                     {t('Sigue guardado en tu Historial. Reanudarlo es gratis y retoma exactamente donde quedó.')}
                 </p>
                 <div className={styles.turnOnActions}>
-                    <button type="button" className={styles.turnOnBtn} onClick={reanudarPlanes}>
+                    <button type="button" className={styles.turnOnBtn} onClick={handleReanudar}>
                         {t('Reanudar el plan')}
                     </button>
                     <button
@@ -129,12 +128,6 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
         );
     }
 
-    // Las reglas del «enciéndelo» (todas restricciones): un solo sitio, un hecho y
-    // un coste, sin animación, y el descarte PERSISTE — una semana, por usuario (lote 135).
-    // [P1-PLAN-LOTE-98 · 2026-09-18] Descartada, no queda NADA en el contador (ni el
-    // enlace tenue del lote 91): la puerta de vuelta es el interruptor de
-    // Configuración → Capacidades, y el dueño la quiere solo ahí. Vale para las dos
-    // ofertas (encender y reanudar).
     if (dismissed) return null;
 
     return (
@@ -160,9 +153,6 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
                     className={styles.turnOnGhost}
                     onClick={descartar}
                 >
-                    {/* [P2-I18N-BOTON-AHORA-NO-SIN-ENVOLVER · 2026-08-23] La traducción
-                        existía en los cuatro catálogos (la usa el otro «Ahora no» de este
-                        mismo fichero, 47 líneas más arriba) y este botón no la pedía. */}
                     {t('Ahora no')}
                 </button>
             </div>
@@ -296,13 +286,10 @@ const DashboardTracking = ({ modo = 'contador' }) => {
                 <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} flatOnMobile />
             </div>
 
-            {/* [P1-PLAN-LOTE-87 · 2026-09-17] La invitación a encender el plan es hija DIRECTA de la
-                rejilla: en el escritorio queda bajo la hidratación (área «plan»); en el teléfono va
-                la PRIMERA (el dueño: «debería estar arriba de primero»). El orden lo decide el CSS
-                por área, no un segundo render ni un `order` dentro de la columna lateral. */}
-            <div className={styles.turnOnSlot}>
-                {modo === 'contador' && <TurnOnPlanCard formData={formData} hayPlanPausado={!!planData} />}
-            </div>
+            {/* [P1-PLAN-LOTE-87 · 2026-09-17] [BB-050 · 2026-11-09] La invitación a encender/reanudar el plan
+                vive ahora dentro del Centro de Notificaciones (campana) para no mostrarse a primera vista.
+                Se conserva el slot vacío (`.turnOnSlot:empty { display: none; }`) para el contrato de la rejilla. */}
+            <div className={styles.turnOnSlot}></div>
         </div>
     );
 };

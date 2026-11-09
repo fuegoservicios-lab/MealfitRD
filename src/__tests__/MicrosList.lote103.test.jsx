@@ -105,10 +105,11 @@ describe('la división Plan / Progreso', () => {
         expect(src('src/components/dashboard/TrackingProgress.jsx')).toContain("source: 'tracking-progress', userId, deletedMeal: { id: meal.id, name: meal.meal_name }");
     });
 
-    it('en modo plan las metas de macros son las del plan y no hay invitación a encenderlo', () => {
+    it('en modo plan las metas de macros son las del plan y la invitación a encenderlo vive en el centro de notificaciones', () => {
         const s = src('src/components/dashboard/DashboardTracking.jsx');
         expect(s).toContain("const metasMacros = modo === 'plan' && planData?.calories ? { ok: true, ...planData } : targets;");
-        expect(s).toContain("{modo === 'contador' && <TurnOnPlanCard formData={formData} hayPlanPausado={!!planData} />}");
+        expect(s).toContain('export { TurnOnPlanCard };');
+        expect(src('src/components/dashboard/NotificationCenter.jsx')).toContain('<TurnOnPlanCard');
         // [lote 105] los micros van dentro de TrackingProgress; DashboardTracking solo pasa las metas
         expect(s).toContain('microTargets={targets?.micros || null}');
         expect(s).not.toContain('MicrosTracker');

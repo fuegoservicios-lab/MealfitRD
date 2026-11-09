@@ -32,6 +32,9 @@ import { classify, restoreMicrosPanel } from './MicronutrientPanel';
 import HealthSources from '../common/HealthSources';
 // [P1-REASONING-DISMISS · 2026-06-26] "Volver a mostrar" el panel de Razonamiento.
 import { restoreInsightsPanel } from '../../utils/insightsPanel';
+import { isTrackingMode } from '../../config/dashboardNav';
+import { descartadaLocal, leerInvitacionCentro } from '../../utils/planInvite';
+import { TurnOnPlanCard } from './DashboardTracking';
 import { useT } from '../../i18n';
 import styles from './NotificationCenter.module.css';
 import Wordmark from '../common/Wordmark';
@@ -330,7 +333,25 @@ export default function NotificationCenter({ hidden = false }) {
     const [open, setOpen] = useState(false);
     const [expandedId, setExpandedId] = useState(null);
     const navigate = useNavigate();
-    const { isGuest } = useAssessment();
+    const { isGuest, userProfile, formData, planData, session } = useAssessment();
+    const enModoContador = isTrackingMode(userProfile, planData);
+    const userId = session?.user?.id || userProfile?.id || '';
+    const [inviteDismissed, setInviteDismissed] = useState(() => (
+        descartadaLocal('mealfit_turnon_card_dismissed', userId)
+    ));
+    const [inviteSeenInDrawer, setInviteSeenInDrawer] = useState(false);
+
+    useEffect(() => {
+        if (!enModoContador) return undefined;
+        setInviteDismissed(descartadaLocal('mealfit_turnon_card_dismissed', userId));
+        if (!userId) return undefined;
+        let vivo = true;
+        leerInvitacionCentro('mealfit_turnon_card_dismissed', userId).then((r) => {
+            if (!vivo) return;
+            setInviteDismissed(!r.visible || descartadaLocal('mealfit_turnon_card_dismissed', userId));
+        });
+        return () => { vivo = false; };
+    }, [enModoContador, userId]);
 
     useEffect(() => {
         // Limpieza one-time de duplicados legacy (ids por timestamp) al montar.
@@ -357,7 +378,10 @@ export default function NotificationCenter({ hidden = false }) {
     // campana se limpia solo. markAllNotificationsRead es no-op si no hay nada sin
     // leer, y emite NOTIFICATIONS_EVENT → el listener de arriba refresca `items`.
     useEffect(() => {
-        if (open) markAllNotificationsRead();
+        if (open) {
+            markAllNotificationsRead();
+            setInviteSeenInDrawer(true);
+        }
     }, [open]);
 
     const closeDrawer = useCallback(() => setOpen(false), []);
@@ -365,8 +389,16 @@ export default function NotificationCenter({ hidden = false }) {
     // Focus-trap + ESC + lock de scroll del body + restore-focus al tirador.
     const { containerRef } = useModalAccessibility({ isOpen: open, onClose: closeDrawer });
 
-    const count = items.length;
-    const unreadCount = useMemo(() => items.filter((n) => !n.read).length, [items]);
+    const visibleItems = useMemo(
+        () => (enModoContador ? items.filter((n) => !['micros', 'quality', 'insights'].includes(n.kind)) : items),
+        [items, enModoContador]
+    );
+    const showPlanInvite = enModoContador && !inviteDismissed;
+    const count = visibleItems.length + (showPlanInvite ? 1 : 0);
+    const unreadCount = useMemo(
+        () => visibleItems.filter((n) => !n.read).length + (showPlanInvite && !inviteSeenInDrawer ? 1 : 0),
+        [visibleItems, showPlanInvite, inviteSeenInDrawer]
+    );
 
     // [P1-PLAN-LOTE-89 · 2026-09-17] En teléfono y tableta la campana ATRACA en la cabecera (el hueco
     // que registra `NotificationSlot`, junto al menú) en vez de colgar del borde derecho, donde chocaba
@@ -532,7 +564,7 @@ export default function NotificationCenter({ hidden = false }) {
                                         <CheckCheck size={17} strokeWidth={2.2} />
                                     </button>
                                 )}
-                                {count > 0 && (
+                                {visibleItems.length > 0 && (
                                     <button
                                         type="button"
                                         className={styles.clearBtn}
@@ -542,7 +574,7 @@ export default function NotificationCenter({ hidden = false }) {
                                         {t('Limpiar')}
                                     </button>
                                 )}
-                                {count > 0 && <span className={styles.headDivider} aria-hidden="true" />}
+                                {visibleItems.length > 0 && <span className={styles.headDivider} aria-hidden="true" />}
                                 <button
                                     type="button"
                                     className={`${styles.closeBtn} ui-close`}
@@ -562,23 +594,36 @@ export default function NotificationCenter({ hidden = false }) {
                                     </span>
                                     <p className={styles.emptyTitle}>{t('Todo al día')}</p>
                                     <p className={styles.emptyText}>
-                                        {t('Cuando descartes un aviso (micronutrientes, calidad del plan…) se guardará aquí.')}
+                                        {enModoContador
+                                            ? t('No tienes notificaciones pendientes.')
+                                            : t('Cuando descartes un aviso (micronutrientes, calidad del plan…) se guardará aquí.')}
                                     </p>
                                 </div>
                             ) : (
-                                <AnimatePresence initial={false}>
-                                    {items.map((n) => (
-                                        <NotificationCard
-                                            key={n.id}
-                                            n={n}
-                                            expanded={expandedId === n.id}
-                                            onToggle={handleToggle}
-                                            onRemove={handleRemove}
-                                            onAction={handleAction}
-                                            onRestore={handleRestore}
+                                <>
+                                    {showPlanInvite && (
+                                        <TurnOnPlanCard
+                                            formData={formData}
+                                            hayPlanPausado={!!planData}
+                                            inNotificationCenter
+                                            onActionDone={closeDrawer}
+                                            onDismissChange={setInviteDismissed}
                                         />
-                                    ))}
-                                </AnimatePresence>
+                                    )}
+                                    <AnimatePresence initial={false}>
+                                        {visibleItems.map((n) => (
+                                            <NotificationCard
+                                                key={n.id}
+                                                n={n}
+                                                expanded={expandedId === n.id}
+                                                onToggle={handleToggle}
+                                                onRemove={handleRemove}
+                                                onAction={handleAction}
+                                                onRestore={handleRestore}
+                                            />
+                                        ))}
+                                    </AnimatePresence>
+                                </>
                             )}
                         </div>
 

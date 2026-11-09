@@ -127,10 +127,12 @@ describe('lote 137 · rutas «de plan» por URL en modo contador', () => {
         expect(r.slice(i, i + 120)).toContain('<Navigate to="/dashboard" replace />');
     });
 
-    it('la campana (avisos que solo produce el dashboard del plan) no se monta en contador, ni su hueco', () => {
+    it('la campana se monta en /dashboard también en modo contador para alojar la invitación al plan', () => {
         const l = leer('src/components/dashboard/DashboardLayout.jsx');
-        expect(l).toMatch(/const showNotifCenter = location\.pathname\.replace\(\/\\\/\$\/, ''\) === '\/dashboard'\s*&& !isTrackingMode\(userProfile, planData\);/);
+        expect(l).toContain("const showNotifCenter = location.pathname.replace(/\\/$/, '') === '/dashboard';");
         expect(l).toContain('{showNotifCenter && <NotificationSlot />}');
+        const nc = leer('src/components/dashboard/NotificationCenter.jsx');
+        expect(nc).toContain('<TurnOnPlanCard');
     });
 
     it('el título de la pestaña del navegador dice «Progreso», no «Mi plan»', () => {
