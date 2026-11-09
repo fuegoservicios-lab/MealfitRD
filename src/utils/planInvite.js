@@ -121,7 +121,6 @@ export function descartadaLocal(clave, userId, ahora = Date.now()) {
  * cuando el usuario decide explícitamente «Ahora no» (o activa/reanuda el plan).
  */
 export async function leerInvitacionCentro(clave, userId, ahora = Date.now()) {
-    if (descartadaLocal(clave, userId, ahora)) return { visible: false };
     const doc = _espejo(clave, userId);
     try {
         const res = await fetchWithAuth(RUTA);
@@ -135,6 +134,9 @@ export async function leerInvitacionCentro(clave, userId, ahora = Date.now()) {
             const vuelve = Date.parse(datos.next_at || '');
             _guardar(clave, userId, 0, Number.isFinite(vuelve) && vuelve > ahora ? vuelve : ahora + SEMANA_MS);
             return { visible: false };
+        }
+        if (doc && Number(doc.until) > ahora) {
+            _guardar(clave, userId, 0, 0);
         }
         return { visible: true };
     } catch {
