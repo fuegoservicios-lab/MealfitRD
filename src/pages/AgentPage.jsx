@@ -5755,12 +5755,12 @@ const AgentPage = () => {
                 .chat-mic-btn:hover { color: var(--primary); background: var(--bg-muted); }
                 .chat-mic-btn:active { transform: scale(0.9); }
                 .chat-mic-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
-                /* [BB-046 · 2026-11-09] Dictando = estilo ChatGPT/Gemini: botón de parada oscuro con halo azul y cuadrado blanco (el modo voz se oculta mientras se dicta). */
+                /* [BB-046 · 2026-11-09] Dictando = estilo ChatGPT/Gemini: botón de parada oscuro con halo azul compacto y cuadrado blanco (el modo voz se oculta mientras se dicta). */
                 .chat-mic-btn.escuchando {
                     color: #fff;
                     background: #1e293b;
                     border: 2px solid #3b82f6;
-                    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35), 0 4px 14px rgba(59, 130, 246, 0.35);
+                    box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.4), 0 0 4px rgba(59, 130, 246, 0.2);
                     animation: chat-mic-pulse 2s ease-in-out infinite;
                 }
                 .chat-mic-activity {
@@ -5773,12 +5773,10 @@ const AgentPage = () => {
                 }
                 @keyframes chat-mic-pulse {
                     0%, 100% {
-                        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35), 0 2px 10px rgba(59, 130, 246, 0.25);
-                        transform: scale(1);
+                        box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35), 0 0 3px rgba(59, 130, 246, 0.15);
                     }
                     50% {
-                        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.6), 0 4px 18px rgba(59, 130, 246, 0.45);
-                        transform: scale(1.04);
+                        box-shadow: 0 0 0 2.5px rgba(59, 130, 246, 0.65), 0 0 6px rgba(59, 130, 246, 0.3);
                     }
                 }
                 /* [P1-PLAN-LOTE-682] El boton del modo voz: relleno como ENVIAR (es la accion principal con la caja
@@ -5820,12 +5818,12 @@ const AgentPage = () => {
                     50% { transform: scale(1.18); opacity: 1; }
                 }
                 .input-wrapper.dictando .input-box-dictable {
-                    border-color: color-mix(in srgb, #3b82f6 70%, var(--border)) !important;
-                    box-shadow: 0 0 0 3px color-mix(in srgb, #3b82f6 20%, transparent) !important;
+                    border-color: color-mix(in srgb, #3b82f6 55%, var(--border)) !important;
+                    box-shadow: none !important;
                 }
                 @media (prefers-reduced-motion: reduce) {
                     .chat-mic-btn { transition: none; }
-                    .chat-mic-btn.escuchando { animation: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4); }
+                    .chat-mic-btn.escuchando { animation: none; box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.4); }
                     .chat-voz-btn { transition: none; }
                     .chat-voz-btn::after { animation: none; opacity: 0; }
                 }
