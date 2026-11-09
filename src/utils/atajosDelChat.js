@@ -11,7 +11,7 @@ const _g = (v) => _n(String(v ?? '').replace(/[^\d.]/g, ''));   // «198g» → 
 
 /** Prefijo contextual para «Anotar comida» según la hora local. */
 export function prefijoAnotarComida(hora = new Date().getHours()) {
-    if (hora >= 5 && hora < 11) return 'Desayuné ';
+    if (hora >= 4 && hora < 11) return 'Desayuné ';
     if (hora >= 11 && hora < 16) return 'Almorcé ';
     if (hora >= 16 && hora < 19) return 'Merendé ';
     return 'Cené ';
@@ -51,8 +51,8 @@ export function atajosDelChat({ hora, modoContador, metas = null, totales = null
     const noche = hora >= 18;
     const conDatos = !!(metas && totales);
 
-    // 1. de madrugada, lo único que se pregunta
-    if (hora < 5) candidatos.push(msg('ligero', t('Tengo hambre: algo ligero')));
+    // 1. de madrugada, lo único que se pregunta (corte biológico: 4:00 AM)
+    if (hora < 4) candidatos.push(msg('ligero', t('Tengo hambre: algo ligero')));
 
     if (conDatos) {
         const faltaProteina = Math.round((metas.protein || 0) - (totales.protein || 0));
@@ -70,7 +70,7 @@ export function atajosDelChat({ hora, modoContador, metas = null, totales = null
     // 4. la comida que toca y no está registrada
     if (Array.isArray(comidas)) {
         const tiene = (x) => comidas.includes(x);
-        if (hora >= 5 && hora < 11 && !tiene('desayuno')) candidatos.push(msg('desayuno', t('Ideas de desayuno con proteína')));
+        if (hora >= 4 && hora < 11 && !tiene('desayuno')) candidatos.push(msg('desayuno', t('Ideas de desayuno con proteína')));
         else if (hora >= 11 && hora < 16 && !tiene('almuerzo')) candidatos.push(msg('almuerzo', t('¿Qué almuerzo me conviene hoy?')));
         else if (hora >= 18 && hora < 23 && !tiene('cena')) candidatos.push(msg('cena', t('¿Qué ceno hoy?')));
     }

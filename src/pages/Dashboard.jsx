@@ -714,7 +714,7 @@ const _GREETING_NAME_STYLE = {
 const _GREETING_BLOCK_MS = 2 * 60 * 60 * 1000;
 
 function _greetingSalutations(hour) {
-    if (hour < 5) return [t('Buenas madrugadas'), t('Aún despierto'), t('Trasnochando'), t('Sin sueño'), t('Hola')];
+    if (hour < 4) return [t('Buenas madrugadas'), t('Aún despierto'), t('Trasnochando'), t('Sin sueño'), t('Hola')];
     if (hour < 12) return [t('Buenos días'), t('Buen día'), t('Arriba'), t('A darle'), t('A por el día'), t('Buen comienzo')];
     if (hour < 19) return [t('Buenas tardes'), t('Qué tal'), t('Seguimos'), t('Buena tarde'), t('A media marcha'), t('Hola')];
     return [t('Buenas noches'), t('Buenas'), t('A cerrar el día'), t('Ya de noche'), t('Hola')];

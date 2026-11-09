@@ -481,7 +481,7 @@ export const menuItemsDelAgente = (enModoContador, userProfile) => {
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] Exportada con nombre para poder
 // testear el gate del modo sin montar el componente entero (~3.800 líneas).
 export const generateIntelligentWelcome = (userProfile, formData, planData, resumen = leerResumenDeHoy(userProfile?.id)) => {
-    const nameStr = formData?.name || userProfile?.name || userProfile?.first_name || '';
+    const nameStr = userProfile?.full_name || formData?.name || userProfile?.name || userProfile?.first_name || '';
     const firstName = String(nameStr).trim().split(/\s+/)[0] || '';
 
     const now = new Date();
@@ -555,7 +555,7 @@ export const generateIntelligentWelcome = (userProfile, formData, planData, resu
 
     // metas: las del plan vigente en modo plan (misma forma que /nutrition/targets); si no, las del perfil
     const metas = metasEnNumeros(!enModoContador && planData?.calories ? planData : resumen?.metas);
-    const fechaHoy = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+    const fechaHoy = getBiologicalDateStr(now);
     const semilla = `${userProfile?.id || 'anon'}|${fechaHoy}|${Math.floor((hour * 60 + now.getMinutes()) / 30)}`;
 
     // [P1-AGENT-WELCOME-NO-TIME · 2026-05-20] Sin la hora literal ("Son las 04:29 a. m."): el welcome se regenera
@@ -5539,18 +5539,17 @@ const AgentPage = () => {
     const chatUserId = session?.user?.id || userProfile?.id || 'guest';
     // [P1-PLAN-LOTE-412] con el chat abierto (no solo con los atajos): el saludo también los usa
     const resumenHoy = useResumenDeHoy(chatUserId, true);
-    // [P1-PLAN-LOTE-412] el saludo se escribió antes de tener los números (primera visita del día o sin caché): si el
-    // hilo sigue siendo solo el saludo y es de hace un momento, se reescribe con ellos. La semilla es la misma, así que
-    // si los números no cambiaron el texto tampoco.
+    // [P1-PLAN-LOTE-412] el saludo se escribió antes de tener los números (primera visita del día o sin caché)
+    // o antes de que userProfile terminara de cargar (nombre): si el hilo sigue siendo solo el saludo y es reciente,
+    // se reescribe con ellos. La semilla es estable para la misma media hora, así que si nada cambió el texto tampoco.
     useEffect(() => {
-        if (!resumenHoy.totales) return;
         setMessages((prev) => {
             if (!Array.isArray(prev) || prev.length !== 1 || !prev[0]?.isWelcome) return prev;
-            if (Date.now() - (prev[0].welcomeAt || 0) > 15000) return prev;
+            if (Date.now() - (prev[0].welcomeAt || 0) > 30000) return prev;
             const nuevo = generateIntelligentWelcome(userProfile, formData, planData, resumenHoy);
             return nuevo === prev[0].content ? prev : [{ ...prev[0], content: nuevo }];
         });
-    }, [resumenHoy, userProfile, formData, planData]);
+    }, [userProfile?.full_name, userProfile?.name, userProfile?.first_name, formData?.name, resumenHoy, userProfile, formData, planData]);
     const atajos = atajosDelChat({
         hora: new Date().getHours(),
         modoContador: enModoContador,

@@ -5,11 +5,9 @@
 import { useEffect, useState } from 'react';
 import { fetchWithAuth } from '../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+import { getBiologicalDateStr } from '../utils/diaBiologico';
 
-const _hoy = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+const _hoy = () => getBiologicalDateStr(new Date());
 
 // [P1-PLAN-LOTE-412] el último resumen del día, para que el saludo del coach lo use al instante (sin esperar la red).
 // Por usuario y por fecha: otro usuario u otro día no lo ven.

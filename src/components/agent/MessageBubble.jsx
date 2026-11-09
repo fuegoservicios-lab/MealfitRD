@@ -410,14 +410,14 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     </div>
                 )}
 
-                {msg.role === 'model' && !msg.isStreaming && !isErrorBubble && <HealthSources context="chat" text={msg.content} />}
-                {/* Action bar for model messages — oculto en errores */}
-                {msg.role === 'model' && !msg.isStreaming && !isErrorBubble && (
+                {msg.role === 'model' && !msg.isStreaming && !isErrorBubble && !msg.isWelcome && <HealthSources context="chat" text={msg.content} />}
+                {/* Action bar for model messages — oculto en errores y en el saludo de bienvenida */}
+                {msg.role === 'model' && !msg.isStreaming && !isErrorBubble && !msg.isWelcome && (
                     <MessageActions
                         content={msg.content}
                         sessionId={currentSessionId}
                         onRegenerate={() => onRegenerate(index)}
-                        showRegenerate={!msg.isWelcome && puedeRegenerar}
+                        showRegenerate={puedeRegenerar}
                     />
                 )}
             </div>

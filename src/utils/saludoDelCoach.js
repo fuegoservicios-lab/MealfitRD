@@ -19,9 +19,9 @@ const _hash = (s) => {
 const _elegir = (lista, semilla, clave) => lista[_hash(`${semilla}|${clave}`) % lista.length];
 const _n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
-/** La franja del día: qué comida toca a esta hora. */
+/** La franja del día: qué comida toca a esta hora (corte biológico: 04:00 AM). */
 export function franjaDeLaHora(hora) {
-    if (hora < 5) return 'madrugada';
+    if (hora < 4) return 'madrugada';
     if (hora < 11) return 'desayuno';
     if (hora < 12) return 'merienda';
     if (hora < 15) return 'almuerzo';
