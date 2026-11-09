@@ -339,7 +339,6 @@ export default function NotificationCenter({ hidden = false }) {
     const [inviteDismissed, setInviteDismissed] = useState(() => (
         descartadaLocal('mealfit_turnon_card_dismissed', userId)
     ));
-    const [inviteSeenInDrawer, setInviteSeenInDrawer] = useState(false);
 
     useEffect(() => {
         if (!enModoContador) return undefined;
@@ -380,7 +379,6 @@ export default function NotificationCenter({ hidden = false }) {
     useEffect(() => {
         if (open) {
             markAllNotificationsRead();
-            setInviteSeenInDrawer(true);
         }
     }, [open]);
 
@@ -394,10 +392,13 @@ export default function NotificationCenter({ hidden = false }) {
         [items, enModoContador]
     );
     const showPlanInvite = enModoContador && !inviteDismissed;
-    const count = visibleItems.length + (showPlanInvite ? 1 : 0);
+    const count = visibleItems.length;
+    // [BB-052 · 2026-11-09] El badge de la campana (unreadCount) SOLO cuenta avisos/notificaciones
+    // reales sin leer. La tarjeta de «Encender el plan» es una opción guardada dentro del drawer,
+    // NO un evento de alerta no leído, evitando falsos positivos en el icono de la campana.
     const unreadCount = useMemo(
-        () => visibleItems.filter((n) => !n.read).length + (showPlanInvite && !inviteSeenInDrawer ? 1 : 0),
-        [visibleItems, showPlanInvite, inviteSeenInDrawer]
+        () => visibleItems.filter((n) => !n.read).length,
+        [visibleItems]
     );
 
     // [P1-PLAN-LOTE-89 · 2026-09-17] En teléfono y tableta la campana ATRACA en la cabecera (el hueco
@@ -587,7 +588,7 @@ export default function NotificationCenter({ hidden = false }) {
                         </header>
 
                         <div className={styles.list}>
-                            {count === 0 ? (
+                            {count === 0 && !showPlanInvite ? (
                                 <div className={styles.empty}>
                                     <span className={styles.emptyOrb} aria-hidden="true">
                                         <BellOff size={26} strokeWidth={1.8} />
@@ -609,6 +610,13 @@ export default function NotificationCenter({ hidden = false }) {
                                             onActionDone={closeDrawer}
                                             onDismissChange={setInviteDismissed}
                                         />
+                                    )}
+                                    {visibleItems.length === 0 && showPlanInvite && (
+                                        <div className={styles.empty} style={{ padding: '1.25rem 1rem', opacity: 0.75 }}>
+                                            <p className={styles.emptyText}>
+                                                {t('No tienes otras notificaciones pendientes.')}
+                                            </p>
+                                        </div>
                                     )}
                                     <AnimatePresence initial={false}>
                                         {visibleItems.map((n) => (

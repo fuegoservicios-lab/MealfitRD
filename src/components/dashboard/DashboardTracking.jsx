@@ -40,7 +40,11 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false, inNotificationCenter
     // [P1-PLAN-LOTE-135 · 2026-09-20] [BB-050 · 2026-11-09] Una vez por SEMANA y por USUARIO (utils/planInvite.js).
     // En el centro de notificaciones (`inNotificationCenter`) permanece guardada hasta que el usuario decida
     // explícitamente «Encender el plan» / «Reanudar el plan» o «Ahora no».
-    const [dismissed, setDismissed] = useState(() => estadoLocal(_DISMISS_KEY, userId) !== 'visible');
+    const [dismissed, setDismissed] = useState(() => (
+        inNotificationCenter
+            ? descartadaLocal(_DISMISS_KEY, userId)
+            : estadoLocal(_DISMISS_KEY, userId) !== 'visible'
+    ));
     const [visibleUntil, setVisibleUntil] = useState(() => Date.now() + tiempoVisibleRestante(_DISMISS_KEY, userId));
     useEffect(() => {
         onDismissChange?.(dismissed);

@@ -116,27 +116,23 @@ export function descartadaLocal(clave, userId, ahora = Date.now()) {
 }
 
 /**
- * [BB-050 · 2026-11-09] Lectura para el Centro de Notificaciones:
+ * [BB-050 · 2026-11-09] [BB-052 · 2026-11-09] Lectura para el Centro de Notificaciones:
  * la invitación vive guardada en la campana sin caducar a los 60s y solo se oculta
  * cuando el usuario decide explícitamente «Ahora no» (o activa/reanuda el plan).
  */
 export async function leerInvitacionCentro(clave, userId, ahora = Date.now()) {
-    const doc = _espejo(clave, userId);
+    if (descartadaLocal(clave, userId, ahora)) {
+        return { visible: false };
+    }
     try {
         const res = await fetchWithAuth(RUTA);
         if (!res.ok) return { visible: !descartadaLocal(clave, userId, ahora) };
         const datos = await res.json();
-        if (datos?.visible === false) {
-            // Si el espejo local sabe que solo fue 'seen' (visibleUntil > 0) y no 'dismiss', no bloquear en la campana
-            if (doc && Number(doc.visibleUntil || 0) > 0) {
-                return { visible: true };
-            }
+        // Si el servidor confirma que fue explícitamente descartada con «Ahora no»
+        if (datos?.dismissed === true) {
             const vuelve = Date.parse(datos.next_at || '');
             _guardar(clave, userId, 0, Number.isFinite(vuelve) && vuelve > ahora ? vuelve : ahora + SEMANA_MS);
             return { visible: false };
-        }
-        if (doc && Number(doc.until) > ahora) {
-            _guardar(clave, userId, 0, 0);
         }
         return { visible: true };
     } catch {
