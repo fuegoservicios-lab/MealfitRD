@@ -39,16 +39,21 @@
 // chat de hoy si existe. Una elegida a mano («Nuevo chat», «Recientes») o ya usada
 // no se toca jamás: la marca se borra en cuanto hay actividad.
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from './safeLocalStorage';
+import { getBiologicalDateStr, DIARY_ROLLOVER_HOUR } from './diaBiologico';
+
+export { DIARY_ROLLOVER_HOUR };
 
 export const SESSION_KEY = 'mealfit_current_session';
 export const SESSION_DAY_KEY = 'mealfit_current_session_day';
 export const SESSION_AUTO_KEY = 'mealfit_current_session_auto';
 
-/** Fecha local en YYYY-MM-DD. */
-export const hoyLocal = (d = new Date()) => {
-    const p = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
+/**
+ * Fecha local del DÍA BIOLÓGICO en YYYY-MM-DD (corte a las 4:00 AM local).
+ * [P1-DIARY-ROLLOVER-4AM · 2026-11-02] [BB-044 / P1-CHAT-ROLLOVER-4AM · 2026-11-09]
+ * Entre las 00:00 y las 03:59:59 AM local, el chat sigue en el día despierto activo anterior.
+ * A las 04:00:00 AM local el chat reinicia junto con el contador de calorías.
+ */
+export const hoyLocal = (d = new Date()) => getBiologicalDateStr(d);
 
 const pareceUuid = (s) => typeof s === 'string' && /^[0-9a-f-]{30,}$/i.test(s);
 
@@ -158,11 +163,21 @@ export const sesionDelDiaAAdoptar = ({ sesiones, actual, hoy = hoyLocal() } = {}
 /** Minutos que tiene que tener el último mensaje de ayer para dar el chat por cerrado. */
 export const MINUTOS_DE_GRACIA = 15;
 
-/** Milisegundos hasta la próxima medianoche local. */
-export const msHastaMedianoche = (ahora = new Date()) => {
-    const manana = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1, 0, 0, 0, 0);
-    return Math.max(0, manana.getTime() - ahora.getTime());
+/**
+ * Milisegundos hasta el próximo corte biológico a las 4:00 AM local.
+ * [BB-044 / P1-CHAT-ROLLOVER-4AM · 2026-11-09]
+ */
+export const msHastaReinicioDia = (ahora = new Date()) => {
+    const d = ahora instanceof Date ? ahora : new Date(ahora);
+    const corte = new Date(d.getFullYear(), d.getMonth(), d.getDate(), DIARY_ROLLOVER_HOUR, 0, 0, 0);
+    if (d.getTime() >= corte.getTime()) {
+        corte.setDate(corte.getDate() + 1);
+    }
+    return Math.max(0, corte.getTime() - d.getTime());
 };
+
+/** Alias retrocompatible para llamadas existentes */
+export const msHastaMedianoche = msHastaReinicioDia;
 
 /** Horas y minutos (hacia abajo) de una cuenta regresiva. */
 export const partesCuentaRegresiva = (ms) => {

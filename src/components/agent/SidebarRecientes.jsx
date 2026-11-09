@@ -63,7 +63,7 @@ export const SidebarRecientes = ({
                     onClick={volverAHoy ? onVolverAHoy : handleNewChat}
                     disabled={bloqueado}
                     aria-disabled={bloqueado}
-                    title={bloqueado ? t('El chat se renueva solo cada día a medianoche, si no estás escribiendo.') : undefined}
+                    title={bloqueado ? t('El chat se renueva solo cada día a las 4:00 AM, si no estás escribiendo.') : undefined}
                     style={{
                         // [SIDEBAR-NEWCHAT-CONTRAST · 2026-06-01] var(--primary) (en vez de
                         // #4F46E5 hardcodeado) → texto/ícono nítidos en oscuro (indigo-400);

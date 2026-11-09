@@ -13,7 +13,7 @@
  * cambiar: un «Nuevo chat» elegido a mano se respeta, y sin chat de hoy en el
  * servidor se empieza fresco.
  */
-import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -65,13 +65,10 @@ import AgentPage from '../pages/AgentPage';
 
 // Marca con el formato real del backend (`created_at::text` en una base en GMT).
 const marcaServidor = (d) => d.toISOString().replace('T', ' ').replace('Z', '000+00');
-const mediodiaDeHoy = () => { const d = new Date(); d.setHours(12, 0, 0, 0); return d; };
-const mediodiaDeAyer = () => new Date(mediodiaDeHoy().getTime() - 24 * 3600 * 1000);
-const hoyLocal = () => {
-    const d = new Date();
-    const p = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
+const local = (d, h, m) => new Date(2026, 8, d, h, m, 0);
+const mediodiaDeHoy = () => local(16, 12, 0);
+const mediodiaDeAyer = () => local(15, 12, 0);
+import { hoyLocal } from '../utils/chatSessionDay';
 
 const CHAT_DE_HOY = {
     id: HOY_ID, user_id: UID, title: 'Primer saludo', title_key: null, is_fallback: false,
@@ -116,11 +113,16 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+    vi.setSystemTime(local(16, 14, 0));
     window.localStorage.clear();
     pedidos.length = 0;
     servidor.sesiones = [CHAT_DE_HOY, CHAT_DE_AYER];
     servidor.historial = { [HOY_ID]: MENSAJES_DE_HOY };
     servidor.listaFalla = false;
+});
+
+afterEach(() => {
+    vi.useRealTimers();
 });
 
 describe('[P1-PLAN-LOTE-71] tras volver a iniciar sesión, el Agente abre tu chat de hoy', () => {

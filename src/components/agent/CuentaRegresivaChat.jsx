@@ -25,7 +25,7 @@ const CuentaRegresivaChat = () => {
     return (
         <p
             className="chat-renovacion"
-            title={t('El chat se renueva solo cada día a medianoche, si no estás escribiendo.')}
+            title={t('El chat se renueva solo cada día a las 4:00 AM, si no estás escribiendo.')}
             style={{
                 margin: 0,
                 height: '1rem',

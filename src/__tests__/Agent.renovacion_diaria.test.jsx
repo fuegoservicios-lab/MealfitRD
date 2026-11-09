@@ -129,11 +129,11 @@ const abrirElChatDeAyerALas = async (hora) => {
 };
 
 describe('[P1-PLAN-LOTE-73] con la pestaña abierta de un día para otro', () => {
-    it('al volver a la pestaña pasada la medianoche, se abre el chat de hoy', async () => {
+    it('al volver a la pestaña pasado el corte biológico de las 4 AM, se abre el chat de hoy', async () => {
         conversacionDeAyer();
         await abrirElChatDeAyerALas(local(16, 23, 45));
         const antes = listas();
-        vi.setSystemTime(local(17, 0, 30));
+        vi.setSystemTime(local(17, 4, 30));
         await volverALaPestana();
         // [P1-PLAN-LOTE-102] 3 s como los findByText de arriba: con el 1 s por defecto este test tumbó TRES deploys
         // bajo carga (lotes 92, 99 y 102) y pasaba 10/10 aislado — era el tiempo, no el chat.
@@ -145,19 +145,19 @@ describe('[P1-PLAN-LOTE-73] con la pestaña abierta de un día para otro', () =>
         expect(listas()).toBeGreaterThan(antes);   // pide la lista: si otro dispositivo ya abrió el de hoy, se adopta
     });
 
-    it('si escribiste pasada la medianoche, el chat sigue', async () => {
-        conversacionDeAyer(local(17, 0, 10));
-        await abrirElChatDeAyerALas(local(17, 0, 12));
-        vi.setSystemTime(local(17, 0, 40));
+    it('si escribiste pasadas las 4 AM, el chat sigue', async () => {
+        conversacionDeAyer(local(17, 4, 10));
+        await abrirElChatDeAyerALas(local(17, 4, 12));
+        vi.setSystemTime(local(17, 4, 40));
         await volverALaPestana();
         expect(screen.getByText(TEXTO_DE_AYER)).toBeInTheDocument();
         expect(window.localStorage.getItem('mealfit_current_session')).toBe(AYER_ID);
     });
 
     it('con el último mensaje de hace menos de 15 minutos no se corta la conversación', async () => {
-        conversacionDeAyer(local(16, 23, 58));
-        await abrirElChatDeAyerALas(local(16, 23, 59));
-        vi.setSystemTime(local(17, 0, 5));
+        conversacionDeAyer(local(17, 3, 58));
+        await abrirElChatDeAyerALas(local(17, 3, 59));
+        vi.setSystemTime(local(17, 4, 5));
         await volverALaPestana();
         expect(screen.getByText(TEXTO_DE_AYER)).toBeInTheDocument();
         expect(window.localStorage.getItem('mealfit_current_session')).toBe(AYER_ID);
@@ -190,20 +190,20 @@ describe('[P1-PLAN-LOTE-73] una elección a mano se respeta', () => {
 });
 
 describe('[P1-PLAN-LOTE-73] la cuenta regresiva bajo «Nuevo chat»', () => {
-    it('dice cuánto falta para la medianoche en horas y minutos', () => {
+    it('dice cuánto falta para el corte biológico de las 4 AM en horas y minutos', () => {
         vi.setSystemTime(new Date(2026, 8, 16, 17, 38, 30));
         render(<CuentaRegresivaChat />);
-        const texto = screen.getByText('Nuevo chat automático en 6 h 21 min');
+        const texto = screen.getByText('Nuevo chat automático en 10 h 21 min');
         expect(texto).toBeInTheDocument();
-        expect(texto.getAttribute('title')).toBe('El chat se renueva solo cada día a medianoche, si no estás escribiendo.');
+        expect(texto.getAttribute('title')).toBe('El chat se renueva solo cada día a las 4:00 AM, si no estás escribiendo.');
     });
 
     it('en la última hora, solo minutos; en el último minuto, sin cifra', () => {
-        vi.setSystemTime(new Date(2026, 8, 16, 23, 10, 0));
+        vi.setSystemTime(new Date(2026, 8, 17, 3, 10, 0));
         const { unmount } = render(<CuentaRegresivaChat />);
         expect(screen.getByText('Nuevo chat automático en 50 min')).toBeInTheDocument();
         unmount();
-        vi.setSystemTime(new Date(2026, 8, 16, 23, 59, 40));
+        vi.setSystemTime(new Date(2026, 8, 17, 3, 59, 40));
         render(<CuentaRegresivaChat />);
         expect(screen.getByText('Nuevo chat automático en menos de un minuto')).toBeInTheDocument();
     });
@@ -213,7 +213,7 @@ describe('[P1-PLAN-LOTE-73] la cuenta regresiva bajo «Nuevo chat»', () => {
         conversacionDeAyer();
         pintar();
         const boton = screen.getAllByText('Nuevo chat')[0].closest('button');
-        expect(boton.nextElementSibling?.textContent).toBe('Nuevo chat automático en 6 h 21 min');
+        expect(boton.nextElementSibling?.textContent).toBe('Nuevo chat automático en 10 h 21 min');
     });
 });
 
@@ -225,16 +225,16 @@ describe('[P1-PLAN-LOTE-76] «Nuevo chat» bloqueado mientras el chat abierto es
         await screen.findByText('Cena', {}, { timeout: 10000 });
         const boton = screen.getAllByText('Nuevo chat')[0].closest('button');
         expect(boton).toBeDisabled();
-        expect(boton.getAttribute('title')).toBe('El chat se renueva solo cada día a medianoche, si no estás escribiendo.');
+        expect(boton.getAttribute('title')).toBe('El chat se renueva solo cada día a las 4:00 AM, si no estás escribiendo.');
         const antes = window.localStorage.getItem('mealfit_current_session');
         await act(async () => { boton.click(); });
         expect(window.localStorage.getItem('mealfit_current_session')).toBe(antes);
     });
 
-    it('sigue bloqueado tras la renovación de medianoche (el chat nuevo también es el de hoy)', async () => {
+    it('sigue bloqueado tras la renovación de las 4 AM (el chat nuevo también es el de hoy)', async () => {
         conversacionDeAyer();
         await abrirElChatDeAyerALas(local(16, 23, 45));
-        vi.setSystemTime(local(17, 0, 30));
+        vi.setSystemTime(local(17, 4, 30));
         await volverALaPestana();
         // [P1-PLAN-LOTE-102] 3 s como los findByText de arriba: con el 1 s por defecto este test tumbó TRES deploys
         // bajo carga (lotes 92, 99 y 102) y pasaba 10/10 aislado — era el tiempo, no el chat.

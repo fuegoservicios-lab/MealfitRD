@@ -42,7 +42,7 @@ import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from
 import {
     resolverSesionDelDia, marcarActividad, sesionDelDiaAAdoptar, esSesionAutomatica,
     abrirSesionAutomatica, debeRenovarse, diaDeActividad, nuevoChatBloqueado,
-    esChatDeOtroDia, hoyLocal, sesionDeHoyEnServidor,
+    esChatDeOtroDia, hoyLocal, diaLocalDe, sesionDeHoyEnServidor,
 } from '../utils/chatSessionDay';
 // [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat desde el módulo SSOT (mismas
 // que _clearUserScopedCaches borra en logout/user-switch). Los aliases `_CHAT_*`
@@ -5454,11 +5454,12 @@ const AgentPage = () => {
     // durante el stream (setChatSessions corre 1× antes del loop de chunks), así que
     // el memo skippea todo el streaming. Puro sobre chatSessions (el `new Date()` de
     // 'hoy' solo importa al cruzar medianoche; la sidebar se refetchea en cada `done`).
+    // [P1-CHAT-SESSION-MEMO · 2026-08-14] [BB-044 / P1-CHAT-ROLLOVER-4AM · 2026-11-09]
+    // Agrupa las sesiones por día biológico activo ('Hoy' = corte a las 4:00 AM).
     const groupedSessions = useMemo(() => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const lastMonth = new Date(today);
-        lastMonth.setDate(lastMonth.getDate() - 30);
+        const todayStr = hoyLocal();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         const groups = {
             'Hoy': [],
@@ -5477,9 +5478,9 @@ const AgentPage = () => {
                 return;
             }
 
-            if (d >= today) {
+            if (diaLocalDe(dateStr) === todayStr) {
                 groups['Hoy'].push(s);
-            } else if (d >= lastMonth) {
+            } else if (d >= thirtyDaysAgo) {
                 groups['Últimos 30 días'].push(s);
             } else {
                 groups['Más antiguos'].push(s);

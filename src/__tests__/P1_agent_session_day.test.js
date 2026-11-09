@@ -80,20 +80,22 @@ describe('[P1-AGENT-SESSION-DAY] la sesión del chat caduca con el día', () => 
     });
 });
 
-describe('[P1-AGENT-SESSION-DAY] el día es LOCAL, no UTC', () => {
+describe('[P1-AGENT-SESSION-DAY] el día es LOCAL y BIOLÓGICO (corte a las 4 AM), no UTC', () => {
     afterEach(() => { vi.useRealTimers(); });
 
-    it('las 22:00 en RD (UTC-4) siguen siendo el mismo día', () => {
-        // En UTC ya serían las 02:00 del día siguiente: con un corte en UTC, el
-        // chat se cortaría a media cena. Se comprueba con la fecha del sistema,
-        // que en este entorno corre en hora local.
+    it('las 22:00 y las 02:00 en RD (UTC-4) siguen siendo el mismo día biológico', () => {
+        // [BB-044 / P1-CHAT-ROLLOVER-4AM] Entre 00:00 y 03:59 AM local sigue siendo el día activo anterior
         vi.useFakeTimers();
         vi.setSystemTime(new Date(2026, 7, 14, 22, 0, 0)); // 14-ago 22:00 local
         expect(hoyLocal()).toBe('2026-08-14');
+        vi.setSystemTime(new Date(2026, 7, 15, 2, 0, 0)); // 15-ago 02:00 local (antes de las 4 AM)
+        expect(hoyLocal()).toBe('2026-08-14');
+        vi.setSystemTime(new Date(2026, 7, 15, 4, 0, 0)); // 15-ago 04:00 local (inicia nuevo día biológico)
+        expect(hoyLocal()).toBe('2026-08-15');
     });
 
     it('formatea con ceros a la izquierda', () => {
-        expect(hoyLocal(new Date(2026, 0, 5))).toBe('2026-01-05');
+        expect(hoyLocal(new Date(2026, 0, 5, 12, 0, 0))).toBe('2026-01-05');
     });
 });
 
@@ -188,13 +190,14 @@ describe('[P1-PLAN-LOTE-73] renovación diaria y cuenta regresiva', () => {
         expect(localStorage.getItem(SESSION_AUTO_KEY)).toBe(UUID_C);
     });
 
-    it('la cuenta regresiva va a la medianoche local, en horas y minutos hacia abajo', () => {
+    it('la cuenta regresiva va al corte biológico de las 4:00 AM local, en horas y minutos hacia abajo', () => {
         const ms = msHastaMedianoche(new Date(2026, 8, 16, 17, 38, 30));
-        expect(partesCuentaRegresiva(ms)).toEqual({ h: 6, m: 21, menosDeUnMinuto: false });
+        expect(partesCuentaRegresiva(ms)).toEqual({ h: 10, m: 21, menosDeUnMinuto: false });
         const t = (k, v) => (v ? k.replace(/\{(\w+)\}/g, (_, n) => String(v[n])) : k);
-        expect(textoCuentaRegresiva(ms, t)).toBe('Nuevo chat automático en 6 h 21 min');
-        expect(textoCuentaRegresiva(msHastaMedianoche(new Date(2026, 8, 16, 23, 10, 0)), t)).toBe('Nuevo chat automático en 50 min');
-        expect(textoCuentaRegresiva(msHastaMedianoche(new Date(2026, 8, 16, 23, 59, 40)), t))
+        expect(textoCuentaRegresiva(ms, t)).toBe('Nuevo chat automático en 10 h 21 min');
+        expect(textoCuentaRegresiva(msHastaMedianoche(new Date(2026, 8, 16, 23, 10, 0)), t)).toBe('Nuevo chat automático en 4 h 50 min');
+        expect(textoCuentaRegresiva(msHastaMedianoche(new Date(2026, 8, 17, 0, 10, 0)), t)).toBe('Nuevo chat automático en 3 h 50 min');
+        expect(textoCuentaRegresiva(msHastaMedianoche(new Date(2026, 8, 17, 3, 59, 40)), t))
             .toBe('Nuevo chat automático en menos de un minuto');
     });
 
@@ -210,13 +213,18 @@ describe('[P1-PLAN-LOTE-73] renovación diaria y cuenta regresiva', () => {
         expect(ultimoMensajeReal([{ role: 'model', content: 'hola', isWelcome: true }])).toBeNull();
     });
 
-    it('se renueva solo si la conversación es de ayer y su último mensaje tiene 15 minutos o más', () => {
+    it('se renueva solo si la conversación es del día biológico anterior (corte a las 4 AM) y su último mensaje tiene 15 minutos o más', () => {
         marcarActividad(UUID_A, '2026-09-16');
-        const ahora = new Date(2026, 8, 17, 0, 30);
+        // A las 00:30 AM sigue siendo día biológico 2026-09-16 (antes de las 4 AM) -> NO renueva
+        const aLas0030 = new Date(2026, 8, 17, 0, 30);
+        expect(debeRenovarse({ messages: [msg(new Date(2026, 8, 16, 23, 40))], sessionId: UUID_A, ahora: aLas0030 })).toBe(false);
+
+        // Pasadas las 04:00 AM (ej. 04:30 AM), el día biológico ya es 2026-09-17 -> SÍ renueva
+        const ahora = new Date(2026, 8, 17, 4, 30);
         const r = (messages, extra = {}) => debeRenovarse({ messages, sessionId: UUID_A, ahora, ...extra });
         expect(r([msg(new Date(2026, 8, 16, 23, 40))])).toBe(true);
-        expect(r([msg(new Date(2026, 8, 17, 0, 20))])).toBe(false);                                       // de hoy
-        expect(r([msg(new Date(2026, 8, 16, 23, 59))], { ahora: new Date(2026, 8, 17, 0, 5) })).toBe(false);
+        expect(r([msg(new Date(2026, 8, 17, 4, 20))])).toBe(false);                                       // de hoy (4:20 AM)
+        expect(r([msg(new Date(2026, 8, 16, 23, 59))], { ahora: new Date(2026, 8, 17, 4, 5) })).toBe(true);
         expect(r([])).toBe(false);                                                                         // ya es nuevo
         expect(r([{ role: 'model', content: 'hola', isWelcome: true }])).toBe(false);
     });
@@ -231,13 +239,14 @@ describe('[P1-PLAN-LOTE-73] renovación diaria y cuenta regresiva', () => {
         expect(debeRenovarse({ messages: viejos, sessionId: UUID_A, ahora })).toBe(true);
     });
 
-    it('hidratar pasada la medianoche no convierte el chat de ayer en el de hoy', () => {
+    it('chatear de madrugada (antes de las 4 AM) mantiene el día biológico anterior; después de las 4 AM es el día nuevo', () => {
         localStorage.setItem(SESSION_KEY, UUID_A);
         localStorage.setItem(SESSION_DAY_KEY, '2026-09-16');
         const ayer = [msg(new Date(2026, 8, 16, 23, 40))];
-        expect(diaDeActividad(ayer, UUID_A, '2026-09-17')).toBe('2026-09-16');
-        // Un mensaje de hoy, sí.
-        expect(diaDeActividad([...ayer, msg(new Date(2026, 8, 17, 0, 10))], UUID_A, '2026-09-17')).toBe('2026-09-17');
+        // A las 00:10 AM sigue siendo día biológico 2026-09-16
+        expect(diaDeActividad([...ayer, msg(new Date(2026, 8, 17, 0, 10))], UUID_A, '2026-09-16')).toBe('2026-09-16');
+        // A las 04:10 AM ya es día biológico 2026-09-17
+        expect(diaDeActividad([...ayer, msg(new Date(2026, 8, 17, 4, 10))], UUID_A, '2026-09-17')).toBe('2026-09-17');
         // Sin fechas (caché vieja): la conducta de antes, hoy.
         expect(diaDeActividad([{ role: 'user', content: 'x' }], UUID_A, '2026-09-17')).toBe('2026-09-17');
     });

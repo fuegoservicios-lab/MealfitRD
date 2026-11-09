@@ -120,7 +120,10 @@ describe('[P1-PLAN-LOTE-226] las reglas', () => {
     it('un chat es «de otro día» por su último mensaje real', () => {
         const m = (d) => ({ role: 'user', content: 'x', created_at: d.toISOString() });
         expect(esChatDeOtroDia([m(local(16, 22, 0))], '2026-09-17')).toBe(true);
-        expect(esChatDeOtroDia([m(local(16, 22, 0)), m(local(17, 0, 5))], '2026-09-17')).toBe(false);
+        // [BB-044 / P1-CHAT-ROLLOVER-4AM] Tras las 4:00 AM ya es el día biológico 17
+        expect(esChatDeOtroDia([m(local(16, 22, 0)), m(local(17, 9, 0))], '2026-09-17')).toBe(false);
+        // Y a las 00:05 AM del 17 sigue perteneciendo al día biológico 16
+        expect(esChatDeOtroDia([m(local(16, 22, 0)), m(local(17, 0, 5))], '2026-09-16')).toBe(false);
         expect(esChatDeOtroDia([{ role: 'model', isWelcome: true, content: 'Hola' }], '2026-09-17')).toBe(false);
     });
 
