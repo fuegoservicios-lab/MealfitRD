@@ -975,26 +975,32 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
     height: 32px;
+    padding: 0 0.65rem;
     border-radius: 8px;
     border: 1px solid var(--border, rgba(148, 163, 184, 0.25));
-    background: rgba(148, 163, 184, 0.06);
-    color: var(--text-main);
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--primary, #818CF8);
     font-weight: 700;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
 .calTodayBtn:hover {
-    background: rgba(129, 140, 248, 0.15);
+    background: rgba(99, 102, 241, 0.22);
     border-color: #818CF8;
-    color: var(--primary);
+    color: #FFFFFF;
 }
 
-.calTodayNum {
-    font-variant-numeric: tabular-nums;
+:global(html:not([data-theme="dark"])) .calTodayBtn {
+    background: #EEF2FF;
+    border-color: #C7D2FE;
+    color: #4F46E5;
+}
+
+:global(html:not([data-theme="dark"])) .calTodayBtn:hover {
+    background: #E0E7FF;
 }
 
 .calWeekHeader {

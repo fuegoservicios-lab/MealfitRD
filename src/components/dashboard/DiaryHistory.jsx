@@ -774,19 +774,21 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     >
                                         <ChevronRight size={18} strokeWidth={2.25} aria-hidden="true" />
                                     </button>
-                                    <button
-                                        type="button"
-                                        className={styles.calTodayBtn}
-                                        onClick={() => {
-                                            const hoy = new Date();
-                                            setSelected(hoyISO);
-                                            setCalDate(new Date(hoy.getFullYear(), hoy.getMonth(), 1, 12, 0, 0, 0));
-                                        }}
-                                        aria-label={t('Ir a hoy ({dia})', { dia: new Date().getDate() })}
-                                        title={t('Ir a hoy ({dia})', { dia: new Date().getDate() })}
-                                    >
-                                        <span className={styles.calTodayNum}>{new Date().getDate()}</span>
-                                    </button>
+                                    {!esMesActual && (
+                                        <button
+                                            type="button"
+                                            className={styles.calTodayBtn}
+                                            onClick={() => {
+                                                const hoy = new Date();
+                                                setSelected(hoyISO);
+                                                setCalDate(new Date(hoy.getFullYear(), hoy.getMonth(), 1, 12, 0, 0, 0));
+                                            }}
+                                            aria-label={t('Ir a hoy ({dia})', { dia: new Date().getDate() })}
+                                            title={t('Ir a hoy ({dia})', { dia: new Date().getDate() })}
+                                        >
+                                            {t('Hoy')}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
