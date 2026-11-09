@@ -608,7 +608,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     septiembre» sigue cabiendo en una línea */}
                 <header className={styles.head}>
                     <div className={styles.headTop}>
-                        <div className={styles.eyebrow}>{t('Diario')}</div>
+                        <div className={styles.eyebrow}>{t('Registro por día')}</div>
                         <div className={styles.headActions}>
                             {conComidas && (
                                 <button
@@ -656,7 +656,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     }
                                 }}
                             >
-                                {t('Tira')}
+                                {t('Semana')}
                             </button>
                             <button
                                 type="button" aria-pressed={modoVista === 'calendario'}
@@ -693,7 +693,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     title={t('Ver 2 semanas más')}
                                     aria-label={t('Ver 2 semanas más')}
                                 >
-                                    +14
+                                    <span className={styles.moreDaysArrow} aria-hidden="true">‹</span>
+                                    <span>+14</span>
                                 </button>
                             )}
                             {dias.map((iso) => {
@@ -904,6 +905,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     {!cargando && !error && getFranjas(t).map((f, i) => {
                         const items = porFranja.get(f.key) || [];
                         const lleno = items.length > 0;
+                        const totalFranjaKcal = lleno ? items.reduce((sum, m) => sum + (num(m.calories) || 0), 0) : 0;
                         return (
                             <motion.div
                                 key={f.key}
@@ -914,14 +916,19 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                 transition={{ duration: 0.22, delay: i * 0.04 }}
                             >
                                 <span className={styles.slotRule} />
-                                <div>
+                                <div className={styles.slotContent}>
                                     <div className={styles.slotHead}>
                                         <span className={styles.slotLabel} style={lleno ? { color: f.ink } : undefined}>
                                             {f.label}
                                         </span>
-                                        {lleno && items.length === 1 && horaFiable(items[0]) && (
-                                            <span className={styles.slotNote}>{hhmm(horaFiable(items[0]))}</span>
-                                        )}
+                                        <div className={styles.slotHeadRight}>
+                                            {lleno && totalFranjaKcal > 0 && (
+                                                <span className={styles.slotKcalBadge}>{totalFranjaKcal} kcal</span>
+                                            )}
+                                            {lleno && items.length === 1 && horaFiable(items[0]) && (
+                                                <span className={styles.slotNote}>{hhmm(horaFiable(items[0]))}</span>
+                                            )}
+                                        </div>
                                     </div>
                                     {lleno
                                         ? items.map((meal) => renderComida(meal))
@@ -931,19 +938,28 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         );
                     })}
 
-                    {!cargando && !error && (porFranja.get(OTROS) || []).length > 0 && (
-                        <div className={styles.slot} style={{ color: getOtros(t).color }}>
-                            <span className={styles.slotRule} />
-                            <div>
-                                <div className={styles.slotHead}>
-                                    <span className={styles.slotLabel} style={{ color: getOtros(t).ink }}>
-                                        {getOtros(t).label}
-                                    </span>
+                    {!cargando && !error && (porFranja.get(OTROS) || []).length > 0 && (() => {
+                        const otrosItems = porFranja.get(OTROS) || [];
+                        const otrosKcal = otrosItems.reduce((sum, m) => sum + (num(m.calories) || 0), 0);
+                        return (
+                            <div className={styles.slot} style={{ color: getOtros(t).color }}>
+                                <span className={styles.slotRule} />
+                                <div className={styles.slotContent}>
+                                    <div className={styles.slotHead}>
+                                        <span className={styles.slotLabel} style={{ color: getOtros(t).ink }}>
+                                            {getOtros(t).label}
+                                        </span>
+                                        {otrosKcal > 0 && (
+                                            <div className={styles.slotHeadRight}>
+                                                <span className={styles.slotKcalBadge}>{otrosKcal} kcal</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {otrosItems.map((meal) => renderComida(meal))}
                                 </div>
-                                {porFranja.get(OTROS).map((meal) => renderComida(meal))}
                             </div>
-                        </div>
-                    )}
+                        );
+                    })()}
 
                     {sinNada && (
                         <p className={styles.dayEmpty}>
@@ -1039,19 +1055,20 @@ DiaryHistory.propTypes = {
 
 /** Botón que abre el cajón. Vive junto al componente para que añadirlo a una
  *  card sea una línea y no haya dos sitios que mantener sincronizados. */
-export const DiaryHistoryTrigger = ({ onClick }) => {
+export const DiaryHistoryTrigger = ({ onClick, label }) => {
     const t = useT();
+    const texto = label || t('Calendario y comidas');
     return (
-        <button type="button" className={styles.trigger} onClick={onClick}>
+        <button type="button" className={styles.trigger} onClick={onClick} aria-label={texto}>
             <span className={styles.triggerIcon}>
                 <CalendarDays size={18} strokeWidth={2.25} aria-hidden="true" />
             </span>
-            <span className={styles.triggerLabel}>{t('Ver días anteriores')}</span>
+            <span className={styles.triggerLabel}>{texto}</span>
             <ChevronRight size={16} className={styles.triggerChevron} aria-hidden="true" />
         </button>
     );
 };
 
-DiaryHistoryTrigger.propTypes = { onClick: PropTypes.func };
+DiaryHistoryTrigger.propTypes = { onClick: PropTypes.func, label: PropTypes.string };
 
 export default DiaryHistory;

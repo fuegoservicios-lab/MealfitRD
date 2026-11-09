@@ -171,9 +171,9 @@ describe('lote 162 · «Ver mis días anteriores» desde el Historial del contad
 
     it('«Ver días anteriores» recalcula HOY al abrir (el cajón vive montado)', () => {
         const D = leer('src/components/dashboard/DiaryHistory.jsx');
-        expect(D).toContain('const hoyISO = useMemo(() => aISO(new Date()), [open]);');
-        expect(D).toContain('useEffect(() => { if (open) setSelected(aISO(new Date())); }, [open]);');
-        expect(D).not.toContain('const hoyISO = useMemo(() => aISO(new Date()), []);');
+        expect(D).toMatch(/const hoyISO = useMemo\(\(\) => (?:getBiologicalDateStr|aISO)\(new Date\(\)\), \[open\]\);/);
+        expect(D).toMatch(/useEffect\(\(\) => \{ if \(open\) setSelected\((?:getBiologicalDateStr|aISO)\(new Date\(\)\)\); \}, \[open\]\);/);
+        expect(D).not.toMatch(/const hoyISO = useMemo\(\(\) => (?:getBiologicalDateStr|aISO)\(new Date\(\)\), \[\]\);/);
     });
 });
 
