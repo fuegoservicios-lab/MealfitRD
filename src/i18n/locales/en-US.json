@@ -3999,5 +3999,27 @@
   "Desayuné ": "For breakfast I had ",
   "Almorcé ": "For lunch I had ",
   "Merendé ": "For a snack I had ",
-  "Cené ": "For dinner I had "
+  "Cené ": "For dinner I had ",
+  "Calendario mensual": "Monthly calendar",
+  "El chat se renueva solo cada día a las 4:00 AM, si no estás escribiendo.": "The chat resets on its own every day at 4:00 AM, unless you're typing.",
+  "Entendido, probar versión Beta": "Got it, try the Beta",
+  "Esta función aún está en fase Beta y no está al 100%. Las sugerencias automáticas de recetas y menús pueden requerir ajustes frecuentes.": "This feature is still in Beta and isn't 100% yet. Automatic recipe and menu suggestions may need frequent adjustments.",
+  "Fuentes": "Sources",
+  "Función en desarrollo activo": "Feature in active development",
+  "Ir a hoy ({dia})": "Go to today ({dia})",
+  "Medicamentos actuales (opcional) — si no tomas medicamentos, pulsa «Ninguno»": "Current medications (optional) — if you don't take any, tap “None”",
+  "Mes": "Month",
+  "Mes anterior": "Previous month",
+  "Mes siguiente": "Next month",
+  "Modo de vista": "View mode",
+  "No tienes notificaciones pendientes.": "You have no pending notifications.",
+  "No tienes otras notificaciones pendientes.": "You have no other pending notifications.",
+  "Sobre los datos": "About the data",
+  "Te recomendamos: ": "We recommend: ",
+  "Usar el modo contador («Contar lo que como»). Es la experiencia principal de {marca}: más rápida, precisa con fotos y voz, y totalmente probada.": "Use counter mode (“Count what I eat”). It's the main {marca} experience: faster, accurate with photos and voice, and fully tested.",
+  "Usar solo el contador (Recomendado)": "Use only the counter (Recommended)",
+  "{n} comidas": {
+    "one": "{n} meal",
+    "other": "{n} meals"
+  }
 }

@@ -3999,5 +3999,27 @@
   "Desayuné ": "No café da manhã comi ",
   "Almorcé ": "No almoço comi ",
   "Merendé ": "No lanche comi ",
-  "Cené ": "No jantar comi "
+  "Cené ": "No jantar comi ",
+  "Calendario mensual": "Calendário mensal",
+  "El chat se renueva solo cada día a las 4:00 AM, si no estás escribiendo.": "O chat se renova sozinho todo dia às 4:00 AM, se você não estiver digitando.",
+  "Entendido, probar versión Beta": "Entendi, testar a versão Beta",
+  "Esta función aún está en fase Beta y no está al 100%. Las sugerencias automáticas de recetas y menús pueden requerir ajustes frecuentes.": "Esta função ainda está em fase Beta e não está 100%. As sugestões automáticas de receitas e cardápios podem exigir ajustes frequentes.",
+  "Fuentes": "Fontes",
+  "Función en desarrollo activo": "Função em desenvolvimento ativo",
+  "Ir a hoy ({dia})": "Ir para hoje ({dia})",
+  "Medicamentos actuales (opcional) — si no tomas medicamentos, pulsa «Ninguno»": "Medicamentos atuais (opcional) — se você não toma medicamentos, toque em «Nenhum»",
+  "Mes": "Mês",
+  "Mes anterior": "Mês anterior",
+  "Mes siguiente": "Próximo mês",
+  "Modo de vista": "Modo de visualização",
+  "No tienes notificaciones pendientes.": "Você não tem notificações pendentes.",
+  "No tienes otras notificaciones pendientes.": "Você não tem outras notificações pendentes.",
+  "Sobre los datos": "Sobre os dados",
+  "Te recomendamos: ": "Recomendamos: ",
+  "Usar el modo contador («Contar lo que como»). Es la experiencia principal de {marca}: más rápida, precisa con fotos y voz, y totalmente probada.": "Usar o modo contador («Contar o que como»). É a experiência principal do {marca}: mais rápida, precisa com fotos e voz, e totalmente testada.",
+  "Usar solo el contador (Recomendado)": "Usar só o contador (Recomendado)",
+  "{n} comidas": {
+    "one": "{n} refeição",
+    "other": "{n} refeições"
+  }
 }

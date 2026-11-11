@@ -3999,5 +3999,27 @@
   "Desayuné ": "Au petit-déjeuner, j'ai mangé ",
   "Almorcé ": "Au déjeuner, j'ai mangé ",
   "Merendé ": "Au goûter, j'ai mangé ",
-  "Cené ": "Au dîner, j'ai mangé "
+  "Cené ": "Au dîner, j'ai mangé ",
+  "Calendario mensual": "Calendrier mensuel",
+  "El chat se renueva solo cada día a las 4:00 AM, si no estás escribiendo.": "Le chat se réinitialise tout seul chaque jour à 4:00 AM, sauf si vous êtes en train d'écrire.",
+  "Entendido, probar versión Beta": "Compris, essayer la version Beta",
+  "Esta función aún está en fase Beta y no está al 100%. Las sugerencias automáticas de recetas y menús pueden requerir ajustes frecuentes.": "Cette fonction est encore en phase Beta et n'est pas encore au point à 100 %. Les suggestions automatiques de recettes et de menus peuvent nécessiter des ajustements fréquents.",
+  "Fuentes": "Sources",
+  "Función en desarrollo activo": "Fonction en développement actif",
+  "Ir a hoy ({dia})": "Aller à aujourd'hui ({dia})",
+  "Medicamentos actuales (opcional) — si no tomas medicamentos, pulsa «Ninguno»": "Médicaments actuels (facultatif) — si vous n'en prenez pas, touchez « Aucun »",
+  "Mes": "Mois",
+  "Mes anterior": "Mois précédent",
+  "Mes siguiente": "Mois suivant",
+  "Modo de vista": "Mode d'affichage",
+  "No tienes notificaciones pendientes.": "Vous n'avez aucune notification en attente.",
+  "No tienes otras notificaciones pendientes.": "Vous n'avez aucune autre notification en attente.",
+  "Sobre los datos": "À propos des données",
+  "Te recomendamos: ": "Nous vous recommandons : ",
+  "Usar el modo contador («Contar lo que como»). Es la experiencia principal de {marca}: más rápida, precisa con fotos y voz, y totalmente probada.": "Utiliser le mode compteur (« Compter ce que je mange »). C'est l'expérience principale de {marca} : plus rapide, précise avec photos et voix, et entièrement testée.",
+  "Usar solo el contador (Recomendado)": "Utiliser seulement le compteur (Recommandé)",
+  "{n} comidas": {
+    "one": "{n} repas",
+    "other": "{n} repas"
+  }
 }
