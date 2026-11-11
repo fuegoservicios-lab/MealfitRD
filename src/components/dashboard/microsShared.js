@@ -147,3 +147,17 @@ export const useMicrosSubtitulo = () => {
     };
 };
 
+/** [SODIO-OCULTO · 2026-11-11] Lo que más sodio suele esconder en una receta casera —sal, cubitos de caldo, salsa
+ *  de soya— no trae cantidad («Sal al gusto») o no está en el catálogo, así que queda «sin datos». No se inventa una
+ *  cantidad ni se suma al total: se muestra una REFERENCIA junto al renglón para que se vea que ahí puede estar el
+ *  sodio que falta. Valores: sal de mesa ≈ 2,300 mg por cucharadita (AHA / UF-IFAS); cubito de caldo ≈ 700–1,200 mg
+ *  según la marca (USDA: caldo de pollo en cubos, seco, 24,000 mg/100 g; etiquetas de 3.5–4 g con 900–1,100 mg);
+ *  salsa de soya ≈ 900 mg por cucharada (USDA 879 mg). Devuelve `null` si el renglón no es de esos. */
+export const pistaSodio = (label, t) => {
+    const s = String(label || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/hielo/.test(s)) return null;
+    if (/\b(cubito|cubo|pastilla)s?\b/.test(s) && /(caldo|consome|bouillon|knorr|maggi|sabor|sazon)/.test(s)) return t('1 cubito de caldo ≈ 700–1,200 mg de sodio (según la marca)');
+    if (/salsa\s+(de\s+)?(soya|soja)|shoyu/.test(s)) return t('1 cucharada de salsa de soya ≈ 900 mg de sodio');
+    if (/(^|[^a-z])sal([^a-z]|$)/.test(s) && !/\bsin sal\b|bajo en sal/.test(s)) return t('1 cucharadita de sal ≈ 2,300 mg de sodio (¼ ≈ 575 mg)');
+    return null;
+};

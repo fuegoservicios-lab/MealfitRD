@@ -4,7 +4,7 @@ import { BookOpen, ChevronDown, FlaskConical, Info } from 'lucide-react';
 import { useT, formatPercent } from '../../i18n';
 import { healthSourcesFor } from '../../data/healthSources';
 import { HealthSourcesPanel } from '../common/HealthSources';
-import { formatoMicro, filasMicros, cantidadMicro, coberturaMicro, fuentesAgrupadas } from './microsShared';
+import { formatoMicro, filasMicros, cantidadMicro, coberturaMicro, fuentesAgrupadas, pistaSodio } from './microsShared';
 import styles from './MicrosList.module.css';
 
 const MINERALS = new Set(['sodium_mg', 'potassium_mg', 'calcium_mg', 'iron_mg', 'magnesium_mg', 'zinc_mg', 'selenium_mcg', 'iodine_mcg']);
@@ -49,9 +49,15 @@ const DetalleNutriente = ({ f, unit, value, cov, meta, target, techo, partial, t
             <p className={styles.originTitle}>{t('Sin datos de {nutrient}', { nutrient: f.label.toLowerCase() })}</p>
             <ul className={styles.missing}>
                 {faltan.map((m, i) => <li key={`${m.meal}-${i}`}>
-                    <b>{m.meal || t('Comida sin nombre')}</b>{' · '}<span>{m.whole_meal ? t('toda la comida (foto o registro sin ingredientes)') : m.foods.join(', ')}</span>
+                    <b>{m.meal || t('Comida sin nombre')}</b>{' · '}{m.whole_meal
+                        ? <span>{t('toda la comida (foto o registro sin ingredientes)')}</span>
+                        : m.foods.map((food, j) => {
+                            const pista = f.key === 'sodium_mg' ? pistaSodio(food, t) : null;
+                            return <span key={`${food}-${j}`}>{j > 0 ? ', ' : ''}{food}{pista && <span className={styles.hint}> ({pista})</span>}</span>;
+                        })}
                 </li>)}
             </ul>
+            {f.key === 'sodium_mg' && faltan.some((m) => !m.whole_meal && m.foods.some((food) => pistaSodio(food, t))) && <p className={styles.hintNote}>{t('Referencias aproximadas; no se suman al total.')}</p>}
         </>}
         {meta && <p className={styles.reference}>{techo ? t('Máximo recomendado') : t('Referencia diaria')}: {formatoMicro(target, unit)} {unit} · {organismo(meta.reference_type, t)}
             {meta.source && <> · <a href={meta.source} target="_blank" rel="noopener noreferrer">{t('Ver la referencia')} ↗</a></>}</p>}

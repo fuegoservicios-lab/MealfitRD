@@ -397,3 +397,5 @@
 .sources { font-size: .75rem; }
 :global(html:not([data-theme="dark"])) .originBar { background: #E2E8F0; }
 :global(html:not([data-theme="dark"])) .originBar span { background: var(--mi-2); }
+.hint { color: var(--text-main); font-weight: 600; }
+.hintNote { margin-top: 6px !important; font-size: .75rem; font-style: italic; }
