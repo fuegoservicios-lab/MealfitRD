@@ -41,7 +41,7 @@ export const cantidadMicro = (value) => {
 
 export const coberturaMicro = (key, value, coverage) => {
     const c = coverage?.by_nutrient?.[key] || coverage?.[key];
-    if (cantidadMicro(value) === null) return { known: 0, total: coverage?.total || 0, status: 'none' };
+    if (cantidadMicro(value) === null) return { ...(c || {}), known: 0, total: coverage?.total || 0, status: 'none' };
     return c || { known: coverage?.con_datos || 0, total: coverage?.total || 0, status: 'partial' };
 };
 
@@ -69,13 +69,70 @@ export const resumirMicros = (meals) => {
             if (m.micros.coverage?.[k]?.status === 'complete') evidence[k].complete += 1;
         });
     });
+    const origen = origenPorNutriente(lista);
     return {
         micros: Object.fromEntries(keys.map((k) => [k, tot[k] === null ? null : Math.round(tot[k] * 1000) / 1000])),
         coverage: { con_datos: conDatos, total: lista.length, by_nutrient: Object.fromEntries(keys.map((k) => {
             const c = evidence[k];
-            return [k, { known: c.known, total: c.total, status: !c.known ? 'none' : c.complete === c.total ? 'complete' : 'partial', sources: c.sources }];
+            return [k, { known: c.known, total: c.total, status: !c.known ? 'none' : c.complete === c.total ? 'complete' : 'partial', sources: c.sources, ...origen[k] }];
         })), catalog_version: 'diary-micros-2026-10-10-v1' },
     };
+};
+
+const TOP_FUENTES = 5;
+const MAX_FALTANTES = 6;
+
+/** [MICROS-ORIGEN · 2026-11-11] Espejo de `diary_micros.origen_por_nutriente`: por nutriente, qué alimentos
+ *  aportaron más (`top`), el resto agrupado (`others`) y qué comidas/alimentos no tienen dato (`missing`). */
+export const origenPorNutriente = (meals) => {
+    const lista = Array.isArray(meals) ? meals : [];
+    const keys = filasMicros((s) => s).map((f) => f.key);
+    return Object.fromEntries(keys.map((k) => {
+        const aportes = [];
+        const faltan = [];
+        lista.forEach((m, i) => {
+            const comida = String(m?.meal_name || m?.meal_type || '').trim().slice(0, 80);
+            const mi = m?.micros;
+            const valorComida = mi ? cantidadMicro(mi?.values?.[k]) : null;
+            if (valorComida === null) { faltan.push({ meal: comida, meal_type: m?.meal_type ?? null, foods: [], whole_meal: true }); return; }
+            const items = Array.isArray(mi.items) ? mi.items : [];
+            if (!items.length) { aportes.push({ food: comida, meal: comida, meal_type: m?.meal_type ?? null, value: valorComida, _i: i }); return; }
+            const sinDato = [];
+            items.forEach((it) => {
+                if (!it || typeof it !== 'object') return;
+                const v = cantidadMicro(it.values?.[k]);
+                if (v === null) { if (it.label) sinDato.push(String(it.label)); } else if (v > 0) aportes.push({ food: String(it.label || comida), meal: comida, meal_type: m?.meal_type ?? null, value: v, _i: i });
+            });
+            if (sinDato.length) faltan.push({ meal: comida, meal_type: m?.meal_type ?? null, foods: sinDato.slice(0, MAX_FALTANTES), whole_meal: false });
+        });
+        aportes.sort((a, b) => b.value - a.value || a._i - b._i);
+        const limpio = aportes.map(({ _i, ...a }) => a);
+        const resto = limpio.slice(TOP_FUENTES);
+        return [k, { top: limpio.slice(0, TOP_FUENTES), others: { count: resto.length, value: Math.round(resto.reduce((s, a) => s + a.value, 0) * 1000) / 1000 }, missing: faltan.slice(0, MAX_FALTANTES) }];
+    }));
+};
+
+/** Nombre legible de la fuente de composición (el catálogo guarda códigos como «usda» o «manual»). */
+export const nombreFuente = (source, t) => {
+    const s = String(source?.source || '').toLowerCase();
+    if (s === 'usda' || s.startsWith('usda')) return 'USDA FoodData Central';
+    if (s === 'manual') return t('Catálogo revisado a mano');
+    if (s === 'legacy' || !s) return t('Catálogo anterior');
+    if (s === 'etiqueta del producto' || s === 'food_label') return t('Etiqueta del producto');
+    return String(source.source);
+};
+
+/** Fuentes agrupadas por nombre con su cantidad: «USDA FoodData Central (6) · Etiqueta del producto (1)». */
+export const fuentesAgrupadas = (sources, t) => {
+    const grupos = new Map();
+    (Array.isArray(sources) ? sources : []).forEach((src) => {
+        const nombre = nombreFuente(src, t);
+        const g = grupos.get(nombre) || { nombre, n: 0, url: null };
+        g.n += 1;
+        if (!g.url && src?.url) g.url = src.url;
+        grupos.set(nombre, g);
+    });
+    return [...grupos.values()].sort((a, b) => b.n - a.n);
 };
 
 /** El subtítulo honesto de la cobertura. `null` = todavía cargando. */

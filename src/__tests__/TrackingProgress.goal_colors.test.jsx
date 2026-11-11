@@ -95,7 +95,7 @@ describe('Plan goals are not health ceilings', () => {
                 vit_d_mcg: { kind: 'floor', target: 15 },
             }} />);
         expect(screen.getByTitle('Máximo recomendado')).toBeInTheDocument();
-        expect(Boolean(screen.queryByText('Sobre el máximo recomendado'))).toBe(sodium > 2000);
+        expect(Boolean(screen.queryByText(/sobre el máximo recomendado/))).toBe(sodium > 2000);
         expect(screen.getByRole('progressbar', { name: 'Sodio' }).firstElementChild.className.includes('over')).toBe(sodium > 2000);
         for (const name of ['Vitamina A', 'Vitamina D']) {
             expect(screen.getByRole('progressbar', { name }).firstElementChild.className).toContain('done');

@@ -339,3 +339,61 @@
 }
 @media (max-width: 560px) { .compact .list { grid-template-columns: 1fr; gap: 14px; } .evidence summary { min-height: 40px; } }
 @media (prefers-reduced-motion: reduce) { .fill, .expand, .expandChevron, .evidenceChevron, .filters button { transition: none; } }
+
+/* [MICROS-ORIGEN · 2026-11-11] «+» de mínimo, marca del límite y el detalle «Lo que más aportó». */
+.atLeast { margin-left: 1px; font-weight: 800; }
+.track { position: relative; }
+.limitMark {
+    position: absolute;
+    top: -1px;
+    bottom: -1px;
+    width: 2px;
+    margin-left: -1px;
+    border-radius: 1px;
+    background: var(--text-main);
+    opacity: .85;
+}
+.originTitle {
+    margin: 12px 0 6px !important;
+    font-size: .75rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--text-main);
+}
+.origin, .missing { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.originRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 2px 10px;
+}
+.originName { min-width: 0; display: flex; flex-direction: column; }
+.originFood { color: var(--text-main); font-weight: 650; font-size: .8rem; overflow-wrap: anywhere; }
+.originMeal { font-size: .75rem; color: var(--text-muted); }
+.originValue { font-variant-numeric: tabular-nums; color: var(--text-main); font-weight: 700; font-size: .8rem; white-space: nowrap; text-align: right; }
+.originValue small { margin-left: 6px; font-weight: 600; color: var(--text-muted); font-size: .75rem; }
+.originBar {
+    grid-column: 1 / -1;
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-light) 18%, transparent);
+    overflow: hidden;
+}
+.originBar span { display: block; height: 100%; border-radius: 999px; background: var(--mi-2); }
+.originOthers .originFood { font-weight: 600; color: var(--text-muted); }
+.insight {
+    margin-top: 10px !important;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--mi-1) 12%, transparent);
+    color: var(--text-main);
+    font-weight: 600;
+}
+.missing li { font-size: .75rem; line-height: 1.45; overflow-wrap: anywhere; }
+.missing b { color: var(--text-main); font-weight: 700; }
+.reference a, .sources a { display: inline; padding: 0; }
+.reference { margin-top: 12px !important; }
+.sources { font-size: .75rem; }
+:global(html:not([data-theme="dark"])) .originBar { background: #E2E8F0; }
+:global(html:not([data-theme="dark"])) .originBar span { background: var(--mi-2); }
