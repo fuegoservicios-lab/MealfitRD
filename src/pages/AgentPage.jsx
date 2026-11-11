@@ -4980,12 +4980,13 @@ const AgentPage = () => {
                                     if (a.accion === 'escanear') {
                                         void openAttachmentPicker();
                                     } else if (a.accion === 'anotar') {
-                                        const prefijo = prefijoAnotarComida();
+                                        const _prefijoEs = prefijoAnotarComida();   // [P1-PLAN-LOTE-980] clave i18nKey, se traduce aquí
+                                        const prefijo = t(_prefijoEs);
                                         setInput((prev) => {
                                             const t = (prev || '').trim();
                                             if (!t) return prefijo;
                                             const lower = t.toLowerCase();
-                                            if (lower.startsWith('desayun') || lower.startsWith('almorc') || lower.startsWith('merend') || lower.startsWith('cen') || lower.startsWith('comi')) {
+                                            if (lower.startsWith(prefijo.trim().toLowerCase()) || lower.startsWith('desayun') || lower.startsWith('almorc') || lower.startsWith('merend') || lower.startsWith('cen') || lower.startsWith('comi')) {
                                                 return prev;
                                             }
                                             return prefijo + t;
@@ -6197,6 +6198,7 @@ const AgentPage = () => {
                         </button>
 
                         <div className="chat-header-identidad">
+                            {/* [P3-AGENT-HEADER-TITLE] El título es la marca (Wordmark), nunca el legacy «MealfitRD». */}
                             <span className="agent-header-title" style={{
                                 fontSize: '1.25rem', fontWeight: 400, color: 'var(--text-main)', letterSpacing: '-0.02em'
                             }}>

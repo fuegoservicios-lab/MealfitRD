@@ -245,7 +245,8 @@ describe('AgentPage: el modo voz enchufado', () => {
     const ap = readFileSync(join(__dirname, '..', 'pages', 'AgentPage.jsx'), 'utf8');
 
     it('en ambos modos, con la caja vacía y donde el dispositivo oye y habla', () => {
-        expect(ap).toContain('{vozCoach.disponible && !input.trim() && attachments.length === 0 && (');
+        // [P1-PLAN-LOTE-980] y oculto mientras se dicta (`!isListening`).
+        expect(ap).toContain('{vozCoach.disponible && !isListening && !input.trim() && attachments.length === 0 && (');
         expect(ap).toContain("const ModoVoz = lazy(() => import('../components/agent/ModoVoz'));");
     });
 

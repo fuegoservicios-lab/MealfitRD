@@ -431,7 +431,8 @@ describe('lote 224 · varios platos', () => {
         fireEvent.click(screen.getByText('Elegir de galería'));
         await screen.findByRole('button', { name: /Registrar 2 platos/ });
         expect(chooseNativeGalleryImages).toHaveBeenLastCalledWith(4);
-        fireEvent.click(screen.getByRole('button', { name: /Añadir otro plato/ }));
+        // [P1-PLAN-LOTE-980] P1-SCAN-AI-ASSISTANT-MODAL partió «Añadir otro plato» en Otra foto / Añadir foto / Escribir plato.
+        fireEvent.click(screen.getByRole('button', { name: /Añadir foto|De la galería/ }));
         await waitFor(() => expect(chooseNativeGalleryImages).toHaveBeenLastCalledWith(2));
     });
 });
@@ -453,7 +454,7 @@ describe('lote 224 · fuente y catálogos', () => {
     it('los textos nuevos están en los cuatro catálogos (y los retirados, fuera)', () => {
         for (const loc of ['en-US', 'pt-BR', 'fr-FR', 'it-IT']) {
             const cat = JSON.parse(leer(`src/i18n/locales/${loc}.json`));
-            for (const k of ['Menos {nombre}', 'Más {nombre}', '¿Comiste algo más?', 'Añadir otro plato', 'Registrar {n} platos',
+            for (const k of ['Menos {nombre}', 'Más {nombre}', '¿Comiste algo más?', 'Añadir foto', 'Escribir plato', 'Registrar {n} platos',
                 '{n} platos registrados ({kcal} kcal).', 'Desmarca lo que no comiste o ajusta la cantidad: las calorías se recalculan solas.',
                 '¿Comiste varios platos? Puedes añadir hasta {n}, una foto por plato, y registrarlos juntos.']) {
                 expect(cat[k], `${loc}: falta «${k}»`).toBeTruthy();

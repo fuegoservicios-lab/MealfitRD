@@ -172,7 +172,10 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, al
             c.dc = c.pc.createDataChannel('oai-events');
             c.dc.onmessage = (m) => { if (conexionRef.current !== c) return; try { alEvento(JSON.parse(m.data)); } catch { /* evento ilegible */ } };
             fase = 'oferta';
-            const oferta = await prepararConexionVoz(c.pc, capturarMicrofonoDeVoz,
+            // [P1-PLAN-LOTE-980] La captura corre DENTRO de la oferta (0746cc70): un fallo del micrófono se
+            // diagnostica como `microfono`, no como `oferta`.
+            const capturar = () => capturarMicrofonoDeVoz().catch((err) => { fase = 'microfono'; throw err; });
+            const oferta = await prepararConexionVoz(c.pc, capturar,
                 () => conexionRef.current === c && abiertoRef.current && !c.soltada,
                 (stream) => { c.micro = stream; });
             if (!oferta) { soltar(c); return; }

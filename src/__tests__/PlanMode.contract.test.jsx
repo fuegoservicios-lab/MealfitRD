@@ -381,12 +381,19 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         // es LA puerta de vuelta. «Encender el plan» cuesta 1 crédito — ofrecérselo
         // a quien ya tiene plan guardado sería cobrarle por lo suyo.
         const s = read('components/dashboard/DashboardTracking.jsx');
-        expect(s).toContain('hayPlanPausado={!!planData}');
+        // [P1-PLAN-LOTE-980] BB-050 movió el montaje de la tarjeta al centro de notificaciones.
+        expect(read('components/dashboard/NotificationCenter.jsx')).toContain('hayPlanPausado={!!planData}');
         const rama = s.indexOf('if (hayPlanPausado)');
         expect(rama).toBeGreaterThan(-1);
-        const fin = s.indexOf('// Las cinco reglas', rama);
+        // [P1-PLAN-LOTE-980] El marcador «// Las cinco reglas» ya no existe: la rama acaba donde empieza la siguiente.
+        const _finViejo = s.indexOf('// Las cinco reglas', rama);
+        const fin = _finViejo > rama ? _finViejo : s.indexOf('\n    if (dismissed) return null;', rama + 30);
         const cuerpo = s.slice(rama, fin > rama ? fin : rama + 2000);
-        expect(cuerpo).toContain('reanudarPlanes');
+        // [P1-PLAN-LOTE-980] El botón llama a `handleReanudar`, que es quien invoca el helper compartido.
+        expect(cuerpo).toContain('onClick={handleReanudar}');
+        const h = s.indexOf('const handleReanudar = () => {');
+        expect(h).toBeGreaterThan(-1);
+        expect(s.slice(h, h + 300)).toContain('reanudarPlanes()');
         expect(cuerpo).toContain('Reanudar el plan');
         // la rama pausada jamás manda al wizard (irAlPlan = 1 crédito)
         expect(cuerpo).not.toContain('irAlPlan');

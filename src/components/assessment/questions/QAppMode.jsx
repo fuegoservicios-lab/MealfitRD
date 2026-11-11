@@ -20,6 +20,7 @@ import Modal from '../../common/Modal';
 import { CalendarRange, Gauge, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import { useT } from '../../../i18n';
+import { WORDMARK_TEXT } from '../../../config/brand';
 
 export const QAppMode = ({ onAutoAdvance }) => {
     const { formData, updateData, isGuest } = useAssessment();
@@ -165,7 +166,7 @@ export const QAppMode = ({ onAutoAdvance }) => {
                         </p>
                         <p style={{ margin: 0, color: 'var(--text-muted)' }}>
                             <strong style={{ color: 'var(--primary, #6366F1)' }}>{t('Te recomendamos: ')}</strong>
-                            {t('Usar el modo contador («Contar lo que como»). Es la experiencia principal de Bioboros: más rápida, precisa con fotos y voz, y totalmente probada.')}
+                            {t('Usar el modo contador («Contar lo que como»). Es la experiencia principal de {marca}: más rápida, precisa con fotos y voz, y totalmente probada.', { marca: WORDMARK_TEXT })}
                         </p>
                     </div>
 

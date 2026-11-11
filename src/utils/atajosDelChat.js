@@ -5,16 +5,19 @@
 // mediodía y a la 1:47 de la madrugada, y «Registrar lo que comí» gastaba un mensaje del mes para que el coach
 // preguntara «¿qué comiste?». El dueño: «¿estos textos son útiles? reemplázalos por mejores».
 
+import { i18nKey } from '../i18n';
+
 const MAX = 4;
 const _n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
 const _g = (v) => _n(String(v ?? '').replace(/[^\d.]/g, ''));   // «198g» → 198
 
 /** Prefijo contextual para «Anotar comida» según la hora local. */
+// [P1-PLAN-LOTE-980] Devuelve la CLAVE española (`i18nKey`); el que la pinta la pasa por `t()` (AgentPage).
 export function prefijoAnotarComida(hora = new Date().getHours()) {
-    if (hora >= 4 && hora < 11) return 'Desayuné ';
-    if (hora >= 11 && hora < 16) return 'Almorcé ';
-    if (hora >= 16 && hora < 19) return 'Merendé ';
-    return 'Cené ';
+    if (hora >= 4 && hora < 11) return i18nKey('Desayuné ');
+    if (hora >= 11 && hora < 16) return i18nKey('Almorcé ');
+    if (hora >= 16 && hora < 19) return i18nKey('Merendé ');
+    return i18nKey('Cené ');
 }
 
 /** Las metas de macros en números, vengan del plan o de /api/nutrition/targets (`macros: { protein: '198g' }`). */

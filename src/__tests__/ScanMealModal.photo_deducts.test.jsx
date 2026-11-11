@@ -215,7 +215,8 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
         // vacio que sugiera que el escaner fallo.
         vi.mocked(fetchWithAuth).mockImplementation(_routeFetch({ items: [] }));
         await _scan();
-        expect(screen.queryByText('Ingredientes que detectamos')).not.toBeInTheDocument();
+        // [P1-PLAN-LOTE-980] P1-SCAN-AI-ASSISTANT-MODAL deja la sección para «Añadir alimento», con su aviso de vacío.
+        expect(screen.getByText(/No hay ingredientes detectados en la foto/)).toBeInTheDocument();
         // sin nada marcado que descontar, tampoco hay interruptor de Nevera
         expect(screen.queryByText(/Descontar de mi Nevera/i)).not.toBeInTheDocument();
 

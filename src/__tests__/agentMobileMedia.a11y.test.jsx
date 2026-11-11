@@ -29,7 +29,8 @@ describe('[P2-CHAT-MOBILE-MEDIA] visor y hoja nativa accesibles', () => {
             />,
         );
         expect(screen.queryByRole('button', { name: 'Regenerar respuesta' })).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Copiar' })).toBeInTheDocument();
+        // [P1-PLAN-LOTE-980] BB-044 (27c4c64c) limpió la bienvenida de fuentes y acciones: tampoco «Copiar».
+        expect(screen.queryByRole('button', { name: 'Copiar' })).not.toBeInTheDocument();
 
         rerender(
             <MemoizedMessageBubble

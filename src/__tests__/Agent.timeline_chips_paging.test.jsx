@@ -92,7 +92,10 @@ describe('acciones rápidas con el hilo corto', () => {
         expect(caja).toBeGreaterThan(-1);
         expect(AGENT.indexOf('className="chat-quick-chips"')).toBeLessThan(caja);
         // [P1-PLAN-LOTE-411] acciones que abren su hoja y preguntas del momento (atajosDelChat.js, lote411.test.js)
-        expect(AGENT).toContain("onClick={() => (a.tipo === 'accion' ? setHojaDeComida({ tipo: a.accion }) : handleSend(a.mensaje))}");
+        // [P1-PLAN-LOTE-980] 2e1dfb6b fusionó escanear/anotar en el chat: la acción abre el selector o rellena la caja.
+        expect(AGENT).toContain("if (a.tipo === 'accion') {");
+        expect(AGENT).toContain("if (a.accion === 'escanear') {");
+        expect(AGENT).toContain('handleSend(a.mensaje);');
         expect(AGENT).toContain('.chat-quick-chip {');
         // el hilo nunca desplaza en horizontal (barra gruesa al pie del hilo en Windows)
         expect(AGENT).toContain('.messages-container { overflow-x: hidden !important; }');

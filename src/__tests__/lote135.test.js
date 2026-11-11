@@ -87,7 +87,9 @@ describe('lote 135 · la invitación al plan: una vez por semana y por usuario',
 
     it('la tarjeta nace como diga el espejo, pregunta al volver a la app y conserva sus contratos', () => {
         const dt = leer('src/components/dashboard/DashboardTracking.jsx');
-        expect(dt).toContain("const [dismissed, setDismissed] = useState(() => estadoLocal(_DISMISS_KEY, userId) !== 'visible');");
+        // [P1-PLAN-LOTE-980] BB-050: dentro del centro de notificaciones manda su propio descarte.
+        expect(dt).toContain("const [dismissed, setDismissed] = useState(() => (");
+        expect(dt).toContain(": estadoLocal(_DISMISS_KEY, userId) !== 'visible'");
         expect(dt).toContain("if (local !== 'desconocido') setDismissed(local !== 'visible');");
         expect(dt).toContain("if (r.nueva && visible) anotarInvitacion(_DISMISS_KEY, userId, 'seen');");
         expect(dt).toContain("document.addEventListener('visibilitychange', alVolver);");

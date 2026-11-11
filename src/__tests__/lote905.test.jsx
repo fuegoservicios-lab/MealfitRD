@@ -34,6 +34,8 @@ class CanalFalso {
 class PeerFalso {
     constructor() { this.cerrado = false; this.pistas = []; PeerFalso.ultimo = this; }
     addTrack(t) { this.pistas.push(t); }
+    // [P1-PLAN-LOTE-980] 0746cc70 prepara el peer ANTES del micrófono: transceiver + replaceTrack.
+    addTransceiver() { return { sender: { replaceTrack: async (t) => { if (t) this.pistas.push(t); } } }; }
     createDataChannel(nombre) { this.canal = nombre; return new CanalFalso(); }
     async createOffer() { return { type: 'offer', sdp: 'OFERTA' }; }
     async setLocalDescription() {}
@@ -55,7 +57,7 @@ beforeEach(() => {
     window.RTCPeerConnection = PeerFalso;
     Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
-        value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [pista] })) },
+        value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [pista], getAudioTracks: () => [pista] })) },
     });
 });
 afterEach(() => { delete window.RTCPeerConnection; vi.useRealTimers(); });
@@ -108,7 +110,10 @@ describe('useConversacionLive', () => {
         window.RTCPeerConnection = class { constructor() { throw new DOMException('unsupported', 'NotSupportedError'); } };
         const alError = vi.fn();
         const { result } = await abierto({ alError });
-        expect(pista.stop).toHaveBeenCalledTimes(1);
+        // [P1-PLAN-LOTE-980] Desde 0746cc70 el peer nace ANTES del micrófono: si WebRTC falla, ni se pide la
+        // captura (nada que soltar), que es mejor que pedirla y soltarla.
+        expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
+        expect(pista.stop).not.toHaveBeenCalled();
         expect(result.current.abierto).toBe(false);
         expect(alError).toHaveBeenCalledWith(expect.objectContaining({ fase: 'webrtc' }));
         expect(result.current.disponible).toBe(true);
@@ -146,7 +151,7 @@ describe('useConversacionLive', () => {
             if (!['auto', 'play-and-record'].includes(navigator.audioSession.type)) {
                 throw new DOMException('AudioSession category is not compatible with audio capture.', 'InvalidStateError');
             }
-            return { getTracks: () => [pista] };
+            return { getTracks: () => [pista], getAudioTracks: () => [pista] };
         });
         const alError = vi.fn();
         try {

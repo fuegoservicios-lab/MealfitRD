@@ -229,7 +229,6 @@
 
 .dayBtn:hover {
     background: rgba(148, 163, 184, 0.08);
-    transform: translateY(-1px);
 }
 
 .dayBtnActive {
@@ -516,7 +515,7 @@
 }
 
 .slotKcalBadge {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--text-muted);
@@ -664,7 +663,6 @@
     background: rgba(30, 41, 59, 0.95);
     border-color: rgba(129, 140, 248, 0.55);
     box-shadow: 0 6px 18px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    transform: translateY(-1px);
 }
 
 .trigger:active {
@@ -744,7 +742,7 @@
     border-radius: 10px;
     background: rgba(99, 102, 241, 0.08);
     color: #A5B4FC;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
@@ -754,7 +752,6 @@
     color: #FFFFFF;
     background: rgba(99, 102, 241, 0.2);
     border-color: rgba(129, 140, 248, 0.5);
-    transform: translateY(-1px);
 }
 
 .moreDays:active {

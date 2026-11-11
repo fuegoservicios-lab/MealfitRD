@@ -42,7 +42,7 @@ describe('[579] /admin', () => {
         expect(screen.getByText('12')).toBeInTheDocument();
         expect(screen.getByText('vision_scan')).toBeInTheDocument();
         expect(screen.getByText('No disponible')).toBeInTheDocument();
-        expect(fetchWithAuth).toHaveBeenCalledWith('/api/admin/metricas?dias=7');
+        expect(fetchWithAuth).toHaveBeenCalledWith('/api/admin/metricas?dias=7', expect.objectContaining({ signal: expect.anything() }));   // [P1-PLAN-LOTE-980] cancelable
         expect(fetchWithAuth).toHaveBeenCalledWith('/api/admin/yo');
     });
 
@@ -51,7 +51,7 @@ describe('[579] /admin', () => {
         montar();
         await screen.findByText('Cuentas', { selector: 'span' });
         fireEvent.click(screen.getByRole('button', { name: '30 días' }));
-        await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/admin/metricas?dias=30'));
+        await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/admin/metricas?dias=30', expect.objectContaining({ signal: expect.anything() })));
     });
 
     it('pulsar el periodo que ya está activo no deja la página cargando', async () => {
