@@ -307,10 +307,17 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
                 <div className={styles.vessel}>
                     <div className={styles.glass}>
                         <div className={styles.water} style={{ height: `${pct}%` }}>
-                            <div className={styles.waveWrap} aria-hidden="true">
+                            {/* [OLAS-EN-COMPOSITOR · 2026-11-12] Una capa HTML por ola: lo que se anima es el <div>, no el
+                                <path>. Un `transform` animado sobre un nodo SVG no va al compositor: recalculaba estilo y
+                                layout del panel en CADA fotograma, sin parar, con la app en reposo (medido). */}
+                            <div className={`${styles.waveWrap} ${styles.wave1}`} aria-hidden="true">
                                 <svg viewBox="0 0 120 15" preserveAspectRatio="none">
-                                    <path className={styles.wave1} d="M0 8 Q15 0 30 8 T60 8 T90 8 T120 8 V15 H0 Z" />
-                                    <path className={styles.wave2} d="M0 9 Q15 2 30 9 T60 9 T90 9 T120 9 V15 H0 Z" />
+                                    <path d="M0 8 Q15 0 30 8 T60 8 T90 8 T120 8 V15 H0 Z" />
+                                </svg>
+                            </div>
+                            <div className={`${styles.waveWrap} ${styles.wave2}`} aria-hidden="true">
+                                <svg viewBox="0 0 120 15" preserveAspectRatio="none">
+                                    <path d="M0 9 Q15 2 30 9 T60 9 T90 9 T120 9 V15 H0 Z" />
                                 </svg>
                             </div>
                         </div>

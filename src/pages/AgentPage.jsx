@@ -102,6 +102,15 @@ const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
 const ESPERA_PREPARAR_FOTO_MS = 650;
 // [P1-PLAN-LOTE-360] iOS decodifica la foto grande en el hilo principal: la caja espera a la miniatura (utils/vistaPreviaDelAdjunto.js)
 const _esIOS = esIOS(typeof navigator !== 'undefined' ? navigator : null, isNativeApp());
+// [KB-ANDROID-SECO · 2026-11-12] Android (APK y Chrome) NO anima el layout con el teclado: el sistema encoge la
+// ventana de UN golpe al empezar la subida (`adjustResize`) y el teclado se desliza por encima. Todo lo que este
+// archivo hace para ACOMPAÑAR al teclado esta medido en iOS (WKWebView no encoge el documento; avisa UIKit con alto y
+// duracion). En Android esas piezas corrian igual (`isNativeApp()` es cierto en los dos) y sobraban:
+//   - la apertura anticipada animaba el ALTO del chat 250 ms hacia un sitio al que la ventana ya habia saltado: la
+//     caja quedaba bajo el borde y subia tarde, y cada fotograma de esa transicion es un layout del chat entero;
+//   - el relleno de la caja y la barra de pestanas seguian moviendose 250 ms despues del salto.
+// Aqui el chat hace UN layout por cambio de teclado, en el mismo fotograma que la ventana, y nada mas.
+const _esAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '');
 // [P1-PLAN-LOTE-129] La duración REAL de la animación del teclado, tal como la dio UIKit la última vez (ms).
 const CLAVE_MS_NATIVO = 'mf_kb_ms_nativo';
 // [P1-PLAN-LOTE-127] Cuando se mira si iOS escondio el teclado al encender el microfono (ms desde que empieza a escuchar).
@@ -677,6 +686,8 @@ const AgentPage = () => {
         }
         const vv = window.visualViewport;
         let abriendoTimer = null;
+        // [KB-ANDROID-SECO] la llave de las reglas «sin transicion» (caja, barra de pestanas); se retira al salir del chat
+        if (_esAndroid) root?.setAttribute('data-kb-seco', '');
 
         const updateInputPosition = (forzarMedicion = false) => {
             const wrapper = inputWrapperRef.current;
@@ -1151,6 +1162,7 @@ const AgentPage = () => {
         const alGanarElFoco = (e) => {
             const campo = e.target;
             if (!isNativeApp() || !campo || !inputWrapperRef.current?.contains(campo)) return;
+            if (_esAndroid) return;   // [KB-ANDROID-SECO] la ventana salta sola: anticipar solo anade una animacion de alto
             if (campo.tagName !== 'TEXTAREA' && campo.tagName !== 'INPUT') return;
             if (tecladoAbiertoRef.current || !window.matchMedia?.('(pointer: coarse)')?.matches) return;
             const recordado = Number(safeLocalStorageGet(CLAVE_INSET_NATIVO, 0)) || 0;
@@ -1264,6 +1276,7 @@ const AgentPage = () => {
             coreo.fase = null;
             root?.removeAttribute('data-kb-abriendo');
             root?.removeAttribute('data-kb-sin-anim');
+            root?.removeAttribute('data-kb-seco');
             descongelarAlto(coreo.contenedor);
             abriendoRef.current = false;
             vv.removeEventListener('resize', alEvento);
@@ -5996,6 +6009,7 @@ const AgentPage = () => {
                     // chat baja ACOMPAÑANDO al teclado en vez de adelantarse.
                     // Sólo en móvil: en escritorio el alto no se mueve y una transición ahí
                     // sólo podría retrasar un cambio de layout legítimo.
+                    // [KB-ANDROID-SECO] En Android la apaga la regla `html[data-kb-seco] .agent-container` (mas abajo).
                     transition: isMobile ? 'height var(--kb-ms, 0.25s) cubic-bezier(0.32, 0.72, 0, 1)' : undefined,
                     background: 'var(--bg-card)',
                     borderRadius: isMobile ? '0' : '1.5rem',
@@ -6987,6 +7001,12 @@ const AgentPage = () => {
                     /* [P1-PLAN-LOTE-131] En el relevo de la coreografia el relleno cambia de golpe, a proposito: lo que se ve
                        lo lleva (o lo acaba de soltar) un transform, y animar ademas el relleno moveria la caja dos veces. */
                     html[data-kb-sin-anim] .input-wrapper {
+                        transition: none !important;
+                    }
+                    /* [KB-ANDROID-SECO] En Android ni el relleno ni el ALTO del chat se animan: la ventana ya salto, y
+                       animar el alto es un layout del chat entero por fotograma. */
+                    html[data-kb-seco] .input-wrapper,
+                    html[data-kb-seco] .agent-container {
                         transition: none !important;
                     }
                     /* --- Welcome screen --- */

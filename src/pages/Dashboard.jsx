@@ -6179,9 +6179,13 @@ const DashboardInner = () => {
                     content: '';
                     position: absolute;
                     top: 0;
-                    left: -50%;
+                    left: 0;
                     width: 40%;
                     height: 100%;
+                    /* [BRILLO-EN-COMPOSITOR · 2026-11-12] Se movia con left (un layout por fotograma, sin parar, mientras
+                       la insignia Ultra esta en pantalla). El mismo recorrido con transform: -50% y 110% de la insignia
+                       son -125% y 275% del ancho propio (40%). */
+                    transform: translateX(-125%);
                     background: linear-gradient(90deg,
                         transparent 0%,
                         rgba(255, 255, 255, 0.65) 50%,
@@ -6192,8 +6196,8 @@ const DashboardInner = () => {
                 }
 
                 @keyframes planTierShimmer {
-                    0%, 88%, 100% { left: -50%; }
-                    94% { left: 110%; }
+                    0%, 88%, 100% { transform: translateX(-125%); }
+                    94% { transform: translateX(275%); }
                 }
 
                 /* [P2-HOVER-NO-MOTION · 2026-09-03] sin lift al hover; la sombra

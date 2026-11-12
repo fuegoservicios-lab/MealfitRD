@@ -25,6 +25,13 @@
     pointer-events: none !important;
 }
 
+/* [KB-ANDROID-SECO · 2026-11-12] En Android la ventana encoge de golpe al abrir el teclado: la barra (fixed) saltaba
+   encima del teclado y se iba deslizando 250 ms. Ahi se va en el MISMO fotograma. Al cerrar la llave `data-kb-open` ya
+   no esta, la transicion vuelve y la barra sube deslizandose (es `transform`: no cuesta layout). */
+:global(html[data-kb-seco][data-kb-open]) .tabBar {
+    transition: none !important;
+}
+
 /* [P1-PLAN-LOTE-165 · 2026-09-22] Fuera del chat, la barra se quedaba ENCIMA del teclado: `data-kb-open` solo lo
    estampa el chat, así que escribir en la Nevera (o cualquier otro campo de una pestaña) dejaba la barra flotando sobre
    el teclado y tapando lo que se escribe. En pantallas táctiles, un campo de texto enfocado basta para esconderla.

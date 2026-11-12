@@ -2927,11 +2927,13 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 .mf-dot--active { width: 24px; background: #FFFFFF; overflow: hidden; }
                 /* [P2-LOADING-NO-FREEZE-99] la fase activa se ve VIVA: un brillo recorre la píldora */
                 .mf-dot--active::after {
-                    content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 60%;
+                    /* [BRILLO-EN-COMPOSITOR · 2026-11-12] con transform y no con left: esta pantalla dura minutos y left es
+                       un layout por fotograma. -60% y 100% de la pildora son -100% y 166.67% del ancho propio (60%). */
+                    content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 60%; transform: translateX(-100%);
                     background: linear-gradient(90deg, rgba(129,140,248,0) 0%, rgba(129,140,248,0.95) 50%, rgba(129,140,248,0) 100%);
                     animation: mfDotSweep 1.6s ease-in-out infinite;
                 }
-                @keyframes mfDotSweep { from { left: -60%; } to { left: 100%; } }
+                @keyframes mfDotSweep { from { transform: translateX(-100%); } to { transform: translateX(166.67%); } }
                 .mf-dot--done { background: rgba(251,113,133,0.9); }
                 .mf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
                 @media (prefers-reduced-motion: reduce) {
