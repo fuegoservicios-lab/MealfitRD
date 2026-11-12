@@ -40,7 +40,19 @@ const TEXTOS = {
     actualizado: (hora) => `Actualizado a las ${hora}`,
     automatico: 'Actualización automática cada 30 s mientras este panel está visible.',
     gruposAvisos: { activo: 'Problemas activos', revision: 'Pendientes de revisión', espera: 'Esperando al usuario', historial: 'Eventos anteriores' },
-    sinActivos: 'Sin problemas activos registrados.',
+    sinActivos: 'Sin problemas activos: nada está fallando ahora mismo.',
+    // [P1-PLAN-LOTE-993] qué significa cada grupo, en una línea bajo su título
+    explicaGrupo: {
+        activo: 'Afecta ahora a alguien que usa la app, o al sistema entero.',
+        revision: 'Conviene mirarlo, pero no está rompiendo nada ahora.',
+        espera: 'De cuentas que no se usan: no hace falta actuar; se retoma si vuelven.',
+        historial: 'Notas informativas, lo que ya no aplica y lo resuelto en los últimos 7 días.',
+    },
+    marcarRevisado: 'Marcar como revisado',
+    confirmarRevisado: '¿Seguro? Pulsa otra vez',
+    guardandoRevisado: 'Guardando…',
+    errorRevisado: 'No se pudo marcar. Reintenta.',
+    etiquetaObsoleto: 'Ya no aplica',
     etiquetaEspera: 'En espera',
     etiquetaEvento: 'Evento',
     etiquetaResuelto: 'Resuelto',
@@ -263,7 +275,50 @@ function BloqueResumen({ bloque, secciones }) {
     );
 }
 
-function BloqueAvisos({ bloque }) {
+const CABECERA_ACCION = { 'Content-Type': 'application/json', 'X-Admin-Accion': '1' };
+
+/** [P1-PLAN-LOTE-993] Cierra las alertas de una fila. Dos pulsaciones: la primera arma, la segunda guarda; sin la
+ * segunda en 4 s, se desarma. Si el problema sigue, el backend lo reabre en su próxima pasada. */
+function BotonRevisado({ huellas, onHecho }) {
+    const [paso, setPaso] = useState('listo');
+    useEffect(() => {
+        if (paso !== 'armado') return undefined;
+        const t = setTimeout(() => setPaso('listo'), 4000);
+        return () => clearTimeout(t);
+    }, [paso]);
+    const pulsar = async () => {
+        if (paso === 'guardando') return;
+        if (paso !== 'armado') { setPaso('armado'); return; }
+        setPaso('guardando');
+        try {
+            const r = await fetchWithAuth('/api/admin/avisos/revisado', {
+                method: 'POST', headers: CABECERA_ACCION, body: JSON.stringify({ huellas }),
+            });
+            if (!r.ok) throw new Error(String(r.status));
+            setPaso('listo');
+            onHecho?.();
+        } catch {
+            setPaso('error');
+        }
+    };
+    const texto = { armado: TEXTOS.confirmarRevisado, guardando: TEXTOS.guardandoRevisado, error: TEXTOS.errorRevisado }[paso]
+        || TEXTOS.marcarRevisado;
+    return (
+        <button type="button" className={styles.avisoRevisado} data-paso={paso} onClick={pulsar} disabled={paso === 'guardando'}>
+            {texto}
+        </button>
+    );
+}
+
+const etiquetaAviso = (a, nivel) => {
+    if (a.estado === 'resuelto') return TEXTOS.etiquetaResuelto;
+    if (a.estado === 'obsoleto') return TEXTOS.etiquetaObsoleto;
+    if (a.grupo === 'espera') return TEXTOS.etiquetaEspera;
+    if (a.grupo === 'historial') return TEXTOS.etiquetaEvento;
+    return TEXTOS.nivel[nivel];
+};
+
+function BloqueAvisos({ bloque, onCambio }) {
     const items = bloque.items || [];
     if (items.length === 0) return <p className={styles.vacio}>{bloque.vacio}</p>;
     const lista = (filas) => (
@@ -272,12 +327,15 @@ function BloqueAvisos({ bloque }) {
                 const nivel = nivelDe(a.nivel);
                 return (
                     <li key={i} className={styles.aviso} data-nivel-aviso={nivel} data-estado-aviso={a.estado}>
-                        <span className={styles.avisoNivel}>{a.estado === 'resuelto' ? TEXTOS.etiquetaResuelto : a.grupo === 'espera' ? TEXTOS.etiquetaEspera : a.grupo === 'historial' ? TEXTOS.etiquetaEvento : TEXTOS.nivel[nivel]}</span>
+                        <span className={styles.avisoNivel}>{etiquetaAviso(a, nivel)}</span>
                         <span className={styles.avisoTexto}>
                             <span className={styles.avisoTitulo}>{a.titulo}</span>
                             {a.detalle && <span className={styles.avisoDetalle}>{a.detalle}</span>}
                             {a.accion && <span className={styles.avisoAccion}>{a.accion}</span>}
                             {a.momento && <span className={styles.avisoMomento}>{a.momento}</span>}
+                            {Array.isArray(a.resolver) && a.resolver.length > 0 && a.estado !== 'resuelto' && (
+                                <BotonRevisado huellas={a.resolver} onHecho={onCambio} />
+                            )}
                         </span>
                         <span className={styles.avisoValor}>{a.valor}</span>
                     </li>
@@ -294,10 +352,11 @@ function BloqueAvisos({ bloque }) {
         {grupos.filter((g) => g.filas.length).map(({ grupo, filas }) => {
             const total = filas.reduce((n, a) => n + (Number(String(a.valor).replaceAll(',', '')) || 0), 0);
             const titulo = `${TEXTOS.gruposAvisos[grupo]} (${total})`;
+            const explica = <p className={styles.grupoAvisosExplica}>{TEXTOS.explicaGrupo[grupo]}</p>;
             return grupo === 'historial' ? <details key={grupo} className={styles.historialAvisos}>
-                <summary>{titulo}</summary>{lista(filas)}
+                <summary>{titulo}</summary>{explica}{lista(filas)}
             </details> : <section key={grupo} aria-label={titulo} data-grupo-aviso={grupo}>
-                <h4 className={styles.grupoAvisosTitulo}>{titulo}</h4>{lista(filas)}
+                <h4 className={styles.grupoAvisosTitulo}>{titulo}</h4>{explica}{lista(filas)}
             </section>;
         })}
     </div>;
@@ -344,7 +403,7 @@ function BloqueEmbudo({ bloque }) {
     );
 }
 
-function Bloque({ bloque, secciones }) {
+function Bloque({ bloque, secciones, onCambio }) {
     if (bloque.tipo === 'resumen') return <BloqueResumen bloque={bloque} secciones={secciones} />;
     const ancho = esAncho(bloque);
     return (
@@ -353,7 +412,7 @@ function Bloque({ bloque, secciones }) {
             {bloque.tipo === 'error' && <p className={styles.error}>{bloque.error}</p>}
             {bloque.tipo === 'tabla' && <BloqueTabla bloque={bloque} />}
             {bloque.tipo === 'kpis' && <BloqueKpis bloque={bloque} ancho={ancho} />}
-            {bloque.tipo === 'avisos' && <BloqueAvisos bloque={bloque} />}
+            {bloque.tipo === 'avisos' && <BloqueAvisos bloque={bloque} onCambio={onCambio} />}
             {bloque.tipo === 'serie' && <BloqueSerie bloque={bloque} />}
             {bloque.tipo === 'embudo' && <BloqueEmbudo bloque={bloque} />}
             {bloque.nota && <p className={styles.nota}>{bloque.nota}</p>}
@@ -516,7 +575,7 @@ function AdminPanel() {
                                         {/* tabIndex -1: la tarjeta del estado lleva el foco aquí al saltar a la sección */}
                                         {s.nombre && <h2 className={styles.seccionTitulo} tabIndex={-1}>{s.nombre}</h2>}
                                         <div className={styles.rejilla}>
-                                            {s.bloques.map((b) => <Bloque key={b.id} bloque={b} secciones={nombres} />)}
+                                            {s.bloques.map((b) => <Bloque key={b.id} bloque={b} secciones={nombres} onCambio={recargar} />)}
                                         </div>
                                     </div>
                                 ));
