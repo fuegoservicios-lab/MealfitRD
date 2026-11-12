@@ -53,7 +53,9 @@ describe('MicrosList', () => {
         expect(sodio.firstChild.style.width).toBe('100%');
         const fibra = screen.getByRole('progressbar', { name: 'Fibra' });
         expect(fibra.firstChild.style.width).toBe('51%');
-        expect(screen.getAllByText('Datos parciales')).toHaveLength(8);
+        // el estado va en cada fila (texto para lectores de pantalla junto al punto) y UNA vez en la leyenda del pie
+        expect(screen.getAllByText('Datos parciales', { selector: 'summary *' })).toHaveLength(8);
+        expect(screen.getAllByText('Datos parciales', { selector: 'li' })).toHaveLength(1);
     });
 
     it('sin metas no hay barra ni meta inventada', async () => {

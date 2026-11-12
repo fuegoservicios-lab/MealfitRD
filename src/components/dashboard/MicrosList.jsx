@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { BookOpen, ChevronDown, FlaskConical, Info } from 'lucide-react';
 import { useT, formatPercent } from '../../i18n';
@@ -7,6 +7,8 @@ import { HealthSourcesPanel } from '../common/HealthSources';
 import { formatoMicro, filasMicros, cantidadMicro, coberturaMicro, fuentesAgrupadas, pistaSodio } from './microsShared';
 import styles from './MicrosList.module.css';
 
+/** Los que se ven sin desplegar. */
+const BASE = 8;
 const MINERALS = new Set(['sodium_mg', 'potassium_mg', 'calcium_mg', 'iron_mg', 'magnesium_mg', 'zinc_mg', 'selenium_mcg', 'iodine_mcg']);
 
 /** Organismo de la referencia en el idioma de la app («WHO» → «OMS»); RDA/AI/DRI son siglas técnicas. */
@@ -69,6 +71,7 @@ const DetalleNutriente = ({ f, unit, value, cov, meta, target, techo, partial, t
 DetalleNutriente.propTypes = { f: PropTypes.object, unit: PropTypes.string, value: PropTypes.number, cov: PropTypes.object, meta: PropTypes.object, target: PropTypes.number, techo: PropTypes.bool, partial: PropTypes.bool, t: PropTypes.func };
 const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true, sourcesContext = null }) => {
     const t = useT();
+    const wrapRef = useRef(null);
     const [expanded, setExpanded] = useState(false);
     const [group, setGroup] = useState('all');
     const [panel, setPanel] = useState(null);
@@ -77,51 +80,79 @@ const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true
     const alternar = (key, open) => setAbiertos((prev) => { const n = new Set(prev); if (open) n.add(key); else n.delete(key); return n; });
     const nSources = sourcesContext ? healthSourcesFor(sourcesContext, '').length : 0;
     const rows = filasMicros(t);
-    const visible = (expanded ? rows : rows.slice(0, 8)).filter((f) => group === 'all' || (group === 'minerals' ? MINERALS.has(f.key) : f.key !== 'fiber_g' && !MINERALS.has(f.key)));
+    const esMineral = (f) => MINERALS.has(f.key);
+    const esVitamina = (f) => f.key !== 'fiber_g' && !MINERALS.has(f.key);
+    const visible = (expanded ? rows : rows.slice(0, BASE)).filter((f) => group === 'all' || (group === 'minerals' ? esMineral(f) : esVitamina(f)));
     const hayMetas = !!(metas && Object.keys(metas).length);
-    return <div className={`${styles.wrap} ${compact ? styles.compact : ''}`}>
+    const estadoDe = (f) => { const v = cantidadMicro(micros?.[f.key]); return v === null ? 'none' : coberturaMicro(f.key, v, coverage).status === 'partial' ? 'partial' : 'full'; };
+    const presentes = new Set(visible.map(estadoDe));
+    const ESTADOS = [['full', t('Con datos'), styles.dotFull], ['partial', t('Datos parciales'), styles.dotPartial], ['none', t('Sin datos'), styles.dotNone]];
+    const alternarLista = () => {
+        const cerrar = expanded;
+        setExpanded(!expanded);
+        setGroup('all');
+        // Al plegar, la lista encoge bajo el dedo: se vuelve al inicio del bloque en vez de quedar mirando otra tarjeta.
+        if (cerrar && typeof requestAnimationFrame === 'function') requestAnimationFrame(() => {
+            const el = wrapRef.current;
+            if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView?.({ block: 'start', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+        });
+    };
+    return <div ref={wrapRef} className={`${styles.wrap} ${compact ? styles.compact : ''}`}>
         {expanded && <div className={styles.filters} role="group" aria-label={t('Grupo de nutrientes')}>
-            {[['all', t('Todos')], ['minerals', t('Minerales')], ['vitamins', t('Vitaminas')]].map(([id, label]) => <button type="button" key={id} aria-pressed={group === id} onClick={() => setGroup(id)}>{label}</button>)}
+            {[['all', t('Todos'), rows.length], ['minerals', t('Minerales'), rows.filter(esMineral).length], ['vitamins', t('Vitaminas'), rows.filter(esVitamina).length]].map(([id, label, n]) => <button type="button" key={id} aria-pressed={group === id} onClick={() => setGroup(id)}>{label}<span className={styles.filterCount} aria-hidden="true">{n}</span></button>)}
         </div>}
-        <ul className={styles.list}>{visible.map((f) => {
-            const value = cantidadMicro(micros?.[f.key]);
-            const cov = coberturaMicro(f.key, value, coverage);
-            const meta = metas?.[f.key];
-            const target = cantidadMicro(meta?.target) || 0;
-            const ratio = value !== null && target > 0 ? value / target : 0;
-            const techo = meta?.kind === 'ceiling';
-            const partial = cov.status === 'partial';
-            const status = value === null ? t('Sin datos') : partial ? t('Datos parciales') : t('Con datos');
-            const unit = f.key === 'vit_a_mcg' ? 'mcg RAE' : f.unit;
-            const state = value === null || !target ? '' : techo ? (ratio > 1 ? styles.over : ratio > .85 ? styles.near : styles.ok) : ratio >= 1 ? styles.done : '';
-            return <li className={styles.row} key={f.key}>
-                <div className={styles.rowTop}>
-                    <span className={styles.label}>{f.label}{techo && <span className={styles.tag} title={t('Máximo recomendado')}>{t('máx.')}</span>}</span>
-                    <span className={styles.value}><b>{formatoMicro(value, unit)}{partial && value !== null ? <span className={styles.atLeast} title={t('Al menos: faltan datos de alguna comida')}>+</span> : ''}</b>{target > 0 ? ` / ${formatoMicro(target, unit)}` : ''} {unit}</span>
-                </div>
-                <div className={styles.track} {...(value !== null && target > 0 ? { role: 'progressbar', 'aria-label': f.label, 'aria-valuemin': 0, 'aria-valuemax': target, 'aria-valuenow': Math.min(value, target), 'aria-valuetext': `${partial ? t('al menos') + ' ' : ''}${formatoMicro(value, unit)} ${unit} · ${status}` } : {})}>
-                    <div className={`${styles.fill} ${state}`} style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }} />
-                    {/* Pasado el máximo, la barra se reescala: la marca indica dónde queda el límite. */}
-                    {techo && ratio > 1 && <span className={styles.limitMark} style={{ left: `${Math.round(100 / ratio)}%` }} aria-hidden="true" />}
-                </div>
-                <details className={styles.evidence} onToggle={(e) => alternar(f.key, e.currentTarget.open)}>
-                    <summary>
-                        <span className={`${styles.dot} ${value === null ? styles.dotNone : partial ? styles.dotPartial : styles.dotFull}`} aria-hidden="true" />
-                        <span>{status}</span>
-                        <ChevronDown className={styles.evidenceChevron} size={14} strokeWidth={2.2} aria-hidden="true" />
-                    </summary>
-                    {abiertos.has(f.key) && <DetalleNutriente f={f} unit={unit} value={value} cov={cov} meta={meta} target={target} techo={techo} partial={partial} t={t} />}
-                </details>
-                {techo && value !== null && target > 0 && value > target && <span className={styles.limitNote}>{`${t('{n} {unit} sobre el máximo recomendado ({pct})', { n: formatoMicro(value - target, unit), unit, pct: formatPercent(Math.round(ratio * 100)) })}${partial ? ` · ${t('puede ser más')}` : ''}`}</span>}
-                {!compact && techo && !partial && value !== null && target > value && <span className={styles.ceilingRemaining}>{t('A {n} {unit} del máximo recomendado', { n: formatoMicro(target - value, unit), unit })}</span>}
-            </li>;
-        })}</ul>
-        <button type="button" className={styles.expand} aria-expanded={expanded} onClick={() => { setExpanded(!expanded); setGroup('all'); }}>
-            <span className={styles.expandIcon} aria-hidden="true"><FlaskConical size={17} strokeWidth={2.2} /></span>
-            <span className={styles.expandLabel}>{expanded ? t('Mostrar menos') : t('Ver todos los nutrientes')}</span>
-            <span className={styles.expandCount} aria-hidden="true">{rows.length}</span>
-            <ChevronDown className={styles.expandChevron} size={16} strokeWidth={2.2} aria-hidden="true" />
-        </button>
+        <div className={styles.sheet}>
+            <ul className={styles.list}>{visible.map((f) => {
+                const value = cantidadMicro(micros?.[f.key]);
+                const cov = coberturaMicro(f.key, value, coverage);
+                const meta = metas?.[f.key];
+                const target = cantidadMicro(meta?.target) || 0;
+                const ratio = value !== null && target > 0 ? value / target : 0;
+                const techo = meta?.kind === 'ceiling';
+                const partial = cov.status === 'partial';
+                const status = value === null ? t('Sin datos') : partial ? t('Datos parciales') : t('Con datos');
+                const unit = f.key === 'vit_a_mcg' ? 'mcg RAE' : f.unit;
+                const state = value === null || !target ? '' : techo ? (ratio > 1 ? styles.over : ratio > .85 ? styles.near : styles.ok) : ratio >= 1 ? styles.done : '';
+                const extra = rows.indexOf(f) - BASE;
+                return <li className={`${styles.row} ${abiertos.has(f.key) ? styles.rowOpen : ''} ${extra >= 0 ? styles.rowNew : ''}`} style={extra >= 0 ? { '--i': extra } : undefined} key={f.key}>
+                    {/* Toda la fila abre el detalle: en el teléfono el blanco es la fila entera, no un renglón suelto. */}
+                    <details className={styles.evidence} onToggle={(e) => alternar(f.key, e.currentTarget.open)}>
+                        <summary>
+                            <div className={styles.rowTop}>
+                                <span className={styles.name}>
+                                    <span className={`${styles.dot} ${value === null ? styles.dotNone : partial ? styles.dotPartial : styles.dotFull}`} aria-hidden="true" />
+                                    <span className={styles.label}>{f.label}{techo && <span className={styles.tag} title={t('Máximo recomendado')}>{t('máx.')}</span>}</span>
+                                    <span className={styles.srOnly}>{status}</span>
+                                </span>
+                                <span className={styles.value}><b>{formatoMicro(value, unit)}{partial && value !== null ? <span className={styles.atLeast} title={t('Al menos: faltan datos de alguna comida')}>+</span> : ''}</b>{target > 0 ? ` / ${formatoMicro(target, unit)}` : ''} {unit}</span>
+                            </div>
+                            <div className={styles.meter}>
+                                <div className={styles.track} {...(value !== null && target > 0 ? { role: 'progressbar', 'aria-label': f.label, 'aria-valuemin': 0, 'aria-valuemax': target, 'aria-valuenow': Math.min(value, target), 'aria-valuetext': `${partial ? t('al menos') + ' ' : ''}${formatoMicro(value, unit)} ${unit} · ${status}` } : {})}>
+                                    <div className={`${styles.fill} ${state}`} style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }} />
+                                    {/* Pasado el máximo, la barra se reescala: la marca indica dónde queda el límite. */}
+                                    {techo && ratio > 1 && <span className={styles.limitMark} style={{ left: `${Math.round(100 / ratio)}%` }} aria-hidden="true" />}
+                                </div>
+                                <span className={`${styles.pct} ${state}`} aria-hidden="true">{value !== null && target > 0 ? formatPercent(Math.round(ratio * 100)) : ''}</span>
+                                <ChevronDown className={styles.evidenceChevron} size={15} strokeWidth={2.2} aria-hidden="true" />
+                            </div>
+                            {techo && value !== null && target > 0 && value > target && <span className={styles.limitNote}>{`${t('{n} {unit} sobre el máximo recomendado ({pct})', { n: formatoMicro(value - target, unit), unit, pct: formatPercent(Math.round(ratio * 100)) })}${partial ? ` · ${t('puede ser más')}` : ''}`}</span>}
+                            {!compact && techo && !partial && value !== null && target > value && <span className={styles.ceilingRemaining}>{t('A {n} {unit} del máximo recomendado', { n: formatoMicro(target - value, unit), unit })}</span>}
+                        </summary>
+                        {abiertos.has(f.key) && <DetalleNutriente f={f} unit={unit} value={value} cov={cov} meta={meta} target={target} techo={techo} partial={partial} t={t} />}
+                    </details>
+                </li>;
+            })}</ul>
+            <button type="button" className={styles.expand} aria-expanded={expanded} onClick={alternarLista}>
+                <span className={styles.expandIcon} aria-hidden="true"><FlaskConical size={15} strokeWidth={2.2} /></span>
+                <span className={styles.expandLabel}>{expanded ? t('Mostrar menos') : t('Ver todos los nutrientes')}</span>
+                <span className={styles.expandCount} aria-hidden="true">{rows.length}</span>
+                <ChevronDown className={styles.expandChevron} size={16} strokeWidth={2.2} aria-hidden="true" />
+            </button>
+        </div>
+        {/* El estado de los datos ya no se repite en cada fila: el punto lo dice y esta leyenda lo nombra. */}
+        <ul className={styles.legend}>
+            {ESTADOS.filter(([id]) => presentes.has(id)).map(([id, label, cls]) => <li key={id}><span className={`${styles.dot} ${cls}`} aria-hidden="true" />{label}</li>)}
+        </ul>
         {/* Pie discreto: «Sobre los datos» y «Fuentes» en una sola fila; se abre un panel debajo. */}
         {showNotes && <div className={styles.footer}>
             <div className={styles.footerLinks}>
@@ -130,14 +161,11 @@ const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true
                     <span>{t('Sobre los datos')}</span>
                     <ChevronDown className={styles.footerChevron} size={13} strokeWidth={2.2} aria-hidden="true" />
                 </button>
-                {nSources > 0 && <>
-                    <span className={styles.footerSep} aria-hidden="true">·</span>
-                    <button type="button" className={styles.footerLink} aria-expanded={panel === 'sources'} aria-controls="micros-panel" aria-label={t('Fuentes de salud y nutrición')} onClick={() => setPanel(panel === 'sources' ? null : 'sources')}>
-                        <BookOpen size={14} aria-hidden="true" />
-                        <span>{t('Fuentes')} ({nSources})</span>
-                        <ChevronDown className={styles.footerChevron} size={13} strokeWidth={2.2} aria-hidden="true" />
-                    </button>
-                </>}
+                {nSources > 0 && <button type="button" className={styles.footerLink} aria-expanded={panel === 'sources'} aria-controls="micros-panel" aria-label={t('Fuentes de salud y nutrición')} onClick={() => setPanel(panel === 'sources' ? null : 'sources')}>
+                    <BookOpen size={14} aria-hidden="true" />
+                    <span>{t('Fuentes')} ({nSources})</span>
+                    <ChevronDown className={styles.footerChevron} size={13} strokeWidth={2.2} aria-hidden="true" />
+                </button>}
             </div>
             {panel && <div id="micros-panel" className={styles.explanationBody}>
                 {panel === 'refs' ? <>
