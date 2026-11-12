@@ -28,6 +28,12 @@ DENSIDADES = {
 # sobre el color de fondo del adaptativo, que ahora es el mismo azul (`values/ic_launcher_background.xml`).
 PROPORCION_SEGURA = 1.0
 
+# [ICONO-BROTE-MAYOR · 2026-11-12] El dueño lo veía pequeño en el teléfono. Como el fondo va a sangre, agrandar el brote
+# es RECORTAR el centro del origen (1/ZOOM del lado) y estirarlo al lienzo entero. Medido: el punto más lejano del brote
+# está a 30,9 dp del centro; con 1,10 queda a ~34 dp, dentro del círculo visible de 72 dp (36 de radio) de los launchers
+# redondos. Por encima de ~1,16 la punta del tallo o de las hojas se corta en esa máscara: no subirlo más.
+ZOOM_BROTE = 1.10
+
 
 def _redondo(img: Image.Image) -> Image.Image:
     mascara = Image.new('L', img.size, 0)
@@ -42,6 +48,10 @@ def main() -> int:
         print(f'ERROR: no encuentro el icono de iOS en {ORIGEN}')
         return 1
     base = Image.open(ORIGEN).convert('RGBA')
+    lado_o = base.size[0]
+    corte = int(round(lado_o / ZOOM_BROTE))
+    m0 = (lado_o - corte) // 2
+    base_adaptativo = base.crop((m0, m0, m0 + corte, m0 + corte))
     escritos = 0
     for densidad, (legado, adaptativo) in DENSIDADES.items():
         carpeta = os.path.join(RES, f'mipmap-{densidad}')
@@ -54,7 +64,7 @@ def main() -> int:
         # Capa de delante: el dibujo centrado dentro del lienzo de 108 dp, al 62 %.
         lienzo = Image.new('RGBA', (adaptativo, adaptativo), (0, 0, 0, 0))
         lado = int(adaptativo * PROPORCION_SEGURA)
-        dibujo = base.resize((lado, lado), Image.LANCZOS)
+        dibujo = base_adaptativo.resize((lado, lado), Image.LANCZOS)
         margen = (adaptativo - lado) // 2
         lienzo.paste(dibujo, (margen, margen), dibujo)
         lienzo.save(os.path.join(carpeta, 'ic_launcher_foreground.png'))
