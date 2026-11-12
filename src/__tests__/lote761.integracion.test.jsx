@@ -69,6 +69,10 @@ vi.mock('../utils/chatDraftStore', () => ({
 }));
 
 import AgentPage from '../pages/AgentPage';
+// [P1-PLAN-LOTE-986] El reloj a media tarde de HOY: entre 00:00 y 03:59 la app cuenta el día biológico
+// anterior y este fichero caía en cada gate que cruzaba la medianoche (12-nov, 00:2x). Solo `Date`.
+vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
+{ const _mediaTarde = new Date(); _mediaTarde.setHours(14, 0, 0, 0); vi.setSystemTime(_mediaTarde); }
 
 const hoy = () => {
     const d = new Date();
