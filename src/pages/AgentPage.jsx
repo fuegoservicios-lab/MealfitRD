@@ -1129,6 +1129,12 @@ const AgentPage = () => {
             if (destino && (destino.tagName === 'TEXTAREA' || destino.tagName === 'INPUT' || destino.isContentEditable)) {
                 return; // cambia de campo: el teclado sigue
             }
+            // [KB-ANDROID-SECO] MEDIDO con la sonda en el Android del dueño (paquete 20261112-231049):
+            //     +119 blur     H=554 kb=312 var=0px cont=866   ← el chat ya mide la pantalla entera…
+            //     +166 ventana  H=866                           ← …y la ventana tarda 47 ms mas en crecer
+            // Esos 47 ms la caja de escribir quedaba FUERA de la ventana (cont 866 en una ventana de 554). En Android el
+            // cierre no se adelanta con el foco: lo trae el resize de la ventana, en su mismo fotograma.
+            if (_esAndroid) return;
             // [129] en la app nativa el chat baja con la duración REAL del teclado (la del último aviso de UIKit)
             if (isNativeApp()) fijarDuracionTeclado(Number(safeLocalStorageGet(CLAVE_MS_NATIVO, 0)) || 0);
             // [131] coreografía del cierre, 1/2: lo que hay que saber ANTES de tocar el layout
