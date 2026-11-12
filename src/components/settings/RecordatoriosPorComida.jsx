@@ -10,7 +10,7 @@
 // borraría las otras tres. Y el formulario no la toca (`CLAVES_CON_CONTROL_PROPIO`).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { ChevronDown } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useT } from '../../i18n';
@@ -20,6 +20,25 @@ import styles from './RecordatoriosPorComida.module.css';
 // Función y no constante: una tabla de copy en ámbito de módulo se congela en español al importar (P1-I18N-DASHBOARD).
 const getNombres = (t) => {
     return { desayuno: t('Desayuno'), almuerzo: t('Almuerzo'), merienda: t('Merienda'), cena: t('Cena') };
+};
+
+// [AVISOS-HORA-PASTILLA · 2026-11-12] La hora la pinta la APP, no el `<input type="time">` del sistema. En Android el
+// campo nativo trae su propia flecha (se montaba sobre la nuestra: un garabato), recorta «12:45 PM» a «12:45 PN» en
+// cuanto la letra del teléfono crece, y cada fabricante lo dibuja distinto. Aquí va el texto en dos piezas («8:45» y
+// «a. m.») con el formato del DISPOSITIVO (`undefined`): el mismo 12/24 h que usará el selector que se abre al tocar.
+const partesDeHora = (hhmm) => {
+    const h = leerHHMM(hhmm);
+    if (!h) return { reloj: hhmm || '--:--', periodo: '' };
+    try {
+        const partes = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+            .formatToParts(new Date(2000, 0, 1, h.hora, h.minuto));
+        const periodo = partes.find((x) => x.type === 'dayPeriod')?.value || '';
+        const reloj = partes.filter((x) => x.type === 'hour' || x.type === 'minute'
+            || (x.type === 'literal' && x.value.trim())).map((x) => x.value).join('').trim();
+        return { reloj: reloj || hhmm, periodo };
+    } catch {
+        return { reloj: hhmm, periodo: '' };
+    }
 };
 
 const RecordatoriosPorComida = ({ claseInterruptor, claseDeslizador, onGuardado = null }) => {
@@ -133,6 +152,8 @@ const RecordatoriosPorComida = ({ claseInterruptor, claseDeslizador, onGuardado 
         <div className={styles.lista} role="group" aria-label={t('Hora de cada recordatorio')}>
             {comidas.map((c) => {
                 const nombre = nombres[c.meal] || c.meal;
+                const valorHora = borradores[c.meal] ?? aHHMM(c.hour, c.minute);
+                const { reloj, periodo } = partesDeHora(valorHora);
                 return (
                     <div key={c.meal} className={styles.fila} data-comida={c.meal}>
                         <span className={c.active ? styles.nombre : `${styles.nombre} ${styles.apagada}`}>{nombre}</span>
@@ -142,10 +163,15 @@ const RecordatoriosPorComida = ({ claseInterruptor, claseDeslizador, onGuardado 
                             <label className={styles.selectorHora}>
                                 <span className={styles.accionHora}>{t('Cambiar hora')}</span>
                                 <span className={styles.campoHora}>
+                                    <Clock size={14} className={styles.iconoHora} aria-hidden="true" />
+                                    <span className={styles.horaTexto} aria-hidden="true">
+                                        {reloj}
+                                        {periodo && <small className={styles.periodo}>{periodo}</small>}
+                                    </span>
                                     <input
                                         type="time"
                                         className={styles.hora}
-                                        value={borradores[c.meal] ?? aHHMM(c.hour, c.minute)}
+                                        value={valorHora}
                                         step={300}
                                         min={aHHMM(silencio, 0)}
                                         max={aHHMM(tope - 1, 59)}
@@ -159,7 +185,6 @@ const RecordatoriosPorComida = ({ claseInterruptor, claseDeslizador, onGuardado 
                                         }}
                                         onBlur={() => soltarHora(c)}
                                     />
-                                    <ChevronDown size={16} className={styles.flechaHora} aria-hidden="true" />
                                 </span>
                             </label>
                             <label className={claseInterruptor}>
@@ -176,7 +201,7 @@ const RecordatoriosPorComida = ({ claseInterruptor, claseDeslizador, onGuardado 
                 );
             })}
             {comidas.some((c) => c.chosen) && (
-                <button type="button" className={styles.enlace} onClick={restablecer}>
+                <button type="button" className={`${styles.enlace} ${styles.restablecer}`} onClick={restablecer}>
                     {t('Volver a las horas normales')}
                 </button>
             )}
