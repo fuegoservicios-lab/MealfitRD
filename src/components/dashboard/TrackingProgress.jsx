@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share, ChevronRight, Info } from 'lucide-react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share, ChevronRight, Info, Utensils, CupSoda } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -640,6 +640,10 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                                 {meal.id && idsConFoto.has(meal.id) && (
                                                     <MiniaturaDeComida userId={userId} mealId={meal.id} className={styles.mealThumb} />
                                                 )}
+                                                {/* Sin foto, un hueco del mismo tamaño: los nombres arrancan todos en la misma columna. */}
+                                                {!(meal.id && idsConFoto.has(meal.id)) && (
+                                                    <span className={styles.mealThumbEmpty} aria-hidden="true"><Utensils size={17} strokeWidth={2.2} /></span>
+                                                )}
                                                 <span className={styles.mealInfo}>
                                                     {/* [P1-PLAN-LOTE-225] el nombre en el idioma del usuario (el dato no cambia) */}
                                                     <span className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t)}</span>
@@ -706,6 +710,9 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                                     >
                                                         {comp.id && idsConFoto.has(comp.id) && (
                                                             <MiniaturaDeComida userId={userId} mealId={comp.id} className={styles.mealThumb} />
+                                                        )}
+                                                        {!(comp.id && idsConFoto.has(comp.id)) && (
+                                                            <span className={styles.mealThumbEmpty} aria-hidden="true"><CupSoda size={17} strokeWidth={2.2} /></span>
                                                         )}
                                                         <span className={styles.mealInfo}>
                                                             <span className={styles.mealName}>{nombreDeRegistro(comp.meal_name, planData, t)}</span>
@@ -1115,7 +1122,8 @@ const ProgressBar = ({
                 )}
             </div>
 
-            <div className={styles.barGuide}>
+            {/* Sin referencia la barra no lleva marcas: una leyenda «Meta 100%» sola no señala nada. */}
+            <div className={reference ? styles.barGuide : `${styles.barGuide} ${styles.barGuideSolo}`}>
                 <span><i className={styles.goalKey} aria-hidden="true" />{t('Meta')} {formatPercent(100)}</span>
                 {reference && <span title={t('Extremo superior del rango orientativo, calculado con las calorías del plan')}>
                     <i className={styles.referenceKey} aria-hidden="true" />{t('Referencia general')} {formatPercent(referencePerc)}

@@ -413,6 +413,8 @@
     font-variant-numeric: tabular-nums;
 }
 .barGuide > span { display: inline-flex; align-items: center; gap: .3rem; }
+/* [PROGRESO-HOJA · 2026-11-11] Sin referencia la barra no pinta marcas: «Meta 100%» sola era una leyenda de nada. */
+.barGuideSolo { display: none; }
 .goalKey, .referenceKey { height: 9px; border-left: 2px solid currentColor; }
 .referenceKey { border-left-style: dashed; }
 .barRemaining {
@@ -501,40 +503,46 @@
     font-weight: 500;
 }
 
-.mealsList {
+/* [PROGRESO-HOJA · 2026-11-11] Las comidas del día son UNA hoja con divisiones finas (el mismo lenguaje que la
+   lista de micros), no una pila de tarjeticas sueltas: la piel la lleva la lista y las filas solo se separan. */
+.mealsList,
+.complementsList {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    border-radius: 16px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    overflow: hidden;
 }
 
 .mealRow {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
+    gap: 0.25rem;
     /* [P1-PLAN-LOTE-721] el relleno de la izquierda lo lleva el botón que abre la ficha: así TODA la fila es su área */
-    padding: 0 0.6rem 0 0;
-    border-radius: 12px;
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
+    padding: 0 0.3rem 0 0;
 }
+
+.mealRow + .mealRow { border-top: 1px solid #E2E8F0; }
 
 /* [P1-PLAN-LOTE-721 · 2026-09-28] La fila abre la ficha del plato. Botón a sangre (sin piel propia): la piel es la de la
    fila. Mínimo 44px de alto. */
 .mealOpen {
     flex: 1 1 auto;
     min-width: 0;
-    min-height: 44px;
+    min-height: 60px;
     display: flex;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.7rem;
     margin: 0;
-    padding: 0.55rem 0 0.55rem 0.75rem;
+    padding: 0.6rem 0 0.6rem 0.7rem;
     border: 0;
-    border-radius: 10px;
+    border-radius: 12px;
+    -webkit-tap-highlight-color: transparent;
     background: transparent;
     font: inherit;
     color: inherit;
@@ -544,20 +552,36 @@
 
 .mealOpen:disabled { cursor: default; }
 
+/* Por dentro: la hoja recorta lo que sobresale. */
 .mealOpen:focus-visible {
     outline: 2px solid var(--primary, #4F46E5);
-    outline-offset: 2px;
+    outline-offset: -3px;
 }
 
-.mealOpen:hover:not(:disabled) .mealName { color: var(--primary, #4F46E5); }
+/* Solo con puntero: en el teléfono el :hover se queda pegado tras el toque y dejaba el nombre de UNA fila en violeta. */
+@media (hover: hover) {
+    .mealOpen:hover:not(:disabled) .mealName { color: var(--primary, #4F46E5); }
+}
 
-.mealThumb {
+.mealOpen:active:not(:disabled) { background: rgba(99, 102, 241, 0.08); }
+
+.mealThumb,
+.mealThumbEmpty {
     flex: 0 0 auto;
-    width: 36px;
-    height: 36px;
-    border-radius: 9px;
-    object-fit: cover;
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
     background: #E2E8F0;
+}
+
+.mealThumb { object-fit: cover; }
+
+/* Sin foto: el mismo hueco con un glifo tenue, para que todos los nombres arranquen en la misma columna. */
+.mealThumbEmpty {
+    display: grid;
+    place-items: center;
+    color: var(--text-muted);
+    background: rgba(99, 102, 241, 0.1);
 }
 
 /* `--text-muted` y no `--text-light`: el trinquete de legibilidad del lote 710 no deja sumar usos del gris de adorno. */
@@ -575,26 +599,30 @@
     min-width: 0;
 }
 
+/* Hasta dos renglones: un nombre largo («Arroz, pechuga de pollo, plátano…») se lee en vez de cortarse en el primero. */
 .mealName {
     font-weight: 700;
     color: #334155;
     font-size: 0.88rem;
+    line-height: 1.28;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
 }
 
 /* [BB-025 / P1-DIARY-COMPLEMENTS-SECTION · 2026-11-03] */
 .complementsDivider {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.4rem;
-    margin-bottom: 0.1rem;
-    font-size: 0.76rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    gap: 0.6rem;
+    margin-top: 0.45rem;
+    margin-bottom: 0.05rem;
+    padding-left: 0.2rem;
+    font-size: 0.78rem;
+    font-weight: 700;
     color: var(--text-muted, #64748B);
 }
 
@@ -604,18 +632,9 @@
     background: var(--border, #E2E8F0);
 }
 
-.complementsList {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-}
-
-.complementRow {
-    opacity: 0.95;
-}
+.complementRow .mealOpen { min-height: 52px; }
+.complementRow .mealThumb,
+.complementRow .mealThumbEmpty { width: 34px; height: 34px; border-radius: 10px; }
 
 .mealMeta {
     font-size: 0.76rem;
@@ -623,13 +642,15 @@
     font-weight: 600;
 }
 
+/* 40px: el objetivo táctil de borrar ya no es un cuadrito de 30 pegado al borde. */
 .mealDeleteBtn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    -webkit-tap-highlight-color: transparent;
     border: 1px solid transparent;
     background: transparent;
     color: var(--text-light);
@@ -638,10 +659,22 @@
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.mealDeleteBtn:hover:not(:disabled) {
+@media (hover: hover) {
+    .mealDeleteBtn:hover:not(:disabled) {
+        color: #DC2626;
+        border-color: #FECACA;
+        background: rgba(220, 38, 38, 0.06);
+    }
+}
+
+.mealDeleteBtn:active:not(:disabled) {
     color: #DC2626;
-    border-color: #FECACA;
-    background: rgba(220, 38, 38, 0.06);
+    background: rgba(220, 38, 38, 0.1);
+}
+
+.mealDeleteBtn:focus-visible {
+    outline: 2px solid var(--primary, #4F46E5);
+    outline-offset: -2px;
 }
 
 .mealDeleteBtn:disabled {
@@ -650,14 +683,15 @@
 }
 
 .mealsShowMore {
-    align-self: flex-start;
+    align-self: center;
+    min-height: 40px;
     background: transparent;
     border: none;
     color: #4F46E5;
     font-size: 0.8rem;
     font-weight: 700;
     cursor: pointer;
-    padding: 0.15rem 0;
+    padding: 0.15rem 0.9rem;
 }
 
 .mealsShowMore:hover {
@@ -843,11 +877,11 @@
     }
 
     .mealRow {
-        padding: 0 0.45rem 0 0;
+        padding: 0 0.25rem 0 0;
     }
 
     .mealOpen {
-        padding: 0.5rem 0 0.5rem 0.6rem;
+        padding: 0.55rem 0 0.55rem 0.65rem;
     }
 
     /* [P3-TRACKING-PERC-DESKTOP · 2026-05-20] Las reglas previas mobile
@@ -992,17 +1026,34 @@
     color: var(--text-muted);
 }
 
-:global(html[data-theme="dark"]) .mealRow {
+:global(html[data-theme="dark"]) .mealsList,
+:global(html[data-theme="dark"]) .complementsList {
     background: var(--bg-muted);
     border-color: var(--border);
+}
+
+/* `--border` sobre `--bg-muted` no se distingue en oscuro: la división usa el gris del texto, tenue. */
+:global(html[data-theme="dark"]) .mealRow + .mealRow {
+    border-top-color: color-mix(in srgb, var(--text-muted) 18%, transparent);
+}
+
+:global(html[data-theme="dark"]) .mealThumbEmpty {
+    background: rgba(129, 140, 248, 0.14);
+    color: #A5B4FC;
+}
+
+:global(html[data-theme="dark"]) .mealOpen:active:not(:disabled) {
+    background: rgba(129, 140, 248, 0.12);
 }
 
 :global(html[data-theme="dark"]) .mealName {
     color: var(--text-main);
 }
 
-:global(html[data-theme="dark"]) .mealOpen:hover:not(:disabled) .mealName {
-    color: #A5B4FC;
+@media (hover: hover) {
+    :global(html[data-theme="dark"]) .mealOpen:hover:not(:disabled) .mealName {
+        color: #A5B4FC;
+    }
 }
 
 :global(html[data-theme="dark"]) .mealThumb {
@@ -1017,10 +1068,17 @@
     color: var(--text-light);
 }
 
-:global(html[data-theme="dark"]) .mealDeleteBtn:hover:not(:disabled) {
+@media (hover: hover) {
+    :global(html[data-theme="dark"]) .mealDeleteBtn:hover:not(:disabled) {
+        color: #FCA5A5;
+        border-color: rgba(220, 38, 38, 0.4);
+        background: rgba(220, 38, 38, 0.14);
+    }
+}
+
+:global(html[data-theme="dark"]) .mealDeleteBtn:active:not(:disabled) {
     color: #FCA5A5;
-    border-color: rgba(220, 38, 38, 0.4);
-    background: rgba(220, 38, 38, 0.14);
+    background: rgba(220, 38, 38, 0.18);
 }
 
 :global(html[data-theme="dark"]) .mealsShowMore {
@@ -1058,7 +1116,8 @@
         box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
     }
 
-    :global(html:not([data-theme="dark"])) .card.flatMobile .mealRow {
+    :global(html:not([data-theme="dark"])) .card.flatMobile .mealsList,
+    :global(html:not([data-theme="dark"])) .card.flatMobile .complementsList {
         background: #FFFFFF;
         border-color: var(--border, #E2E8F0);
         box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
