@@ -49,6 +49,7 @@ const TEXTOS = {
     secciones: 'Secciones del panel',
     metricas: 'Métricas',
     cuentas: 'Cuentas',
+    enCurso: '(en curso)',
 };
 
 const MARCA_SUBFILA = /^·\s*/;
@@ -187,21 +188,77 @@ function BloqueTabla({ bloque }) {
     );
 }
 
-/** La franja de arriba: cuatro cifras en una banda, cada una con su cambio y qué significa. */
-function BloqueResumen({ bloque }) {
+// [P1-PLAN-LOTE-992 · 2026-11-12] El color de la CIFRA va aparte del color del CAMBIO: antes el rojo de «↓ 3 frente a…»
+// pintaba también «Cuentas nuevas: 1», como si fuera una alarma. La cifra solo se colorea con `tono_valor` (el estado
+// del sistema); sin él —un backend anterior— se colorea solo la tarjeta SIN cambio, que era la única que lo pedía.
+const tonoValorDe = (t) => {
+    if (t.tono_valor) return tonoDe(t.tono_valor);
+    return !t.cambio && t.tono && t.tono !== 'neutro' ? tonoDe(t.tono) : null;
+};
+
+const irASeccion = (nombre) => {
+    const destino = [...document.querySelectorAll('[data-seccion]')].find((s) => s.dataset.seccion === nombre);
+    if (!destino) return;
+    const quieto = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    destino.scrollIntoView?.({ behavior: quieto ? 'auto' : 'smooth', block: 'start' });
+    destino.querySelector('h2')?.focus?.({ preventScroll: true });
+};
+
+/** La minigráfica de una tarjeta: una barra por día (o semana); la última es el periodo en curso. */
+function Mini({ serie, titulo }) {
+    const max = Math.max(0, ...serie.map((p) => Number(p.valor) || 0));
+    const ultima = serie.length - 1;
+    const texto = (p, i) => `${p.etiqueta}: ${p.texto}${i === ultima ? ` ${TEXTOS.enCurso}` : ''}`;
+    return (
+        <span className={styles.mini} role="img" aria-label={`${titulo || ''}: ${serie.map(texto).join(', ')}`} data-mini="">
+            {serie.map((p, i) => {
+                const v = Number(p.valor) || 0;
+                return (
+                    <span
+                        key={i}
+                        className={styles.miniBarra}
+                        data-cero={v === 0 ? 'true' : undefined}
+                        data-actual={i === ultima ? 'true' : undefined}
+                        title={texto(p, i)}
+                        style={{ height: `${max > 0 && v > 0 ? Math.max(8, Math.round((v / max) * 100)) : 0}%` }}
+                    />
+                );
+            })}
+        </span>
+    );
+}
+
+/** La franja de arriba: cada cifra con su cambio, una línea de contexto, qué significa y su minigráfica. */
+function BloqueResumen({ bloque, secciones }) {
     return (
         <ul className={styles.resumen} aria-label={bloque.titulo}>
-            {(bloque.tarjetas || []).map((t, i) => (
-                <li key={i} className={styles.resumenCelda} data-tono={tonoDe(t.tono)}>
-                    <span className={styles.resumenEtiqueta}>{t.etiqueta}</span>
-                    <span className={styles.resumenValor}>
-                        {t.tono && t.tono !== 'neutro' && !t.cambio && <span className={styles.punto} aria-hidden="true" />}
-                        {t.valor}
-                    </span>
-                    {t.cambio && <span className={styles.resumenCambio}>{t.cambio}</span>}
-                    {t.ayuda && <span className={styles.resumenAyuda}>{t.ayuda}</span>}
-                </li>
-            ))}
+            {(bloque.tarjetas || []).map((t, i) => {
+                const tonoValor = tonoValorDe(t);
+                const contenido = (
+                    <>
+                        <span className={styles.resumenEtiqueta}>{t.etiqueta}</span>
+                        <span className={styles.resumenValor} data-tono-valor={tonoValor || undefined}>
+                            {tonoValor && <span className={styles.punto} aria-hidden="true" />}
+                            {t.valor}
+                        </span>
+                        {t.cambio && <span className={styles.resumenCambio}>{t.cambio}</span>}
+                        {t.extra && <span className={styles.resumenExtra}>{t.extra}</span>}
+                        {t.ayuda && <span className={styles.resumenAyuda}>{t.ayuda}</span>}
+                        {Array.isArray(t.serie) && t.serie.length > 1 && <Mini serie={t.serie} titulo={t.serie_titulo} />}
+                    </>
+                );
+                // Solo es un botón si la sección a la que lleva está en la página: un botón que no hace nada miente.
+                const destino = typeof t.destino === 'string' && secciones?.has(t.destino) ? t.destino : null;
+                return (
+                    <li key={i} className={styles.resumenCelda} data-tono={tonoDe(t.tono)}>
+                        {destino ? (
+                            <button type="button" className={styles.resumenBoton} onClick={() => irASeccion(destino)} data-destino={destino}>
+                                {contenido}
+                            </button>
+                        ) : contenido}
+                    </li>
+                );
+            })}
         </ul>
     );
 }
@@ -287,8 +344,8 @@ function BloqueEmbudo({ bloque }) {
     );
 }
 
-function Bloque({ bloque }) {
-    if (bloque.tipo === 'resumen') return <BloqueResumen bloque={bloque} />;
+function Bloque({ bloque, secciones }) {
+    if (bloque.tipo === 'resumen') return <BloqueResumen bloque={bloque} secciones={secciones} />;
     const ancho = esAncho(bloque);
     return (
         <section className={ancho ? `${styles.bloque} ${styles.bloqueAncho}` : styles.bloque} data-ancho={ancho ? 'completo' : undefined}>
@@ -451,14 +508,19 @@ function AdminPanel() {
                             aria-busy={pendiente ? 'true' : undefined}
                             data-contenido=""
                         >
-                            {seccionesDe(datos.bloques).map((s, i) => (
-                                <div key={`${s.nombre}-${i}`} className={styles.seccion} data-seccion={s.nombre || undefined}>
-                                    {s.nombre && <h2 className={styles.seccionTitulo}>{s.nombre}</h2>}
-                                    <div className={styles.rejilla}>
-                                        {s.bloques.map((b) => <Bloque key={b.id} bloque={b} />)}
+                            {(() => {
+                                const secciones = seccionesDe(datos.bloques);
+                                const nombres = new Set(secciones.map((s) => s.nombre).filter(Boolean));
+                                return secciones.map((s, i) => (
+                                    <div key={`${s.nombre}-${i}`} className={styles.seccion} data-seccion={s.nombre || undefined}>
+                                        {/* tabIndex -1: la tarjeta del estado lleva el foco aquí al saltar a la sección */}
+                                        {s.nombre && <h2 className={styles.seccionTitulo} tabIndex={-1}>{s.nombre}</h2>}
+                                        <div className={styles.rejilla}>
+                                            {s.bloques.map((b) => <Bloque key={b.id} bloque={b} secciones={nombres} />)}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ));
+                            })()}
                         </div>
                     )}
                     {/* [P1-PLAN-LOTE-834 · 2026-09-29] «Ajustes de la gente», con el periodo ya elegido; fuera del bloque
