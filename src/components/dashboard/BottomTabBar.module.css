@@ -56,7 +56,9 @@
            el fondo de la pagina, que ahora es del mismo color (P1-KB-HUECO-SIN-PINTAR):
            o sea que el efecto ya no se distinguia ni parado. */
         background: #FFFFFF;
-        border-top: 1px solid rgba(226, 232, 240, 0.6);
+        /* [CABECERA-FAMILIA · 2026-11-12] Borde entero (era al 60 %): sobre la pagina clara, casi blanca, la barra
+           blanca no tenia filo y el contenido parecia continuar por debajo de las pestanas. */
+        border-top: 1px solid #E2E8F0;
         padding-bottom: env(safe-area-inset-bottom, 0px);
         /* [P1-KB-SIN-GLITCH] La misma curva y duracion que el contenedor del chat y
            que el teclado de iOS: las tres piezas se mueven a la vez o se ve un tiron. */

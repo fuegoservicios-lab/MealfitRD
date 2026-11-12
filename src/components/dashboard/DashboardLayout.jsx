@@ -439,7 +439,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             onClick={() => setIsMobileMoreMenuOpen(true)}
                             aria-label={t('Abrir menú')}
                         >
-                            <Menu size={22} />
+                            <Menu size={20} strokeWidth={2.25} aria-hidden="true" />
                         </button>
                     </div>
                 </header>

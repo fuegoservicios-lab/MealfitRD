@@ -323,24 +323,50 @@
 .mobileHeaderActions {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.55rem;
 }
 
+/* [CABECERA-FAMILIA · 2026-11-12] Circulo de 40 px, gemelo del acceso al aviso medico (NotaAvisoMedico `.acceso`):
+   la campana es el unico control con anillo y color; el menu y el aviso son la misma pieza discreta. Antes el menu
+   era un cuadrado redondeado relleno junto a dos circulos. `::after` lleva el blanco tactil a 46 px. */
 .menuBtn {
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
+    position: relative;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    padding: 0;
+    background: var(--bg-muted);
+    border: 1px solid color-mix(in srgb, var(--text-muted) 22%, transparent);
     color: var(--text-main);
     cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 0.75rem;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.menuBtn:hover {
-    background: #F1F5F9;
+.menuBtn::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+}
+
+@media (hover: hover) {
+    .menuBtn:hover {
+        border-color: color-mix(in srgb, var(--text-muted) 40%, transparent);
+    }
+}
+
+.menuBtn:active {
+    background: color-mix(in srgb, var(--text-muted) 22%, var(--bg-muted));
+}
+
+.menuBtn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
 }
 
 /* Mobile "more" dropdown menu (hamburger → Inicio + Cerrar Sesión) */
@@ -681,10 +707,16 @@
 }
 :global(html[data-theme="dark"]) .menuBtn {
     background: var(--bg-muted);
-    border: 1px solid var(--border);
+    border: 1px solid color-mix(in srgb, var(--text-muted) 22%, transparent);
 }
-:global(html[data-theme="dark"]) .menuBtn:hover {
-    background: var(--bg-card);
+@media (hover: hover) {
+    :global(html[data-theme="dark"]) .menuBtn:hover {
+        background: var(--bg-muted);
+        border-color: color-mix(in srgb, var(--text-muted) 40%, transparent);
+    }
+}
+:global(html[data-theme="dark"]) .menuBtn:active {
+    background: color-mix(in srgb, var(--text-muted) 22%, var(--bg-muted));
 }
 :global(html[data-theme="dark"]) .mobileMoreOverlay {
     background: rgba(0, 0, 0, 0.5);

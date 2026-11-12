@@ -1,22 +1,42 @@
+/* [CABECERA-FAMILIA · 2026-11-12] 40 px y la misma piel que el boton del menu: en la cabecera del telefono conviven
+   la campana (un orbe con anillo, la unica que llama), este acceso y el menu. Eran tres formas distintas (orbe,
+   circulo hueco de 44, cuadrado relleno de 40); ahora los dos discretos son gemelos y el orbe destaca solo.
+   44 px no cabian: la cabecera reserva 40 de contenido (`--dash-header-h`). El blanco tactil lo completa `::after`. */
 .acceso {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 44px;
-    width: 44px;
-    height: 44px;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
     padding: 0;
-    border: 1px solid var(--border);
+    border: 1px solid color-mix(in srgb, var(--text-muted) 22%, transparent);
     border-radius: 50%;
-    background: transparent;
+    background: var(--bg-muted);
     color: var(--text-muted);
     cursor: pointer;
-    transition: background 150ms ease, color 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
 }
 
-.acceso:hover {
-    background: var(--bg-muted);
+.acceso::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+}
+
+@media (hover: hover) {
+    .acceso:hover {
+        color: var(--text-main);
+        border-color: color-mix(in srgb, var(--text-muted) 40%, transparent);
+    }
+}
+
+.acceso:active {
     color: var(--text-main);
+    background: color-mix(in srgb, var(--text-muted) 22%, var(--bg-muted));
 }
 
 .acceso:focus-visible {

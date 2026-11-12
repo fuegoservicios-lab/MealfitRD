@@ -622,16 +622,18 @@
     align-items: center;
     justify-content: center;
     gap: 0.65rem;
-    min-height: 48px;
-    padding: 0.45rem 1rem 0.45rem 0.65rem;
-    border-radius: 14px;
-    border: 1px solid rgba(129, 140, 248, 0.28);
+    min-height: 52px;
+    padding: 0.5rem 0.9rem 0.5rem 0.7rem;
+    /* [PROGRESO-HOJA · 2026-11-12] El radio y la piel de la hoja de comidas que tiene debajo: es su puerta, no un
+       segundo boton primario. Sin sombra de boton flotante — competia con «Registrar comida», que si lo es. */
+    border-radius: 16px;
+    border: 1px solid rgba(129, 140, 248, 0.24);
     background: rgba(30, 41, 59, 0.72);
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.88rem;
+    font-weight: 650;
     color: #F1F5F9;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    -webkit-tap-highlight-color: transparent;
     transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
 }
 
@@ -659,14 +661,16 @@
     transition: color 0.15s ease, transform 0.15s ease;
 }
 
-.trigger:hover {
-    background: rgba(30, 41, 59, 0.95);
-    border-color: rgba(129, 140, 248, 0.55);
-    box-shadow: 0 6px 18px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+@media (hover: hover) {
+    .trigger:hover {
+        background: rgba(30, 41, 59, 0.95);
+        border-color: rgba(129, 140, 248, 0.55);
+    }
 }
 
 .trigger:active {
-    transform: translateY(0);
+    background: rgba(99, 102, 241, 0.16);
+    border-color: rgba(129, 140, 248, 0.5);
 }
 
 :global(html:not([data-theme="dark"])) .trigger {
@@ -676,10 +680,16 @@
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 }
 
-:global(html:not([data-theme="dark"])) .trigger:hover {
-    background: #F8FAFC;
+@media (hover: hover) {
+    :global(html:not([data-theme="dark"])) .trigger:hover {
+        background: #F8FAFC;
+        border-color: #C7D2FE;
+    }
+}
+
+:global(html:not([data-theme="dark"])) .trigger:active {
+    background: #EEF2FF;
     border-color: #C7D2FE;
-    box-shadow: 0 3px 8px rgba(99, 102, 241, 0.12);
 }
 
 :global(html:not([data-theme="dark"])) .triggerIcon {
@@ -694,17 +704,21 @@
     transition: transform 0.15s ease, color 0.15s ease;
 }
 
-.trigger:hover .triggerChevron {
-    transform: translateX(2px);
-    color: #A5B4FC;
+@media (hover: hover) {
+    .trigger:hover .triggerChevron {
+        transform: translateX(2px);
+        color: #A5B4FC;
+    }
 }
 
 :global(html:not([data-theme="dark"])) .triggerChevron {
     color: #6366F1;
 }
 
-:global(html:not([data-theme="dark"])) .trigger:hover .triggerChevron {
-    color: #4F46E5;
+@media (hover: hover) {
+    :global(html:not([data-theme="dark"])) .trigger:hover .triggerChevron {
+        color: #4F46E5;
+    }
 }
 
 @media (max-width: 520px) {
