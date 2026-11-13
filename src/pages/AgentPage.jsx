@@ -1168,7 +1168,8 @@ const AgentPage = () => {
         const alGanarElFoco = (e) => {
             const campo = e.target;
             if (!isNativeApp() || !campo || !inputWrapperRef.current?.contains(campo)) return;
-            if (_esAndroid) return;   // [KB-ANDROID-SECO] la ventana salta sola: anticipar solo anade una animacion de alto
+            // [KB-ANDROID-FOCO-EN-SECO · 2026-11-12] Android SI anticipa, en seco (`data-kb-seco`): su resize llega ~310 ms
+            // tras el foco (video del dueño: +37 focus … +348 ventana) y la caja pasaba ese rato tapada.
             if (campo.tagName !== 'TEXTAREA' && campo.tagName !== 'INPUT') return;
             if (tecladoAbiertoRef.current || !window.matchMedia?.('(pointer: coarse)')?.matches) return;
             const recordado = Number(safeLocalStorageGet(CLAVE_INSET_NATIVO, 0)) || 0;
