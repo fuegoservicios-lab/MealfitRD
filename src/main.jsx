@@ -249,6 +249,10 @@ if (isNativeApp()) {
   import('./native/botonAtras')
     .then((m) => m.iniciarBotonAtras())
     .catch(() => { /* sin el plugin, el gesto hace lo de antes */ });
+  // [P1-PLAN-LOTE-994 · 2026-11-13] Ventanita nativa de valoración tras registrar una comida (native/pedirValoracion.js).
+  import('./native/pedirValoracion')
+    .then((m) => m.iniciarPedirValoracion())
+    .catch(() => { /* sin plugin (binario anterior), no se pide */ });
 }
 
 // [P1-SENTRY-SAMPLE-COST · 2026-05-12] `tracesSampleRate` driven from env
