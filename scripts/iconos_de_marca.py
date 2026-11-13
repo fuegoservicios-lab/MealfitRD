@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 import sys
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 RAIZ = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 MARCA = os.path.join(RAIZ, 'brand', 'favicon-source.png')
@@ -37,7 +37,26 @@ def icono_a_sangre() -> Image.Image:
             r, g, b = px[x, y]
             if r + g + b < umbral:
                 px[x, y] = AZUL_MARCA
-    return img.resize((1024, 1024), Image.LANCZOS)
+    return _brote_centrado(img.resize((1024, 1024), Image.LANCZOS))
+
+
+def _brote_centrado(img: Image.Image) -> Image.Image:
+    """[ICONO-BROTE-CENTRADO · 2026-11-12] El brote, en el centro del lienzo.
+
+    El dueño: «no lo siento 100 % simétrico». Medido: en la imagen de marca la caja del brote queda 28 px (de 1024)
+    por debajo del centro; de lado a lado está bien. Como el fondo va a sangre, centrarlo es desplazar el dibujo y
+    rellenar con el azul la franja que deja. Android deriva de este icono, así que queda centrado en los dos.
+    """
+    fondo = Image.new('RGB', img.size, AZUL_MARCA)
+    caja = ImageChops.difference(img, fondo).convert('L').point(lambda v: 255 if v > 24 else 0).getbbox()
+    if not caja:
+        return img
+    dx = int(round((img.size[0] - (caja[0] + caja[2])) / 2))
+    dy = int(round((img.size[1] - (caja[1] + caja[3])) / 2))
+    if dx == 0 and dy == 0:
+        return img
+    fondo.paste(img, (dx, dy))
+    return fondo
 
 
 def _esquinas_redondas(img: Image.Image, radio: int) -> Image.Image:

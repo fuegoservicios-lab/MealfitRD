@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 RAIZ = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 ORIGEN = os.path.join(RAIZ, 'ios', 'App', 'App', 'Assets.xcassets',
@@ -35,6 +35,21 @@ PROPORCION_SEGURA = 1.0
 ZOOM_BROTE = 1.10
 
 
+def _centro_del_brote(base: Image.Image) -> tuple[float, float]:
+    """[ICONO-BROTE-CENTRADO · 2026-11-12] Centro de la CAJA del brote (lo que no es fondo), en px del origen.
+
+    El dueño: «no lo siento 100 % simétrico». Medido: de lado a lado el dibujo es simétrico y está centrado (desvío
+    0,5 px de 1024), pero su caja queda 28 px POR DEBAJO del centro del lienzo. Con el zoom, en el teléfono eran
+    16 px de aire sobre el punto y ~4 bajo el tallo. El recorte del adaptativo se centra en esta caja, no en el lienzo.
+    """
+    rgb = base.convert('RGB')
+    fondo = Image.new('RGB', rgb.size, rgb.getpixel((5, 5)))
+    caja = ImageChops.difference(rgb, fondo).convert('L').point(lambda v: 255 if v > 24 else 0).getbbox()
+    if not caja:
+        return (rgb.size[0] - 1) / 2, (rgb.size[1] - 1) / 2
+    return (caja[0] + caja[2] - 1) / 2, (caja[1] + caja[3] - 1) / 2
+
+
 def _redondo(img: Image.Image) -> Image.Image:
     mascara = Image.new('L', img.size, 0)
     ImageDraw.Draw(mascara).ellipse((0, 0, img.size[0] - 1, img.size[1] - 1), fill=255)
@@ -50,8 +65,11 @@ def main() -> int:
     base = Image.open(ORIGEN).convert('RGBA')
     lado_o = base.size[0]
     corte = int(round(lado_o / ZOOM_BROTE))
-    m0 = (lado_o - corte) // 2
-    base_adaptativo = base.crop((m0, m0, m0 + corte, m0 + corte))
+    cx, cy = _centro_del_brote(base)
+    # el recorte, centrado en el brote y sin salirse del origen
+    x0 = min(max(int(round(cx - (corte - 1) / 2)), 0), lado_o - corte)
+    y0 = min(max(int(round(cy - (corte - 1) / 2)), 0), lado_o - corte)
+    base_adaptativo = base.crop((x0, y0, x0 + corte, y0 + corte))
     escritos = 0
     for densidad, (legado, adaptativo) in DENSIDADES.items():
         carpeta = os.path.join(RES, f'mipmap-{densidad}')
