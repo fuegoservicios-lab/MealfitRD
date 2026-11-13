@@ -111,6 +111,7 @@ const _esIOS = esIOS(typeof navigator !== 'undefined' ? navigator : null, isNati
 //   - el relleno de la caja y la barra de pestanas seguian moviendose 250 ms despues del salto.
 // Aqui el chat hace UN layout por cambio de teclado, en el mismo fotograma que la ventana, y nada mas.
 const _esAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '');
+const MS_CIERRE_ANDROID = 180;
 // [P1-PLAN-LOTE-129] La duración REAL de la animación del teclado, tal como la dio UIKit la última vez (ms).
 const CLAVE_MS_NATIVO = 'mf_kb_ms_nativo';
 // [P1-PLAN-LOTE-127] Cuando se mira si iOS escondio el teclado al encender el microfono (ms desde que empieza a escuchar).
@@ -818,6 +819,8 @@ const AgentPage = () => {
                 // [P1-PLAN-LOTE-115] Cerrado → abierto: se decide UNA vez qué pasa con la conversación. (Con la
                 // apertura anticipada de la app nativa esto ya lo hizo `alGanarElFoco` y aquí llega «ya abierto».)
                 if (abierto && !tecladoAbiertoRef.current) alAbrirTecladoRef.current?.();
+                // [KB-ANDROID-CIERRE-SUAVE] abierto -> cerrado en Android: el resize ya llego, la bajada dura 180 ms
+                if (_esAndroid && !abierto && tecladoAbiertoRef.current) fijarDuracionTeclado(MS_CIERRE_ANDROID);
                 tecladoAbiertoRef.current = abierto;
                 contenedor.style.setProperty('--kb-inset', `${aplicado}px`);
                 // [P1-PLAN-LOTE-111 → 112] El ALTO DEL TECLADO firme (medición de asiento) se recuerda para
@@ -6016,7 +6019,7 @@ const AgentPage = () => {
                     // chat baja ACOMPAÑANDO al teclado en vez de adelantarse.
                     // Sólo en móvil: en escritorio el alto no se mueve y una transición ahí
                     // sólo podría retrasar un cambio de layout legítimo.
-                    // [KB-ANDROID-SECO] En Android la apaga la regla `html[data-kb-seco] .agent-container` (mas abajo).
+                    // [KB-ANDROID-SECO] En Android la apaga, al abrir, la regla `html[data-kb-seco][data-kb-open] .agent-container` (mas abajo).
                     transition: isMobile ? 'height var(--kb-ms, 0.25s) cubic-bezier(0.32, 0.72, 0, 1)' : undefined,
                     background: 'var(--bg-card)',
                     borderRadius: isMobile ? '0' : '1.5rem',
@@ -7010,10 +7013,12 @@ const AgentPage = () => {
                     html[data-kb-sin-anim] .input-wrapper {
                         transition: none !important;
                     }
-                    /* [KB-ANDROID-SECO] En Android ni el relleno ni el ALTO del chat se animan: la ventana ya salto, y
-                       animar el alto es un layout del chat entero por fotograma. */
-                    html[data-kb-seco] .input-wrapper,
-                    html[data-kb-seco] .agent-container {
+                    /* [KB-ANDROID-SECO] En Android ni el relleno ni el ALTO del chat se animan al ABRIR: la ventana ya salto.
+                       [KB-ANDROID-CIERRE-SUAVE · 2026-11-12] La regla cuelga de data-kb-open: al CERRAR esa llave ya no esta
+                       y la transicion vuelve. El cierre llega con el resize de la ventana (la caja ya cabe en pantalla), asi
+                       que en vez de caer de un salto baja en 180 ms junto con la barra de pestanas. */
+                    html[data-kb-seco][data-kb-open] .input-wrapper,
+                    html[data-kb-seco][data-kb-open] .agent-container {
                         transition: none !important;
                     }
                     /* --- Welcome screen --- */
