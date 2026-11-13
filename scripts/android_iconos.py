@@ -32,7 +32,11 @@ PROPORCION_SEGURA = 1.0
 # es RECORTAR el centro del origen (1/ZOOM del lado) y estirarlo al lienzo entero. Medido: el punto más lejano del brote
 # está a 30,9 dp del centro; con 1,10 queda a ~34 dp, dentro del círculo visible de 72 dp (36 de radio) de los launchers
 # redondos. Por encima de ~1,16 la punta del tallo o de las hojas se corta en esa máscara: no subirlo más.
-ZOOM_BROTE = 1.10
+#
+# [ICONO-BROTE-CON-AIRE · 2026-11-13] 1,10 -> 1,00. Con 1,10 el brote ocupaba el 88 % del alto del icono: en el
+# telefono quedaban 5 px sobre el punto y 8 bajo el tallo, y el dueño seguia viendolo desequilibrado aun ya centrado
+# (el dibujo es espejo exacto: 0,7 % de diferencia, solo suavizado). Con 1,00 ocupa el ~78 % y respira por los cuatro lados.
+ZOOM_BROTE = 1.0
 
 
 def _centro_del_brote(base: Image.Image) -> tuple[float, float]:
