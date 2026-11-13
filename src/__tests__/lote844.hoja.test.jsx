@@ -1,8 +1,9 @@
 /**
  * [P1-PLAN-LOTE-844 · 2026-09-29] La hoja «Tus datos y la IA» (auditoría App Store, fila 4, §A.1 y §A.4.1).
  *
- * Lo que el revisor de Apple mira: cada IA de terceros con nombre, qué recibe y para qué; el aviso de China; una
- * acción AFIRMATIVA (dos casillas obligatorias, ninguna marcada de antemano) y una forma de decir que no. La casilla
+ * Lo que el revisor de Apple mira: cada IA de terceros con nombre, qué recibe y para qué; una acción AFIRMATIVA (la
+ * casilla obligatoria, sin marcar de antemano) y una forma de decir que no. [P1-PLAN-LOTE-995] Ya no hay proveedor en
+ * China: ni aviso de transferencia ni su casilla. La casilla
  * de analítica es opcional y nace DESMARCADA (RGPD: nada de consentimiento por defecto).
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -25,23 +26,21 @@ const montar = (props = {}) => {
 
 const casillas = () => ({
     ia: screen.getByLabelText(/use mis datos de salud para crear mi plan/),
-    china: screen.getByLabelText(/se envíen a DeepSeek, en China/),
     analitica: screen.getByLabelText(/analítica de uso, sin datos de salud/),
 });
 
 describe('[P1-PLAN-LOTE-844] el texto de §A.1', () => {
-    it('nombra a los cuatro proveedores con qué reciben y para qué, y avisa de la transferencia a China', () => {
+    it('nombra a los tres proveedores con qué reciben y para qué, y ninguno está en China', () => {
         const { hoja } = montar();
         expect(hoja).toHaveAttribute('aria-modal', 'true');
         expect(within(hoja).getByRole('heading', { name: 'Tus datos y la IA' })).toBeTruthy();
-        for (const nombre of ['DeepSeek', 'OpenAI', 'Google Gemini', 'Cohere']) {
+        for (const nombre of ['OpenAI', 'Google Gemini', 'Cohere']) {
             expect(within(hoja).getByText(nombre, { selector: 'strong' })).toBeTruthy();
         }
-        expect(hoja.textContent).toContain('Hangzhou DeepSeek, República Popular China');
+        expect(hoja.textContent).not.toMatch(/DeepSeek|China/);
+        expect(hoja.textContent).toContain('Para responderte en el coach, reconocer los alimentos y generar la voz.');
         expect(hoja.textContent).toContain('restricción religiosa de dieta');
         expect(hoja.textContent).toContain('en el modo voz, el texto que lee en voz alta');
-        expect(within(hoja).getByText('Transferencia a China')).toBeTruthy();
-        expect(hoja.textContent).toContain('no tenemos firmadas cláusulas contractuales con DeepSeek');
         expect(hoja.textContent).toContain('No los usamos para publicidad ni los vendemos.');
     });
 
@@ -67,21 +66,18 @@ describe('[P1-PLAN-LOTE-844] las casillas', () => {
         montar();
         const c = casillas();
         expect(c.ia).not.toBeChecked();
-        expect(c.china).not.toBeChecked();
         expect(c.analitica).not.toBeChecked();
     });
 
-    it('«Aceptar y continuar» solo se activa con las DOS obligatorias; la analítica no hace falta', () => {
+    it('«Aceptar y continuar» solo se activa con la obligatoria; la analítica no hace falta', () => {
         montar();
         const c = casillas();
         const aceptar = screen.getByRole('button', { name: 'Aceptar y continuar' });
         expect(aceptar).toBeDisabled();
-        expect(screen.getByText('Marca las dos casillas obligatorias para continuar.')).toBeTruthy();
+        expect(screen.getByText('Marca la casilla obligatoria para continuar.')).toBeTruthy();
         fireEvent.click(c.analitica);
         expect(aceptar).toBeDisabled();
         fireEvent.click(c.ia);
-        expect(aceptar).toBeDisabled();
-        fireEvent.click(c.china);
         expect(aceptar).toBeEnabled();
         fireEvent.click(c.ia);
         expect(aceptar).toBeDisabled();
@@ -91,7 +87,6 @@ describe('[P1-PLAN-LOTE-844] las casillas', () => {
         const { onAceptar } = montar();
         const c = casillas();
         fireEvent.click(c.ia);
-        fireEvent.click(c.china);
         fireEvent.click(screen.getByRole('button', { name: 'Aceptar y continuar' }));
         await waitFor(() => expect(onAceptar).toHaveBeenCalledTimes(1));
         const [decision] = onAceptar.mock.calls[0];
@@ -105,7 +100,6 @@ describe('[P1-PLAN-LOTE-844] las casillas', () => {
         const { onAceptar } = montar();
         const c = casillas();
         fireEvent.click(c.ia);
-        fireEvent.click(c.china);
         fireEvent.click(c.analitica);
         fireEvent.click(screen.getByRole('button', { name: 'Aceptar y continuar' }));
         await waitFor(() => expect(onAceptar).toHaveBeenCalledTimes(1));
@@ -141,7 +135,6 @@ describe('[P1-PLAN-LOTE-844] decir que no, y los fallos', () => {
         montar({ onAceptar });
         const c = casillas();
         fireEvent.click(c.ia);
-        fireEvent.click(c.china);
         fireEvent.click(screen.getByRole('button', { name: 'Aceptar y continuar' }));
         expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos guardar tu permiso. Revisa tu conexión e inténtalo de nuevo.');
         expect(screen.getByRole('dialog')).toBeTruthy();
@@ -156,9 +149,10 @@ describe('[P1-PLAN-LOTE-844] la huella del texto', () => {
         if (h !== null) expect(h).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
     });
 
-    it('cubre todo lo que se muestra: proveedores, China, las tres casillas, la línea médica y la retirada', () => {
+    it('cubre todo lo que se muestra: proveedores, las dos casillas, la línea médica y la retirada', () => {
         const plano = textoPlanoDeLaHoja(textoDeLaHoja(tEs));
-        for (const trozo of ['DeepSeek', 'OpenAI', 'Google Gemini', 'Cohere', 'Transferencia a China', 'Acepto que mis datos',
+        expect(plano).not.toMatch(/DeepSeek|China/);
+        for (const trozo of ['OpenAI', 'Google Gemini', 'Cohere', 'Acepto que', 
             'Ayúdanos a mejorar', 'no sustituye a tu médico', 'Retirarlo detiene los envíos nuevos.']) {
             expect(plano).toContain(trozo);
         }

@@ -1,6 +1,6 @@
 // [P1-PLAN-LOTE-844 · 2026-09-29] La hoja «Tus datos y la IA»: nombra a cada IA de terceros, qué recibe y para qué,
-// avisa de la transferencia a China y pide el permiso con DOS casillas obligatorias (salud + IA; China) y una
-// opcional de analítica, DESMARCADA. Sin casilla marcada de antemano ni «al continuar aceptas…»: es una acción
+// y pide el permiso con UNA casilla obligatoria (salud + IA) y una opcional de analítica, DESMARCADA. [P1-PLAN-LOTE-995]
+// Ya no hay proveedor en China: se fueron el aviso de transferencia y su casilla. Sin casilla marcada de antemano ni «al continuar aceptas…»: es una acción
 // afirmativa (App Review 5.1.2(i); RGPD arts. 7, 9.2.a y 49.1.a). Lleva además la línea médica (§A.4.1).
 //
 // Centrada en escritorio, hoja inferior en móvil; el cuerpo desplaza y los botones quedan fijos abajo. El fondo NO
@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { AlertTriangle, HeartPulse, ShieldCheck } from 'lucide-react';
+import { HeartPulse, ShieldCheck } from 'lucide-react';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { useT } from '../i18n';
 import { apexUrl } from '../config/site';
@@ -24,7 +24,6 @@ export default function ConsentimientoIASheet({ onAceptar, onRechazar }) {
     const t = useT();
     const tx = useMemo(() => textoDeLaHoja(t), [t]);
     const [casillaIA, setCasillaIA] = useState(false);
-    const [casillaChina, setCasillaChina] = useState(false);
     // [P1-PLAN-LOTE-849] La casilla opcional parte de lo que la persona ya eligió (847: `analiticaPermitida`): al
     // volver a aceptar tras un cambio de versión o una retirada no se le apaga en silencio. La primera vez, desmarcada.
     const [analitica, setAnalitica] = useState(() => analiticaPermitida());
@@ -33,7 +32,7 @@ export default function ConsentimientoIASheet({ onAceptar, onRechazar }) {
     const idTitulo = useId();
     const idIntro = useId();
     const idPista = useId();
-    const puedeAceptar = casillaIA && casillaChina;
+    const puedeAceptar = casillaIA;
 
     // Estable (lee `guardando` por ref): si cambiara de identidad al guardar, `useModalAccessibility` reharía su efecto
     // y el foco saltaría fuera de la hoja y volvería.
@@ -110,23 +109,11 @@ export default function ConsentimientoIASheet({ onAceptar, onRechazar }) {
                         ))}
                     </ul>
 
-                    <div className={styles.china} role="note">
-                        <p className={styles.chinaTitulo}>
-                            <AlertTriangle size={16} strokeWidth={2.2} aria-hidden="true" />
-                            {tx.chinaTitulo}
-                        </p>
-                        <p className={styles.chinaTexto}>{tx.china}</p>
-                    </div>
-
                     <fieldset className={styles.casillas} disabled={guardando}>
                         <legend className={styles.soloLector}>{tx.titulo}</legend>
                         <label className={styles.casilla}>
                             <input type="checkbox" checked={casillaIA} onChange={(e) => setCasillaIA(e.target.checked)} required />
                             <span>{tx.casillaIA}</span>
-                        </label>
-                        <label className={styles.casilla}>
-                            <input type="checkbox" checked={casillaChina} onChange={(e) => setCasillaChina(e.target.checked)} required />
-                            <span>{tx.casillaChina}</span>
                         </label>
                         <label className={`${styles.casilla} ${styles.casillaOpcional}`}>
                             <input type="checkbox" checked={analitica} onChange={(e) => setAnalitica(e.target.checked)} />
@@ -153,7 +140,7 @@ export default function ConsentimientoIASheet({ onAceptar, onRechazar }) {
                 <footer className={styles.acciones}>
                     {error && <p role="alert" className={styles.error}>{error}</p>}
                     {!puedeAceptar && !error && (
-                        <p id={idPista} className={styles.pista}>{t('Marca las dos casillas obligatorias para continuar.')}</p>
+                        <p id={idPista} className={styles.pista}>{t('Marca la casilla obligatoria para continuar.')}</p>
                     )}
                     <div className={styles.botones}>
                         <button type="button" className={styles.ahoraNo} onClick={rechazar} disabled={guardando} data-hover="fantasma">

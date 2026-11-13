@@ -95,7 +95,7 @@ export default function BloqueIADeTerceros() {
                 }}
             >
                 <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    {t('Para crear tu plan, responderte en el coach y analizar tus fotos, tus datos van a DeepSeek (China), a OpenAI y Google Gemini (EE. UU.) y a Cohere.')}
+                    {t('Para crear tu plan, responderte en el coach y analizar tus fotos, tus datos van a OpenAI y Google Gemini (EE. UU.) y a Cohere.')}
                 </p>
                 <div style={{ marginTop: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem 1rem', flexWrap: 'wrap' }}>
                     <div style={{ minWidth: 0, flex: '1 1 14rem' }}>

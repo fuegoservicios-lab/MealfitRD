@@ -17,12 +17,14 @@ import { t, loadLocale } from '../i18n';
 import { textoDeLaHoja, textoPlanoDeLaHoja, huellaDelTexto } from '../consent/textoDeLaHoja';
 import { AI_CONSENT_VERSION } from '../consent/version';
 
+// [P1-PLAN-LOTE-995 · 2026-11-13] `ia-2026-11`: sin DeepSeek ni casilla de China (las de `ia-2026-10-voz` siguen en
+// backend/docs/consentimientos/ia/ia-2026-10-voz/, que el backend aún acepta).
 const HUELLAS_IA_2026_10 = {
-    'es-DO': '311db8c54f0d982545ebd147dc61be54a7a476dd67b3ec198db9b5caed978942',
-    'en-US': '9e00c6b59309527034232756cd124d45ab9e2d52c2ebe839de77926de6966f71',
-    'pt-BR': 'b671c20a692d901eb6c4c75898a8605c376ea07bb75f2b94b0678f1f12724314',
-    'fr-FR': 'f267bcae207b4764dd40974a95c12d8ccaa2dcbccb3e91f7effcb7ff544b22d9',
-    'it-IT': 'f7e267b266bae0e2a6b14152293079fe5d2755f5b2962fd0393abc6acb392eef',
+    'es-DO': '312616076e6775346c2ec775f4128fa8e61934af2037ab6513e733553af5b859',
+    'en-US': 'd9918e2d23bd52b8193490cdd0f9b5e30168149d965728f2fede20b4bc14befb',
+    'pt-BR': '08029ceb291ec8ba867c0fa1735df8a0f90c934c3cde45b4c8ee8e1c05bfe95f',
+    'fr-FR': 'dbf8f85dede335a550142cf04e10fcd57f98e5637a00e28cb93d9f9389449ce7',
+    'it-IT': '87c0ccd617aff928fbb547a111b2d1ce948136bd8a829592d8176848a8697cc6',
 };
 const IDIOMAS = Object.keys(HUELLAS_IA_2026_10);
 const DIR_BACKEND = resolve(process.env.MEALFIT_BACKEND_TEST_DIR || resolve(__dirname, '../../../backend'), 'docs/consentimientos/ia', AI_CONSENT_VERSION);
@@ -44,10 +46,10 @@ afterAll(async () => {
 
 describe('[P1-PLAN-LOTE-844 · ronda 1] el texto del permiso está fijado por versión', () => {
     it('la tabla es la de la versión vigente', () => {
-        expect(AI_CONSENT_VERSION).toBe('ia-2026-10-voz');
+        expect(AI_CONSENT_VERSION).toBe('ia-2026-11');
     });
 
-    it.each(IDIOMAS)('%s: el SHA-256 del texto mostrado es el fijado para ia-2026-10-voz', async (locale) => {
+    it.each(IDIOMAS)('%s: el SHA-256 del texto mostrado es el fijado para ia-2026-11', async (locale) => {
         const texto = await textoEn(locale);
         expect(texto.length).toBeGreaterThan(1000);
         expect(await huellaDelTexto(texto)).toBe(HUELLAS_IA_2026_10[locale]);

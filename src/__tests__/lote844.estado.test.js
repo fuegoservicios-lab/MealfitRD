@@ -96,7 +96,7 @@ describe('[P1-PLAN-LOTE-844] el invitado', () => {
         const [url, opts] = fetchWithAuth.mock.calls[0];
         expect(url).toBe('/api/consents/guest');
         expect(JSON.parse(opts.body)).toMatchObject({
-            version: AI_CONSENT_VERSION, ai_processing: true, ai_transfer_cn: true, analytics: false,
+            version: AI_CONSENT_VERSION, ai_processing: true, analytics: false,
             session_id: SID, text_sha256: 'a'.repeat(64), platform: 'web',
         });
         expect(registroLocal()).toMatchObject({ v: AI_CONSENT_VERSION, quien: `invitado:${SID}`, analytics: false });
@@ -164,7 +164,7 @@ describe('[P1-PLAN-LOTE-844] la cuenta: su permiso vive en el servidor, nunca en
         const [url, opts] = fetchWithAuth.mock.calls.find(([, options]) => options?.method === 'POST');
         expect(url).toBe('/api/consents');
         const cuerpo = JSON.parse(opts.body);
-        expect(cuerpo).toMatchObject({ version: AI_CONSENT_VERSION, ai_processing: true, ai_transfer_cn: true, analytics: true });
+        expect(cuerpo).toMatchObject({ version: AI_CONSENT_VERSION, ai_processing: true, analytics: true });
         expect(cuerpo.session_id).toBeUndefined();
         expect(cuerpo.text_sha256).toBeUndefined();
         expect(localStorage.getItem(AI_CONSENT_STORAGE_KEY)).toBeNull();

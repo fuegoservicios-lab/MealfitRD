@@ -81,7 +81,7 @@ describe('[P1-PLAN-LOTE-844] «Finalizar y Generar» espera el permiso', () => {
         await waitFor(() => expect(navegar).toHaveBeenCalledWith('/plan'));
         const permiso = fetchWithAuth.mock.calls.find(([u]) => u === '/api/consents/guest');
         expect(permiso, 'el permiso del invitado no se anotó').toBeTruthy();
-        expect(JSON.parse(permiso[1].body)).toMatchObject({ session_id: SID, ai_processing: true, ai_transfer_cn: true });
+        expect(JSON.parse(permiso[1].body)).toMatchObject({ session_id: SID, ai_processing: true });
         expect(JSON.parse(localStorage.getItem(AI_CONSENT_STORAGE_KEY))).toMatchObject({ quien: `invitado:${SID}` });
     });
 });

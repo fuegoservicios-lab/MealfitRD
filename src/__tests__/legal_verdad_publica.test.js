@@ -214,6 +214,11 @@ const REFUTADAS = [
         frase: '<strong>DeepSeek</strong> genera partes de tu plan y mueve la conversación con el coach;',
         porque: 'la misma omisión en la Política de IA §2',
     },
+    // [P1-PLAN-LOTE-995 · 2026-11-13] Ningún proveedor en China: ni DeepSeek ni la transferencia a la República Popular.
+    { frase: '<strong>DeepSeek', porque: 'DeepSeek ya no recibe nada (MEALFIT_PERMITIR_PROVEEDORES_CHINA apagado; el permiso ia-2026-11 no lo nombra)' },
+    { frase: 'República Popular China</strong>', porque: 'ningún proveedor de IA trata los datos en China' },
+    { frase: '(sólo a DeepSeek)', porque: 'lo que se anota por escrito lo estima OpenAI' },
+    { frase: 'platform.deepseek.com', porque: 'los términos de DeepSeek ya no aplican' },
     {
         frase: 'Política de Privacidad (Secciones 7 y 8)',
         porque: 'la voz y el dictado viven en Privacidad §2: Protección de Datos §5 tiene que remitir también a ella',
@@ -241,18 +246,21 @@ const EXIGIDAS = [
     { frase: 'texto visible', porque: 'el autocapture manda el texto de lo que se pulsa, chips de salud incluidos (§7/§8)' },
     { frase: 'el nombre de su cuenta', porque: 'el coach recibe el nombre (Privacidad §4)' },
     { frase: 'el nombre de tu cuenta', porque: 'el coach recibe el nombre (Política de IA §2)' },
-    { frase: 'Hoy son <strong>cuatro</strong>', porque: 'DeepSeek, OpenAI, Google/Gemini y Cohere (Privacidad §4)' },
-    { frase: 'Hoy son cuatro proveedores de IA', porque: 'la misma cuenta en la Política de IA' },
-    { frase: 'DeepSeek', porque: 'MEALFIT_LLM_PROVIDER=deepseek en producción' },
+    // [P1-PLAN-LOTE-995 · 2026-11-13] Solo proveedores occidentales: OpenAI, Google/Gemini y Cohere (14 días de
+    // llm_usage_events sin una llamada a China; `MEALFIT_PERMITIR_PROVEEDORES_CHINA` apagado).
+    { frase: 'Hoy son <strong>tres</strong>', porque: 'OpenAI, Google/Gemini y Cohere (Privacidad §4)' },
+    { frase: 'Hoy son tres proveedores de IA', porque: 'la misma cuenta en la Política de IA' },
+    { frase: '<strong>mueve la conversación con el coach</strong>', porque: 'el coach va con Gemini 4 Hydrogen (agent._chat_agent_model_name)' },
+    { frase: 'actúa como respaldo del coach cuando Google no responde', porque: 'el respaldo del coach es GPT-6 Luna (MEALFIT_CHAT_AGENT_FALLBACK_MODEL)' },
     { frase: 'Gemini', porque: 'el escáner de fotos usa gemini-3.8-flash' },
     { frase: '<strong>Cohere</strong>', porque: '«cohere» es subcadena de «coherencia»: se exige el nombre marcado' },
     { frase: 'un resumen de su perfil (objetivo, alergias', porque: 'lo que Cohere recibe al generar el plan (Privacidad)' },
     { frase: 'un resumen de tu perfil (objetivo, alergias', porque: 'lo mismo en la Política de IA' },
-    { frase: 'Google LLC', porque: 'Google en sus cuatro papeles: fotos, avisos de Android, voz del modo voz e identidad' },
+    { frase: 'Google LLC', porque: 'Google en sus cinco papeles: coach, fotos, avisos de Android, voz del modo voz e identidad' },
     { frase: 'Firebase Cloud Messaging', porque: 'los avisos de Android llevan texto que puede mencionar la salud' },
     { frase: 'Apple Push Notification', porque: 'los avisos del iPhone, ídem' },
     // [FUSIÓN 0f + 6d · 2026-09-28] Las exigidas nuevas del landing fusionado, en esta copia.
-    { frase: 'en cuatro papeles distintos', porque: 'Google: fotos, avisos de Android, voz del modo voz (P1-PLAN-LOTE-685) e identidad (Privacidad §8)' },
+    { frase: 'en cinco papeles distintos', porque: 'Google: coach (P1-PLAN-LOTE-995), fotos, avisos de Android, voz del modo voz (P1-PLAN-LOTE-685) e identidad (Privacidad §8)' },
     { frase: 'enviamos el texto de esa respuesta a Google (API de Gemini', porque: 'desde el 685 la voz del modo voz la genera Google a partir del texto de la respuesta (Privacidad §2)' },
     { frase: 'a Bioboros sólo llega el texto transcrito', porque: 'el dictado convierte la voz en texto en el dispositivo (Privacidad §2)' },
     { frase: 'se usa la voz de su dispositivo', porque: 'el respaldo del modo voz es la voz del dispositivo o del navegador (Privacidad §2)' },
@@ -261,9 +269,9 @@ const EXIGIDAS = [
     // [FUSIÓN 0f + 6d · ronda 2 · 2026-09-28] Las exigidas nuevas del landing, en esta copia.
     { frase: 'puede generarse en servidores de su fabricante (por ejemplo, Google en Chrome)', porque: 'el respaldo de la voz puede ser de red (Privacidad §2 y Uso de IA §1)' },
     { frase: 'las lee la voz de su navegador o dispositivo', porque: 'lo mismo en Protección de Datos §5' },
-    { frase: '<strong>lee en voz alta las respuestas del coach</strong>. Para las fotos', porque: 'Google en su papel de voz, en la lista de proveedores de Privacidad §4' },
+    { frase: '<strong>lee en voz alta las respuestas del coach</strong>. Para el coach', porque: 'Google en su papel de voz, en la lista de proveedores de Privacidad §4' },
     { frase: 'si usa el modo voz en vivo (a OpenAI)', porque: 'el texto que se lee en voz alta, en la lista de lo que se envía (Privacidad §4)' },
-    { frase: 'Google trata las fotos y el texto del modo voz', porque: 'las condiciones de Google cubren fotos y voz (Privacidad §4)' },
+    { frase: 'Google trata la conversación con el coach, las fotos y el texto del modo voz', porque: 'las condiciones de Google cubren coach, fotos y voz (Privacidad §4)' },
     { frase: 'en el modo voz de respaldo, <strong>lee en voz alta las respuestas del coach</strong>', porque: 'Google y la voz en la Política de IA §2' },
     { frase: 'si usas el modo voz en vivo (a OpenAI)', porque: 'el audio y las respuestas del modo voz en vivo se envían a OpenAI (Política de IA §2)' },
     { frase: 'las respuestas que se leen con la voz de respaldo (a Google)', porque: 'la voz de respaldo conserva su destinatario en la Política de IA §2' },
@@ -276,8 +284,8 @@ const EXIGIDAS = [
     { frase: 'de ese registro se borran el identificador de su cuenta y esos motivos', porque: 'al borrar la cuenta el registro pierde el identificador y los motivos: queda sólo qué hizo el equipo y cuándo, sin poder asociarse a la persona (Privacidad §9, seudónimo del 841)' },
     { frase: 'lo que se conserva después, y por qué, está en la Política de Privacidad (Sección 9)', porque: 'Protección de Datos §4 remite a lo que sobrevive al borrado' },
     { frase: 'aparece en la exportación de sus datos', porque: 'los regalos de cuenta (account_grants) salen en la exportación (Privacidad §2)' },
-    { frase: 'genera días de su plan', porque: 'OpenAI genera días del plan en todos los planes, no sólo revisa los de pago (Privacidad §4)' },
-    { frase: 'genera días de tu plan', porque: 'lo mismo en la Política de IA §2' },
+    { frase: '<strong>OpenAI</strong> genera su plan', porque: 'OpenAI (gpt-6-luna) genera el plan en todos los planes, no sólo revisa los de pago (Privacidad §4)' },
+    { frase: '<strong>OpenAI</strong> genera tu plan', porque: 'lo mismo en la Política de IA §2' },
     { frase: '<strong>Cohere Inc.</strong>', porque: 'Cohere como encargado en Privacidad §8' },
     { frase: 'los proveedores de inferencia', porque: 'Protección de Datos §5, en plural' },
     { frase: 'nuestros proveedores de IA', porque: 'Política de Uso §4, en plural' },
@@ -295,9 +303,9 @@ const EXIGIDAS = [
     { frase: 'las que sube sin llegar a enviarlas, pasadas 24 horas', porque: 'la purga de adjuntos del chat sin mensaje (db_chat._cleanup_orphan_chat_attachments + cron horario del lote 798), Privacidad §2' },
     { frase: '<strong>Borrador del chat (<code>IndexedDB</code>):</strong>', porque: 'chatDraftStore.js: texto y hasta 4 fotos por conversación en el dispositivo (Privacidad §13)' },
     { frase: 'más allá de lo que el personal escriba como motivo de un ajuste, que no debe incluir datos personales', porque: 'la única salvedad que el código permite al registro del equipo (Privacidad §9)' },
-    { frase: 'estima las macros de las comidas que usted anota por escrito', porque: 'DeepSeek en Privacidad §4, como en §8' },
-    { frase: 'para estimar sus macros (sólo a DeepSeek)', porque: 'las listas de lo que se envía (Privacidad §4 y Política de IA §2)' },
-    { frase: 'estima las macros de las comidas que anotas por escrito', porque: 'DeepSeek en la Política de IA §2' },
+    { frase: 'estima las macros de las comidas que usted anota por escrito', porque: 'OpenAI en Privacidad §4, como en §8' },
+    { frase: 'para estimar sus macros (a OpenAI)', porque: 'las listas de lo que se envía (Privacidad §4 y Política de IA §2)' },
+    { frase: 'estima las macros de las comidas que anotas por escrito', porque: 'OpenAI en la Política de IA §2' },
     { frase: 'Política de Privacidad (Secciones 2, 7 y 8)', porque: 'Protección de Datos §5 remite a donde viven la voz y el dictado' },
     // [P1-PLAN-LOTE-836 · 2026-09-29] Las exigidas nuevas del landing (verdad-publica.json), en esta copia. Las de arriba
     // que cambiaron de redacción (panel de soporte, regalos, rastro de 24 meses) ya están puestas en su sitio.
@@ -343,8 +351,9 @@ describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
 
     // [P1-PLAN-LOTE-836 · 2026-09-29] Cambió el fondo de estas dos políticas (acceso del equipo, cuentas de prueba, plazo
     // del rastro, finalidad de prueba): Privacidad §14 promete publicar el cambio con su nueva fecha, la misma del apex.
-    it.each(['Política de Privacidad', 'Política de Protección de Datos'])('«%s» lleva la fecha del cambio (4 de Octubre, 2026)', (titulo) => {
-        expect(texto).toContain(`title="${titulo}" lastUpdated="4 de Octubre, 2026"`);
+    // [P1-PLAN-LOTE-995 · 2026-11-13] Y otra vez: DeepSeek sale y el coach pasa a Google (también la Política de IA).
+    it.each(['Política de Privacidad', 'Política de Protección de Datos', 'Política de Uso de Inteligencia Artificial'])('«%s» lleva la fecha del cambio (13 de Noviembre, 2026)', (titulo) => {
+        expect(texto).toContain(`title="${titulo}" lastUpdated="13 de Noviembre, 2026"`);
     });
 
     // Sin esta comprobación, borrar la sección entera dejaría el test en verde: el

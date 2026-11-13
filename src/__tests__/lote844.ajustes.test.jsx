@@ -62,10 +62,11 @@ describe('[P1-PLAN-LOTE-844] el bloque «IA de terceros»', () => {
         montar(CON_PERMISO);
         expect(screen.getByRole('heading', { name: 'IA de terceros' })).toBeTruthy();
         expect(screen.getByText('Permiso activo')).toBeTruthy();
-        expect(screen.getByText(/^Aceptado el .*2026 · versión ia-2026-10-voz$/)).toBeTruthy();
+        expect(screen.getByText(/^Aceptado el .*2026 · versión ia-2026-11$/)).toBeTruthy();
         const bloque = screen.getByTestId('bloque-ia-de-terceros');
         expect(bloque.className).toContain('ph-no-capture');
-        for (const p of ['DeepSeek (China)', 'OpenAI', 'Google Gemini', 'Cohere']) expect(bloque.textContent).toContain(p);
+        for (const p of ['OpenAI', 'Google Gemini', 'Cohere']) expect(bloque.textContent).toContain(p);
+        expect(bloque.textContent).not.toMatch(/DeepSeek|China/);   // [P1-PLAN-LOTE-995]
         await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/consents'));   // relee al abrir
     });
 

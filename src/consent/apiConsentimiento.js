@@ -77,7 +77,6 @@ function _decision({ analytics, textoSha256 }) {
     return {
         version: AI_CONSENT_VERSION,
         ai_processing: true,
-        ai_transfer_cn: true,
         analytics: analytics === true,
         ...(textoSha256 ? { text_sha256: textoSha256 } : {}),
     };

@@ -135,31 +135,6 @@
     color: var(--text-muted);
 }
 
-.china {
-    margin: 0 0 1rem;
-    padding: 0.85rem 0.95rem;
-    border: 1px solid var(--warning-border);
-    border-radius: 0.875rem;
-    background: var(--warning-bg);
-}
-
-.chinaTitulo {
-    margin: 0 0 0.3rem;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.95rem;
-    font-weight: 800;
-    color: var(--warning-text);
-}
-
-.chinaTexto {
-    margin: 0;
-    font-size: 0.875rem;
-    line-height: 1.55;
-    color: var(--warning-text);
-}
-
 .casillas {
     margin: 0 0 1rem;
     padding: 0;

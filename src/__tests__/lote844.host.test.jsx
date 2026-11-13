@@ -109,7 +109,6 @@ describe('[P1-PLAN-LOTE-844] la hoja pedida', () => {
         expect(hoja.closest('.ph-no-capture')).not.toBeNull();
         fetchWithAuth.mockResolvedValue(respuesta({ ok: true, version: AI_CONSENT_VERSION }));
         fireEvent.click(screen.getByLabelText(/use mis datos de salud para crear mi plan/));
-        fireEvent.click(screen.getByLabelText(/se envíen a DeepSeek, en China/));
         fireEvent.click(screen.getByRole('button', { name: 'Aceptar y continuar' }));
         await expect(decision).resolves.toBe(true);
         await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
