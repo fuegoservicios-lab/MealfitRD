@@ -21,8 +21,17 @@ debajo, había advisories high/critical nuevos sin triar.
 | `better-auth` `GHSA-965c-763c-88jm` | critical | Aplica en teoría | Login con Google por OAuth; la lógica vulnerable corre en el servidor de auth de Neon. Ningún cliente publicado la cierra (neon-js 0.9.0-beta trae better-auth 1.7.6; el arreglo es 1.7.7). Excepción hasta 2026-11-30 y confirmar con Neon. |
 | `better-auth` `GHSA-qq9h-g4jm-xgf3` | critical | Aplica | Re-triada. Hay salida por el cliente (neon-js ≥ 0.7.0-beta → better-auth 1.6.23) pero es cambiar la librería del login: pide probar el login con Google y por código en web, iPhone y Android. Excepción hasta 2026-11-30. |
 
-Pendiente del dueño antes del 2026-11-30: decidir el bump de `@neondatabase/neon-js` (cierra qq9h) y preguntar a Neon
-la versión de better-auth de su servidor gestionado (cierra 965c y el resto del bloque si es ≥ 1.7.7).
+**Actualización del mismo día — el bump de `@neondatabase/neon-js` se probó y se descartó.** 0.7.0-beta trae
+better-auth 1.6.23 (fuera del rango de qq9h) y la API del adaptador es la misma (mismos métodos y endpoints), pero:
+
+- la lógica vulnerable de qq9h, 965c y q84f corre en el **servidor** de auth gestionado por Neon: subir la copia del
+  cliente solo calla el aviso, no cierra el riesgo;
+- a cambio entraban 12 advisories de `fast-uri` (vía `@neondatabase/auth-ui` → `@hookform/resolvers` → `ajv`), uno
+  nuevo de better-auth (`GHSA-r4xp-prcw-77qf`, OAuth Proxy) y un peer inválido (`@better-auth/api-key` pide ^1.7.24);
+- y tocaba la librería del login, que pide probar Google y código en web, iPhone y Android.
+
+Las tres excepciones pasan a caducar el **2026-12-15**. La acción que las cierra de verdad es del dueño: preguntar a
+Neon qué versión de better-auth corre su servidor gestionado (≥ 1.7.7 cierra las tres).
 
 ---
 
