@@ -1,8 +1,9 @@
 import { useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Activity, Clock, Refrigerator, Lock, ChevronDown } from 'lucide-react';
+import { Lock, ChevronDown } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
+import { PlanIcon, ProgressIcon, PantryIcon, HistoryIcon } from '../icons/NavIcons';
 // [P1-GUEST-NAV-LOCK · 2026-06-15] Modo invitado: secciones que requieren cuenta.
 import { useAssessment } from '../../context/AssessmentContext';
 // [P1-PLAN-LOTE-680] Pestaña con candado → hoja «Guarda tu plan» (login sin salir del plan) en vez de /register.
@@ -20,12 +21,12 @@ import styles from './BottomTabBar.module.css';
 // aquí solo se les pega el icono. La lista se arma DENTRO del componente porque
 // depende del modo (contexto) — un const a nivel de módulo no lo ve.
 const _tabIcons = {
-    plan: { icon: LayoutDashboard },
-    progress: { icon: Activity },  // [P1-PLAN-LOTE-103] «Progreso» en modo plan
+    plan: { icon: PlanIcon },
+    progress: { icon: ProgressIcon },  // [P1-PLAN-LOTE-103] «Progreso» en modo plan
     agent: { icon: AgentIcon },
-    pantry: { icon: Refrigerator, iconStroke: 2.25 },
+    pantry: { icon: PantryIcon },
     recipes: { icon: RecipesIcon },
-    history: { icon: Clock },
+    history: { icon: HistoryIcon },
 };
 
 const BottomTabBar = () => {

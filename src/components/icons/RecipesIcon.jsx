@@ -1,108 +1,37 @@
 import PropTypes from 'prop-types';
 
 /**
- * Ícono de "Recetas" — libro de cocina abierto con líneas que sugieren
- * el texto de las recetas en ambas páginas. Reemplazo del genérico
- * fork+cuchillo de lucide-react. Representación directa del concepto
- * de "recetas escritas". API compatible con lucide (size / strokeWidth
- * / color → currentColor por default).
+ * [ICONOS-FAMILIA · 2026-11-14] «Recetas»: libro de cocina abierto, de la misma familia que `NavIcons` (trazo
+ * redondeado + una página con cuerpo). API compatible con lucide (`size`, `strokeWidth`, `color`, `className`).
  */
-const RecipesIcon = ({ size = 24, strokeWidth = 2, color = 'currentColor' }) => {
-    const detailWidth = Math.max(strokeWidth * 0.6, 1);
-    return (
-        <svg
-            width={size}
-            height={size}
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            style={{ display: 'block' }}
-        >
-            {/* Cubierta del libro abierto — silueta V suave (top) + U (bottom) */}
-            <path
-                d="M 3 6 Q 12 8, 21 6 L 21 19 Q 12 21, 3 19 Z"
-                stroke={color}
-                strokeWidth={strokeWidth}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-            />
-            {/* Lomo central */}
-            <path
-                d="M 12 8 L 12 21"
-                stroke={color}
-                strokeWidth={strokeWidth}
-                strokeLinecap="round"
-            />
-            {/* Líneas de texto — página izquierda */}
-            <line
-                x1="5.5"
-                y1="10.5"
-                x2="10"
-                y2="10.8"
-                stroke={color}
-                strokeWidth={detailWidth}
-                strokeOpacity="0.5"
-                strokeLinecap="round"
-            />
-            <line
-                x1="5.5"
-                y1="13"
-                x2="10"
-                y2="13.3"
-                stroke={color}
-                strokeWidth={detailWidth}
-                strokeOpacity="0.5"
-                strokeLinecap="round"
-            />
-            <line
-                x1="5.5"
-                y1="15.5"
-                x2="9"
-                y2="15.8"
-                stroke={color}
-                strokeWidth={detailWidth}
-                strokeOpacity="0.5"
-                strokeLinecap="round"
-            />
-            {/* Líneas de texto — página derecha */}
-            <line
-                x1="14"
-                y1="10.8"
-                x2="18.5"
-                y2="10.5"
-                stroke={color}
-                strokeWidth={detailWidth}
-                strokeOpacity="0.5"
-                strokeLinecap="round"
-            />
-            <line
-                x1="14"
-                y1="13.3"
-                x2="18.5"
-                y2="13"
-                stroke={color}
-                strokeWidth={detailWidth}
-                strokeOpacity="0.5"
-                strokeLinecap="round"
-            />
-            <line
-                x1="15"
-                y1="15.8"
-                x2="18.5"
-                y2="15.5"
-                stroke={color}
-                strokeWidth={detailWidth}
-                strokeOpacity="0.5"
-                strokeLinecap="round"
-            />
-        </svg>
-    );
-};
+const RecipesIcon = ({ size = 24, strokeWidth = 2, color = 'currentColor', className }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+        style={{ display: 'block' }}
+        aria-hidden="true"
+    >
+        {/* página izquierda con cuerpo */}
+        <path d="M12 6.6C10.2 5.2 7.7 4.6 5 4.6a1 1 0 0 0-1 1V17a1 1 0 0 0 1 1c2.7 0 5.2.6 7 2Z" fill={color} fillOpacity="0.3" stroke="none" />
+        <path d="M12 6.6C10.2 5.2 7.7 4.6 5 4.6a1 1 0 0 0-1 1V17a1 1 0 0 0 1 1c2.7 0 5.2.6 7 2 1.8-1.4 4.3-2 7-2a1 1 0 0 0 1-1V5.6a1 1 0 0 0-1-1c-2.7 0-5.2.6-7 2Z" />
+        <path d="M12 6.6V20" />
+        <path d="M15 10.2c.9-.3 1.8-.5 2.6-.6M15 13.6c.9-.3 1.8-.5 2.6-.6" strokeWidth={Math.max(strokeWidth * 0.8, 1)} />
+    </svg>
+);
 
 RecipesIcon.propTypes = {
     size: PropTypes.number,
     strokeWidth: PropTypes.number,
     color: PropTypes.string,
+    className: PropTypes.string,
 };
 
 export default RecipesIcon;

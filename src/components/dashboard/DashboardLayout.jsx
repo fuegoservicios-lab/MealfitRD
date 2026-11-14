@@ -9,9 +9,10 @@ import PropTypes from 'prop-types';
 // es lazy y sus páginas ya cargan framer de todos modos.
 import { MotionConfig } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Activity, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock, Info, ChevronRight, HelpCircle } from 'lucide-react';
+import { Settings, LogOut, Menu, X, Lock, Info, ChevronRight, HelpCircle } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
+import { PlanIcon, ProgressIcon, PantryIcon, HistoryIcon } from '../icons/NavIcons';
 import { useAssessment } from '../../context/AssessmentContext';
 import { DashboardAccountActionsContext } from '../../context/DashboardAccountActions';
 // [P1-PLAN-LOTE-680] Pestaña con candado → hoja «Guarda tu plan» (login sin salir del plan) en vez de /register.
@@ -203,12 +204,12 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     // [P1-PLAN-MODE · 2026-08-11] Las ENTRADAS salen del SSOT (config/dashboardNav);
     // aquí solo se les pega el icono. Dos copias a mano eran dos verdades.
     const _navIcons = {
-        plan: { icon: LayoutDashboard },
-        progress: { icon: Activity },  // [P1-PLAN-LOTE-103] «Progreso» en modo plan
+        plan: { icon: PlanIcon },
+        progress: { icon: ProgressIcon },  // [P1-PLAN-LOTE-103] «Progreso» en modo plan
         agent: { icon: AgentIcon },
-        pantry: { icon: Refrigerator, iconStroke: 2.25 },
+        pantry: { icon: PantryIcon },
         recipes: { icon: RecipesIcon },
-        history: { icon: Clock },
+        history: { icon: HistoryIcon },
     };
     const menuItems = navItemsFor({ trackingMode: isTrackingMode(userProfile, planData), nevera: neveraActiva(userProfile) })
         .map((it) => ({ ...it, ..._navIcons[it.key] }));

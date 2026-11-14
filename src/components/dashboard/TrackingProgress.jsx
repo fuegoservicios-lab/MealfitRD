@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share, ChevronRight, Info, Utensils, CupSoda } from 'lucide-react';
+import { Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share, ChevronRight, Info, Utensils, CupSoda } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -751,7 +751,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                 <ProgressBar
                     label={t('Calorías')}
                     consumed={displayedConsumed.calories} goal={goalCal} unit="kcal"
-                    perc={percCal} icon={Flame} darkIcon={FlameMacroIcon}
+                    perc={percCal} icon={FlameMacroIcon} darkIcon={FlameMacroIcon}
                     color={calColor} lightColor={calLightColor} gradient={calGradient}
                     isComplete={calIsComplete} statusOverride={calStatusOverride}
                     fillIcon
@@ -760,17 +760,13 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
 
                 <div className={styles.macroGrid}>
                     {/* Proteína */}
-                    {/* [APPEARANCE-THEME · 2026-05-29] Mismo patrón que Calorías/Grasas:
-                        en modo CLARO el glifo es el lucide `Dumbbell` (outline, consistente
-                        con Flame/Wheat/Droplet outline); en OSCURO el `ProteinIcon`
-                        (mancuerna sólida custom). Pre-fix usaba `icon={ProteinIcon}` sin
-                        darkIcon → la mancuerna sólida se mostraba TAMBIÉN en claro,
-                        desentonando con los demás macros outline. */}
+                    {/* [ICONOS-FAMILIA · 2026-11-14] Los cuatro macros usan la misma familia de glifos (contorno + velo
+                        + un acento) en claro y en oscuro; antes en claro eran lucide a trazo y en oscuro sólidos. */}
                     <ProgressBar
                         label={t('Proteína')}
                         consumed={displayedConsumed.protein} goal={goalPro} unit="g"
                         reference={references.protein}
-                        perc={percPro} icon={Dumbbell} darkIcon={ProteinIcon}
+                        perc={percPro} icon={ProteinIcon} darkIcon={ProteinIcon}
                         color="#3B82F6" lightColor="#93C5FD" gradient="linear-gradient(90deg, #93C5FD 0%, #3B82F6 100%)"
                     />
                     {/* Carbohidratos */}
@@ -778,7 +774,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         label={t('Carbohidratos')}
                         consumed={displayedConsumed.carbs} goal={goalCarb} unit="g"
                         reference={references.carbs}
-                        perc={percCarb} icon={Wheat} color="#10B981" lightColor="#6EE7B7" gradient="linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)"
+                        perc={percCarb} icon={WheatFilledIcon} darkIcon={WheatFilledIcon} color="#10B981" lightColor="#6EE7B7" gradient="linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)"
                         fillWhiteStroke
                     />
                     {/* Grasas */}
@@ -786,7 +782,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         label={t('Grasas')}
                         consumed={displayedConsumed.fats} goal={goalFat} unit="g"
                         reference={references.fats}
-                        perc={percFat} icon={Droplet} darkIcon={FatDropIcon}
+                        perc={percFat} icon={FatDropIcon} darkIcon={FatDropIcon}
                         color="#EC4899" lightColor="#F9A8D4" gradient="linear-gradient(90deg, #F9A8D4 0%, #EC4899 100%)"
                         fillIcon
                     />
@@ -997,7 +993,7 @@ const ProgressBar = ({
     // [APPEARANCE-THEME · 2026-05-29] Tamaño ÚNICO para todos los glifos (todos
     // los íconos custom llenan el viewBox 24×24, así que un mismo `size` los
     // hace lucir del mismo tamaño). large = barra principal de Calorías.
-    const iconSize = large ? 22 : 18;
+    const iconSize = large ? 24 : 20;
     let renderedIcon;
     if (doFillWhite) {
         renderedIcon = <WheatFilledIcon size={iconSize} />;
