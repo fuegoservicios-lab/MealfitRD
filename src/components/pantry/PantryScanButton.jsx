@@ -412,12 +412,6 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                     <span style={{ animation: scanning ? 'qpb-pulse 1.8s ease-in-out infinite' : 'none' }}>
                         {scanning ? t('Analizando…') : t('Escanear')}
                     </span>
-                    <span style={{
-                        fontSize: '.75rem', fontWeight: 700, letterSpacing: '.08em',
-                        textTransform: 'uppercase', color: 'var(--primary)',
-                        border: '1px solid color-mix(in srgb, var(--primary) 45%, transparent)',
-                        borderRadius: 99, padding: '1px 5px',
-                    }}>beta</span>
                 </button>
             ) : (
             <button type="button" disabled={scanning}
@@ -457,14 +451,6 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {scanning ? t('Esto toma 1-3 minutos — puedes seguir usando la app') : t('Detecta alimentos, cantidades y marcas automáticamente')}
                     </span>
-                </span>
-                <span style={{
-                    flexShrink: 0, fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.08em',
-                    textTransform: 'uppercase', color: 'var(--primary)',
-                    border: '1px solid color-mix(in srgb, var(--primary) 45%, transparent)',
-                    borderRadius: '99px', padding: '2px 8px',
-                }}>
-                    beta
                 </span>
             </button>
             )}

@@ -88,7 +88,7 @@ describe('[P1-PANTRY-SCAN-PC-UPLOAD] PantryScanButton — la tarjeta SIEMPRE ren
         const btn = screen.getByRole('button', { name: /Escanear mi nevera con una foto/ });
         // El subtítulo describe lo que hace la IA — igual en ambos modos.
         expect(screen.getByText('Detecta alimentos, cantidades y marcas automáticamente')).toBeInTheDocument();
-        expect(screen.getByText('beta')).toBeInTheDocument();
+        expect(screen.queryByText(/^beta$/i)).not.toBeInTheDocument();
 
         await userEvent.click(btn);
 
@@ -107,7 +107,7 @@ describe('[P1-PANTRY-SCAN-PC-UPLOAD] PantryScanButton — la tarjeta SIEMPRE ren
 
         const btn = screen.getByRole('button', { name: /Sube una foto de tu nevera/ });
         expect(screen.getByText('Detecta alimentos, cantidades y marcas automáticamente')).toBeInTheDocument();
-        expect(screen.getByText('beta')).toBeInTheDocument();
+        expect(screen.queryByText(/^beta$/i)).not.toBeInTheDocument();
 
         const fileInput = container.querySelector('input[type="file"]');
         const clickSpy = vi.spyOn(fileInput, 'click').mockImplementation(() => {});
@@ -222,5 +222,15 @@ describe('[P1-PANTRY-SCAN-PC-UPLOAD] PantryScanButton — la tarjeta SIEMPRE ren
 
             expect(container).toBeEmptyDOMElement();
         });
+    });
+
+    it('modo compact (barra de Nevera) muestra Escanear sin badge beta', () => {
+        setMatchMedia(() => false);
+        setCameraApi(true);
+
+        renderButton({ compact: true });
+
+        expect(screen.getByRole('button', { name: /Escanear/ })).toBeInTheDocument();
+        expect(screen.queryByText(/^beta$/i)).not.toBeInTheDocument();
     });
 });
