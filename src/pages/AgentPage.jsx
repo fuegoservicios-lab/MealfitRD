@@ -4218,15 +4218,12 @@ const AgentPage = () => {
                                         const _doneAt = (typeof performance !== 'undefined' && performance.now)
                                             ? performance.now()
                                             : Date.now();
-                                        const _fcElapsed = _firstChunkAt !== null ? _firstChunkAt - _streamStartedAt : null;
-                                        const _fpRef = _firstPaintedAt ?? _firstChunkAt;
-                                        const _fpElapsed = _fpRef !== null ? _fpRef - _streamStartedAt : null;
                                         _emitChatPerfTelemetry({
-                                            corr: dataObj.corr || null,
-                                            firstChunkMs: _fcElapsed,
-                                            firstPaintMs: _fpElapsed,
-                                            ttfbMs: _fcElapsed,
+                                            ttfbMs: _firstChunkAt !== null ? _firstChunkAt - _streamStartedAt : null,
                                             streamTotalMs: _doneAt - _streamStartedAt,
+                                            corr: dataObj.corr || null,
+                                            // primer pintado; sin marca de pintado, el primer trozo (la función hace el mismo respaldo)
+                                            firstPaintMs: (_firstPaintedAt ?? _firstChunkAt) !== null ? (_firstPaintedAt ?? _firstChunkAt) - _streamStartedAt : null,
                                             chunkCount: _chunkCount,
                                             isCallMode: !!callModeRef.current,
                                             sessionId: currentSessionId,
