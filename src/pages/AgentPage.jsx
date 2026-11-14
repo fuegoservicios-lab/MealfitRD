@@ -5011,6 +5011,14 @@ const AgentPage = () => {
                             key={a.id}
                             type="button"
                             className={a.tipo === 'accion' ? 'chat-quick-chip chat-quick-chip-accion' : 'chat-quick-chip'}
+                            // [MENU-FOTO-REANCLA] Con el teclado abierto, «Escanear» no le quita el foco al cuadro de
+                            // texto (como el «+»): el teclado se queda y el menú se ancla al «+» sin que nada se mueva.
+                            // Se abre en el click (no en pointerdown) para que deslizar la fila de atajos no lo abra.
+                            onPointerDown={a.accion === 'escanear' ? (event) => {
+                                if (!isAppKeyboardPointer(event)) return;
+                                prepareAttachmentPickerGesture();
+                                event.preventDefault();
+                            } : undefined}
                             onClick={() => {
                                 if (a.tipo === 'accion') {
                                     if (a.accion === 'escanear') {

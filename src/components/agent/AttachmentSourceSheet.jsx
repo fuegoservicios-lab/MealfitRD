@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Camera, Images, X } from 'lucide-react';
 import { useT } from '../../i18n';
@@ -62,11 +62,42 @@ function SheetInner({ onClose, onGallery, onCamera, triggerRef, restoreFocus, an
         };
     }, [triggerRef, esMenu]);
 
+    // [MENU-FOTO-REANCLA · 2026-11-14] El dueño: teclado abierto → «Escanear mi plato» → el menú quedaba flotando a
+    // media pantalla. La posición salía del «+» medido UNA vez, con el teclado abierto (o a medio cerrar); al bajar el
+    // teclado el «+» se movía y el menú no. Ahora se vuelve a medir el «+» cada vez que cambia el alto de la ventana
+    // (teclado que sube o baja, giro), y durante la animación del teclado, que no siempre avisa hasta el final.
+    const [rectVivo, setRectVivo] = useState(anchorRect);
+    useEffect(() => {
+        if (!esMenu) return undefined;
+        const medir = () => {
+            const r = triggerRef?.current?.getBoundingClientRect?.();
+            if (r && (r.width || r.height)) {
+                setRectVivo((prev) => (prev && prev.left === r.left && prev.top === r.top ? prev : r));
+            }
+        };
+        const raf = window.requestAnimationFrame(medir);
+        const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+        window.addEventListener('resize', medir);
+        vv?.addEventListener?.('resize', medir);
+        vv?.addEventListener?.('scroll', medir);
+        const intervalo = window.setInterval(medir, 50);
+        const fin = window.setTimeout(() => window.clearInterval(intervalo), 700);
+        return () => {
+            window.cancelAnimationFrame(raf);
+            window.removeEventListener('resize', medir);
+            vv?.removeEventListener?.('resize', medir);
+            vv?.removeEventListener?.('scroll', medir);
+            window.clearInterval(intervalo);
+            window.clearTimeout(fin);
+        };
+    }, [esMenu, triggerRef]);
+
     // En modo menú, `mousedown` es el evento que movería el foco: se anula en todo el árbol de la hoja.
     const noRobarFoco = (event) => { if (esMenu) event.preventDefault(); };
+    const ancla = rectVivo || anchorRect;
     const estiloMenu = esMenu ? {
-        left: `${Math.max(8, Math.round(anchorRect.left))}px`,
-        bottom: `${Math.max(8, Math.round(window.innerHeight - anchorRect.top + 8))}px`,
+        left: `${Math.max(8, Math.round(ancla.left))}px`,
+        bottom: `${Math.max(8, Math.round(window.innerHeight - ancla.top + 8))}px`,
     } : undefined;
 
     return createPortal(
