@@ -10,6 +10,7 @@ import AgentAccountMenu from '../components/agent/AgentAccountMenu';
 import { isTrackingMode, navItemsFor, neveraActiva } from '../config/dashboardNav';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, AudioLines, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
+import { sendClientPerfTelemetry } from '../utils/chatPerf';
 // [P1-PLAN-LOTE-726] la foto de plato que se manda al chat pasa a la ficha de la comida que el coach registra. Import
 // DINÁMICO: el almacén de fotos (IndexedDB) no entra en el trozo de esta página, que tiene techo de peso.
 const cargarFotosDelChat = () => import('../utils/fotosDelChat');
@@ -198,14 +199,18 @@ const _captureAgentPageException = (err, tags) => {
 // El breadcrumb aparece en próximo error de Sentry capturado, dando
 // contexto sobre el último stream antes del fallo — útil para
 // diagnosticar "el usuario reportó lentitud antes del crash".
-const _emitChatPerfTelemetry = ({ ttfbMs, streamTotalMs, chunkCount, isCallMode, sessionId }) => {
+const _emitChatPerfTelemetry = ({ corr, firstChunkMs, firstPaintMs, ttfbMs, streamTotalMs, chunkCount, isCallMode, sessionId }) => {
+    const _fcMs = firstChunkMs ?? ttfbMs;
+    const _fpMs = firstPaintMs ?? _fcMs;
     try {
         addBreadcrumb({
             category: 'chat',
             message: 'stream_completed',
             level: 'info',
             data: {
-                ttfb_ms: typeof ttfbMs === 'number' ? Math.round(ttfbMs) : null,
+                corr: corr || null,
+                ttfb_ms: typeof _fcMs === 'number' ? Math.round(_fcMs) : null,
+                first_paint_ms: typeof _fpMs === 'number' ? Math.round(_fpMs) : null,
                 stream_total_ms: typeof streamTotalMs === 'number' ? Math.round(streamTotalMs) : null,
                 chunk_count: chunkCount,
                 is_call_mode: !!isCallMode,
@@ -215,11 +220,23 @@ const _emitChatPerfTelemetry = ({ ttfbMs, streamTotalMs, chunkCount, isCallMode,
     } catch (_e) { /* swallow */ }
      
     console.info('[CHAT-PERF]', {
-        ttfb_ms: typeof ttfbMs === 'number' ? Math.round(ttfbMs) : null,
+        corr: corr || null,
+        ttfb_ms: typeof _fcMs === 'number' ? Math.round(_fcMs) : null,
+        first_paint_ms: typeof _fpMs === 'number' ? Math.round(_fpMs) : null,
         stream_total_ms: typeof streamTotalMs === 'number' ? Math.round(streamTotalMs) : null,
         chunk_count: chunkCount,
         is_call_mode: !!isCallMode,
         session_id: sessionId,
+    });
+
+    sendClientPerfTelemetry({
+        corr,
+        sessionId,
+        firstChunkMs: _fcMs,
+        firstPaintMs: _fpMs,
+        streamTotalMs,
+        chunkCount,
+        isCallMode,
     });
 };
 
@@ -3974,6 +3991,7 @@ const AgentPage = () => {
                     ? performance.now()
                     : Date.now();
                 let _firstChunkAt = null;
+                let _firstPaintedAt = null;
                 let _chunkCount = 0;
 
                 const response = await fetchWithAuth('/api/chat/stream', {
@@ -4170,6 +4188,21 @@ const AgentPage = () => {
                                             setIsLoading(false);
                                             setStreamingStatus(null);
                                             setMessages(prev => [...prev, { role: 'model', content: displayContent, isStreaming: true, created_at: new Date().toISOString() }]);
+                                            if (_firstPaintedAt === null) {
+                                                if (typeof requestAnimationFrame === 'function') {
+                                                    requestAnimationFrame(() => {
+                                                        if (_firstPaintedAt === null) {
+                                                            _firstPaintedAt = (typeof performance !== 'undefined' && performance.now)
+                                                                ? performance.now()
+                                                                : Date.now();
+                                                        }
+                                                    });
+                                                } else {
+                                                    _firstPaintedAt = (typeof performance !== 'undefined' && performance.now)
+                                                        ? performance.now()
+                                                        : Date.now();
+                                                }
+                                            }
                                         } else {
                                             setMessages(prev => {
                                                 const updated = [...prev];
@@ -4181,14 +4214,18 @@ const AgentPage = () => {
                                         }
                                     } else if (dataObj.type === 'done') {
                                         // [P3-CHAT-FOCUS-TELEM · 2026-05-19]
-                                        // Emitir telemetría de latencia +
-                                        // chunk count. Sentry breadcrumb +
-                                        // console.info estructurado.
+                                        // [P1-PLAN-LOTE-1001 · G-01 · 2026-11-14] Corr + firstPaintMs -> /api/chat/client-metrics
                                         const _doneAt = (typeof performance !== 'undefined' && performance.now)
                                             ? performance.now()
                                             : Date.now();
+                                        const _fcElapsed = _firstChunkAt !== null ? _firstChunkAt - _streamStartedAt : null;
+                                        const _fpRef = _firstPaintedAt ?? _firstChunkAt;
+                                        const _fpElapsed = _fpRef !== null ? _fpRef - _streamStartedAt : null;
                                         _emitChatPerfTelemetry({
-                                            ttfbMs: _firstChunkAt !== null ? _firstChunkAt - _streamStartedAt : null,
+                                            corr: dataObj.corr || null,
+                                            firstChunkMs: _fcElapsed,
+                                            firstPaintMs: _fpElapsed,
+                                            ttfbMs: _fcElapsed,
                                             streamTotalMs: _doneAt - _streamStartedAt,
                                             chunkCount: _chunkCount,
                                             isCallMode: !!callModeRef.current,
