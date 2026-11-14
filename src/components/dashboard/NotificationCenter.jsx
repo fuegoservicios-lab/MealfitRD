@@ -340,9 +340,17 @@ export default function NotificationCenter({ hidden = false }) {
         descartadaLocal('mealfit_turnon_card_dismissed', userId)
     ));
 
+    // [CI-LINT-2026-11-14] Al cambiar de usuario o de modo, la lectura LOCAL se ajusta durante el render (patrón de
+    // React para estado que depende de props), no con un setState síncrono en el efecto.
+    const claveInvitacion = `${enModoContador}|${userId}`;
+    const [claveInvitacionVista, setClaveInvitacionVista] = useState(claveInvitacion);
+    if (claveInvitacionVista !== claveInvitacion) {
+        setClaveInvitacionVista(claveInvitacion);
+        if (enModoContador) setInviteDismissed(descartadaLocal('mealfit_turnon_card_dismissed', userId));
+    }
+
     useEffect(() => {
         if (!enModoContador) return undefined;
-        setInviteDismissed(descartadaLocal('mealfit_turnon_card_dismissed', userId));
         if (!userId) return undefined;
         let vivo = true;
         leerInvitacionCentro('mealfit_turnon_card_dismissed', userId).then((r) => {

@@ -175,8 +175,10 @@ async function requestJson(path, { token, ...options } = {}) {
 /* ─────────────────────── imagen / placeholder ─────────────────────── */
 
 const ProductImage = ({ product, large = false }) => {
-    const [broken, setBroken] = useState(false);
-    useEffect(() => { setBroken(false); }, [product.image_url]);
+    // [CI-LINT-2026-11-14] La imagen rota se recuerda POR url: al cambiar de producto deja de estarlo sola, sin un
+    // efecto que la reinicie después de pintar (react-hooks/set-state-in-effect).
+    const [brokenUrl, setBrokenUrl] = useState(null);
+    const broken = brokenUrl === product.image_url;
     if (product.image_url && !broken) {
         return (
             <img
@@ -184,7 +186,7 @@ const ProductImage = ({ product, large = false }) => {
                 alt={productTitle(product)}
                 className={large ? styles.detailImg : styles.cardImg}
                 loading="lazy"
-                onError={() => setBroken(true)}
+                onError={() => setBrokenUrl(product.image_url)}
             />
         );
     }

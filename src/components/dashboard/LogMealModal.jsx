@@ -69,6 +69,7 @@ import styles from './LogMealModal.module.css';
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
 import { mensajeDeError } from '../../utils/errorCopy';
 import { useTecladoDeHoja, estilosDeHojaConTeclado } from '../../hooks/useTecladoDeHoja';
+import { cantidadEscrita } from '../../utils/cantidadEscrita';
 
 const _MACRO_CLASSES = {
     field: styles.macroField,
@@ -85,16 +86,6 @@ const _MACRO_CLASSES = {
 // [P1-PLAN-LOTE-106] `Chips` (los grupos excluyentes de «¿Qué comida es?» y «¿Cuándo?») es componente
 // compartido con el escáner: ./Chips.jsx.
 
-/**
- * [P1-PLAN-LOTE-166 · 2026-09-22] La cantidad tal como se TECLEA, normalizada: la coma decimal pasa a punto («1,5» →
- * «1.5») y lo que no es un número a medio escribir devuelve `null` (no entra). Era un `type="number"`: con un teclado
- * que pone coma (español de España, francés, italiano, portugués) el navegador la rechazaba en silencio, el valor
- * quedaba vacío y la línea contaba 0 g.
- */
-export function cantidadEscrita(texto) {
-    const v = String(texto ?? '').replace(',', '.');
-    return /^\d*\.?\d*$/.test(v) ? v : null;
-}
 
 const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo = 0, userId = null }) => {
     const t = useT();

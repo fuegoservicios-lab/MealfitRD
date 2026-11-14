@@ -42,6 +42,7 @@ import { textoDelServidor } from '../utils/textosDelServidor';
 // [P1-I18N-SERVER-COPY-GANA-SIGUE-ABIERTO · 2026-08-23] El `_review_disclaimer` del backend
 // viene siempre en español; se glosa al imprimir, igual que la nota clínica.
 import { glossReviewDisclaimer, reviewIssueLegible } from '../utils/clinicalNoteGloss';
+import { campoDelRechazo } from '../utils/campoDelRechazo';
 // [P1-PLAN-LOTE-225 · 2026-09-24] La frase con que el servidor explica el 409 `plan_recently_created`
 // (routers/plans.py, P1-DEDUP-RECENT-PLAN), byte a byte: se traduce al pintar.
 const MENSAJE_PLAN_RECIENTE = i18nKey('Tu plan ya estaba listo (quizá se te cayó la conexión). Te lo mostramos en vez de crear otro, para no duplicarlo. Si quieres uno distinto, intenta de nuevo en unos minutos.');
@@ -50,21 +51,6 @@ const MENSAJE_PLAN_RECIENTE = i18nKey('Tu plan ya estaba listo (quizá se te cay
 // envía `Retry-After`. El RateLimiter del backend usa period=60s con
 // max_calls=3 por usuario/IP, así que 60s es la peor cota antes de que la
 // ventana se libere por completo.
-/**
- * [P1-PLAN-LOTE-164 · 2026-09-22] ¿Qué campo rechazó el servidor? Para volver al formulario EN ese paso y no en el
- * primero. Formas reales del backend (`routers/plans.py`): `invalid_biometric_range` trae `errors[].field`,
- * `missing_required_fields` trae `missing_fields[]`, y el alcance clínico no trae campo pero siempre es el de
- * condiciones médicas. Sin pista, `undefined`: el formulario abre donde estaba.
- */
-export function campoDelRechazo(detail, code) {
-    if (!detail || typeof detail !== 'object') return undefined;
-    const primero = Array.isArray(detail.errors) ? detail.errors[0] : null;
-    if (primero && typeof primero.field === 'string') return primero.field;
-    if (Array.isArray(detail.missing_fields) && typeof detail.missing_fields[0] === 'string') return detail.missing_fields[0];
-    if (typeof detail.field === 'string') return detail.field;
-    if (code === 'clinical_scope_exceeded' || code === 'too_many_medical_conditions') return 'medicalConditions';
-    return undefined;
-}
 
 const DEFAULT_RATE_LIMIT_RETRY_AFTER_S = 60;
 

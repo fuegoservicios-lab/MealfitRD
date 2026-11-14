@@ -4,6 +4,28 @@
 
 ---
 
+## Re-triage 2026-11-14 — `CI-AUDIT`
+
+El job `audit` del CI estaba rojo por dos motivos: la excepción de `GHSA-qq9h-g4jm-xgf3` caducó el 2026-09-15 y,
+debajo, había advisories high/critical nuevos sin triar.
+
+| GHSA / paquete | Severidad | Veredicto | Acción |
+|---|---|---|---|
+| `@capacitor/ios` `GHSA-rvm3-566m-v7fv` | critical | Cerrado | `~8.5.3` (con `@capacitor/core` y `@capacitor/cli` al mismo parche). El arreglo es nativo: llega a los iPhone con el próximo build de iOS. |
+| `dompurify` (5 advisories) | critical | Cerrado | override `^3.4.17` |
+| `vite` (5 advisories) | high | Cerrado | `^7.3.8` |
+| `zod` `GHSA-mrhx-c7xc-m3w5` | high | Cerrado | override `^4.6.6` (la cadena de Neon pedía 4.3.6; mismo major) |
+| `source-map-js` `GHSA-68fv-2mgg-jv7q` | high | Cerrado | override `^1.2.2` |
+| `brace-expansion` (3 advisories) | high | Cerrado | override solo para la rama 5.x: `brace-expansion@^5.0.0` → `^5.0.13` |
+| `better-auth` `GHSA-q84f-53jg-9ppm` | critical | No aplica | La app no usa el flujo de autorización de dispositivo. Excepción hasta 2026-11-30. |
+| `better-auth` `GHSA-965c-763c-88jm` | critical | Aplica en teoría | Login con Google por OAuth; la lógica vulnerable corre en el servidor de auth de Neon. Ningún cliente publicado la cierra (neon-js 0.9.0-beta trae better-auth 1.7.6; el arreglo es 1.7.7). Excepción hasta 2026-11-30 y confirmar con Neon. |
+| `better-auth` `GHSA-qq9h-g4jm-xgf3` | critical | Aplica | Re-triada. Hay salida por el cliente (neon-js ≥ 0.7.0-beta → better-auth 1.6.23) pero es cambiar la librería del login: pide probar el login con Google y por código en web, iPhone y Android. Excepción hasta 2026-11-30. |
+
+Pendiente del dueño antes del 2026-11-30: decidir el bump de `@neondatabase/neon-js` (cierra qq9h) y preguntar a Neon
+la versión de better-auth de su servidor gestionado (cierra 965c y el resto del bloque si es ≥ 1.7.7).
+
+---
+
 ## Actualización 2026-08-14 — `P1-CI-GATE-PASSABLE`
 
 El gate llevaba **rojo** (`node scripts/audit-gate.mjs` → exit 1) por un advisory

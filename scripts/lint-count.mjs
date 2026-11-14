@@ -24,7 +24,7 @@
 // Uso: npm run lint:count
 import { ESLint } from 'eslint';
 
-const CEILING = 66; // sincronizado a mano con ci.yml; el desajuste se avisa abajo
+const CEILING = 64; // sincronizado a mano con ci.yml; el desajuste se avisa abajo
 
 /**
  * [P2-LINT-RATCHET-POR-REGLA · 2026-08-18] Un techo global tiene un agujero:
@@ -66,7 +66,7 @@ const TECHOS_POR_REGLA = {
     // la dependencia que falta puede ser justo lo que provoque el bucle infinito
     // que el autor evitó omitiéndola. Se arreglan de uno en uno y con la pantalla
     // delante, nunca en barrido.
-    'react-hooks/exhaustive-deps': 24,
+    'react-hooks/exhaustive-deps': 22,
     // Idem: regla del compilador de React, llegada en el bump a la 7.
     'react-hooks/set-state-in-effect': 16,
 };

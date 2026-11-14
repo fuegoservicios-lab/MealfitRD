@@ -1,7 +1,7 @@
 // [P1-MULTI-PHOTO-MATCH · 2026-10-27] Pruebas para turnos multi-foto:
 // Guineo de desayuno + Sancocho de almuerzo no deben mezclar fotos entre comidas distintas,
 // y reconcilian la caché local si una foto se asignó erróneamente.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('../utils/fotosDeComidas', () => ({

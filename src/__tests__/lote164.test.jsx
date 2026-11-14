@@ -19,7 +19,7 @@ import { QMeasurements } from '../components/assessment/questions/QMeasurements'
 import {
     CLAVE_COMPLETAR, pedirCompletarFormulario, leerCompletarFormulario, fijarPasosCompletar, terminarCompletarFormulario,
 } from '../utils/completarFormulario';
-import { campoDelRechazo } from '../pages/Plan';
+import { campoDelRechazo } from '../utils/campoDelRechazo';
 import LocaleSwitcher from '../components/common/LocaleSwitcher';
 import { I18nProvider, loadLocale } from '../i18n';
 import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY } from '../i18n/locales';

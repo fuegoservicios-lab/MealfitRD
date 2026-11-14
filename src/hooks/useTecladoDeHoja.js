@@ -16,7 +16,7 @@ const CERRADO = { inset: 0, abierto: false, alto: null };
 export function useTecladoDeHoja(activo) {
     const [estado, setEstado] = useState(CERRADO);
     useEffect(() => {
-        if (!activo) { setEstado(CERRADO); return undefined; }
+        if (!activo) return undefined;
         const vv = typeof window !== 'undefined' ? window.visualViewport : null;
         if (!vv) return undefined;
         const medir = () => {
@@ -35,7 +35,9 @@ export function useTecladoDeHoja(activo) {
             vv.removeEventListener('scroll', medir);
         };
     }, [activo]);
-    return estado;
+    // [CI-LINT-2026-11-14] Inactivo ⇒ CERRADO derivado al pintar (antes un setState dentro del efecto). Al reactivarse,
+    // `medir()` del efecto sustituye lo que quedara guardado.
+    return activo ? estado : CERRADO;
 }
 
 /** Los estilos que la hoja aplica: el fondo levanta su contenido y el panel no pasa del alto visible. */

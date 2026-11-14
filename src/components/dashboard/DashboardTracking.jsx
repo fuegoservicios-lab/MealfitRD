@@ -49,10 +49,15 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false, inNotificationCenter
     useEffect(() => {
         onDismissChange?.(dismissed);
     }, [dismissed, onDismissChange]);
+    // [CI-LINT-2026-11-14] En el centro, la lectura LOCAL al cambiar de usuario se ajusta durante el render (patrón de
+    // React para estado que depende de props), no con un setState síncrono al entrar al efecto.
+    const claveCentro = `${inNotificationCenter}|${userId}`;
+    const [claveCentroVista, setClaveCentroVista] = useState(claveCentro);
+    if (claveCentroVista !== claveCentro) {
+        setClaveCentroVista(claveCentro);
+        if (inNotificationCenter) setDismissed(descartadaLocal(_DISMISS_KEY, userId));
+    }
     useEffect(() => {
-        if (inNotificationCenter) {
-            setDismissed(descartadaLocal(_DISMISS_KEY, userId));
-        }
         if (!userId) return undefined;
         let vivo = true;
         const preguntar = () => {

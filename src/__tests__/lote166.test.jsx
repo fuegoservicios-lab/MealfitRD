@@ -19,7 +19,7 @@ import { render, screen, fireEvent } from './utils/test-utils';
 import InteractiveAssessmentFlow from '../components/assessment/InteractiveAssessmentFlow';
 import LogoutConfirmModal from '../components/dashboard/LogoutConfirmModal';
 import { campoTapadoPorTeclado, useCampoVisibleConTeclado } from '../hooks/useCampoVisibleConTeclado';
-import { cantidadEscrita } from '../components/dashboard/LogMealModal';
+import { cantidadEscrita } from '../utils/cantidadEscrita';
 
 const _nav = vi.hoisted(() => ({ navigate: vi.fn() }));
 vi.mock('react-router-dom', async () => {

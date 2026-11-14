@@ -122,7 +122,9 @@ jobs:
       # [P2-LIVE-1 · 2026-05-12 → G31 · 2026-08-23] El lint de CI nació como job
       # aparte no-bloqueante en el ci.yml de la RAÍZ (245 errores de baseline).
       # Hoy la baseline está limpia y el lint es BLOQUEANTE vía el tope de avisos.
-      - run: npx eslint . --max-warnings 66
+      # [CI-LINT-2026-11-14] 70 -> 64: los 7 errores de variables sin usar fuera, 4 setState-en-efecto pasados a
+      # estado derivado y 2 helpers puros sacados de ficheros de componentes. El techo baja con el suelo.
+      - run: npx eslint . --max-warnings 64
       # [P2-LINT-RATCHET-POR-REGLA] El techo global es FUNGIBLE: arreglar un aviso
       # de estilo libera hueco para que entre uno de hooks, y el numero total no
       # se entera. Este gate pone techo POR REGLA, y una regla no declarada tiene
@@ -210,7 +212,10 @@ jobs:
   # primera pasada con los tres encontro dos defectos reales en pruebas que
   # llevaban meses en verde con chromium solo.
   e2e:
-    runs-on: ubuntu-latest
+    # [CI-UBUNTU-26 · 2026-11-14] `ubuntu-latest` paso a 26.04 y Playwright 1.60 no tiene navegadores para ella
+    # ("does not support webkit/firefox on ubuntu26.04-x64"): los tres motores caian en la instalacion. Fijado a
+    # la 24.04 hasta que Playwright soporte la nueva; entonces se vuelve a `ubuntu-latest`.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
       fail-fast: false          # un motor rojo no oculta el resultado de los otros

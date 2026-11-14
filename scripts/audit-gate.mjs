@@ -54,8 +54,26 @@ const EXCEPCIONES = {
   // adaptador. Anclado por src/__tests__/login_sin_password.test.js.
   'GHSA-qq9h-g4jm-xgf3': {
     dueno: 'owner',
-    caduca: '2026-09-15',
-    mitigacion: 'sin alta ni login por contrasena en la UI (anclado por src/__tests__/login_sin_password.test.js); pendiente confirmar la version del servidor con Neon',
+    // [CI-AUDIT · 2026-11-14] Re-triada al vencer (2026-09-15). La salida por el cliente sigue existiendo
+    // (@neondatabase/neon-js >= 0.7.0-beta trae better-auth 1.6.23), pero es cambiar la libreria del login y
+    // pide probar el login con Google y por codigo en web, iPhone y Android antes de desplegar. La mitigacion
+    // sigue verificada por el test. Caducidad corta: o se hace el bump, o se vuelve a triar.
+    caduca: '2026-11-30',
+    mitigacion: 'sin alta ni login por contrasena en la UI (anclado por src/__tests__/login_sin_password.test.js); bump a neon-js >= 0.7.0-beta pendiente de probar el login en las tres plataformas',
+  },
+
+  // [CI-AUDIT · 2026-11-14] Dos advisories nuevos de better-auth, misma cadena de Neon. Triage en
+  // docs/security/deps-triage.md («Re-triage 2026-11-14»). Ninguna version publicada del cliente de Neon los
+  // cierra: la mas nueva (neon-js 0.9.0-beta) trae better-auth 1.7.6 y el arreglo de GHSA-965c es la 1.7.7.
+  'GHSA-q84f-53jg-9ppm': {
+    dueno: 'owner',
+    caduca: '2026-11-30',
+    mitigacion: 'no aplica: la app no usa el flujo de autorizacion de dispositivo (device authorization) de better-auth',
+  },
+  'GHSA-965c-763c-88jm': {
+    dueno: 'owner',
+    caduca: '2026-11-30',
+    mitigacion: 'aplica en teoria (login con Google por OAuth), pero la logica vulnerable corre en el servidor de auth gestionado por Neon; sin version del cliente que la cierre. Accion: confirmar con Neon la version de su servidor',
   },
 };
 const ALLOWLIST = new Set(Object.keys(EXCEPCIONES));

@@ -937,7 +937,6 @@ const DashboardInner = () => {
         remainingCredits,
         isPremium,
         userProfile,
-        loadingData,
         updateData,
         refreshProfileAndPlan,
         setPlanData,

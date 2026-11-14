@@ -38,9 +38,6 @@ import {
     clearAllModalCaches,
     setCachedHistoryList,
     getCachedHistoryListStale,
-    invalidateHistoryListCache,
-    prefetchHistoryList,
-    consumirPrefetchHistoryList,
     _resetAllCachesForTests,
 } from '../utils/historyCaches';
 

@@ -74,8 +74,6 @@ const aFecha = (raw) => {
     return Number.isNaN(d.getTime()) ? null : d;
 };
 
-const mismoDia = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-
 const num = (v) => {
     const n = Number(v);
     return Number.isFinite(n) ? Math.round(n) : 0;
