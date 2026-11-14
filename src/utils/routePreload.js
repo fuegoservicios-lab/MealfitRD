@@ -22,14 +22,14 @@
 // usuario barre el cursor por el sidebar. Si la promesa falla (network
 // flake), se remueve del set para permitir retry en el próximo hover.
 
-import { cargarPagina } from './precargaDePaginas';
+import { cargarPagina, cargarApartado } from './precargaDePaginas';
 
 const preloaders = {
     '/dashboard': () => import('../pages/Dashboard'),
     '/dashboard/agent': () => import('../pages/AgentPage'),
     '/dashboard/pantry': cargarPagina.nevera,
-    '/dashboard/recipes': () => import('../pages/Recipes'),
-    '/dashboard/settings': () => import('../pages/Settings'),
+    '/dashboard/recipes': cargarApartado.recetas,
+    '/dashboard/settings': cargarApartado.ajustes,
     // [P3-10 · 2026-07-09] Faltaba: AccountMenu llama prefetchRoute
     // ('/dashboard/upgrade') en onViewPlansHover desde 2026-05-26 y era un
     // no-op silencioso (prefetch muerto). Vite dedupea con el lazy() de

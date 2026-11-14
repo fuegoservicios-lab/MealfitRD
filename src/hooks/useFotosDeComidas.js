@@ -4,6 +4,11 @@
 // del panel, que `precache-guard` limita y el precache del apex descarga siempre. Las miniaturas pueden llegar unos
 // milisegundos después que la fila; la fila no espera por ellas.
 import { useEffect, useState } from 'react';
+import {
+    borrarMiniFotoCache,
+    guardarMiniFotosCache,
+    leerMiniFotosCache,
+} from '../utils/miniFotosCache';
 
 const cargarAlmacen = () => import('../utils/fotosDeComidas');
 const EVENTO = 'mealfit:fotos-de-comidas';   // = EVENTO_FOTOS_DE_COMIDAS del almacén (su test lo ancla)
@@ -14,6 +19,14 @@ const _cacheIds = new Map();
 const _cacheMiniDataUrls = new Map();
 
 const _conUsuario = (userId) => typeof userId === 'string' && userId.length > 0 && userId !== 'guest';
+
+function _obtenerMiniSync(clave, userId, mealId, tipo) {
+    if (!clave || tipo !== 'mini') return null;
+    if (_cacheMiniDataUrls.has(clave)) return _cacheMiniDataUrls.get(clave);
+    const hit = leerMiniFotosCache(userId, mealId);
+    if (hit) _cacheMiniDataUrls.set(clave, hit);
+    return hit;
+}
 
 const _blobADataUrl = (blob) => new Promise((resolve) => {
     if (typeof FileReader === 'undefined' || !(blob instanceof Blob) || blob.size <= 32) {
@@ -28,11 +41,10 @@ const _blobADataUrl = (blob) => new Promise((resolve) => {
 
 export function useFotosDeComida(userId, mealId, tipo = 'foto') {
     const clave = _conUsuario(userId) && mealId ? `${userId}:${mealId}:${tipo}` : null;
-    const [estado, setEstado] = useState(() => (
-        clave && tipo === 'mini' && _cacheMiniDataUrls.has(clave)
-            ? { clave, fotos: _cacheMiniDataUrls.get(clave) }
-            : { clave: null, fotos: [] }
-    ));
+    const [estado, setEstado] = useState(() => {
+        const sync = _obtenerMiniSync(clave, userId, mealId, tipo);
+        return sync ? { clave, fotos: sync } : { clave: null, fotos: [] };
+    });
     useEffect(() => {
         if (!clave) return undefined;
         let vivo = true, version = 0, urls = [];
@@ -47,33 +59,38 @@ export function useFotosDeComida(userId, mealId, tipo = 'foto') {
                 if (!vivo || turno !== version) return;
                 soltar();
                 const prevPorId = tipo === 'mini' && !evento
-                    ? new Map((_cacheMiniDataUrls.get(clave) || []).map((p) => [p.id, p.url]))
+                    ? new Map((_obtenerMiniSync(clave, userId, mealId, tipo) || []).map((p) => [p.id ?? null, p.url]))
                     : new Map();
                 const nuevas = fotos.map((f) => {
+                    const normId = f.id ?? null;
+                    const cachedUrl = prevPorId.get(normId);
+                    if (cachedUrl) return { id: f.id, url: cachedUrl };
                     const objUrl = URL.createObjectURL(f.blob);
                     urls.push(objUrl);
-                    return { id: f.id, url: prevPorId.get(f.id) || objUrl };
+                    return { id: f.id, url: objUrl };
                 });
                 setEstado((prev) => {
                     if (
                         prev.clave === clave
                         && prev.fotos.length === nuevas.length
-                        && prev.fotos.every((p, i) => p.id === nuevas[i].id && p.url === nuevas[i].url)
+                        && prev.fotos.every((p, i) => (p.id ?? null) === (nuevas[i].id ?? null) && p.url === nuevas[i].url)
                     ) {
                         return prev;
                     }
                     return { clave, fotos: nuevas };
                 });
                 if (tipo === 'mini' && fotos.length > 0 && fotos.every((f) => f?.blob instanceof Blob && f.blob.size > 32)) {
-                    Promise.all(fotos.map(async (f) => ({ id: f.id, url: await _blobADataUrl(f.blob) })))
+                    Promise.all(fotos.map(async (f) => ({ id: f.id ?? null, url: await _blobADataUrl(f.blob) })))
                         .then((dataItems) => {
                             if (dataItems.every((d) => d.url)) {
                                 _cacheMiniDataUrls.set(clave, dataItems);
+                                guardarMiniFotosCache(userId, mealId, dataItems);
                             }
                         })
                         .catch(() => {});
                 } else if (tipo === 'mini' && fotos.length === 0) {
                     _cacheMiniDataUrls.delete(clave);
+                    borrarMiniFotoCache(userId, mealId);
                 }
             } catch { /* retain the current pictures if a transient read fails */ }
         };
@@ -81,7 +98,8 @@ export function useFotosDeComida(userId, mealId, tipo = 'foto') {
         window.addEventListener(EVENTO, cargar);
         return () => { vivo = false; window.removeEventListener(EVENTO, cargar); soltar(); };
     }, [clave, userId, mealId, tipo]);
-    return estado.clave === clave ? estado.fotos : [];
+    if (estado.clave === clave) return estado.fotos;
+    return _obtenerMiniSync(clave, userId, mealId, tipo) || [];
 }
 
 /** Los `mealId` de este usuario con foto en el dispositivo. Se refresca al guardar o borrar una foto. */
@@ -182,6 +200,7 @@ export function useEnlazarFotosDelChat(userId) {
 export function borrarFotoDeComidaEnSegundoPlano(userId, mealId) {
     if (!_conUsuario(userId) || !mealId) return;
     _cacheMiniDataUrls.delete(`${userId}:${mealId}:mini`);
+    borrarMiniFotoCache(userId, mealId);
     const cachedSet = _cacheIds.get(userId);
     if (cachedSet && cachedSet.has(mealId)) {
         const next = new Set(cachedSet);

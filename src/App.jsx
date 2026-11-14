@@ -70,7 +70,7 @@ import { APP_ORIGIN, isApexHost } from './config/site';
 // landing). Renderiza dentro del <Suspense> de AnimatedLayout (mismo patrón que las
 // páginas legales, que ya usan <Layout><X/></Layout> lazy y funcionan).
 // [P1-PLAN-LOTE-320] Las páginas del menú inferior comparten cargador con su precarga (utils/precargaDePaginas.js).
-import { cargarPagina, cargarLayoutDelPanel, precargarPaginasDelMenu } from './utils/precargaDePaginas';
+import { cargarPagina, cargarApartado, cargarLayoutDelPanel, precargarPaginasDelMenu } from './utils/precargaDePaginas';
 const Home = lazy(() => import('./pages/Home'));
 // [P3-APP-SUBDOMAIN-BUILD-SEP · 2026-06-28] Login y DashboardLayout son código
 // EXCLUSIVO del app (app.mealfitrd.com); antes eran imports eager → engordaban el
@@ -98,8 +98,8 @@ const Dashboard = lazy(cargarPagina.hoy);
 
 const Pantry = lazy(cargarPagina.nevera);
 const ProgressPage = lazy(cargarPagina.progreso);
-const Recipes = lazy(() => import('./pages/Recipes'));
-const Settings = lazy(() => import('./pages/Settings'));
+const Recipes = lazy(cargarApartado.recetas);     // [APARTADOS-PRECARGADOS] misma promesa que la precarga
+const Settings = lazy(cargarApartado.ajustes);
 // [P1-SETTINGS-DIALOG · 2026-08-10] La ventana de configuración. Lazy igual que
 // la página: arrastra el mismo Settings de 3.000 líneas, así que meterlo en el
 // bundle del dashboard lo pagaría también quien nunca abre ajustes.

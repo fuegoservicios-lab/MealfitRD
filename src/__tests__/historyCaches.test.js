@@ -28,7 +28,7 @@
 //   8. getCachedEntry / setCachedEntry son defensivos contra args
 //      null/undefined.
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
     historyCaches,
     getCachedEntry,
@@ -38,6 +38,9 @@ import {
     clearAllModalCaches,
     setCachedHistoryList,
     getCachedHistoryListStale,
+    invalidateHistoryListCache,
+    prefetchHistoryList,
+    consumirPrefetchHistoryList,
     _resetAllCachesForTests,
 } from '../utils/historyCaches';
 
@@ -229,5 +232,34 @@ describe('[P3-HIST-MODAL-CACHE-XUSER] clearAllModalCaches (logout/user-switch)',
 
         expect(historyCaches.lessonsDetail.size).toBe(0);
         expect(getCachedHistoryListStale()).toEqual([{ id: 'p1', name: 'Plan' }]);
+    });
+});
+
+describe('prefetchHistoryList + consumirPrefetchHistoryList deduplication', () => {
+    it('reutiliza un prefetch en vuelo o recién terminado una sola vez y respeta invalidación', async () => {
+        vi.resetModules();
+        localStorage.clear();
+        const getHistoryListMock = vi.fn(async () => ({
+            ok: true,
+            status: 200,
+            json: async () => ({ plans: [{ id: 'p-pref', name: 'Prefetched' }] }),
+        }));
+        vi.doMock('../config/api', () => ({ getHistoryList: getHistoryListMock }));
+        const mod = await import('../utils/historyCaches');
+
+        const p = mod.prefetchHistoryList();
+        const res1 = await mod.consumirPrefetchHistoryList();
+        expect(res1?.ok).toBe(true);
+        await expect(res1.json()).resolves.toEqual({ plans: [{ id: 'p-pref', name: 'Prefetched' }] });
+        await p;
+        // Se consume una sola vez para no ocultar refrescos posteriores
+        expect(await mod.consumirPrefetchHistoryList()).toBeNull();
+        expect(getHistoryListMock).toHaveBeenCalledTimes(1);
+
+        // Si se invalida el caché después, tampoco devuelve un prefetch viejo
+        await mod.prefetchHistoryList();
+        mod.invalidateHistoryListCache();
+        expect(await mod.consumirPrefetchHistoryList()).toBeNull();
+        vi.doUnmock('../config/api');
     });
 });

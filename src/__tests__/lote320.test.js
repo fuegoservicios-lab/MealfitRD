@@ -102,6 +102,15 @@ describe('[320] las páginas del menú se precargan en reposo', () => {
         expect(pedidas).toEqual(['nevera']);
         enReposo[1]();
         expect(pedidas.sort()).toEqual(['agente', 'historial', 'hoy', 'nevera', 'progreso']);
+        // [APARTADOS-PRECARGADOS · 2026-11-13] Ajustes y Recetas, en un TERCER reposo: después de las del menú.
+        const apartados = [];
+        for (const k of Object.keys(m.cargarApartado)) vi.spyOn(m.cargarApartado, k).mockImplementation(() => { apartados.push(k); return Promise.resolve({}); });
+        expect(enReposo).toHaveLength(3);
+        enReposo[2]();
+        expect(apartados.sort()).toEqual(['ajustes', 'recetas']);
+        const app = leer('src/App.jsx');
+        expect(app).toContain('const Settings = lazy(cargarApartado.ajustes);');
+        expect(app).toContain('const Recipes = lazy(cargarApartado.recetas);');
         vi.unstubAllGlobals();
     });
 

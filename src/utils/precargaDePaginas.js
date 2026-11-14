@@ -34,6 +34,16 @@ export const cargarPagina = {
 };
 
 /**
+ * [APARTADOS-PRECARGADOS · 2026-11-13] Ajustes y Recetas no están en el menú inferior y solo se precargaban al TOCAR su
+ * enlace: la primera visita descargaba y compilaba el código (Ajustes, 187 KB) con la pantalla de carga delante. Mismo
+ * patrón que las del menú —`lazy` y la precarga comparten promesa—, pero se piden las ÚLTIMAS, en un reposo aparte.
+ */
+export const cargarApartado = {
+    ajustes: unaVez(() => import('../pages/Settings')),
+    recetas: unaVez(() => import('../pages/Recipes')),
+};
+
+/**
  * [P1-PLAN-LOTE-971 · 2026-10-01] El layout del panel, con el mismo patrón: `lazy` y la precarga comparten promesa.
  * Va FUERA de `cargarPagina` porque no es una página del menú (el menú lo precarga el propio panel al montarse).
  */
@@ -74,6 +84,12 @@ export function precargarPaginasDelMenu() {
         for (const k of Object.keys(cargarPagina)) {
             if (k !== 'nevera') cargarPagina[k]().catch(() => { /* la visita real lo reintenta */ });
         }
+        // [APARTADOS-PRECARGADOS] Después de las del menú, en OTRO reposo: nunca compiten con ellas.
+        const pedirApartados = () => {
+            for (const k of Object.keys(cargarApartado)) cargarApartado[k]().catch(() => { /* la visita real lo reintenta */ });
+        };
+        if (typeof requestIdleCallback === 'function') requestIdleCallback(pedirApartados, { timeout: 8000 });
+        else setTimeout(pedirApartados, 4000);
     };
     if (typeof requestIdleCallback === 'function') requestIdleCallback(pedir, { timeout: 5000 });
     else setTimeout(pedir, 2500);   // Safari / WKWebView no tienen requestIdleCallback

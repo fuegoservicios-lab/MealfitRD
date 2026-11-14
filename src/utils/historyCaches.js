@@ -317,6 +317,8 @@ export const invalidateHistoryListCache = () => {
     // valor borrado desde localStorage.
     _historyListHydrated = true;
     _historyListEntry = null;
+    _prefetchFreshBody = null;
+    _prefetchFreshAt = 0;
     try {
         if (typeof localStorage !== 'undefined') {
             safeLocalStorageRemove(_HISTORY_LIST_LS_KEY);
@@ -337,8 +339,13 @@ export const invalidateHistoryListCache = () => {
 // Dynamic import de `../config/api` evita import cycle (api.js importa
 // authClient.js; historyCaches.js es util pura).
 let _prefetchInFlight = null;
+let _prefetchFreshBody = null;
+let _prefetchFreshAt = 0;
+const _PREFETCH_CONSUME_MAX_AGE_MS = 10 * 1000;
+
 export const prefetchHistoryList = () => {
     if (_prefetchInFlight) return _prefetchInFlight;
+    const startedAt = Date.now();
     _prefetchInFlight = (async () => {
         try {
             const { getHistoryList } = await import('../config/api');
@@ -346,7 +353,11 @@ export const prefetchHistoryList = () => {
             if (!response.ok) return;
             const body = await response.json().catch(() => ({}));
             const plans = Array.isArray(body && body.plans) ? body.plans : null;
-            if (plans) setCachedHistoryList(plans);
+            if (plans) {
+                setCachedHistoryList(plans);
+                _prefetchFreshBody = body;
+                _prefetchFreshAt = startedAt;
+            }
         } catch (_e) {
             // Best-effort. Si falla, el componente al montar disparará
             // su propio fetch.
@@ -355,6 +366,42 @@ export const prefetchHistoryList = () => {
         }
     })();
     return _prefetchInFlight;
+};
+
+/** Reutiliza el prefetch en vuelo (o recién llegado) al montar History para evitar un 2º GET duplicado. */
+export const consumirPrefetchHistoryList = async (signal) => {
+    if (signal?.aborted) return null;
+    if (_prefetchInFlight) {
+        await new Promise((resolve) => {
+            if (!signal) {
+                _prefetchInFlight.finally(resolve);
+                return;
+            }
+            const onAbort = () => resolve();
+            signal.addEventListener('abort', onAbort, { once: true });
+            Promise.resolve(_prefetchInFlight).finally(() => {
+                signal.removeEventListener('abort', onAbort);
+                resolve();
+            });
+        });
+        if (signal?.aborted) return null;
+    }
+    if (!_prefetchFreshBody || Date.now() - _prefetchFreshAt > _PREFETCH_CONSUME_MAX_AGE_MS) {
+        return null;
+    }
+    try {
+        const dirtyRaw = typeof localStorage !== 'undefined' ? safeLocalStorageGet('mealfit_history_dirty_at', null) : null;
+        const dirtyTs = dirtyRaw ? parseInt(dirtyRaw, 10) : 0;
+        if (Number.isFinite(dirtyTs) && dirtyTs >= _prefetchFreshAt) {
+            _prefetchFreshBody = null;
+            _prefetchFreshAt = 0;
+            return null;
+        }
+    } catch { /* sin storage */ }
+    const payload = _prefetchFreshBody;
+    _prefetchFreshBody = null;
+    _prefetchFreshAt = 0;
+    return { ok: true, status: 200, json: async () => payload };
 };
 
 // Helper de testing: limpia todos los caches. NO usar en código de
@@ -366,6 +413,8 @@ export const _resetAllCachesForTests = () => {
     _chunkMetrics.clear();
     _lifetimeLessons.clear();
     _historyListEntry = null;
+    _prefetchFreshBody = null;
+    _prefetchFreshAt = 0;
     // [P3-HIST-LIST-LAZY-HYDRATE · 2026-06-01] Preserva la semántica previa (post-reset
     // los getters devuelven undefined sin re-leer localStorage).
     _historyListHydrated = true;

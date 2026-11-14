@@ -46,7 +46,7 @@ import { splitWithAbsorb, findChunkContaining, parseStartLocal } from '../utils/
 // Historial. Persisten cross-mount del componente <History> para
 // que un usuario que navega entre History ↔ Dashboard no dispare
 // los lazy fetches del modal de cero al volver.
-import { historyCaches, setCachedEntry, hydrateCacheDict, setCachedLifetimeEntry, hydrateLifetimeDict, invalidateCachesForPlan, getCachedHistoryListStale, setCachedHistoryList, invalidateHistoryListCache } from '../utils/historyCaches';
+import { historyCaches, setCachedEntry, hydrateCacheDict, setCachedLifetimeEntry, hydrateLifetimeDict, invalidateCachesForPlan, getCachedHistoryListStale, setCachedHistoryList, invalidateHistoryListCache, consumirPrefetchHistoryList } from '../utils/historyCaches';
 import { resolverSincronizacionModal } from '../utils/historyDeepLink';
 // [P2-HIST-AUDIT-13 · 2026-05-09] SSOT del set de coherence
 // anomalous actions. Mirror de `backend/constants.py::COHERENCE_ANOMALOUS_ACTIONS`.
@@ -835,7 +835,9 @@ const History = () => {
             // del AssessmentContext apareciendo SIN que el History saliera
             // de loading=true). El timeout fuerza al usuario a un empty
             // state + toast en vez de un spinner perpetuo.
-            const response = await Promise.race([
+            const prefetched = await consumirPrefetchHistoryList(signal);
+            if (signal && signal.aborted) return;
+            const response = prefetched || await Promise.race([
                 getHistoryList({ signal }),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_HISTORY_LIST')), 12000)),
             ]);

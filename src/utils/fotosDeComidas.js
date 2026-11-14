@@ -18,6 +18,12 @@
 //  · Dos tamaños: la foto (1024 px de lado, lo mismo que se sube al análisis) y la miniatura cuadrada de 160 px de la
 //    fila. Un formato que el navegador no sabe pintar (HEIC en el escritorio) no se guarda: sin foto, no una rota.
 //  · Nada de esto lanza hacia la interfaz: sin IndexedDB (modo privado, cuota llena) la ficha sale sin foto.
+import {
+    borrarMiniFotoCache,
+    borrarMiniFotosUsuarioCache,
+    guardarMiniFotosCache,
+} from './miniFotosCache';
+
 export const EVENTO_FOTOS_DE_COMIDAS = 'mealfit:fotos-de-comidas';
 export const RETENCION_DIAS = 90;
 export const MAX_FOTOS = 400;
@@ -229,22 +235,31 @@ export async function guardarFotoDeComida(userId, mealId, archivo, { attachmentI
         miniGuardada = { bytes: miniBytes, type: mini.type };
     } catch { return false; }
     // Read + append in ONE transaction: simultaneous uploads must not overwrite each other.
+    let listaCapturada = null;
     const ok = await _conAlmacen('readwrite', (s) => {
         const req = s.get(_clave(userId, mealId));
         req.onsuccess = () => {
             const anterior = req.result;
             const fotos = anexar && anterior?.userId === userId ? _fotos(anterior) : [];
-            if (attachmentId && fotos.some((f) => f.id === attachmentId)) return;
+            if (attachmentId && fotos.some((f) => f.id === attachmentId)) {
+                listaCapturada = fotos;
+                return;
+            }
             // A legacy unlabelled chat picture is replaced by its recoverable gallery, avoiding a duplicate cover.
             const lista = attachmentId ? fotos.filter((f) => f.id) : fotos;
-            if (lista.length >= 4) return;
+            if (lista.length >= 4) {
+                listaCapturada = lista;
+                return;
+            }
             lista.push({ id: attachmentId, foto: fotoGuardada, mini: miniGuardada });
+            listaCapturada = lista;
             s.put({ clave: _clave(userId, mealId), userId, mealId, fotos: lista,
                 foto: lista[0].foto, mini: lista[0].mini, creada: anterior?.creada || Date.now() });
         };
         return true;
     });
     if (ok === null) return false;
+    await _sincronizarMiniCache(userId, mealId, listaCapturada);
     await _podar();
     _avisar(userId);
     return true;
@@ -253,6 +268,35 @@ export async function guardarFotoDeComida(userId, mealId, archivo, { attachmentI
 const _fotos = (reg) => Array.isArray(reg?.fotos) ? reg.fotos : reg?.foto ? [{ id: null, foto: reg.foto, mini: reg.mini }] : [];
 const _blob = (dato) => dato instanceof Blob ? dato
     : dato?.bytes instanceof ArrayBuffer ? new Blob([dato.bytes], { type: dato.type || 'image/jpeg' }) : null;
+
+function _blobADataUrl(blob) {
+    return new Promise((resolve) => {
+        if (typeof FileReader === 'undefined' || !(blob instanceof Blob) || blob.size <= 32) {
+            resolve(null);
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+    });
+}
+
+async function _sincronizarMiniCache(userId, mealId, lista) {
+    if (!Array.isArray(lista)) return;
+    if (!lista.length) {
+        borrarMiniFotoCache(userId, mealId);
+        return;
+    }
+    try {
+        const dataItems = await Promise.all(
+            lista.map(async (f) => ({ id: f.id ?? null, url: await _blobADataUrl(_blob(f.mini)) })),
+        );
+        if (dataItems.some((d) => d.url)) {
+            guardarMiniFotosCache(userId, mealId, dataItems.filter((d) => d.url));
+        }
+    } catch { /* best-effort: IndexedDB sigue siendo la fuente principal */ }
+}
 
 /** Backward-compatible gallery; old single-image meals remain visible. */
 export async function leerFotosDeComida(userId, mealId, tipo = 'foto') {
@@ -292,18 +336,23 @@ export async function idsConFoto(userId) {
 export async function borrarFotoDeComida(userId, mealId) {
     if (!_valido(userId) || !_valido(mealId)) return;
     const hecho = await _conAlmacen('readwrite', (s) => s.delete(_clave(userId, mealId)));
-    if (hecho !== null) _avisar(userId);
+    if (hecho !== null) {
+        borrarMiniFotoCache(userId, mealId);
+        _avisar(userId);
+    }
 }
 
 /** [P1-MULTI-PHOTO-MATCH] Elimina un adjunto específico de una comida (evita fotos mezcladas en multi-foto). */
 export async function removerAdjuntoDeComida(userId, mealId, attachmentId) {
     if (!_valido(userId) || !_valido(mealId) || !attachmentId) return false;
+    let listaCapturada = null;
     const ok = await _conAlmacen('readwrite', (s) => {
         const req = s.get(_clave(userId, mealId));
         req.onsuccess = () => {
             const anterior = req.result;
             if (!anterior || anterior.userId !== userId) return;
             const fotos = _fotos(anterior).filter((f) => f.id !== attachmentId);
+            listaCapturada = fotos;
             if (!fotos.length) {
                 s.delete(_clave(userId, mealId));
             } else {
@@ -317,13 +366,17 @@ export async function removerAdjuntoDeComida(userId, mealId, attachmentId) {
         };
         return true;
     });
-    if (ok !== null) _avisar(userId);
+    if (ok !== null) {
+        await _sincronizarMiniCache(userId, mealId, listaCapturada);
+        _avisar(userId);
+    }
     return true;
 }
 
 /** Al borrar la cuenta: todas las fotos de ese usuario en este dispositivo. */
 export async function borrarFotosDelUsuario(userId) {
     if (!_valido(userId)) return;
+    borrarMiniFotosUsuarioCache(userId);
     try {
         window.localStorage.removeItem(`mealfit_fotos_del_chat:${userId}`);
         window.localStorage.removeItem(`mealfit_fotos_corregidas:${userId}`);
