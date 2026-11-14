@@ -31,6 +31,7 @@ import { resumirMicros, useMicrosSubtitulo } from './microsShared';
 import { formatNumber, formatPercent, useT, useTn } from '../../i18n';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import { macroReferences } from '../../utils/macroReferences';
+import { getCalorieGoalState, resolveMainGoal } from '../../utils/calorieGoalStatus';
 // [P1-PLAN-LOTE-721 · 2026-09-28] La fila abre la ficha del plato; la foto del escáner (solo en este dispositivo) sale
 // en miniatura. El almacén de fotos se importa dinámico dentro del hook: este trozo está en el techo de precache-guard.
 import { useIdsConFoto, useEnlazarFotosDelChat, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
@@ -503,21 +504,10 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
 
     // [BB-024 / P1-CALORIE-BAR-GOAL-SEMANTICS · 2026-11-03]
     // Semántica de la Barra Verde Esmeralda según el objetivo del usuario (BB-001):
-    // Banda de Éxito (Green Zone) entre 90% y 105% (con tolerancia hasta 110%).
-    // Si supera el 110% en modo pérdida de grasa (déficit) o mantenimiento,
-    // pasa de verde a tono ámbar/naranja (#F97316) sin romper la estética.
-    const rawGoal = String(
-        referenceProfile?.mainGoal
-        || planData?.userParams?.mainGoal
-        || planData?.mainGoal
-        || planData?.goal
-        || 'lose_fat'
-    ).toLowerCase();
-    const isMuscle = rawGoal.includes('muscle') || rawGoal.includes('músculo') || rawGoal.includes('musculo');
-    const ratioCal = goalCal > 0 ? (displayedConsumed.calories || 0) / goalCal : 0;
-
-    const isCalorieGreenZone = ratioCal >= 0.90 && (isMuscle ? ratioCal <= 1.15 : ratioCal <= 1.10);
-    const isCalorieOverLimit = isMuscle ? ratioCal > 1.15 : ratioCal > 1.10;
+    // Banda de Éxito (Green Zone) entre 90% y 110% (115% en ganancia muscular).
+    // Si supera el techo, pasa de verde a tono naranja cálido (#F97316).
+    const resolvedMainGoal = resolveMainGoal({ referenceProfile, planData });
+    const calorieState = getCalorieGoalState(displayedConsumed.calories, goalCal, resolvedMainGoal);
 
     let calColor = '#F59E0B';
     let calLightColor = '#FCD34D';
@@ -525,13 +515,13 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     let calIsComplete = false;
     let calStatusOverride = null;
 
-    if (isCalorieGreenZone) {
+    if (calorieState === 'green') {
         calColor = '#10B981';
         calLightColor = '#6EE7B7';
         calGradient = 'linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)';
         calIsComplete = true;
         calStatusOverride = t('Meta del día alcanzada');
-    } else if (isCalorieOverLimit) {
+    } else if (calorieState === 'over') {
         calColor = '#F97316';
         calLightColor = '#FDBA74';
         calGradient = 'linear-gradient(90deg, #FDBA74 0%, #F97316 100%)';
@@ -862,6 +852,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     targetCalories={goalCal}
                     targetMacros={{ protein: goalPro, carbs: goalCarb, fats: goalFat }}
                     targetMicros={microTargets}
+                    mainGoal={resolvedMainGoal}
                 />
             )}
 

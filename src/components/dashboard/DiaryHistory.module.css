@@ -278,6 +278,10 @@
     box-shadow: 0 0 8px rgba(16, 185, 129, 0.45);
 }
 
+.railFillOver {
+    background: linear-gradient(180deg, #FDBA74 0%, #F97316 100%) !important;
+}
+
 .railEmpty {
     background: rgba(148, 163, 184, 0.06);
     border: 1px solid rgba(148, 163, 184, 0.18);
@@ -309,8 +313,37 @@
 
 .quotaTop {
     display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.quotaNumbers {
+    display: inline-flex;
     align-items: baseline;
     gap: 0.45rem;
+}
+
+.quotaCompleteBadge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #047857;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    white-space: nowrap;
+}
+
+:global(html[data-theme="dark"]) .quotaCompleteBadge {
+    color: #6EE7B7;
+    background: rgba(16, 185, 129, 0.14);
+    border-color: rgba(52, 211, 153, 0.35);
 }
 
 .quotaNum {
@@ -389,6 +422,10 @@
 .quotaFillComplete {
     background: linear-gradient(90deg, #34D399, #10B981) !important;
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.quotaFillOver {
+    background: linear-gradient(90deg, #FDBA74, #F97316) !important;
 }
 
 .macroRow {
@@ -1128,6 +1165,10 @@
 
 .calCellDotYellow {
     background: #F59E0B;
+}
+
+.calCellDotOrange {
+    background: #F97316;
 }
 
 .selectedDayHeader {

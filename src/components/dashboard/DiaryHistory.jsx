@@ -41,7 +41,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, ChevronRight, ChevronLeft, Trash2, Loader2, Plus, FlaskConical, Share } from 'lucide-react';
+import { X, CalendarDays, ChevronRight, ChevronLeft, Trash2, Loader2, Plus, FlaskConical, Share, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { confirmToast } from '../../utils/confirmToast';
@@ -56,6 +56,7 @@ import LogMealModal from './LogMealModal';
 import { useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
 import MiniaturaDeComida from './MiniaturaDeComida';
 import { getBiologicalDate, getBiologicalDateStr } from '../../utils/diaBiologico';
+import { getCalorieGoalState, resolveMainGoal } from '../../utils/calorieGoalStatus';
 import styles from './DiaryHistory.module.css';
 
 // [P1-PLAN-LOTE-224 · 2026-09-24] El escáner, igual: perezoso y montado al abrirlo (ver TrackingProgress). Este cajón
@@ -223,12 +224,13 @@ const horaFiable = (meal) => {
 // cosmética — «03:05» y «15:05» son horas distintas para quien espera AM/PM.
 const hhmm = (d) => formatDate(d, { timeStyle: 'short' });
 
-const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacros = {}, targetMicros = null }) => {
+const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacros = {}, targetMicros = null, mainGoal = null }) => {
     const t = useT();
     const tn = useTn();
     const subtituloMicros = useMicrosSubtitulo();
     // [P1-PLAN-LOTE-225] Para pintar el nombre de lo comido del plan en el idioma del usuario (`nombreDeRegistro`).
-    const { planData } = useAssessment() || {};
+    const { planData, formData } = useAssessment() || {};
+    const resolvedMainGoal = resolveMainGoal({ mainGoal, formData, planData });
     // [P1-PLAN-LOTE-162 · 2026-09-22] «Hoy» se recalcula al ABRIR. El cajón vive montado dentro de la tarjeta aunque
     // esté cerrado, así que con `[]` el «hoy» era el del día en que se montó: con la app abierta desde anoche, la tira
     // seguía en ayer y lo que se registraba desde aquí caía en un día desplazado. Al abrir, además, se vuelve a HOY.
@@ -704,7 +706,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                 const conDatos = (r?.meals_count || 0) > 0;
                                 const alto = pct(kcal, targetCalories);
                                 const activo = iso === selected;
-                                const completo = targetCalories > 0 && kcal >= targetCalories;
+                                // [BB-024] Misma Banda de Éxito que TrackingProgress: verde en 90%-110% (115% músculo), naranja si excede.
+                                const estado = getCalorieGoalState(kcal, targetCalories, resolvedMainGoal);
                                 return (
                                     <button
                                         key={iso}
@@ -720,7 +723,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                         <span className={`${styles.rail} ${conDatos ? '' : styles.railEmpty}`}>
                                             {conDatos && (
                                                 <motion.span
-                                                    className={`${styles.railFill} ${completo ? styles.railFillComplete : ''}`}
+                                                    className={`${styles.railFill} ${estado === 'green' ? styles.railFillComplete : estado === 'over' ? styles.railFillOver : ''}`}
                                                     initial={{ height: 0 }}
                                                     animate={{ height: `${Math.max(alto, 8)}%` }}
                                                     transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
@@ -809,7 +812,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     const r = porFecha.get(iso);
                                     const kcal = r?.calories || 0;
                                     const conDatos = (r?.meals_count || 0) > 0;
-                                    const completo = targetCalories > 0 && kcal >= targetCalories;
+                                    const estado = getCalorieGoalState(kcal, targetCalories, resolvedMainGoal);
                                     const activo = iso === selected;
                                     const esHoyDia = iso === hoyISO;
                                     const esFuturo = iso > hoyISO;
@@ -846,7 +849,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                                     <span
                                                         className={`
                                                             ${styles.calCellDot}
-                                                            ${completo ? styles.calCellDotGreen : styles.calCellDotYellow}
+                                                            ${estado === 'green' ? styles.calCellDotGreen : estado === 'over' ? styles.calCellDotOrange : styles.calCellDotYellow}
                                                         `}
                                                     />
                                                 )}
@@ -859,20 +862,34 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     </>
                 )}
 
-                <div className={styles.quota}>
-                    <div className={styles.quotaTop}>
-                        <span className={styles.quotaNum}>{num(totales.calories)}</span>
-                        <span className={styles.quotaOf}>{t('de {kcal} kcal', { kcal: targetCalories })}</span>
-                    </div>
-                    <div className={styles.quotaBar}>
-                        <motion.div
-                            className={`${styles.quotaFill} ${targetCalories > 0 && num(totales.calories) >= targetCalories ? styles.quotaFillComplete : ''}`}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${pct(totales.calories, targetCalories)}%` }}
-                            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                        />
-                    </div>
-                </div>
+                {(() => {
+                    const kcalDia = num(totales.calories);
+                    const quotaEstado = getCalorieGoalState(kcalDia, targetCalories, resolvedMainGoal);
+                    return (
+                        <div className={styles.quota}>
+                            <div className={styles.quotaTop}>
+                                <div className={styles.quotaNumbers}>
+                                    <span className={styles.quotaNum}>{kcalDia}</span>
+                                    <span className={styles.quotaOf}>{t('de {kcal} kcal', { kcal: targetCalories })}</span>
+                                </div>
+                                {quotaEstado === 'green' && (
+                                    <span className={styles.quotaCompleteBadge}>
+                                        <Check size={12} strokeWidth={2.75} aria-hidden="true" />
+                                        {t('Meta del día alcanzada')}
+                                    </span>
+                                )}
+                            </div>
+                            <div className={styles.quotaBar}>
+                                <motion.div
+                                    className={`${styles.quotaFill} ${quotaEstado === 'green' ? styles.quotaFillComplete : quotaEstado === 'over' ? styles.quotaFillOver : ''}`}
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${pct(totales.calories, targetCalories)}%` }}
+                                    transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                                />
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 <div className={styles.macroRow}>
                     {getMacros(t).map((m) => {
@@ -1053,6 +1070,7 @@ DiaryHistory.propTypes = {
     targetCalories: PropTypes.number,
     targetMacros: PropTypes.object,
     targetMicros: PropTypes.object,
+    mainGoal: PropTypes.string,
 };
 
 /** Botón que abre el cajón. Vive junto al componente para que añadirlo a una

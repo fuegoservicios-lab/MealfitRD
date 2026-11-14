@@ -221,4 +221,106 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
             expect(fetchWithAuth).toHaveBeenCalled();
         });
     });
+
+    it('[BB-024] verifica en verde en la tira, barra del día y calendario cuando HOY está en la banda de éxito (2015/2050 kcal = 98%)', async () => {
+        fetchWithAuth.mockImplementation(async (url) => {
+            if (url.includes('/api/diary/consumed-range')) {
+                return respuesta({
+                    days: [
+                        { date: HOY, calories: 2015, protein: 88, carbs: 242, healthy_fats: 82, meals_count: 3 },
+                        { date: AYER, calories: 1500, protein: 90, carbs: 160, healthy_fats: 45, meals_count: 2 },
+                    ],
+                });
+            }
+            if (url.includes(`date=${HOY}`)) {
+                return respuesta({
+                    meals: [
+                        { id: 'h1', meal_name: 'Mangú de plátano verde', meal_type: 'desayuno', calories: 865, protein: 27, carbs: 93, healthy_fats: 45, created_at: _h.toISOString(), consumed_at: _h.toISOString() },
+                        { id: 'h2', meal_name: 'Arroz blanco con carne molida', meal_type: 'almuerzo', calories: 550, protein: 30, carbs: 68, healthy_fats: 17, created_at: _h.toISOString(), consumed_at: _h.toISOString() },
+                        { id: 'h3', meal_name: 'Puré de plátano maduro con pollo', meal_type: 'cena', calories: 600, protein: 31, carbs: 81, healthy_fats: 20, created_at: _h.toISOString(), consumed_at: _h.toISOString() },
+                    ],
+                    totals: { calories: 2015, protein: 88, carbs: 242, healthy_fats: 82 },
+                });
+            }
+            return respuesta({ meals: [], totals: {} });
+        });
+
+        render(
+            <DiaryHistory
+                userId="u-98pct"
+                open={true}
+                onClose={() => {}}
+                targetCalories={2050}
+                targetMacros={{ protein: 134, carbs: 251, fats: 57 }}
+                mainGoal="lose_fat"
+            />
+        );
+
+        await waitFor(() => {
+            expect(document.querySelectorAll('[class*="railFillComplete"]').length).toBeGreaterThanOrEqual(1);
+        });
+        expect(document.querySelector('[class*="quotaFillComplete"]')).not.toBeNull();
+        expect(screen.getByText('Meta del día alcanzada')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /mes/i }));
+        await waitFor(() => {
+            expect(document.querySelector('[class*="calCellDotGreen"]')).not.toBeNull();
+            expect(document.querySelector('[class*="calCellDotYellow"]')).not.toBeNull();
+        });
+    });
+
+    it('[BB-024] distingue exceso (>110% pérdida de grasa = naranja) vs ganancia muscular (<=115% = verde)', async () => {
+        fetchWithAuth.mockImplementation(async (url) => {
+            if (url.includes('/api/diary/consumed-range')) {
+                return respuesta({
+                    days: [{ date: HOY, calories: 2300, protein: 160, carbs: 260, healthy_fats: 70, meals_count: 3 }],
+                });
+            }
+            if (url.includes(`date=${HOY}`)) {
+                return respuesta({
+                    meals: [{ id: 'e1', meal_name: 'Día alto', meal_type: 'almuerzo', calories: 2300, protein: 160, carbs: 260, healthy_fats: 70, created_at: _h.toISOString(), consumed_at: _h.toISOString() }],
+                    totals: { calories: 2300, protein: 160, carbs: 260, healthy_fats: 70 },
+                });
+            }
+            return respuesta({ meals: [], totals: {} });
+        });
+
+        const { rerender } = render(
+            <DiaryHistory
+                userId="u-over"
+                open={true}
+                onClose={() => {}}
+                targetCalories={2050}
+                mainGoal="lose_fat"
+            />
+        );
+
+        await waitFor(() => {
+            expect(document.querySelector('[class*="railFillOver"]')).not.toBeNull();
+        });
+        expect(document.querySelector('[class*="quotaFillOver"]')).not.toBeNull();
+        expect(document.querySelector('[class*="railFillComplete"]')).toBeNull();
+        expect(screen.queryByText('Meta del día alcanzada')).toBeNull();
+
+        fireEvent.click(screen.getByRole('button', { name: /mes/i }));
+        await waitFor(() => {
+            expect(document.querySelector('[class*="calCellDotOrange"]')).not.toBeNull();
+        });
+
+        rerender(
+            <DiaryHistory
+                userId="u-over"
+                open={true}
+                onClose={() => {}}
+                targetCalories={2050}
+                mainGoal="gain_muscle"
+            />
+        );
+
+        await waitFor(() => {
+            expect(document.querySelector('[class*="calCellDotGreen"]')).not.toBeNull();
+            expect(document.querySelector('[class*="quotaFillComplete"]')).not.toBeNull();
+            expect(screen.getByText('Meta del día alcanzada')).toBeInTheDocument();
+        });
+    });
 });
