@@ -51,7 +51,9 @@ describe('lote 152 · la app de Android existe y arranca', () => {
     it('los permisos de cámara van aquí y los de los plugins NO se duplican', () => {
         const m = leer('android/app/src/main/AndroidManifest.xml');
         expect(m).toContain('android.permission.CAMERA');
-        expect(m).toContain('android.permission.READ_MEDIA_IMAGES');
+        // [ANDROID-PLAY-TARGET-36 · 2026-11-13] READ_MEDIA_IMAGES fuera: el selector de fotos no pide permiso y la
+        // política de fotos de Play rechaza declararlo sin necesitar acceso amplio a la galería.
+        expect(m.replace(/<!--[\s\S]*?-->/g, '')).not.toContain('READ_MEDIA_IMAGES');
         // el permiso viejo, acotado: desde Android 13 ya no se concede y sin tope Play lo marca
         expect(m).toMatch(/READ_EXTERNAL_STORAGE"\s+android:maxSdkVersion="32"/);
         // estos los declara su propio plugin; repetirlos aquí es ruido que nadie sabe si puede quitar.
@@ -104,10 +106,23 @@ describe('lote 152 · la app de Android existe y arranca', () => {
         }
     });
 
-    it('targetSdk 34: el borde a borde forzado dejaría la cabecera bajo el reloj', () => {
+    // [ANDROID-PLAY-TARGET-36 · 2026-11-13] Era «targetSdk 34». Con 36 la cabecera no queda bajo el reloj porque
+    // MainActivity aparta la WebView (lote170.test.js lo ancla).
+    it('targetSdk 36: lo que Play exige, con la razón del borde a borde escrita donde se decide', () => {
         const v = leer('android/variables.gradle');
         const target = Number(/targetSdkVersion\s*=\s*(\d+)/.exec(v)[1]);
-        expect(target).toBeLessThanOrEqual(34);
-        expect(v).toContain('env(safe-area-inset-*)');   // la razón, escrita donde se decide
+        expect(target).toBeGreaterThanOrEqual(36);
+        expect(v).toContain('env(safe-area-inset-*)');
+        expect(v).toContain('apartarDeBarrasYTeclado');
+    });
+
+    it('el paquete de Play: AAB firmado, con la depuración del WebView cerrada', () => {
+        const cm = leer('codemagic.yaml');
+        const play = cm.slice(cm.indexOf('  android-play:'), cm.indexOf('  ios-testflight:'));
+        expect(play).toContain('BIOBOROS_TIENDA: 1');
+        expect(play).toContain('./gradlew bundleRelease');
+        expect(play).toContain('android/app/build/outputs/**/*.aab');
+        expect(play).toContain('android_signing:');
+        expect(leer('capacitor.config.ts')).toContain("webContentsDebuggingEnabled: process.env.BIOBOROS_TIENDA !== '1',");
     });
 });

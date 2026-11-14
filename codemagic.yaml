@@ -107,6 +107,68 @@ workflows:
     artifacts:
       - android/app/build/outputs/**/*.apk
 
+  # [ANDROID-PLAY-TARGET-36 · 2026-11-13] Android → AAB para Google Play.
+  #
+  # Play no acepta APK: pide un Android App Bundle (.aab) de RELEASE, firmado. Lo que cambia respecto al flujo de
+  # testers de arriba, y nada más:
+  #   1. `bundleRelease` en vez de `assembleDebug`, y el artefacto es el .aab.
+  #   2. `BIOBOROS_TIENDA=1`: `capacitor.config.ts` cierra la depuración del WebView (en el APK de testers va abierta).
+  #   3. La MISMA clave (`bioboros_testers`), que aquí hace de CLAVE DE SUBIDA. Play vuelve a firmar con la suya
+  #      (Play App Signing), así que la huella que ve Google en el teléfono es OTRA: hay que copiar el SHA-1 de
+  #      Play Console → Integridad de la app → Firma de apps y añadirlo al cliente OAuth de Android (Google Cloud)
+  #      y a Firebase, o «Continuar con Google» falla solo en la versión de la tienda.
+  # El .aab se sube A MANO en Play Console (sin integración: pediría una cuenta de servicio). Sin `triggering`.
+  android-play:
+    name: Android → AAB (Google Play)
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+
+    environment:
+      node: 22
+      java: 21
+      vars:
+        BIOBOROS_TIENDA: 1
+      android_signing:
+        - bioboros_testers
+
+    scripts:
+      - name: Dependencias web (lockfile, reproducible)
+        script: npm ci
+
+      - name: Build web para el BINARIO
+        script: npm run build:native
+
+      - name: Sanidad del bundle nativo
+        script: |
+          set -e
+          if grep -rqE --include="*.js" "P-[0-9A-Z]{24,26}" dist/assets/; then
+            echo "ERROR: hay plan IDs de PayPal dentro del bundle nativo"; exit 1
+          fi
+          if ! grep -rq "https://app.bioboros.com" dist/assets/; then
+            echo "ERROR: el bundle no lleva la API absoluta (VITE_API_BASE_URL)"; exit 1
+          fi
+          echo "bundle nativo OK"
+
+      - name: Capacitor sync
+        script: npx cap sync android
+
+      - name: La depuración del WebView va cerrada
+        script: |
+          set -e
+          if grep -q '"webContentsDebuggingEnabled": true' android/app/src/main/assets/capacitor.config.json; then
+            echo "ERROR: el paquete de Play saldría con la depuración del WebView abierta"; exit 1
+          fi
+
+      - name: AAB
+        script: |
+          set -e
+          chmod +x ./gradlew
+          ./gradlew bundleRelease
+        working_directory: android
+
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+
   ios-testflight:
     name: iOS → TestFlight
     # Apple Silicon. Xcode lo fija Codemagic; si un build rompe por versión de Xcode,

@@ -87,13 +87,14 @@
            · @capacitor/haptics → VIBRATE.
          @capacitor/camera NO trae manifiesto: sus permisos son estos tres y son nuestros.
 
-         READ_MEDIA_IMAGES y READ_EXTERNAL_STORAGE son la MISMA necesidad en dos épocas de Android: elegir una
-         foto de la galería para el escáner. Desde Android 13 (API 33) el permiso viejo ya no se concede, y por
-         eso el viejo lleva `maxSdkVersion="32"`: sin ese tope, Play lo marca como permiso amplio innecesario.
+         READ_EXTERNAL_STORAGE: elegir una foto de la galería en Android 9 o anterior (el plugin solo lo exige
+         ahí). Lleva `maxSdkVersion="32"`: sin ese tope, Play lo marca como permiso amplio innecesario.
+         [ANDROID-PLAY-TARGET-36 · 2026-11-13] READ_MEDIA_IMAGES se QUITÓ: la galería se abre con el selector de
+         fotos de Android (`chooseFromGallery`), que no pide permiso, y el plugin nunca lo solicita. La política de
+         fotos de Play rechaza las apps que lo declaran sin necesitar acceso amplio a la galería.
          No pedimos WRITE_EXTERNAL_STORAGE: la app no guarda nada en la galería (en iOS sí existe
          NSPhotoLibraryAddUsageDescription, pero es para el mismo caso que aquí no aplica). -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
     <!-- La cámara es OPCIONAL: sin esto, Play Store esconde la app a las tablets sin cámara, y el escáner es

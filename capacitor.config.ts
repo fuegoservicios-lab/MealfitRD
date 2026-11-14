@@ -52,7 +52,10 @@ const config: CapacitorConfig = {
     backgroundColor: '#0b0b0b',
     // El WebView de Android permite depurar con Chrome DevTools solo si se pide. Con 5 testers y sin poder
     // tocarles el teléfono, poder mirar la consola por USB vale más que esconderla.
-    webContentsDebuggingEnabled: true,
+    // [ANDROID-PLAY-TARGET-36 · 2026-11-13] Solo en el APK de testers. El paquete de Play (flujo `android-play`,
+    // que exporta BIOBOROS_TIENDA=1) sale con la depuración cerrada: en una app pública, cualquiera con un cable
+    // podría leer la sesión de un teléfono desbloqueado.
+    webContentsDebuggingEnabled: process.env.BIOBOROS_TIENDA !== '1',
   },
   plugins: {
     // [P1-PLAN-LOTE-300] Con la app DELANTE, iOS no pinta la push: la pinta la app como aviso local (native/pushNativa.js),
@@ -83,7 +86,11 @@ const config: CapacitorConfig = {
     // con el teclado. Nada en la web lee las `--safe-area-inset-*` que inyectaba el modo 'css'. Solo Android (iOS lo
     // ignora) y solo con un binario nuevo: APK 104. Si en un futuro subes targetSdk a 35, esto hay que revisarlo:
     // ahí Android impone el borde a borde y alguien tiene que volver a manejar los márgenes.
-    SystemBars: { insetsHandling: 'disable' },
+    // [ANDROID-PLAY-TARGET-36 · 2026-11-13] Ya es 36 y quien maneja los márgenes es `MainActivity` (un padding que
+    // deja la WebView entre las barras y la encoge con el teclado). 'disable' SIGUE: el escuchador de Capacitor y el
+    // nuestro no pueden convivir. `style: 'DARK'` = iconos claros en la barra de estado, que ahora es transparente
+    // sobre el negro de la ventana; con el estilo por defecto, un teléfono en tema claro los pintaba oscuros.
+    SystemBars: { insetsHandling: 'disable', style: 'DARK' },
   },
 };
 

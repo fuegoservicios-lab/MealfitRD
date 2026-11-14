@@ -16,14 +16,23 @@ describe('lote 170 · el teclado de Android', () => {
     it('SystemBars sin escuchador de márgenes, y el adjustResize de Android sigue declarado', () => {
         const cap = leer('capacitor.config.ts');
         const plugins = cap.slice(cap.indexOf('plugins: {'));
-        expect(plugins).toContain("SystemBars: { insetsHandling: 'disable' },");
+        expect(plugins).toContain("SystemBars: { insetsHandling: 'disable', style: 'DARK' },");
         expect(leer('android/app/src/main/AndroidManifest.xml')).toContain('android:windowSoftInputMode="adjustResize"');
     });
 
-    it('solo es seguro sin borde a borde: targetSdk ≤ 34 (con 35 Android lo impone y hay que repensar los márgenes)', () => {
+    // [ANDROID-PLAY-TARGET-36 · 2026-11-13] Era «targetSdk ≤ 34»: Play exige 36 y ahí Android impone el borde a borde.
+    // Lo que este test protege no cambió —la WebView se ENCOGE con el teclado—; cambió quién lo hace: MainActivity.
+    it('targetSdk 36 (Play) y MainActivity aparta la WebView de las barras y del teclado', () => {
         const target = Number(/targetSdkVersion\s*=\s*(\d+)/.exec(leer('android/variables.gradle'))[1]);
-        expect(target).toBeLessThanOrEqual(34);
-        expect(leer('android/app/src/main/java/com/bioboros/app/MainActivity.java')).not.toMatch(/setDecorFitsSystemWindows|EdgeToEdge/);
+        expect(target).toBeGreaterThanOrEqual(36);
+        const actividad = leer('android/app/src/main/java/com/bioboros/app/MainActivity.java');
+        expect(actividad).not.toMatch(/setDecorFitsSystemWindows|EdgeToEdge/);
+        expect(actividad).toContain('setOnApplyWindowInsetsListener');
+        // el teclado entra en el padding: sin esto la caja de escribir queda tapada (el fallo del lote 170)
+        expect(actividad).toContain('Math.max(barras.bottom, teclado.bottom)');
+        // y a la WebView le llega en cero: si le llega, Chromium se encoge otra vez
+        expect(actividad).toContain('.setInsets(WindowInsetsCompat.Type.ime(), Insets.NONE)');
+        expect(actividad).not.toContain('WindowInsetsCompat.CONSUMED;');
     });
 
     it('la red del formulario no ve un teclado que no encoge la WebView; con adjustResize, sí', () => {
