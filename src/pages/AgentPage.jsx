@@ -651,6 +651,8 @@ const AgentPage = () => {
     // haya llegado. Guarda la acción ejecutada en el gesto inicial para no repetirla si
     // WebKit sí termina emitiendo click en algún dispositivo/versión.
     const appComposerGestureRef = useRef({ action: null, expiresAt: 0 });
+    // [MENU-FOTO-REANCLA] Dónde empezó el toque sobre el atajo «Escanear» (para no abrir el menú si fue un deslizamiento).
+    const escanearToqueRef = useRef(null);
     // [P1-KB-CERROJO-DE-CIERRE] Activo desde que el campo pierde el foco hasta que la
     // geometria confirma que el teclado se fue. Ver el porque, medido, en el handler.
     const cerrandoRef = useRef(false);
@@ -5012,14 +5014,33 @@ const AgentPage = () => {
                             type="button"
                             className={a.tipo === 'accion' ? 'chat-quick-chip chat-quick-chip-accion' : 'chat-quick-chip'}
                             // [MENU-FOTO-REANCLA] Con el teclado abierto, «Escanear» no le quita el foco al cuadro de
-                            // texto (como el «+»): el teclado se queda y el menú se ancla al «+» sin que nada se mueva.
-                            // Se abre en el click (no en pointerdown) para que deslizar la fila de atajos no lo abra.
+                            // texto, igual que el «+»: el teclado se queda y el menú se ancla al «+». En iOS el foco se
+                            // mueve al LEVANTAR el dedo (el click que WebKit sintetiza tras `touchend`): anular solo el
+                            // `pointerdown` no bastaba (el dueño lo probó con el OTA puesto). Se anula el `touchend` y el
+                            // menú se abre ahí mismo, solo si el dedo no se desplazó (deslizar la fila de atajos no abre
+                            // nada; durante un desplazamiento el `touchend` ni siquiera es cancelable).
                             onPointerDown={a.accion === 'escanear' ? (event) => {
+                                escanearToqueRef.current = null;
                                 if (!isAppKeyboardPointer(event)) return;
                                 prepareAttachmentPickerGesture();
+                                escanearToqueRef.current = { x: event.clientX, y: event.clientY, movido: false };
                                 event.preventDefault();
                             } : undefined}
+                            onPointerMove={a.accion === 'escanear' ? (event) => {
+                                const toque = escanearToqueRef.current;
+                                if (toque && Math.hypot(event.clientX - toque.x, event.clientY - toque.y) > 10) toque.movido = true;
+                            } : undefined}
+                            onMouseDown={a.accion === 'escanear' ? keepComposerFocus : undefined}
+                            onTouchEnd={a.accion === 'escanear' ? (event) => {
+                                const toque = escanearToqueRef.current;
+                                escanearToqueRef.current = null;
+                                if (!toque || toque.movido || !event.cancelable) return;
+                                event.preventDefault();
+                                markAppComposerGesture('escanear');
+                                void openAttachmentPicker();
+                            } : undefined}
                             onClick={() => {
+                                if (a.accion === 'escanear' && consumeAppComposerClick('escanear')) return;
                                 if (a.tipo === 'accion') {
                                     if (a.accion === 'escanear') {
                                         void openAttachmentPicker();
