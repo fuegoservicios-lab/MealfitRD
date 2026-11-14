@@ -147,9 +147,10 @@ describe('lote 166 · el OTA se confirma al pintar', () => {
 });
 
 describe('lote 166 · beta nativa', () => {
-    it('el menú muestra el paquete OTA que corre', () => {
+    it('el sidebar no muestra el chip de versión bajo Bioboros', () => {
         const d = leer('src/components/dashboard/DashboardLayout.jsx');
-        expect(d).toContain('v{APP_VERSION}{_otaId ? ` · ${_otaId}` : \'\'}');
+        expect(d).not.toContain('styles.version');
+        expect(d).not.toContain('v{APP_VERSION}');
     });
     it('exportar en la app nativa no promete una descarga', () => {
         const s = leer('src/pages/Settings.jsx');

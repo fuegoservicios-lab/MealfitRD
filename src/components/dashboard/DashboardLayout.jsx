@@ -39,9 +39,6 @@ import { apexUrl } from '../../config/site';
 // [P2-HELP-CHATBOT · 2026-07-04] Chatbot de ayuda ("Obtener ayuda"). Lazy:
 // solo carga su chunk cuando el usuario lo abre.
 const HelpChatWidget = lazy(() => import('./HelpChatWidget'));
-// [P1-APP-VERSION · 2026-06-19] Versión visible bajo el wordmark (SSOT en config).
-import { APP_VERSION } from '../../config/appVersion';
-import { otaOwnId } from '../../native/liveUpdate';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatar minimalista elegido en Ajustes, reflejado
 // en el botón de cuenta del sidebar y sincronizado en vivo vía avatarStore.
 import { MinimalAvatar } from '../avatars/minimalAvatars';
@@ -69,11 +66,6 @@ import styles from './DashboardLayout.module.css';
 import Wordmark from '../common/Wordmark';
 import NotaAvisoMedico from '../common/NotaAvisoMedico';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-
-// [P1-PLAN-LOTE-166 · 2026-09-22] En la app nativa, el id del paquete OTA junto a la versión: «¿qué versión tienes?» se
-// contesta abriendo el menú. `v1.0.0` era el mismo en los APK 100, 101 y 102 y en todos los paquetes; en la web el id
-// es '' (solo el build nativo lo lleva) y no se pinta nada.
-const _otaId = otaOwnId();
 
 const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const t = useT();
@@ -262,19 +254,15 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
             {/* Sidebar */}
             <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div className={styles.brandStack}>
-                        {/* [2026-08-14] SOLO el wordmark. Se probó el isotipo al lado
-                            (en índigo y en monocromo, ambas desplegadas) y el dueño
-                            decidió quedarse con el nombre a secas. El símbolo, su
-                            componente y su PNG se borraron con él: un asset sin
-                            consumidor es peso muerto — es la razón por la que la
-                            auditoría del landing lo había borrado esta misma mañana.
-                            Si vuelve a pedirse, está en el historial (commit 9725f93). */}
-                        <div className={styles.logo}>
-                            <Wordmark />
-                        </div>
-                        {/* [P1-APP-VERSION · 2026-06-19] Versión minimalista (estilo Anthropic) bajo el wordmark. */}
-                        <span className={styles.version}>v{APP_VERSION}{_otaId ? ` · ${_otaId}` : ''}</span>
+                    {/* [2026-08-14] SOLO el wordmark. Se probó el isotipo al lado
+                        (en índigo y en monocromo, ambas desplegadas) y el dueño
+                        decidió quedarse con el nombre a secas. El símbolo, su
+                        componente y su PNG se borraron con él: un asset sin
+                        consumidor es peso muerto — es la razón por la que la
+                        auditoría del landing lo había borrado esta misma mañana.
+                        Si vuelve a pedirse, está en el historial (commit 9725f93). */}
+                    <div className={styles.logo}>
+                        <Wordmark />
                     </div>
                     {showMedicalNotice && !isMobileHeader && <NotaAvisoMedico />}
                     {/* Close button for mobile inside sidebar */}
