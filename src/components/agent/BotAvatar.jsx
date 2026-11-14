@@ -2,32 +2,30 @@ import { useId } from 'react';
 import { useReducedMotion } from 'framer-motion';
 
 /**
- * [P3-BOT-AVATAR-3D · 2026-06-19 · v2] Avatar del agente como ORBE 3D glossy.
- *   - Esfera con sombreado radial (3D) + brillo glossy + sombra de contacto.
- *   - Ojos NÍTIDOS de alto contraste: blancos amplios + pupilas oscuras crujientes
- *     + catchlight (puntito blanco) que les da vida y definición.
- *   - Antena con punta teal (acento de marca).
- *   - `thinking`: animación "pensando" (antena con glow pulsante + pupilas que miran
- *     alrededor + cabeceo suave). `float`: bob sutil para el avatar grande de bienvenida.
- * Respeta prefers-reduced-motion. `useId` → gradientes únicos por instancia.
+ * [COACH-EMBLEMA · 2026-11-13] El emblema del coach: un anillo abierto que se cierra sobre sí mismo (el «boros» de
+ * Bioboros), dentro de un disco sobrio. Sustituye al robot de ojos saltones (P3-BOT-AVATAR-3D), que el dueño vio
+ * denigrante para un coach clínico: una cara de juguete al lado de cifras de salud.
+ *
+ *   - reposo: el anillo quieto.
+ *   - `float` (bienvenida): gira muy despacio, como respirando.
+ *   - `thinking` (el coach trabaja): el anillo gira y su cabeza brilla; un halo late detrás.
+ *
+ * Colores por tokens del tema (`--primary`, `--secondary`): se ve bien en claro y en oscuro sin tocar nada.
+ * Respeta prefers-reduced-motion. La API (`size`, `float`, `thinking`, `style`, `className`) no cambió.
  */
 export default function BotAvatar({ size = 36, float = false, thinking = false, style, className }) {
     const reduce = useReducedMotion();
     const uid = useId().replace(/[:]/g, '');
-    const gSphere = `bsph-${uid}`;
-    const gGloss = `bgl-${uid}`;
-    const gShade = `bsh-${uid}`;
+    const gAro = `cmk-aro-${uid}`;
     const anim = !reduce;
     const doThink = thinking && anim;
     const doFloat = float && anim && !doThink;
 
-    const eyeAnim = doThink ? { animation: 'botPupilLook 3s ease-in-out infinite' } : undefined;
-    const antGlowAnim = doThink ? { animation: 'botAntGlow 1.3s ease-in-out infinite' } : undefined;
-    const svgAnim = doThink
-        ? { animation: 'botOrbThink 2.6s ease-in-out infinite', transformOrigin: 'center' }
+    const giro = doThink
+        ? { animation: 'coachAroGira 1.5s cubic-bezier(.6,.15,.4,.85) infinite', transformOrigin: '24px 24px' }
         : doFloat
-            ? { animation: 'botOrbFloat 3.2s ease-in-out infinite' }
-            : undefined;
+            ? { animation: 'coachAroGira 16s linear infinite', transformOrigin: '24px 24px' }
+            : { transformOrigin: '24px 24px', transform: 'rotate(-28deg)' };
 
     return (
         <svg
@@ -37,61 +35,50 @@ export default function BotAvatar({ size = 36, float = false, thinking = false, 
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             className={className}
-            style={{ display: 'block', overflow: 'visible', ...svgAnim, ...style }}
+            style={{ display: 'block', overflow: 'visible', ...style }}
             aria-hidden="true"
         >
             {(doThink || doFloat) && (
                 <style>{
-                    '@keyframes botOrbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}'
-                    + '@keyframes botOrbThink{0%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-1.6px) rotate(-3.5deg)}75%{transform:translateY(-1.6px) rotate(3.5deg)}}'
-                    + '@keyframes botAntGlow{0%,100%{opacity:.3}50%{opacity:.78}}'
-                    + '@keyframes botPupilLook{0%,18%{transform:translate(0,0)}30%,44%{transform:translate(-1.5px,-.4px)}56%,70%{transform:translate(1.5px,-.2px)}82%,100%{transform:translate(0,.5px)}}'
+                    '@keyframes coachAroGira{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}'
+                    + '@keyframes coachHaloLate{0%,100%{opacity:.0;transform:scale(.86)}50%{opacity:.38;transform:scale(1.08)}}'
+                    + '@keyframes coachCabezaBrilla{0%,100%{opacity:.55}50%{opacity:1}}'
                 }</style>
             )}
             <defs>
-                <radialGradient id={gSphere} cx="38%" cy="30%" r="80%">
-                    <stop offset="0%" stopColor="#C7D2FE" />
-                    <stop offset="42%" stopColor="#6366F1" />
-                    <stop offset="100%" stopColor="#3730A3" />
-                </radialGradient>
-                <radialGradient id={gGloss} cx="34%" cy="26%" r="42%">
-                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.92" />
-                    <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-                </radialGradient>
-                <radialGradient id={gShade} cx="50%" cy="82%" r="60%">
-                    <stop offset="0%" stopColor="#140e3c" stopOpacity="0.5" />
-                    <stop offset="100%" stopColor="#140e3c" stopOpacity="0" />
-                </radialGradient>
+                <linearGradient id={gAro} x1="10" y1="12" x2="38" y2="38" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" style={{ stopColor: 'var(--primary-light, #818CF8)' }} />
+                    <stop offset="55%" style={{ stopColor: 'var(--primary, #4F46E5)' }} />
+                    <stop offset="100%" style={{ stopColor: 'var(--secondary, #10B981)' }} />
+                </linearGradient>
             </defs>
 
-            {/* sombra de contacto */}
-            <ellipse cx="24" cy="45.5" rx="12" ry="2.3" fill="#000" opacity="0.22" />
+            {/* halo: solo late mientras piensa */}
+            {doThink && (
+                <circle cx="24" cy="24" r="23" style={{
+                    fill: 'var(--primary, #4F46E5)', transformOrigin: '24px 24px',
+                    animation: 'coachHaloLate 2.2s ease-in-out infinite',
+                }} />
+            )}
 
-            {/* antena: tallo + glow (pulsa al pensar) + punta teal */}
-            <line x1="24" y1="3.2" x2="24" y2="6.8" stroke="#C7D2FE" strokeWidth="1.6" strokeLinecap="round" />
-            <circle cx="24" cy="2.4" r="3.6" fill="#5EEAD4" opacity="0.3" style={antGlowAnim} />
-            <circle cx="24" cy="2.4" r="1.85" fill="#5EEAD4" />
+            {/* disco */}
+            <circle cx="24" cy="24" r="22" style={{
+                fill: 'color-mix(in srgb, var(--primary, #4F46E5) 9%, var(--bg-card, #fff))',
+                stroke: 'color-mix(in srgb, var(--primary, #4F46E5) 26%, transparent)',
+            }} strokeWidth="1" />
 
-            {/* esfera 3D */}
-            <circle cx="24" cy="24" r="18" fill={`url(#${gSphere})`} />
-            <circle cx="24" cy="24" r="18" fill={`url(#${gShade})`} />
-
-            {/* brillo glossy */}
-            <ellipse cx="18" cy="16" rx="8" ry="6" fill={`url(#${gGloss})`} />
-
-            {/* OJOS — blancos amplios + pupilas oscuras nítidas + catchlight.
-                Al pensar, el grupo de pupilas mira alrededor. */}
-            <circle cx="18.5" cy="25" r="3.8" fill="#fff" />
-            <circle cx="29.5" cy="25" r="3.8" fill="#fff" />
-            <g style={eyeAnim}>
-                <circle cx="18.5" cy="25.1" r="1.95" fill="#1e1b4b" />
-                <circle cx="29.5" cy="25.1" r="1.95" fill="#1e1b4b" />
-                <circle cx="17.65" cy="24.2" r="0.72" fill="#fff" />
-                <circle cx="28.65" cy="24.2" r="0.72" fill="#fff" />
+            {/* anillo abierto + cabeza */}
+            <g style={giro}>
+                <circle
+                    cx="24" cy="24" r="11.5"
+                    stroke={`url(#${gAro})`} strokeWidth="3.6" strokeLinecap="round"
+                    strokeDasharray="56 16.3" fill="none"
+                />
+                <circle cx="35.5" cy="24" r="2.5" style={{
+                    fill: 'var(--secondary-light, #34D399)',
+                    ...(doThink ? { animation: 'coachCabezaBrilla 1.5s ease-in-out infinite' } : null),
+                }} />
             </g>
-
-            {/* sonrisa */}
-            <path d="M20.5 30.8 Q24 33.4 27.5 30.8" stroke="#fff" strokeOpacity="0.9" strokeWidth="1.7" strokeLinecap="round" fill="none" />
         </svg>
     );
 }

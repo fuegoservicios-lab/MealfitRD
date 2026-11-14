@@ -41,7 +41,7 @@ import React from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { Loader2 } from 'lucide-react';
 import { MemoizedMessageBubble } from './MessageBubble';
-import BotAvatar from './BotAvatar';
+import CoachPensando from './CoachPensando';
 // [P2-AGENT-VIRTUOSO-LAZY · 2026-05-31] El threshold vive en su propio módulo
 // liviano para que AgentPage lo lea sin importar este archivo (y con él
 // react-virtuoso). Re-exportado aquí para back-compat de cualquier importador.
@@ -72,8 +72,6 @@ export const VirtualizedMessageList = React.forwardRef(({
     onErrorRetry,
     isLoading,
     streamingStatus,
-    loadingPhrases,
-    loadingPhraseIdx,
     onAtBottomChange,
 }, ref) => {
     const t = useT();
@@ -103,32 +101,9 @@ export const VirtualizedMessageList = React.forwardRef(({
     }, [onAtBottomChange]);
     const Footer = React.useCallback(() => {
         if (!isLoading) return null;
-        return (
-            <div style={{
-                display: 'flex',
-                gap: '0.75rem',
-                alignItems: 'center',
-                color: 'var(--text-muted)',
-                padding: '0.5rem 0 0.5rem 1.5rem',
-                marginBottom: '3.5rem',
-                fontSize: '0.95rem',
-                fontWeight: 500,
-                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-            }}>
-                <BotAvatar size={34} thinking style={{ flexShrink: 0 }} />
-                <span style={{
-                    background: 'linear-gradient(90deg, #475569 0%, #94a3b8 50%, #475569 100%)',
-                    backgroundSize: '200% auto',
-                    color: 'transparent',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    animation: 'shimmer 2s linear infinite',
-                }}>
-                    {streamingStatus || (loadingPhrases?.[loadingPhraseIdx] ?? t('Pensando...'))}
-                </span>
-            </div>
-        );
-    }, [isLoading, streamingStatus, loadingPhrases, loadingPhraseIdx, t]);
+        // [COACH-EMBLEMA · 2026-11-13] La misma fila de espera que la lista sin virtualizar (CoachPensando.jsx).
+        return <CoachPensando status={streamingStatus || null} style={{ padding: '0.5rem 0 0.5rem 1.5rem', marginBottom: '3.5rem' }} />;
+    }, [isLoading, streamingStatus]);
 
     const itemContent = React.useCallback((index, msg) => (
         <ItemContent

@@ -25,6 +25,7 @@ import { ChatStopButton } from '../components/agent/ChatStopButton';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 // [P3-BOT-AVATAR-3D · 2026-06-19] Avatar del agente = orbe 3D glossy de alto contraste.
 import BotAvatar from '../components/agent/BotAvatar';
+import CoachPensando from '../components/agent/CoachPensando';
 // [P1-CHAT-VIRTUALIZE · 2026-05-19] Lista virtualizada para sesiones
 // >VIRTUALIZE_THRESHOLD mensajes (default 100).
 // [P2-AGENT-VIRTUOSO-LAZY · 2026-05-31] El threshold se lee desde su módulo
@@ -2201,7 +2202,6 @@ const AgentPage = () => {
     };
     // -------------------------------------------
 
-    const [loadingPhraseIdx, setLoadingPhraseIdx] = useState(0);
     // [P1-PLAN-LOTE-165 · 2026-09-22] La frase de cada FASE del turno, traducida. El backend elige su frase de una lista
     // española (`agent.py:get_progress_msg`) y aquí se pintaba tal cual: en inglés, francés, italiano o portugués el
     // coach decía «Procesando tu solicitud detalladamente…» en cada turno. Ahora el evento trae `phase` y se pinta la
@@ -2216,27 +2216,6 @@ const AgentPage = () => {
         calculando_compras: t('Calculando tu lista de compras…'),
         buscando_memoria: t('Buscando en tu memoria…'),
     };
-    const loadingPhrases = [
-        t("Revisando tus preferencias y contexto..."),
-        t("Evaluando tu perfil y macros..."),
-        t("Analizando tu objetivo con Inteligencia Nutricional..."),
-        t("Alineando tu genética con el plan..."),
-        t("Calculando la mejor respuesta metabólica...")
-    ];
-
-    useEffect(() => {
-        let interval;
-        if (isLoading) {
-            interval = setInterval(() => {
-                setLoadingPhraseIdx(prev => (prev + 1) % loadingPhrases.length);
-            }, 2500); // Rotar cada 2.5s
-        } else {
-            setLoadingPhraseIdx(0);
-        }
-        return () => clearInterval(interval);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoading]);
-
     const handleFileSelect = (e) => {
         addFiles(e.target.files);
     };
@@ -6460,8 +6439,6 @@ const AgentPage = () => {
                                             onErrorRetry={retryErrorMessage}
                                             isLoading={isLoading}
                                             streamingStatus={streamingStatus}
-                                            loadingPhrases={loadingPhrases}
-                                            loadingPhraseIdx={loadingPhraseIdx}
                                             onAtBottomChange={handleVirtualizedAtBottomChange}
                                         />
                                     </Suspense>
@@ -6501,54 +6478,15 @@ const AgentPage = () => {
                                     ))
                                 )}
                                 {(isLoading || recoveringTurn) && (
-                                    <div style={{
-                                        display: 'flex',
-                                        gap: '0.75rem',
-                                        alignItems: 'center',
-                                        color: 'var(--text-muted)',
-                                        padding: '0.5rem 0 0.5rem 1.5rem',
-                                        // [P1-CHAT-MOBILE-FIT · 2026-08-10] Eran 3,5rem
-                                        // (56px) sin razón escrita, y esta fila es el
-                                        // ÚLTIMO elemento antes del final del scroll: caían
-                                        // justo en el tramo vacío de la captura. Con la
-                                        // lista ya anclada abajo, este margen pasa de ser
-                                        // parte del hueco a ser el único separador visible
-                                        // — por eso se reduce, no se elimina.
-                                        marginBottom: '1rem',
-                                        fontSize: '0.95rem',
-                                        fontWeight: 500
-                                    }}>
-                                        {/* [P3-BOT-AVATAR-3D · 2026-06-19 v2] Avatar "pensando":
-                                            antena con glow pulsante + pupilas mirando alrededor +
-                                            cabeceo. Reemplaza el pulse de opacidad del row (mudaba
-                                            la animación del avatar). */}
-                                        <BotAvatar size={34} thinking style={{ flexShrink: 0 }} />
-                                        <div className="typing-dots-container" style={{ display: 'none' }}>
-                                            <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out infinite' }} />
-                                            <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out 0.2s infinite' }} />
-                                            <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out 0.4s infinite' }} />
-                                        </div>
-                                        <span className="loading-text-desktop" style={{
-                                            background: 'linear-gradient(90deg, #475569 0%, #94a3b8 50%, #475569 100%)',
-                                            backgroundSize: '200% auto',
-                                            color: 'transparent',
-                                            WebkitBackgroundClip: 'text',
-                                            WebkitTextFillColor: 'transparent',
-                                            animation: 'shimmer 2s linear infinite',
-                                            transition: 'opacity 0.3s ease-in-out'
-                                        }}>{recoveringTurn && !isLoading
-                                            ? t('Recuperando tu respuesta…')
-                                            /* [P1-I18N-DASHBOARD · 2026-08-15] El estado de la foto se
-                                               reconoce comparándolo con su PROPIA traducción, no con el
-                                               prefijo español: al traducirse el texto que escribe
-                                               `setStreamingStatus`, un `startsWith('Analizando tu foto')`
-                                               dejaría de casar en cualquier idioma que no sea es-DO y el
-                                               aviso caería a las frases genéricas justo donde más importa
-                                               (el análisis tarda hasta un minuto). Es el único
-                                               `streamingStatus` que se PINTA; los demás solo se usan como
-                                               señal de «hay algo en curso». */
-                                            : (streamingStatus || loadingPhrases[loadingPhraseIdx] || t('Pensando...'))}</span>
-                                    </div>
+                                    /* [COACH-EMBLEMA · 2026-11-13] La espera dice solo cosas ciertas: el estado que
+                                       reporta el servidor (`streamingStatus`, ya traducido por fase) o, sin él, una
+                                       frase por tiempo transcurrido. Ver CoachPensando.jsx.
+                                       [P1-CHAT-MOBILE-FIT · 2026-08-10] El margen inferior es 1rem (eran 3,5rem): esta
+                                       fila es el ÚLTIMO elemento antes del final del scroll. */
+                                    <CoachPensando
+                                        status={recoveringTurn && !isLoading ? t('Recuperando tu respuesta…') : (streamingStatus || null)}
+                                        style={{ padding: '0.5rem 0 0.5rem 1.5rem', marginBottom: '1rem' }}
+                                    />
                                 )}
                                 {/* El sentinel no es un mensaje: cancela el gap de 2rem que
                                     Flex añadiría después del último turno real. */}
@@ -7057,21 +6995,6 @@ const AgentPage = () => {
                     }
                     .suggestion-pill-icon {
                         font-size: 1.5rem !important;
-                    }
-                    /* --- Loading typing dots --- */
-                    .typing-dots-container {
-                        display: flex !important;
-                        gap: 0.3rem;
-                        align-items: center;
-                        padding: 0.5rem 0;
-                    }
-                    .typing-dot {
-                        width: 8px; height: 8px;
-                        border-radius: 50%;
-                        background: #94a3b8;
-                    }
-                    .loading-text-desktop {
-                        display: none !important;
                     }
                     /* --- Sidebar --- */
                     .agent-sidebar {
