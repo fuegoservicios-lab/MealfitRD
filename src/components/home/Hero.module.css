@@ -460,7 +460,14 @@
    vertical suelta a la izquierda de la fila 2) y el `text-align: right` de la
    fila se revierte (si no, la fila 2 queda desalineada de la 1). El alto del
    cajetín pasa de 40px a 52px, que es todo lo que cuesta. */
-@media (max-width: 409px) {
+/* [CI-E2E-HERO · 2026-11-14] 409 → 479. `P1-PLAN-LOTE-710` subió esta fila de 11 a 12px y nadie
+   rehízo la cuenta de arriba (calibrada a 11px). El e2e del CI la midió a 430px: celda 1 = 216px,
+   celda 2 = 226px, pareja = 442px — 12px por fuera del viewport, «SAN PEDRO DE MACORÍS, RD» cortado.
+   A 12px el paso real es ~8,2px por carácter. Con la pareja en ~442px y el cushion de 24px que este
+   bloque declara, el corte tiene que estar en ≥466px; 479 deja ~37px. Coste: los teléfonos de
+   412-430px ven el cajetín apilado (52px de alto en vez de 40). Se paga aquí y no bajando la letra,
+   por el piso de 12px del lote 710. */
+@media (max-width: 479px) {
     .cartridge {
         grid-template-columns: 1fr;
         height: auto;
