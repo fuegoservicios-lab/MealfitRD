@@ -92,6 +92,7 @@ import { alternarSondaTecladoNativa, marcarSondaTeclado, EVENTO_TECLADO_NATIVO }
 import { decidirScrollAlAbrirTeclado, decidirArrastreConTeclado, scrollerPuedeMoverse } from '../utils/chatKeyboardScroll';
 // [P1-PLAN-LOTE-156] ¿Merece la pena preguntarle al servidor por una respuesta que quizá sí llegó?
 import { hayTurnoQueRescatar } from '../utils/rescateDelTurno';
+import { debeOcultarBurbujaDeCorte, mensajesVisiblesParaElUsuario, esBurbujaDeCorte } from '../utils/rescateDelTurno';
 // [P1-PLAN-LOTE-157] ¿Este turno lleva tanto rato mudo que ya no va a volver?
 import { hayQueCortarPorSilencio } from '../utils/silencioDelStream';
 // [P1-PLAN-LOTE-761] al volver a la app con una respuesta en vuelo
@@ -1496,6 +1497,7 @@ const AgentPage = () => {
     ));
     const esperandoChatDelDiaRef = useRef(esperaInicialDelDia);
     const [isLoadingHistory, setIsLoadingHistory] = useState(esperaInicialDelDia);
+    const _prefetchedHistoryRef = useRef(null);
     const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
     const sidebarRef = useRef(null);
     const sidebarTriggerRef = useRef(null);
@@ -1634,9 +1636,14 @@ const AgentPage = () => {
         // un chat de ayer no lo convierte en el de hoy (ver `diaDeActividad`).
         marcarActividad(currentSessionId, diaDeActividad(messages, currentSessionId));
         try {
-            const capped = messages.length > _CHAT_CACHE_MAX_MSGS
-                ? messages.slice(-_CHAT_CACHE_MAX_MSGS)
+            const cleanedMessages = esBurbujaDeCorte(messages[messages.length - 1])
+                && safeLocalStorageGet(`mealfit_orphan_dismissed_${currentSessionId}`, null)
+                    !== `${messages.filter(m => m && !m.isWelcome && !m._isErrorBubble && !m._stoppedByUser && !m.isIncomplete && !m.isStreaming).length}:${String((messages.filter(m => m && !m.isWelcome && !m._isErrorBubble && !m._stoppedByUser && !m.isIncomplete && !m.isStreaming).slice(-1)[0])?.content || '').slice(0, 48)}`
+                ? messages.slice(0, -1)
                 : messages;
+            const capped = cleanedMessages.length > _CHAT_CACHE_MAX_MSGS
+                ? cleanedMessages.slice(-_CHAT_CACHE_MAX_MSGS)
+                : cleanedMessages;
             safeLocalStorageSet(_CHAT_CACHE_KEY, JSON.stringify({
                 sessionId: currentSessionId,
                 messages: capped,
@@ -2886,7 +2893,9 @@ const AgentPage = () => {
     // ("cuando la detengo y refresco vuelve a estar igual"). Definidos ANTES
     // de fetchSessionMessages, que los usa para reconstruir la burbuja ⏹.
     const _orphanSig = useCallback((msgs) => {
-        const real = (msgs || []).filter(m => m && !m.isWelcome && !m._isErrorBubble && !m._stoppedByUser);
+        const real = (msgs || []).filter(
+            m => m && !m.isWelcome && !m._isErrorBubble && !m._stoppedByUser && !m.isIncomplete && !m.isStreaming,
+        );
         const lastReal = real[real.length - 1];
         return `${real.length}:${String(lastReal?.content || '').slice(0, 48)}`;
     }, []);
@@ -2967,9 +2976,19 @@ const AgentPage = () => {
         }
         let response;
         try {
-            response = await fetchWithAuth(`/api/chat/history/${sessionId}`);
-            if (response.ok) {
-                const data = await response.json();
+            const prefetched = retryCount === 0 ? _prefetchedHistoryRef.current : null;
+            let data = null;
+            if (prefetched && prefetched.sessionId === sessionId && (Date.now() - prefetched.at) < 2500) {
+                _prefetchedHistoryRef.current = null;
+                response = { ok: true };
+                data = prefetched.data;
+            } else {
+                response = await fetchWithAuth(`/api/chat/history/${sessionId}`);
+                if (response.ok) {
+                    data = await response.json();
+                }
+            }
+            if (response.ok && data) {
                 if (data.messages && data.messages.length > 0) {
                     // Filtrar los mensajes de sistema/bienvenida: detectar por flag o por patrones conocidos
                     const filteredMessages = data.messages.filter(m => {
@@ -3289,11 +3308,14 @@ const AgentPage = () => {
     // RESUME). El sondeo es CONSERVADOR: solo rehidrata del server cuando este
     // va igual o adelante del estado local (no pierde la burbuja huérfana).
     const [recoveringTurn, setRecoveringTurn] = useState(false);
-    const _recoveryRef = useRef({ active: false, attempts: 0, timer: null });
+    const _recoveryRef = useRef({ active: false, attempts: 0, timer: null, inFlight: false, unlisten: null });
 
     useEffect(() => () => {
         const st = _recoveryRef.current;
         if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+        st.unlisten?.();
+        st.unlisten = null;
+        st.inFlight = false;
         st.active = false;
     }, []);
 
@@ -3334,7 +3356,10 @@ const AgentPage = () => {
             if (st.active) {
                 st.active = false;
                 st.attempts = 0;
+                st.inFlight = false;
                 if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+                st.unlisten?.();
+                st.unlisten = null;
                 setRecoveringTurn(false);
             }
             return;
@@ -3361,18 +3386,26 @@ const AgentPage = () => {
         if (st.attempts > 30) return; // episodio ya agotado para este huérfano
 
         st.active = true;
+        st.inFlight = false;
         setRecoveringTurn(true);
 
         const _poll = async () => {
             const cur = _recoveryRef.current;
-            if (!cur.active) return;
+            if (!cur.active || cur.inFlight) return;
+            cur.inFlight = true;
             cur.attempts += 1;
+            const _cerrarListeners = () => {
+                cur.unlisten?.();
+                cur.unlisten = null;
+            };
             // Cierre del episodio con burbuja de error reintentable. Dos motivos:
             // 'exhausted' (30 sondeos sin respuesta) y, [P1-CHAT-ORPHAN-TURN-TRUTH ·
             // 2026-09-03], 'dead' (el servidor dice `turn_active: false`: el turno murió
             // —p. ej. timeout del modelo— y no hay nada que esperar).
             const _abandon = (motivo) => {
                 cur.active = false;
+                cur.inFlight = false;
+                _cerrarListeners();
                 cur.doneSig = cur.sig; // episodio agotado — no relanzar este huérfano
                 // [P1-CHAT-STOP-POWER v2] Persistir el agotamiento: sin esto un
                 // refresh re-sondeaba 26s más por el mismo huérfano.
@@ -3390,9 +3423,20 @@ const AgentPage = () => {
                 return;
             }
             try {
-                const res = await fetchWithAuth(`/api/chat/history/${currentSessionId}`);
-                if (res.ok) {
-                    const data = await res.json();
+                const prefetched = _prefetchedHistoryRef.current;
+                let resOk = false;
+                let data = null;
+                if (prefetched && prefetched.sessionId === currentSessionId && (Date.now() - prefetched.at) < 2500) {
+                    resOk = true;
+                    data = prefetched.data;
+                } else {
+                    const res = await fetchWithAuth(`/api/chat/history/${currentSessionId}`);
+                    if (res.ok) {
+                        resOk = true;
+                        data = await res.json();
+                    }
+                }
+                if (resOk && data) {
                     // [P1-CHAT-STOP-POWER] Filtrar como el display (fuera títulos
                     // de sistema y vacíos) y exigir que el ÚLTIMO sea del modelo:
                     // "hay respuesta nueva de verdad". Pre-fix contaba filas de
@@ -3404,14 +3448,18 @@ const AgentPage = () => {
                     ));
                     const srvLast = srv[srv.length - 1];
                     const localCount = (messagesRef.current || [])
-                        .filter(m => !m.isWelcome && !m._isErrorBubble).length;
+                        .filter(m => !m.isWelcome && !m._isErrorBubble && !m.isIncomplete && !m.isStreaming).length;
                     if (srv.length >= localCount + 1 && srvLast && srvLast.role === 'model') {
+                        _prefetchedHistoryRef.current = { sessionId: currentSessionId, data, at: Date.now() };
                         cur.active = false;
+                        cur.inFlight = false;
+                        _cerrarListeners();
                         cur.doneSig = cur.sig; // respuesta encontrada — episodio cerrado
                         setRecoveringTurn(false);
                         fetchSessionMessages(currentSessionId);
                         return;
                     }
+                    _prefetchedHistoryRef.current = null;
                     // [P1-CHAT-ORPHAN-TURN-TRUTH] Sin respuesta Y el servidor afirma que no hay
                     // turno vivo para esta sesión: no hay nada que esperar. (Backend viejo sin
                     // el campo ⇒ undefined ⇒ conducta previa: seguir sondeando.)
@@ -3420,12 +3468,38 @@ const AgentPage = () => {
                         return;
                     }
                 }
-            } catch { /* red inestable — seguir sondeando */ }
-            cur.timer = setTimeout(_poll, 8000);
+            } catch { /* red inestable — seguir sondeando */ } finally {
+                cur.inFlight = false;
+            }
+            if (!cur.active) return;
+            const siguienteMs = cur.attempts < 4 ? 1500 : (cur.attempts < 10 ? 2500 : 4000);
+            cur.timer = setTimeout(_poll, siguienteMs);
         };
-        st.timer = setTimeout(_poll, 2500);
+        const _despertarAlVolver = () => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+            const cur = _recoveryRef.current;
+            if (!cur.active || cur.inFlight) return;
+            if (cur.timer) { clearTimeout(cur.timer); cur.timer = null; }
+            _poll();
+        };
+        st.unlisten?.();
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', _despertarAlVolver);
+            window.addEventListener('focus', _despertarAlVolver);
+            window.addEventListener('pageshow', _despertarAlVolver);
+            st.unlisten = () => {
+                document.removeEventListener('visibilitychange', _despertarAlVolver);
+                window.removeEventListener('focus', _despertarAlVolver);
+                window.removeEventListener('pageshow', _despertarAlVolver);
+            };
+        }
+        if (esBurbujaDeCorte(messages[messages.length - 1]) || messages[messages.length - 1]?.isIncomplete) {
+            st.timer = setTimeout(_poll, 0);
+        } else {
+            st.timer = setTimeout(_poll, 2500);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [messages, isLoading, isLoadingHistory, currentSessionId]);
+    }, [messages, isLoading, isLoadingHistory, currentSessionId, isOnline]);
 
     const handleNewChat = () => {
         // [P1-PLAN-LOTE-76 · 2026-09-17] bloqueo total mientras el chat abierto es el de hoy, por cualquier camino
@@ -4051,6 +4125,13 @@ const AgentPage = () => {
                 let _firstChunkAt = null;
                 let _firstPaintedAt = null;
                 let _chunkCount = 0;
+
+                // [P1-PLAN-LOTE-761] Disponible incluso si la conexión quedó colgada antes de recibir cabeceras.
+                _cortarEsteStream = () => {
+                    _cortadoPorSilencio = true;
+                    try { controller.abort(); } catch { /* ya cerrado */ }
+                };
+                cortarStreamRef.current = _cortarEsteStream;
 
                 const response = await fetchWithAuth('/api/chat/stream', {
                     method: 'POST',
@@ -4705,8 +4786,9 @@ const AgentPage = () => {
     useEffect(() => {
         let ocultaDesde = null;
         let espera = null;
+        const alOcultarse = () => { if (!ocultaDesde) ocultaDesde = Date.now(); };
         const alCambiarVisibilidad = () => {
-            if (document.hidden) { ocultaDesde = Date.now(); return; }
+            if (document.hidden) { alOcultarse(); return; }
             const fueraMs = ocultaDesde ? Date.now() - ocultaDesde : 0;
             ocultaDesde = null;
             if (!debeConsultarAlVolver({ fueraMs, turnoActivo: isTurnActiveRef.current })) return;
@@ -4714,15 +4796,25 @@ const AgentPage = () => {
             espera = setTimeout(async () => {
                 if (!isTurnActiveRef.current || !cortarStreamRef.current) return;   // terminó solo mientras tanto
                 try {
-                    const res = await fetchWithAuth(`/api/chat/history/${currentSessionIdRef.current}`);
+                    const sid = currentSessionIdRef.current;
+                    const res = await fetchWithAuth(`/api/chat/history/${sid}`);
                     const data = res.ok ? await res.json() : null;
-                    if (servidorYaTermino(data) && isTurnActiveRef.current) cortarStreamRef.current?.();
+                    if (servidorYaTermino(data) && isTurnActiveRef.current) {
+                        _prefetchedHistoryRef.current = { sessionId: sid, data, at: Date.now() };
+                        cortarStreamRef.current?.();
+                    }
                 } catch { /* sin red: el vigilante del silencio sigue ahí */ }
             }, ESPERA_TRAS_VOLVER_MS);
         };
         document.addEventListener('visibilitychange', alCambiarVisibilidad);
+        window.addEventListener('pagehide', alOcultarse);
+        window.addEventListener('pageshow', alCambiarVisibilidad);
+        window.addEventListener('focus', alCambiarVisibilidad);
         return () => {
             document.removeEventListener('visibilitychange', alCambiarVisibilidad);
+            window.removeEventListener('pagehide', alOcultarse);
+            window.removeEventListener('pageshow', alCambiarVisibilidad);
+            window.removeEventListener('focus', alCambiarVisibilidad);
             clearTimeout(espera);
         };
     }, []);
@@ -5696,6 +5788,24 @@ const AgentPage = () => {
         soloAcciones: messages.length > 4,   // [P1-PLAN-LOTE-691]
         t,
     });
+    const _sigActual = _orphanSig(messages);
+    const _descartadoActual = _recoveryRef.current.doneSig === _sigActual
+        || safeLocalStorageGet(_orphanDismissKey(currentSessionId), null) === _sigActual;
+    const _ocultarCorteEnCurso = debeOcultarBurbujaDeCorte({
+        mensajes: messages,
+        recuperando: recoveringTurn,
+        ocupado: isLoading,
+        cargandoHistorial: isLoadingHistory,
+        enLinea: isOnline,
+        firmaDescartada: _descartadoActual,
+    });
+    const visibleMessages = _ocultarCorteEnCurso
+        ? mensajesVisiblesParaElUsuario(messages, true)
+        : messages;
+    const showCoachPensando = isLoading || recoveringTurn || _ocultarCorteEnCurso;
+    const coachPensandoStatus = (recoveringTurn || _ocultarCorteEnCurso) && !isLoading
+        ? t('Recuperando tu respuesta…')
+        : (streamingStatus || null);
     return (
         <>
             <style>{`
@@ -6539,7 +6649,7 @@ const AgentPage = () => {
                             // simple preservado para sesiones cortas (99%
                             // del uso) — cero overhead Virtuoso, cero
                             // riesgo de regresión visual.
-                            messages.length > VIRTUALIZE_THRESHOLD && !isLoadingHistory ? (
+                            visibleMessages.length > VIRTUALIZE_THRESHOLD && !isLoadingHistory ? (
                                 <div
                                     role="log"
                                     aria-live="polite"
@@ -6567,12 +6677,12 @@ const AgentPage = () => {
                                     }>
                                         <VirtualizedMessageList
                                             ref={virtualizedListRef}
-                                            messages={messages}
+                                            messages={visibleMessages}
                                             currentSessionId={currentSessionId}
                                             onRegenerate={handleRegenerate}
                                             onErrorRetry={retryErrorMessage}
-                                            isLoading={isLoading}
-                                            streamingStatus={streamingStatus}
+                                            isLoading={showCoachPensando}
+                                            streamingStatus={coachPensandoStatus}
                                             onAtBottomChange={handleVirtualizedAtBottomChange}
                                         />
                                     </Suspense>
@@ -6598,7 +6708,7 @@ const AgentPage = () => {
                                         <Loader2 className="spin-fast" size={20} /> {t('Cargando mensajes...')}
                                     </div>
                                 ) : (
-                                    messages.map((msg, i) => (
+                                    visibleMessages.map((msg, i) => (
                                         <MemoizedMessageBubble
                                             key={i}
                                             msg={msg}
@@ -6606,19 +6716,19 @@ const AgentPage = () => {
                                             currentSessionId={currentSessionId}
                                             onRegenerate={handleRegenerate}
                                             onErrorRetry={retryErrorMessage}
-                                            daySeparator={daySeparatorLabel(msg, previousDatedMessage(messages, i), { t, formatDate })}
-                                            puedeRegenerar={respondeAlUsuario(messages, i)}
+                                            daySeparator={daySeparatorLabel(msg, previousDatedMessage(visibleMessages, i), { t, formatDate })}
+                                            puedeRegenerar={respondeAlUsuario(visibleMessages, i)}
                                         />
                                     ))
                                 )}
-                                {(isLoading || recoveringTurn) && (
+                                {showCoachPensando && (
                                     /* [COACH-EMBLEMA · 2026-11-13] La espera dice solo cosas ciertas: el estado que
                                        reporta el servidor (`streamingStatus`, ya traducido por fase) o, sin él, una
                                        frase por tiempo transcurrido. Ver CoachPensando.jsx.
                                        [P1-CHAT-MOBILE-FIT · 2026-08-10] El margen inferior es 1rem (eran 3,5rem): esta
                                        fila es el ÚLTIMO elemento antes del final del scroll. */
                                     <CoachPensando
-                                        status={recoveringTurn && !isLoading ? t('Recuperando tu respuesta…') : (streamingStatus || null)}
+                                        status={coachPensandoStatus}
                                         style={{ padding: '0.5rem 0 0.5rem 1.5rem', marginBottom: '1rem' }}
                                     />
                                 )}

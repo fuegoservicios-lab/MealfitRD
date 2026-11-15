@@ -36,8 +36,10 @@ export function hayTurnoQueRescatar({ mensajes, ocupado, cargandoHistorial, enLi
     if (!ultimo) return false;
 
     // Los «reales» son los que cuentan como conversación: fuera el saludo de bienvenida, las
-    // burbujas de error y las de un turno detenido a mano.
-    const reales = lista.filter((m) => m && !m.isWelcome && !m._isErrorBubble && !m._stoppedByUser);
+    // burbujas de error, las respuestas parciales de un stream cortado y las de un turno detenido a mano.
+    const reales = lista.filter(
+        (m) => m && !m.isWelcome && !m._isErrorBubble && !m._stoppedByUser && !m.isIncomplete && !m.isStreaming,
+    );
     const ultimoReal = reales[reales.length - 1];
     if (!ultimoReal || ultimoReal.role !== 'user') return false;
     // [P1-PLAN-LOTE-690] La foto que espera las respuestas a sus dudas no llegó al coach a propósito: no hay respuesta
@@ -45,9 +47,8 @@ export function hayTurnoQueRescatar({ mensajes, ocupado, cargandoHistorial, enLi
     if (ultimoReal._esperaDudas) return false;
 
     // El caso de siempre: el mensaje del usuario es lo último que hay (refresh a media
-    // respuesta). Se compara por IDENTIDAD, no por rol: si detrás hay una burbuja de STOP, el
-    // usuario ya dijo que no quería la respuesta.
-    if (ultimo === ultimoReal) return true;
+    // respuesta), o quedó solo una burbuja parcial marcada como incompleta tras cortar.
+    if (ultimo === ultimoReal || (ultimo?.isIncomplete && enLinea !== false)) return true;
 
     // El caso nuevo: lo último es una burbuja de error de CONEXIÓN sobre ese mensaje.
     return Boolean(
@@ -55,4 +56,47 @@ export function hayTurnoQueRescatar({ mensajes, ocupado, cargandoHistorial, enLi
         && ESTADOS_DE_CORTE.includes(ultimo.errorStatus)
         && enLinea !== false,
     );
+}
+
+export function esBurbujaDeCorte(msg) {
+    return Boolean(
+        msg
+        && msg.role === 'model'
+        && msg._isErrorBubble === true
+        && ESTADOS_DE_CORTE.includes(msg.errorStatus),
+    );
+}
+
+/**
+ * Oculta temporalmente la burbuja de corte de red (`0` / `502`) mientras hay red y el rescate está activo o por
+ * arrancar: al volver de otra app el usuario ve «cargando» o la respuesta final directo, nunca un falso «Sin conexión».
+ */
+export function debeOcultarBurbujaDeCorte({
+    mensajes,
+    recuperando = false,
+    ocupado = false,
+    cargandoHistorial = false,
+    enLinea = true,
+    firmaDescartada = false,
+} = {}) {
+    const lista = Array.isArray(mensajes) ? mensajes : [];
+    const ultimo = lista[lista.length - 1];
+    if (!esBurbujaDeCorte(ultimo)) return false;
+    if (recuperando) return true;
+    if (enLinea === false || firmaDescartada) return false;
+    if (ocupado) return true;
+    return hayTurnoQueRescatar({
+        mensajes: lista,
+        ocupado: false,
+        cargandoHistorial,
+        enLinea,
+    });
+}
+
+export function mensajesVisiblesParaElUsuario(mensajes, ocultandoCorte = false) {
+    const lista = Array.isArray(mensajes) ? mensajes : [];
+    if (!ocultandoCorte || !lista.length) return lista;
+    const ultimo = lista[lista.length - 1];
+    if (!esBurbujaDeCorte(ultimo)) return lista;
+    return lista.slice(0, -1);
 }

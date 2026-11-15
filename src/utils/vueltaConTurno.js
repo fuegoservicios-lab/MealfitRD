@@ -12,8 +12,8 @@
 
 /** Cuánto hay que haber estado fuera para sospechar de la conexión (un vistazo al centro de control no cuenta). */
 export const FUERA_MINIMO_MS = 3000;
-/** Cuánto se espera tras volver antes de preguntar: si la conexión sigue viva, el stream reanuda en ese rato. */
-export const ESPERA_TRAS_VOLVER_MS = 2500;
+/** Cuánto se espera tras volver antes de preguntar: si la conexión sigue viva, el stream reanuda enseguida. */
+export const ESPERA_TRAS_VOLVER_MS = 800;
 
 export function debeConsultarAlVolver({ fueraMs, turnoActivo }) {
     return Boolean(turnoActivo) && Number.isFinite(fueraMs) && fueraMs >= FUERA_MINIMO_MS;
