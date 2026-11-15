@@ -56,7 +56,7 @@ import LogMealModal from './LogMealModal';
 import { useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
 import MiniaturaDeComida from './MiniaturaDeComida';
 import { getBiologicalDate, getBiologicalDateStr } from '../../utils/diaBiologico';
-import { getCalorieGoalState, resolveMainGoal } from '../../utils/calorieGoalStatus';
+import { getCalorieGoalBand, getCalorieGoalState, isStrongDeficit, resolveMainGoal } from '../../utils/calorieGoalStatus';
 import styles from './DiaryHistory.module.css';
 
 // [P1-PLAN-LOTE-224 · 2026-09-24] El escáner, igual: perezoso y montado al abrirlo (ver TrackingProgress). Este cajón
@@ -733,7 +733,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                 const diaMainGoal = r?.main_goal || resolvedMainGoal;
                                 const alto = pct(kcal, diaTargetCal);
                                 const activo = iso === selected;
-                                // [BB-024] Misma Banda de Éxito que TrackingProgress: verde en 90%-110% (115% músculo), naranja si excede.
+                                // [BB-024] Misma Banda de Éxito por objetivo que TrackingProgress (SSOT: calorieGoalStatus.js).
                                 const estado = getCalorieGoalState(kcal, diaTargetCal, diaMainGoal);
                                 return (
                                     <button
@@ -898,11 +898,12 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     const kcalDia = num(totales.calories);
                     const quotaEstado = getCalorieGoalState(kcalDia, selectedTargetCal, selectedMainGoal);
                     const excesoKcal = Math.max(0, kcalDia - num(selectedTargetCal));
-                    const rawGoal = String(selectedMainGoal || 'lose_fat').toLowerCase();
-                    const isMuscleGoal = rawGoal.includes('muscle') || rawGoal.includes('músculo') || rawGoal.includes('musculo');
-                    const maxPctVerde = isMuscleGoal ? 115 : 110;
-                    const minVerde = Math.round(num(selectedTargetCal) * 0.90);
-                    const maxVerde = Math.round(num(selectedTargetCal) * (maxPctVerde / 100));
+                    const band = getCalorieGoalBand(selectedMainGoal);
+                    const minPctVerde = Math.round(band.lo * 100);
+                    const maxPctVerde = Math.round(band.hi * 100);
+                    const minVerde = Math.round(num(selectedTargetCal) * band.lo);
+                    const maxVerde = Math.round(num(selectedTargetCal) * band.hi);
+                    const deficitFuerte = !esHoy && conComidas && isStrongDeficit(kcalDia, selectedTargetCal, selectedMainGoal);
                     return (
                         <div className={styles.quota}>
                             <div className={styles.quotaTop}>
@@ -933,11 +934,17 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                             </div>
                             {quotaEstado === 'over' && maxVerde > 0 && (
                                 <div className={styles.quotaHint}>
-                                    {t('Zona en meta: {min}–{max} kcal (hasta {pct} % de tu meta)', {
+                                    {t('Zona en meta: {min}–{max} kcal ({minPct}–{maxPct} % de tu meta)', {
                                         min: formatNumber(minVerde),
                                         max: formatNumber(maxVerde),
-                                        pct: maxPctVerde,
+                                        minPct: minPctVerde,
+                                        maxPct: maxPctVerde,
                                     })}
+                                </div>
+                            )}
+                            {deficitFuerte && (
+                                <div className={styles.quotaHint}>
+                                    {t('Muy por debajo de tu meta: un déficit tan grande cuesta energía y músculo.')}
                                 </div>
                             )}
                         </div>

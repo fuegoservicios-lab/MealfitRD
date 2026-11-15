@@ -3902,7 +3902,8 @@
   "En meta": "Na meta",
   "Bajo la meta": "Abaixo da meta",
   "Sobre la meta": "Acima da meta",
-  "Zona en meta: {min}–{max} kcal (hasta {pct} % de tu meta)": "Faixa na meta: {min}–{max} kcal (até {pct}% da sua meta)",
+  "Zona en meta: {min}–{max} kcal ({minPct}–{maxPct} % de tu meta)": "Faixa na meta: {min}–{max} kcal ({minPct}–{maxPct}% da sua meta)",
+  "Muy por debajo de tu meta: un déficit tan grande cuesta energía y músculo.": "Muito abaixo da sua meta: um déficit tão grande custa energia e músculo.",
   "Complemento": "Complemento",
   "Complementos y bebidas": "Complementos e bebidas",
   "{n} complementos": {

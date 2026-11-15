@@ -503,8 +503,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     const percFat = calcPerc(displayedConsumed.fats, goalFat);
 
     // [BB-024 / P1-CALORIE-BAR-GOAL-SEMANTICS · 2026-11-03]
-    // Semántica de la Barra Verde Esmeralda según el objetivo del usuario (BB-001):
-    // Banda de Éxito (Green Zone) entre 90% y 110% (115% en ganancia muscular).
+    // Semántica de la Barra Verde Esmeralda según el objetivo del usuario (SSOT: calorieGoalStatus.js):
+    // pierde grasa [80%, 105%], ganancia muscular [90%, 115%], mantenimiento/neutro [90%, 110%].
     // Si supera el techo, pasa de verde a tono naranja cálido (#F97316).
     const resolvedMainGoal = resolveMainGoal({ referenceProfile, planData });
     const calorieState = getCalorieGoalState(displayedConsumed.calories, goalCal, resolvedMainGoal);

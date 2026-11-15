@@ -76,6 +76,27 @@ describe('Plan goals are not health ceilings', () => {
             expect(screen.queryByText('Meta del día alcanzada')).toBeNull();
         });
 
+        it('acepta déficit moderado al 85% (1700 kcal) como verde en lose_fat', async () => {
+            fetchWithAuth.mockResolvedValue({ json: async () => ({ totals: { calories: 1700, protein: 135, carbs: 170, fats: 50 } }) });
+            render(<TrackingProgress userId="u-deficit-85" planData={deficitPlan} referenceProfile={{ mainGoal: 'lose_fat' }} />);
+            await screen.findByText('0 comidas registradas');
+
+            const calTrack = screen.getByRole('progressbar', { name: 'Calorías' });
+            expect(calTrack.firstElementChild.style.background).toContain('rgb(16, 185, 129)');
+            expect(screen.getByText('Meta del día alcanzada')).toBeInTheDocument();
+        });
+
+        it('marca exceso en lose_fat al 108% (2160 kcal > 105%) pero verde en gain_muscle al 112%', async () => {
+            fetchWithAuth.mockResolvedValue({ json: async () => ({ totals: { calories: 2160, protein: 150, carbs: 215, fats: 65 } }) }); // 108%
+            render(<TrackingProgress userId="u-lose-108" planData={deficitPlan} referenceProfile={{ mainGoal: 'lose_fat' }} />);
+            await screen.findByText('0 comidas registradas');
+
+            const calTrack = screen.getByRole('progressbar', { name: 'Calorías' });
+            expect(calTrack.firstElementChild.style.background).toContain('rgb(249, 115, 22)');
+            expect(screen.getByText('160 kcal sobre la meta')).toBeInTheDocument();
+            expect(screen.queryByText('Meta del día alcanzada')).toBeNull();
+        });
+
         it('permite superavit hasta 115% en modo ganancia muscular antes de marcar exceso', async () => {
             fetchWithAuth.mockResolvedValue({ json: async () => ({ totals: { calories: 2240, protein: 150, carbs: 220, fats: 65 } }) }); // 112%
             render(<TrackingProgress userId="u-muscle" planData={deficitPlan} referenceProfile={{ mainGoal: 'gain_muscle' }} />);

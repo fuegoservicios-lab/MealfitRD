@@ -3902,7 +3902,8 @@
   "En meta": "On goal",
   "Bajo la meta": "Below goal",
   "Sobre la meta": "Above goal",
-  "Zona en meta: {min}–{max} kcal (hasta {pct} % de tu meta)": "On-goal zone: {min}–{max} kcal (up to {pct}% of your goal)",
+  "Zona en meta: {min}–{max} kcal ({minPct}–{maxPct} % de tu meta)": "On-goal zone: {min}–{max} kcal ({minPct}–{maxPct}% of your goal)",
+  "Muy por debajo de tu meta: un déficit tan grande cuesta energía y músculo.": "Well below your goal: such a steep deficit drains energy and muscle.",
   "Complemento": "Complement",
   "Complementos y bebidas": "Complements & beverages",
   "{n} complementos": {

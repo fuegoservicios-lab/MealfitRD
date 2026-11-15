@@ -302,7 +302,7 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         expect(document.querySelector('[class*="railFillComplete"]')).toBeNull();
         expect(screen.queryByText('Meta del día alcanzada')).toBeNull();
         expect(screen.getByText('250 kcal sobre la meta')).toBeInTheDocument();
-        expect(screen.getByText(/Zona en meta:.*110 % de tu meta/)).toBeInTheDocument();
+        expect(screen.getByText(/Zona en meta:.*80–105 % de tu meta/)).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /mes/i }));
         await waitFor(() => {
@@ -379,6 +379,58 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
             expect(screen.getByText('de 3350 kcal')).toBeInTheDocument();
             expect(screen.getByText('Meta del día alcanzada')).toBeInTheDocument();
             expect(screen.getByText('138/180 g')).toBeInTheDocument();
+        });
+    });
+
+    it('muestra aviso discreto de déficit fuerte solo en días cerrados (<70 % lose_fat) y nunca en hoy', async () => {
+        const AVISO = 'Muy por debajo de tu meta: un déficit tan grande cuesta energía y músculo.';
+        fetchWithAuth.mockImplementation(async (url) => {
+            if (url.includes('/api/diary/consumed-range')) {
+                return respuesta({
+                    days: [
+                        { date: HOY, calories: 1000, protein: 70, carbs: 100, healthy_fats: 30, meals_count: 1, target_calories: 2050, main_goal: 'lose_fat' },
+                        { date: AYER, calories: 1200, protein: 80, carbs: 120, healthy_fats: 35, meals_count: 2, target_calories: 2050, main_goal: 'lose_fat' },
+                    ],
+                });
+            }
+            if (url.includes(`date=${HOY}`)) {
+                return respuesta({
+                    meals: [{ id: 'h-low', meal_name: 'Desayuno ligero', meal_type: 'desayuno', calories: 1000, protein: 70, carbs: 100, healthy_fats: 30, created_at: _h.toISOString(), consumed_at: _h.toISOString() }],
+                    totals: { calories: 1000, protein: 70, carbs: 100, healthy_fats: 30 },
+                    targets: { calories: 2050, macros: { protein: 134, carbs: 251, fats: 57 }, main_goal: 'lose_fat' },
+                });
+            }
+            if (url.includes(`date=${AYER}`)) {
+                return respuesta({
+                    meals: [{ id: 'a-low', meal_name: 'Cena ligera', meal_type: 'cena', calories: 1200, protein: 80, carbs: 120, healthy_fats: 35, created_at: AYER_FECHA.toISOString(), consumed_at: AYER_FECHA.toISOString() }],
+                    totals: { calories: 1200, protein: 80, carbs: 120, healthy_fats: 35 },
+                    targets: { calories: 2050, macros: { protein: 134, carbs: 251, fats: 57 }, main_goal: 'lose_fat' },
+                });
+            }
+            return respuesta({ meals: [], totals: {} });
+        });
+
+        render(
+            <DiaryHistory
+                userId="u-deficit-aviso"
+                open={true}
+                onClose={() => {}}
+                targetCalories={2050}
+                mainGoal="lose_fat"
+            />
+        );
+
+        // Hoy sigue en curso (<70 % = 49 %): NO debe mostrar aviso de déficit fuerte
+        await waitFor(() => {
+            expect(screen.getByText('1000')).toBeInTheDocument();
+        });
+        expect(screen.queryByText(AVISO)).toBeNull();
+
+        // Día pasado (<70 % = 59 %): SÍ muestra el aviso discreto
+        fireEvent.click(screen.getByTitle(/1200 kcal/));
+        await waitFor(() => {
+            expect(screen.getByText('1200')).toBeInTheDocument();
+            expect(screen.getByText(AVISO)).toBeInTheDocument();
         });
     });
 });
