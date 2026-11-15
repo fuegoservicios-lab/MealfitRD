@@ -48,11 +48,13 @@ export function estadoDelDia({ calories, mealsCount, target, mainGoal }) {
  * @param {object}   hoy             lo que la tarjeta ya sabe de hoy, en vivo: gana a la fila del endpoint
  * @param {number}   targetCalories  la meta de hoy (y la de un día sin meta propia guardada)
  */
-export function construirDias({ hoyISO, filas, hoy = null, targetCalories = 0, targetMacros = null, mainGoal = '', n = DIAS_EN_TIRA }) {
+export function construirDias({ hoyISO, filas, hoy = null, targetCalories = 0, targetMacros = null, mainGoal = '', n = DIAS_EN_TIRA, fechas = null }) {
     const porFecha = new Map();
     (Array.isArray(filas) ? filas : []).forEach((r) => { if (r && r.date) porFecha.set(String(r.date), r); });
-    return ultimosDias(hoyISO, n).map((iso) => {
+    return (fechas || ultimosDias(hoyISO, n)).map((iso) => {
         const esHoy = iso === hoyISO;
+        // [SEMANAS-NUMERADAS] un día de la semana en curso que aún no llega: ni vacío ni fallado
+        if (iso > hoyISO) return { iso, esHoy: false, calories: 0, mealsCount: 0, protein: 0, carbs: 0, fats: 0, target: 0, targetMacros: null, ratio: 0, estado: 'futuro' };
         const r = porFecha.get(iso) || {};
         const vivo = esHoy && hoy ? hoy : null;
         const calories = Math.round(Number(vivo ? vivo.calories : r.calories) || 0);
@@ -93,4 +95,50 @@ export function rachaEnMeta(dias) {
 /** Cuántos de los últimos 7 días (hoy incluido) quedaron en meta. */
 export function diasEnMetaDeLaSemana(dias) {
     return (Array.isArray(dias) ? dias : []).slice(-DIAS_DE_LA_SEMANA).filter((d) => d.estado === 'meta').length;
+}
+
+// ───────────────────────────────────────────────────────────── [SEMANAS-NUMERADAS · 2026-11-15]
+// El dueño: «un sistema de semanas: semana 1, semana 2 y así hasta el infinito, estilo videojuego». La Semana 1 empieza
+// el PRIMER día con registros del usuario; cada 7 días es una semana nueva. Cada semana se gana hasta 3 estrellas.
+
+export const DIAS_MAX_HISTORIA = 365;   // el tope del endpoint
+export const ESTRELLAS_MAX = 3;
+
+const diasEntre = (aISO_, bISO) => Math.round((mediodiaDe(bISO) - mediodiaDe(aISO_)) / 86400000);
+
+/** El día 1 del viaje: el más antiguo entre lo guardado y las filas; sin nada, hoy. Nunca posterior a hoy. */
+export function inicioDelViaje(filas, hoyISO, guardado = null) {
+    let min = hoyISO;
+    const mirar = (iso) => { if (/^\d{4}-\d{2}-\d{2}$/.test(String(iso || '')) && iso < min) min = iso; };
+    mirar(guardado);
+    (Array.isArray(filas) ? filas : []).forEach((r) => mirar(r && r.date));
+    return min;
+}
+
+/** En qué semana (1…∞) cae `iso` contando desde `inicioISO`. */
+export function numeroDeSemana(inicioISO, iso) {
+    return Math.max(1, Math.floor(diasEntre(inicioISO, iso) / DIAS_DE_LA_SEMANA) + 1);
+}
+
+/** Los 7 días (ISO) de la semana `numero`. */
+export function fechasDeLaSemana(inicioISO, numero) {
+    const base = mediodiaDe(inicioISO);
+    return Array.from({ length: DIAS_DE_LA_SEMANA }, (_, i) => {
+        const f = new Date(base);
+        f.setDate(f.getDate() + (numero - 1) * DIAS_DE_LA_SEMANA + i);
+        return aISO(f);
+    });
+}
+
+/** 0–3 estrellas: 3 días en meta = ★, 5 = ★★, los 7 = ★★★ (semana perfecta). */
+export function estrellasDeLaSemana(enMeta) {
+    if (enMeta >= DIAS_DE_LA_SEMANA) return 3;
+    if (enMeta >= 5) return 2;
+    return enMeta >= 3 ? 1 : 0;
+}
+
+/** Cuántos días en meta faltan para la siguiente estrella (0 = ya tiene las 3). */
+export function faltanParaLaSiguienteEstrella(enMeta) {
+    const escalon = [3, 5, DIAS_DE_LA_SEMANA].find((x) => enMeta < x);
+    return escalon ? escalon - enMeta : 0;
 }

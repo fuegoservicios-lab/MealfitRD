@@ -4025,7 +4025,6 @@
   "{n} s": "{n} s",
   "Foto {n}": "Photo {n}",
   "Foto {n} · {nombre}": "Photo {n} · {nombre}",
-  "Tu semana": "Votre semaine",
   "{n} de {total} días en meta": "{n} jours sur {total} dans l’objectif",
   "{n} días seguidos": {
     "one": "{n} jour d’affilée",
@@ -4040,5 +4039,15 @@
   "Ver este día": "Voir ce jour",
   "Calendario": "Calendrier",
   "No pudimos leer una de las fotos. Vuelve a elegirla antes de enviar.": "Nous n’avons pas pu lire l’une des photos. Choisissez-la à nouveau avant d’envoyer.",
-  "Una de las fotos ya no está disponible. Quítala y vuelve a elegirla.": "L’une des photos n’est plus disponible. Retirez-la et choisissez-la à nouveau."
+  "Una de las fotos ya no está disponible. Quítala y vuelve a elegirla.": "L’une des photos n’est plus disponible. Retirez-la et choisissez-la à nouveau.",
+  "Día {n} de {total}": "Jour {n} sur {total}",
+  "Aún no llega": "Pas encore",
+  "{n} de {total} estrellas": "{n} étoiles sur {total}",
+  "Semana anterior": "Semaine précédente",
+  "Semana siguiente": "Semaine suivante",
+  "Semana perfecta": "Semaine parfaite",
+  "Faltan {n} días en meta para otra estrella": {
+    "one": "Encore {n} jour dans l’objectif pour une autre étoile",
+    "other": "Encore {n} jours dans l’objectif pour une autre étoile"
+  }
 }

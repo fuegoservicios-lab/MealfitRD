@@ -13,7 +13,8 @@ import { fetchWithAuth } from '../config/api';
 import SemanaEnProgreso from '../components/dashboard/SemanaEnProgreso';
 import { getBiologicalDateStr } from '../utils/diaBiologico';
 import {
-    construirDias, diasEnMetaDeLaSemana, estadoDelDia, rachaEnMeta, ultimosDias,
+    construirDias, diasEnMetaDeLaSemana, estadoDelDia, estrellasDeLaSemana, faltanParaLaSiguienteEstrella,
+    fechasDeLaSemana, inicioDelViaje, numeroDeSemana, rachaEnMeta, ultimosDias,
 } from '../utils/progresoDeLosDias';
 
 const HOY = '2026-11-15';
@@ -62,9 +63,39 @@ describe('[SEMANA-EN-PROGRESO] las cuentas de los días', () => {
     });
 });
 
+describe('[SEMANAS-NUMERADAS] semana 1, semana 2… hasta el infinito', () => {
+    it('la Semana 1 empieza el primer día con registros; cada 7 días, una nueva', () => {
+        const filas = [fila('2026-11-03', 2000), fila('2026-10-28', 2000), fila(HOY, 500)];
+        expect(inicioDelViaje(filas, HOY)).toBe('2026-10-28');
+        expect(inicioDelViaje([], HOY)).toBe(HOY);                          // sin nada: hoy es el día 1
+        expect(inicioDelViaje(filas, HOY, '2025-01-01')).toBe('2025-01-01'); // lo guardado gana si es más viejo
+        expect(inicioDelViaje([fila('2027-01-01', 1)], HOY, 'basura')).toBe(HOY);
+        expect(numeroDeSemana('2026-10-28', '2026-10-28')).toBe(1);
+        expect(numeroDeSemana('2026-10-28', '2026-11-03')).toBe(1);
+        expect(numeroDeSemana('2026-10-28', '2026-11-04')).toBe(2);
+        expect(numeroDeSemana('2026-10-28', HOY)).toBe(3);
+        expect(numeroDeSemana('2020-01-01', HOY)).toBeGreaterThan(350);     // no hay tope
+        expect(fechasDeLaSemana('2026-10-28', 2)).toEqual([
+            '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08', '2026-11-09', '2026-11-10',
+        ]);
+    });
+
+    it('estrellas: 3, 5 y 7 días en meta', () => {
+        expect([0, 2, 3, 4, 5, 6, 7].map(estrellasDeLaSemana)).toEqual([0, 0, 1, 1, 2, 2, 3]);
+        expect([0, 2, 3, 5, 6, 7].map(faltanParaLaSiguienteEstrella)).toEqual([3, 1, 2, 2, 1, 0]);
+    });
+
+    it('los días de la semana que aún no llegan son «futuro», no fallados', () => {
+        const dias = construirDias({ hoyISO: HOY, filas: [], targetCalories: 2000, fechas: fechasDeLaSemana('2026-11-12', 1) });
+        expect(dias.map((d) => d.estado)).toEqual(['vacio', 'vacio', 'vacio', 'vacio', 'futuro', 'futuro', 'futuro']);
+        expect(dias[3].esHoy).toBe(true);
+    });
+});
+
 describe('[SEMANA-EN-PROGRESO] la tira en pantalla', () => {
     const hoyISO = getBiologicalDateStr(new Date());
     const [ayerISO, anteayerISO] = [ultimosDias(hoyISO, 3)[1], ultimosDias(hoyISO, 3)[0]];
+    const hace9 = ultimosDias(hoyISO, 10)[0];
 
     beforeEach(() => {
         window.localStorage.clear();
@@ -84,28 +115,49 @@ describe('[SEMANA-EN-PROGRESO] la tira en pantalla', () => {
             {...props}
         />,
     );
+    const diasEnPantalla = () => screen.getAllByRole('button').filter((b) => b.hasAttribute('aria-pressed'));
 
-    it('pinta 14 días, pide el rango al servidor y dice cuántos van en meta', async () => {
+    it('pinta la semana entera (7 días), pide el historial y dice cuántos van en meta', async () => {
         montar();
-        expect(screen.getAllByRole('button', { pressed: false })).toHaveLength(14);
+        expect(diasEnPantalla()).toHaveLength(7);
         await waitFor(() => expect(screen.getByText('1 de 7 días en meta')).toBeInTheDocument());
-        expect(fetchWithAuth).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/diary\/consumed-range\/u-1\?days=14&tzOffset=/));
+        expect(fetchWithAuth).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/diary\/consumed-range\/u-1\?days=365&tzOffset=/));
+        // el primer registro fue anteayer: hoy es el día 3 de la Semana 1 y quedan 4 con candado
+        expect(screen.getByRole('heading', { name: 'Semana 1' })).toBeInTheDocument();
+        expect(screen.getByText('Día 3 de 7')).toBeInTheDocument();
+        expect(diasEnPantalla().filter((b) => b.disabled)).toHaveLength(4);
+        expect(screen.getByRole('img', { name: '0 de 3 estrellas' })).toBeInTheDocument();
+        expect(screen.getByText('Faltan 2 días en meta para otra estrella')).toBeInTheDocument();
     });
 
     it('tocar un día abre su resumen y «Ver este día» lleva al cajón en ESE día', async () => {
         const onAbrirDia = vi.fn();
         montar({ onAbrirDia });
         await waitFor(() => expect(screen.getByText('1 de 7 días en meta')).toBeInTheDocument());
-        const botones = screen.getAllByRole('button');
-        fireEvent.click(botones[12]);                                   // ayer
+        const botones = diasEnPantalla();
+        fireEvent.click(botones[1]);                                    // ayer
         expect(await screen.findByText('Meta cumplida')).toBeInTheDocument();
         expect(screen.getByText('3 comidas')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Ver este día/ }));
         expect(onAbrirDia).toHaveBeenCalledWith(ayerISO);
-        fireEvent.click(botones[11]);                                   // anteayer: se pasó
+        fireEvent.click(botones[0]);                                    // anteayer: se pasó
         expect(await screen.findByText('600 kcal de más')).toBeInTheDocument();
-        fireEvent.click(botones[13]);                                   // hoy, en curso
+        fireEvent.click(botones[2]);                                    // hoy, en curso
         expect(await screen.findByText(/^Te faltan 1[.,]100 kcal$/)).toBeInTheDocument();   // el separador es del locale
+    });
+
+    it('con más de 7 días de historia hay Semana 2 y las flechas vuelven a la Semana 1', async () => {
+        fetchWithAuth.mockResolvedValue({ ok: true, json: async () => ({ days: [fila(hace9, 2000, { target_calories: 2000 })] }) });
+        montar();
+        expect(await screen.findByRole('heading', { name: 'Semana 2' })).toBeInTheDocument();
+        expect(screen.getByText('Día 3 de 7')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Semana siguiente' })).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'Semana anterior' }));
+        expect(await screen.findByRole('heading', { name: 'Semana 1' })).toBeInTheDocument();
+        expect(screen.getByText('1 de 7 días en meta')).toBeInTheDocument();
+        expect(diasEnPantalla().filter((b) => b.disabled)).toHaveLength(0);       // una semana pasada no tiene candados
+        expect(screen.getByRole('button', { name: 'Semana anterior' })).toBeDisabled();
+        expect(window.localStorage.getItem('mealfit_semana_inicio_u-1')).toBe(hace9);
     });
 
     it('lo guardado pinta al instante la próxima vez, aunque no haya red', () => {
@@ -113,6 +165,14 @@ describe('[SEMANA-EN-PROGRESO] la tira en pantalla', () => {
         fetchWithAuth.mockRejectedValue(new Error('sin red'));
         montar();
         expect(screen.getByText('1 de 7 días en meta')).toBeInTheDocument();
+    });
+
+    it('el «hoy» no late hacia afuera: gira dentro de su hueco (no pisa al día de al lado)', () => {
+        const css = readFileSync(resolve(__dirname, '..', 'components/dashboard/SemanaEnProgreso.module.css'), 'utf8');
+        const hoy = css.slice(css.indexOf('.diaHoy .anillo::after {'), css.indexOf('}', css.indexOf('.diaHoy .anillo::after {')));
+        expect(hoy).toContain('animation: girar');
+        expect(css).not.toContain('latido');
+        expect(css).toMatch(/@keyframes girar \{ to \{ transform: rotate\(360deg\); \} \}/);
     });
 });
 

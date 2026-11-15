@@ -4025,7 +4025,6 @@
   "{n} s": "{n}s",
   "Foto {n}": "Photo {n}",
   "Foto {n} · {nombre}": "Photo {n} · {nombre}",
-  "Tu semana": "Your week",
   "{n} de {total} días en meta": "{n} of {total} days on goal",
   "{n} días seguidos": {
     "one": "{n} day in a row",
@@ -4040,5 +4039,15 @@
   "Ver este día": "View this day",
   "Calendario": "Calendar",
   "No pudimos leer una de las fotos. Vuelve a elegirla antes de enviar.": "We couldn’t read one of the photos. Choose it again before sending.",
-  "Una de las fotos ya no está disponible. Quítala y vuelve a elegirla.": "One of the photos is no longer available. Remove it and choose it again."
+  "Una de las fotos ya no está disponible. Quítala y vuelve a elegirla.": "One of the photos is no longer available. Remove it and choose it again.",
+  "Día {n} de {total}": "Day {n} of {total}",
+  "Aún no llega": "Not yet",
+  "{n} de {total} estrellas": "{n} of {total} stars",
+  "Semana anterior": "Previous week",
+  "Semana siguiente": "Next week",
+  "Semana perfecta": "Perfect week",
+  "Faltan {n} días en meta para otra estrella": {
+    "one": "{n} more day on goal for another star",
+    "other": "{n} more days on goal for another star"
+  }
 }
