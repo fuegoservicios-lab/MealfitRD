@@ -10,6 +10,7 @@
 // Las variantes se eligen con una semilla (usuario, día, media hora): el mismo día y los mismos datos dan el mismo texto,
 // así que el saludo no «salta» al llegar los números si no cambiaron.
 import { formatNumber } from '../i18n';
+import { getBiologicalDateStr } from './diaBiologico';
 
 const _hash = (s) => {
     let h = 2166136261;
@@ -26,6 +27,16 @@ export function franjaDeLaHora(hora) {
     if (hora < 12) return 'merienda';
     if (hora < 15) return 'almuerzo';
     if (hora < 19) return 'merienda';
+    return 'cena';
+}
+
+/** Clave única del momento actual (separa merienda de la mañana vs. tarde). */
+export function momentoDelDia(hora) {
+    if (hora < 4) return 'madrugada';
+    if (hora < 11) return 'desayuno';
+    if (hora < 12) return 'merienda-am';
+    if (hora < 15) return 'almuerzo';
+    if (hora < 19) return 'merienda-pm';
     return 'cena';
 }
 
@@ -137,6 +148,12 @@ const _INVITA = {
     cena: (t) => [t('¿Qué vas a cenar? Si quieres, te ayudo a decidir.'), t('Cuando cenes, mándame una foto y lo anoto yo. ¿Te ayudo con alguna idea?')],
 };
 
+const _PREFIJO_NEVERA = {
+    desayuno: (t) => t('Para el desayuno, podemos improvisar.'),
+    almuerzo: (t) => t('Para el almuerzo, podemos improvisar.'),
+    cena: (t) => t('Para la cena, podemos improvisar.'),
+};
+
 /**
  * @param {object} p
  * @param {number} p.hora
@@ -155,7 +172,10 @@ export function saludoDelCoach({ hora, nombre = '', modoContador = false, plato 
     const nombreLimpio = String(nombre || '').trim();
     const partes = [_saludo({ franja, hora, nombre: nombreLimpio, deNuevo, semilla, t })];
 
-    const yaComioEsta = !!(comidas && comidas.includes(franja));
+    const yaComioEsta = !!(comidas && comidas.some((c) => {
+        const k = String(c || '').toLowerCase();
+        return franja === 'merienda' ? (k.includes('merienda') || k.includes('snack')) : k.includes(franja);
+    }));
     const conPlato = !modoContador && plato && franja !== 'madrugada' && !yaComioEsta;
     if (conPlato) {
         partes.push(_elegir(_PLAN[franja](t, plato), semilla, 'plan'));
@@ -169,9 +189,64 @@ export function saludoDelCoach({ hora, nombre = '', modoContador = false, plato 
             partes.push(_elegir([t('¿En qué más te ayudo?'), t('¿Quieres que revise cómo va tu día?')], semilla, 'invita'));
         } else {
             const opciones = _INVITA[franja](t);
-            if (nevera && franja !== 'merienda') opciones.push(t('¿Qué tienes en la nevera? Con eso te armo una idea.'));
+            if (nevera && franja !== 'merienda') {
+                const pref = _PREFIJO_NEVERA[franja]?.(t);
+                const ask = t('¿Qué tienes en la nevera? Con eso te armo una idea.');
+                opciones.push(pref ? `${pref} ${ask}` : ask);
+            }
             partes.push(_elegir(opciones, semilla, 'invita'));
         }
     }
     return partes.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Verdadero si el hilo solo tiene aviso(s) automático(s) del coach sin respuesta del usuario
+ * cuyo momento ya pasó (día biológico distinto o franja anterior a la actual).
+ */
+export function soloAvisoProactivoVencido(msgs, ahora = new Date()) {
+    if (!Array.isArray(msgs) || msgs.length === 0) return false;
+    const tieneInteraccionOTurno = msgs.some(
+        (m) => !m || m.role !== 'model' || m.isImage || m._isErrorBubble || m._stoppedByUser || m.isIncomplete || m.isStreaming,
+    );
+    if (tieneInteraccionOTurno) return false;
+    if (msgs.every((m) => m.isWelcome)) return false;
+    const ultimo = msgs[msgs.length - 1];
+    const rawDate = ultimo?.created_at ?? ultimo?.welcomeAt ?? null;
+    if (!rawDate) return false;
+    const fechaMsg = rawDate instanceof Date ? rawDate : new Date(rawDate);
+    if (Number.isNaN(fechaMsg.getTime())) return false;
+    const ref = ahora instanceof Date ? ahora : new Date(ahora);
+    if (getBiologicalDateStr(fechaMsg) !== getBiologicalDateStr(ref)) return true;
+    return momentoDelDia(fechaMsg.getHours()) !== momentoDelDia(ref.getHours());
+}
+
+/**
+ * Actualiza in-place el único mensaje predeterminado cuando el hilo no tiene conversación real
+ * (solo saludo inicial o avisos automáticos caducados), evitando clonación o acumulación.
+ */
+export function actualizarMensajePredeterminado({
+    prev,
+    crearSaludo,
+    ahora = new Date(),
+    esChatViejo = false,
+    hayFotoPendiente = false,
+}) {
+    if (esChatViejo || hayFotoPendiente || typeof crearSaludo !== 'function') return prev;
+    const esUnicoSaludo = Array.isArray(prev) && prev.length === 1 && Boolean(prev[0]?.isWelcome);
+    const esVacio = !Array.isArray(prev) || prev.length === 0;
+    if (!esVacio && !esUnicoSaludo && !soloAvisoProactivoVencido(prev, ahora)) {
+        return prev;
+    }
+    const nuevo = crearSaludo();
+    if (esUnicoSaludo && prev[0]?.content === nuevo) {
+        return prev;
+    }
+    const ts = (ahora instanceof Date ? ahora : new Date(ahora)).getTime();
+    return [{
+        role: 'model',
+        content: nuevo,
+        isWelcome: true,
+        welcomeAt: Number.isFinite(ts) ? ts : Date.now(),
+    }];
 }

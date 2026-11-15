@@ -114,13 +114,13 @@ describe('[P1-NEVERA-OPCIONAL] generateIntelligentWelcome — el almuerzo sin pl
 
     // El saludo completo es `${timeGreeting}${firstName}! ${mealContext}` (P1-WELCOME-TEST-CLOCK): se comprueba
     // el mealContext por `toContain`, no por igualdad exacta del saludo entero.
-    // [P1-PLAN-LOTE-412] El saludo ya no elige con `Math.random` sino con una semilla (usuario, día, media hora) y
-    // su invitación de la franja puede ofrecer «¿Qué tienes en la nevera?». El contrato es el mismo: con la Nevera
-    // activa ALGUNA variante la ofrece; apagada, NINGUNA la menciona. Se recorren las medias horas del almuerzo.
+    // [P1-PLAN-LOTE-412] El saludo elige con una semilla estable por (usuario, día, momento) y su invitación de la
+    // franja puede ofrecer «¿Qué tienes en la nevera?». Con la Nevera activa ALGUNA variante la ofrece; apagada, NINGUNA
+    // la menciona. Se recorren varios días y usuarios en la franja de almuerzo.
     const saludosDelAlmuerzo = (perfil) => {
         const salida = [];
-        for (let m = 0; m < 180; m += 30) {
-            vi.setSystemTime(new Date(2026, 8, 23, 12, m, 0));
+        for (let dia = 20; dia <= 26; dia += 1) {
+            vi.setSystemTime(new Date(2026, 8, dia, 12, 30, 0));
             for (const id of ['u1', 'u2', 'u3', 'u4']) {
                 salida.push(generateIntelligentWelcome(perfil === null ? null : { id, ...perfil }, {}, null));
             }

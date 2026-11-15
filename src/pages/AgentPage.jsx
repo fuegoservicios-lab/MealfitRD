@@ -171,7 +171,7 @@ import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAc
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
 import { atajosDelChat, metasEnNumeros, prefijoAnotarComida } from '../utils/atajosDelChat';
 import { useResumenDeHoy, leerResumenDeHoy } from '../hooks/useResumenDeHoy';
-import { saludoDelCoach, franjaDeLaHora } from '../utils/saludoDelCoach';
+import { saludoDelCoach, franjaDeLaHora, momentoDelDia, actualizarMensajePredeterminado, soloAvisoProactivoVencido } from '../utils/saludoDelCoach';
 import { nativeHidesCommerce } from '../config/platform';
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
@@ -557,6 +557,7 @@ export const generateIntelligentWelcome = (userProfile, formData, planData, resu
     }
 
     const franja = franjaDeLaHora(hour);
+    const momento = momentoDelDia(hour);
 
     // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] En modo CONTADOR el saludo no
     // recita el plan. La pausa CONSERVA `plan_data` a propósito (es lo que
@@ -581,8 +582,9 @@ export const generateIntelligentWelcome = (userProfile, formData, planData, resu
             const currentDayMeals = planDays[activeDayIndex]?.meals || [];
             // Search by m.meal field (type: "Desayuno") NOT by m.name (dish: "Mangú con Huevo")
             const tipo = (m) => String(m?.meal || '').toLowerCase();
+            const snacks = currentDayMeals.filter((m) => tipo(m).includes('snack') || tipo(m).includes('merienda'));
             const exactMeal = franja === 'merienda'
-                ? currentDayMeals.find((m) => tipo(m).includes('snack') || tipo(m).includes('merienda'))
+                ? (hour >= 15 && snacks.length > 1 ? snacks[snacks.length - 1] : snacks[0])
                 : currentDayMeals.find((m) => tipo(m).includes(franja));
             if (exactMeal && exactMeal.name) exactMealName = exactMeal.name.trim();
         }
@@ -591,7 +593,7 @@ export const generateIntelligentWelcome = (userProfile, formData, planData, resu
     // metas: las del plan vigente en modo plan (misma forma que /nutrition/targets); si no, las del perfil
     const metas = metasEnNumeros(!enModoContador && planData?.calories ? planData : resumen?.metas);
     const fechaHoy = getBiologicalDateStr(now);
-    const semilla = `${userProfile?.id || 'anon'}|${fechaHoy}|${Math.floor((hour * 60 + now.getMinutes()) / 30)}`;
+    const semilla = `${userProfile?.id || 'anon'}|${fechaHoy}|${momento}`;
 
     // [P1-AGENT-WELCOME-NO-TIME · 2026-05-20] Sin la hora literal ("Son las 04:29 a. m."): el welcome se regenera
     // cada 30 min y la hora mostrada se desfasaba. El saludo de la franja da el contexto sin precisión innecesaria.
@@ -1608,6 +1610,7 @@ const AgentPage = () => {
     useEffect(() => {
         messagesRef.current = messages;
     }, [messages]);
+    const resumenHoyRef = useRef(null);
 
     // [P1-AGENT-CACHE-MESSAGES · 2026-05-20] Persist messages en cada change.
     // Best-effort: safeLocalStorageSet swallow errores de cuota.
@@ -1661,7 +1664,15 @@ const AgentPage = () => {
         // Only regenerate if we actually have plan data now AND the current messages are just the initial welcome
         if ((planData || formData?.name) && messages.length === 1 && messages[0]?.isWelcome) {
             hasHydratedWelcome.current = true;
-            setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true, welcomeAt: Date.now() }]);
+            setMessages((prev) => actualizarMensajePredeterminado({
+                prev,
+                crearSaludo: () => generateIntelligentWelcome(
+                    userProfile,
+                    formData,
+                    planData,
+                    resumenHoyRef.current ?? leerResumenDeHoy(userProfile?.id),
+                ),
+            }));
         }
     }, [planData, formData, userProfile, messages]);
     const [input, setInput] = useState('');
@@ -2856,34 +2867,21 @@ const AgentPage = () => {
     // React skip rerender). Si es >=30min (o no existe), regenerar.
     //
     // Tooltip-anchor: P1-AGENT-WELCOME-STABLE.
-    const _WELCOME_REFRESH_MS = 30 * 60 * 1000;
+    // Mantiene un único mensaje predeterminado vivo cuando aún no hay conversación:
+    // si cambia el momento del día, el día biológico o los datos de hoy, actualiza
+    // el mismo mensaje in-place; si nada cambió, preserva referencia (sin re-render).
     const _setWelcomeIfAbsent = useCallback(() => {
-        setMessages(prev => {
-            // [P1-CHAT-PHOTO-UX · 2026-07-12] Guard CRÍTICO: si hay CUALQUIER
-            // mensaje real (no-welcome), NO tocar el estado. Pre-fix el
-            // fall-through devolvía [{welcome}] y BORRABA la conversación:
-            // con [welcome, msg-del-user] (foto recién enviada, aún no
-            // persistida al server porque el análisis gemma tarda 30-90s),
-            // cualquier invocación en esa ventana pisaba el mensaje del user
-            // — vivo: la burbuja con la foto desaparecía dejando solo el
-            // saludo. Antes (visión cloud ~3s) la ventana era invisible.
-            if (Array.isArray(prev) && prev.some(m => !m.isWelcome)) {
-                return prev;
-            }
-            if (Array.isArray(prev) && prev.length === 1 && prev[0]?.isWelcome) {
-                const ageMs = Date.now() - (prev[0]?.welcomeAt || 0);
-                if (ageMs < _WELCOME_REFRESH_MS) {
-                    return prev; // welcome fresco (<30min) — mantener referencia → no rerender
-                }
-            }
-            return [{
-                role: 'model',
-                content: generateIntelligentWelcome(userProfile, formData, planData),
-                isWelcome: true,
-                welcomeAt: Date.now(),
-            }];
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        setMessages((prev) => actualizarMensajePredeterminado({
+            prev,
+            crearSaludo: () => generateIntelligentWelcome(
+                userProfile,
+                formData,
+                planData,
+                resumenHoyRef.current ?? leerResumenDeHoy(userProfile?.id),
+            ),
+            esChatViejo: Boolean(chatViejoElegidoRef.current && chatViejoElegidoRef.current === currentSessionIdRef.current),
+            hayFotoPendiente: Boolean(fotoPendienteRef.current),
+        }));
     }, [setMessages, userProfile, formData, planData]);
 
     // [P1-CHAT-STOP-POWER v2 · 2026-07-12] Firma del huérfano sobre los
@@ -3111,7 +3109,19 @@ const AgentPage = () => {
                         borrarFotoPendiente(sessionId);
                         if (fotoPendienteRef.current?.clientMessageId === _pend.clientMessageId) _setFotoPendienteMem(null);
                     }
-                    setMessages(_conPend.mensajes);
+                    if (!_pend && !(chatViejoElegidoRef.current && chatViejoElegidoRef.current === sessionId) && soloAvisoProactivoVencido(_conPend.mensajes)) {
+                        setMessages(() => actualizarMensajePredeterminado({
+                            prev: _conPend.mensajes,
+                            crearSaludo: () => generateIntelligentWelcome(
+                                userProfile,
+                                formData,
+                                planData,
+                                resumenHoyRef.current ?? leerResumenDeHoy(userProfile?.id),
+                            ),
+                        }));
+                    } else {
+                        setMessages(_conPend.mensajes);
+                    }
                 } else {
                     // [P1-PLAN-LOTE-695] Chat nuevo cuyo primer mensaje es la foto pendiente: el servidor aún no
                     // tiene nada, y la foto no puede caer por el saludo.
@@ -5768,17 +5778,36 @@ const AgentPage = () => {
     const chatUserId = session?.user?.id || userProfile?.id || 'guest';
     // [P1-PLAN-LOTE-412] con el chat abierto (no solo con los atajos): el saludo también los usa
     const resumenHoy = useResumenDeHoy(chatUserId, true);
-    // [P1-PLAN-LOTE-412] el saludo se escribió antes de tener los números (primera visita del día o sin caché)
-    // o antes de que userProfile terminara de cargar (nombre): si el hilo sigue siendo solo el saludo y es reciente,
-    // se reescribe con ellos. La semilla es estable para la misma media hora, así que si nada cambió el texto tampoco.
+    resumenHoyRef.current = resumenHoy;
+    const [welcomeClockKey, setWelcomeClockKey] = useState(() => `${hoyLocal()}|${momentoDelDia(new Date().getHours())}`);
     useEffect(() => {
-        setMessages((prev) => {
-            if (!Array.isArray(prev) || prev.length !== 1 || !prev[0]?.isWelcome) return prev;
-            if (Date.now() - (prev[0].welcomeAt || 0) > 30000) return prev;
-            const nuevo = generateIntelligentWelcome(userProfile, formData, planData, resumenHoy);
-            return nuevo === prev[0].content ? prev : [{ ...prev[0], content: nuevo }];
-        });
-    }, [userProfile?.full_name, userProfile?.name, userProfile?.first_name, formData?.name, resumenHoy, userProfile, formData, planData]);
+        const syncMomento = () => {
+            const ahora = new Date();
+            const clave = `${hoyLocal(ahora)}|${momentoDelDia(ahora.getHours())}`;
+            setWelcomeClockKey((prev) => (prev === clave ? prev : clave));
+        };
+        const alVolver = () => {
+            if (typeof document === 'undefined' || document.visibilityState === 'visible') syncMomento();
+        };
+        document.addEventListener('visibilitychange', alVolver);
+        window.addEventListener('focus', syncMomento);
+        const timer = setInterval(syncMomento, 30000);
+        return () => {
+            document.removeEventListener('visibilitychange', alVolver);
+            window.removeEventListener('focus', syncMomento);
+            clearInterval(timer);
+        };
+    }, []);
+    // Actualiza in-place el único mensaje predeterminado si cambia el momento del día, el día o tus datos de hoy
+    // (o si un aviso automático previo quedó sin respuesta y ya pasó su franja).
+    useEffect(() => {
+        setMessages((prev) => actualizarMensajePredeterminado({
+            prev,
+            crearSaludo: () => generateIntelligentWelcome(userProfile, formData, planData, resumenHoy),
+            esChatViejo: chatDeOtroDia || Boolean(chatViejoElegidoRef.current && chatViejoElegidoRef.current === currentSessionId),
+            hayFotoPendiente: Boolean(fotoPendienteRef.current),
+        }));
+    }, [welcomeClockKey, userProfile, formData, planData, resumenHoy, currentSessionId, chatDeOtroDia]);
     const atajos = atajosDelChat({
         hora: new Date().getHours(),
         modoContador: enModoContador,
