@@ -224,7 +224,7 @@ const horaFiable = (meal) => {
 // cosmética — «03:05» y «15:05» son horas distintas para quien espera AM/PM.
 const hhmm = (d) => formatDate(d, { timeStyle: 'short' });
 
-const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacros = {}, targetMicros = null, mainGoal = null }) => {
+const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacros = {}, targetMicros = null, mainGoal = null, diaInicial = null }) => {
     const t = useT();
     const tn = useTn();
     const subtituloMicros = useMicrosSubtitulo();
@@ -236,7 +236,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     // seguía en ayer y lo que se registraba desde aquí caía en un día desplazado. Al abrir, además, se vuelve a HOY.
     const hoyISO = useMemo(() => getBiologicalDateStr(new Date()), [open]); // eslint-disable-line react-hooks/exhaustive-deps
     const [selected, setSelected] = useState(hoyISO);
-    useEffect(() => { if (open) setSelected(getBiologicalDateStr(new Date())); }, [open]);
+    // [SEMANA-EN-PROGRESO] «Tu semana» abre el cajón YA en el día tocado (`diaInicial`); sin él, en hoy como siempre.
+    useEffect(() => { if (open) setSelected(diaInicial || getBiologicalDateStr(new Date())); }, [open, diaInicial]);
     const [modoVista, setModoVista] = useState('tira'); // 'tira' | 'calendario'
     const [calDate, setCalDate] = useState(() => {
         const d = getBiologicalDate(new Date());
@@ -1131,15 +1132,17 @@ DiaryHistory.propTypes = {
     targetMacros: PropTypes.object,
     targetMicros: PropTypes.object,
     mainGoal: PropTypes.string,
+    diaInicial: PropTypes.string,
 };
 
 /** Botón que abre el cajón. Vive junto al componente para que añadirlo a una
  *  card sea una línea y no haya dos sitios que mantener sincronizados. */
-export const DiaryHistoryTrigger = ({ onClick, label }) => {
+export const DiaryHistoryTrigger = ({ onClick, label, compacto = false }) => {
     const t = useT();
-    const texto = label || t('Calendario y comidas');
+    // [SEMANA-EN-PROGRESO] `compacto`: la píldora «Calendario» de la cabecera de «Tu semana» (la tira ya enseña los días).
+    const texto = label || (compacto ? t('Calendario') : t('Calendario y comidas'));
     return (
-        <button type="button" className={styles.trigger} onClick={onClick} aria-label={texto}>
+        <button type="button" className={compacto ? `${styles.trigger} ${styles.triggerCompacto}` : styles.trigger} onClick={onClick} aria-label={texto}>
             <span className={styles.triggerIcon}>
                 <CalendarDays size={18} strokeWidth={2.25} aria-hidden="true" />
             </span>
@@ -1149,6 +1152,6 @@ export const DiaryHistoryTrigger = ({ onClick, label }) => {
     );
 };
 
-DiaryHistoryTrigger.propTypes = { onClick: PropTypes.func, label: PropTypes.string };
+DiaryHistoryTrigger.propTypes = { onClick: PropTypes.func, label: PropTypes.string, compacto: PropTypes.bool };
 
 export default DiaryHistory;

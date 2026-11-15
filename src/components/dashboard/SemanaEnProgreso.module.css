@@ -1,0 +1,400 @@
+/* [SEMANA-EN-PROGRESO · 2026-11-15] «Tu semana»: anillos por día, racha y detalle al tocar.
+   Los colores de TEXTO salen de los tokens del tema (--text-*, --ink-*, --primary); los tonos vivos se quedan en
+   trazos, rellenos y sombras (contrato P1-LIGHT-INK-CONTRACT). Ningún tamaño de letra baja de 12 px (lote 710). */
+
+.semana {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    margin-top: 0;
+    padding: 0.85rem 0.75rem 0.7rem;
+    border-radius: 20px;
+    border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+    background:
+        radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--primary) 13%, transparent) 0%, transparent 62%),
+        var(--bg-card);
+    overflow: hidden;
+}
+
+/* ------------------------------------------------------------ cabecera */
+
+.cabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0 0.15rem;
+}
+
+.resumen {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 30px;
+    margin-top: 0.2rem;
+    padding: 0 0.15rem;
+}
+
+.titulo {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 750;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+}
+
+.sub {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 550;
+    color: var(--text-muted);
+}
+
+.racha {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.3rem 0.6rem 0.3rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 750;
+    white-space: nowrap;
+    color: var(--ink-warn);
+    background: color-mix(in srgb, #F97316 16%, transparent);
+    border: 1px solid color-mix(in srgb, #F97316 34%, transparent);
+    animation: rachaEntra 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.racha svg { animation: llama 1.8s ease-in-out infinite; transform-origin: 50% 90%; }
+
+/* ------------------------------------------------------------ la cinta de días */
+
+.cinta {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: calc((100% - 6 * 0.2rem) / 7);
+    gap: 0.2rem;
+    margin-top: 0.55rem;
+    padding: 0.15rem 0 0.2rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.cinta::-webkit-scrollbar { display: none; }
+
+.dia {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    min-width: 0;
+    padding: 0.4rem 0 0.45rem;
+    border: 0;
+    border-radius: 16px;
+    background: transparent;
+    cursor: pointer;
+    scroll-snap-align: start;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.dia:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+}
+
+.diaActivo {
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+    transform: translateY(-2px);
+}
+
+.letra {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.diaHoy .letra { color: var(--primary); text-transform: none; }
+
+.anillo {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    max-width: 44px;
+    aspect-ratio: 1;
+}
+
+.anillo > svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.pista {
+    fill: none;
+    stroke: color-mix(in srgb, var(--text-muted) 24%, transparent);
+    stroke-width: 4;
+}
+
+.arco {
+    fill: none;
+    stroke: #F59E0B;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: var(--largo);
+    stroke-dashoffset: var(--resto);
+    animation: dibujar 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+.centro {
+    position: relative;
+    display: grid;
+    place-items: center;
+    font-size: 0.82rem;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-main);
+}
+
+/* sin registros: aro punteado y número apagado (la misma gramática del calendario: punteado = sin dato) */
+.dia_vacio .pista { stroke-dasharray: 2.5 4.2; stroke-linecap: round; }
+.dia_vacio .centro { color: var(--text-muted); font-weight: 600; }
+
+/* día completado: aro verde entero, disco suave y ✓ */
+.dia_meta .arco { stroke: #10B981; }
+.dia_meta .anillo::before {
+    content: '';
+    position: absolute;
+    inset: 16%;
+    border-radius: 50%;
+    background: color-mix(in srgb, #10B981 22%, transparent);
+    animation: brotar 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: calc(var(--i, 0) * 55ms + 0.35s);
+}
+.dia_meta .centro { color: var(--ink-good); animation: brotar 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: calc(var(--i, 0) * 55ms + 0.45s); }
+
+/* se pasó: aro coral entero y un «+» en la esquina */
+.dia_pasado .arco { stroke: #F97316; }
+.exceso {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    display: grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #F97316;
+    box-shadow: 0 0 0 2px var(--bg-card);
+}
+.exceso svg { color: #fff; }
+
+/* hoy: un halo que late despacio para decir «este día sigue abierto» */
+.diaHoy .anillo::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1.5px solid color-mix(in srgb, var(--primary) 70%, transparent);
+    animation: latido 2.6s ease-in-out infinite;
+    pointer-events: none;
+}
+
+/* ------------------------------------------------------------ detalle del día tocado */
+
+.detalle { overflow: hidden; }
+
+.detalleDentro {
+    margin-top: 0.55rem;
+    padding: 0.75rem 0.8rem 0.7rem;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
+}
+
+.detalleCima {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.fecha {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.fecha::first-letter { text-transform: uppercase; }
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.22rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--text-muted);
+    background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+}
+
+.chip_meta { color: var(--ink-good); background: color-mix(in srgb, #10B981 16%, transparent); }
+.chip_bajo { color: var(--ink-pantry); background: color-mix(in srgb, #F59E0B 16%, transparent); }
+.chip_pasado { color: var(--ink-warn); background: color-mix(in srgb, #F97316 16%, transparent); }
+
+.vacio {
+    margin: 0.6rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.kcal {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin: 0.6rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.kcal strong {
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-main);
+}
+
+.comidas { margin-left: auto; font-weight: 600; }
+
+.barra {
+    height: 8px;
+    margin-top: 0.45rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-muted) 20%, transparent);
+    overflow: hidden;
+}
+
+.barra span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%);
+    transform-origin: left center;
+    animation: crecer 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.barra_meta span { background: linear-gradient(90deg, #6EE7B7 0%, #10B981 100%); }
+.barra_pasado span { background: linear-gradient(90deg, #FDBA74 0%, #F97316 100%); }
+
+.macros {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 0.7rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.macros li { min-width: 0; }
+
+.macroNombre {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 650;
+    color: var(--text-muted);
+}
+
+.macroValor {
+    display: block;
+    margin-top: 0.05rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.macroBarra {
+    display: block;
+    height: 4px;
+    margin-top: 0.3rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-muted) 20%, transparent);
+    overflow: hidden;
+}
+
+.macroBarra i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #60A5FA;
+    transform-origin: left center;
+    animation: crecer 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+.macro_carbs .macroBarra i { background: #34D399; }
+.macro_fats .macroBarra i { background: #F472B6; }
+
+.verDia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 0.75rem;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--primary);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.verDia:active { transform: scale(0.98); }
+
+@media (hover: hover) {
+    .dia:hover { background: color-mix(in srgb, var(--primary) 9%, transparent); }
+    .verDia:hover { background: color-mix(in srgb, var(--primary) 20%, transparent); }
+}
+
+/* ------------------------------------------------------------ movimiento */
+
+@keyframes dibujar { from { stroke-dashoffset: var(--largo); } }
+@keyframes crecer { from { transform: scaleX(0); } }
+@keyframes brotar { from { transform: scale(0); opacity: 0; } }
+@keyframes rachaEntra { from { transform: translateY(4px) scale(0.92); opacity: 0; } }
+@keyframes latido {
+    0%, 100% { transform: scale(1); opacity: 0.85; }
+    50% { transform: scale(1.09); opacity: 0.3; }
+}
+@keyframes llama {
+    0%, 100% { transform: scale(1) rotate(-3deg); }
+    50% { transform: scale(1.14) rotate(3deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .arco, .barra span, .macroBarra i, .racha, .racha svg, .dia_meta .centro, .dia_meta .anillo::before,
+    .diaHoy .anillo::after { animation: none; }
+    .dia { transition: none; }
+}

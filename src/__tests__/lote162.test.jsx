@@ -172,7 +172,8 @@ describe('lote 162 · «Ver mis días anteriores» desde el Historial del contad
     it('«Ver días anteriores» recalcula HOY al abrir (el cajón vive montado)', () => {
         const D = leer('src/components/dashboard/DiaryHistory.jsx');
         expect(D).toMatch(/const hoyISO = useMemo\(\(\) => (?:getBiologicalDateStr|aISO)\(new Date\(\)\), \[open\]\);/);
-        expect(D).toMatch(/useEffect\(\(\) => \{ if \(open\) setSelected\((?:getBiologicalDateStr|aISO)\(new Date\(\)\)\); \}, \[open\]\);/);
+        // [SEMANA-EN-PROGRESO] «Tu semana» puede abrirlo en el día tocado (`diaInicial`); sin él sigue siendo HOY recalculado.
+        expect(D).toMatch(/useEffect\(\(\) => \{ if \(open\) setSelected\((?:diaInicial \|\| )?(?:getBiologicalDateStr|aISO)\(new Date\(\)\)\); \}, \[open(?:, diaInicial)?\]\);/);
         expect(D).not.toMatch(/const hoyISO = useMemo\(\(\) => (?:getBiologicalDateStr|aISO)\(new Date\(\)\), \[\]\);/);
     });
 });

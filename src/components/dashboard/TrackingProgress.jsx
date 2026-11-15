@@ -8,6 +8,7 @@ import { useNumeroAnimado } from '../../hooks/useNumeroAnimado';
 // hacia atras con `days_ago`. Sin esta puerta, una comida bien registrada
 // en otro dia no tiene NINGUNA superficie donde verse.
 import DiaryHistory, { DiaryHistoryTrigger } from './DiaryHistory';
+import SemanaEnProgreso from './SemanaEnProgreso';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import { consumirAbrirDiasAnteriores } from '../../utils/diasAnteriores';
 import { confirmToast } from '../../utils/confirmToast';
@@ -457,6 +458,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // Funciones Helper para calcular Progreso
     // [P1-DIARY-HISTORY · 2026-07-31]
     const [historyOpen, setHistoryOpen] = useState(false);
+    // [SEMANA-EN-PROGRESO] el día con el que abre el cajón (null = hoy): lo fija el día tocado en «Tu semana»
+    const [historyDia, setHistoryDia] = useState(null);
     // [P1-PLAN-LOTE-162] Si se llega desde «Ver mis días anteriores» del Historial, el cajón se abre al montar.
     useEffect(() => { if (consumirAbrirDiasAnteriores()) setHistoryOpen(true); }, []);
 
@@ -507,6 +510,15 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // pierde grasa [80%, 105%], ganancia muscular [90%, 115%], mantenimiento/neutro [90%, 110%].
     // Si supera el techo, pasa de verde a tono naranja cálido (#F97316).
     const resolvedMainGoal = resolveMainGoal({ referenceProfile, planData });
+    // [SEMANA-EN-PROGRESO] lo de hoy, en vivo, para el anillo de hoy de «Tu semana»
+    const hoyParaLaSemana = {
+        calories: Number(displayedConsumed.calories) || 0,
+        protein: Number(displayedConsumed.protein) || 0,
+        carbs: Number(displayedConsumed.carbs) || 0,
+        fats: Number(displayedConsumed.fats) || 0,
+        mealsCount: _todaysMeals.length,
+    };
+    const metasMacrosDeHoy = { protein: goalPro, carbs: goalCarb, fats: goalFat };
     const calorieState = getCalorieGoalState(displayedConsumed.calories, goalCal, resolvedMainGoal);
 
     let calColor = '#F59E0B';
@@ -594,12 +606,28 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                             {t('Registrar comida')}
                         </button>
                       </div>
-                      <DiaryHistoryTrigger onClick={() => setHistoryOpen(true)} />
                     </div>
                 ) : (
                     <div className={styles.guestBadge}>
                         {t('Inicia sesión para registrar comidas')}
                     </div>
+                )}
+
+                {/* [SEMANA-EN-PROGRESO · 2026-11-15] El progreso de los días, a la vista: anillos por día, racha y el
+                    resumen del día tocado. La puerta al calendario completo vive en su cabecera (antes era un botón
+                    ancho bajo «Registrar comida»). Fuera del ternario vacío/no-vacío: con el día en cero también está. */}
+                {isLoggedIn && (
+                    <SemanaEnProgreso
+                        userId={userId}
+                        hoy={loading ? null : hoyParaLaSemana}
+                        targetCalories={goalCal}
+                        targetMacros={metasMacrosDeHoy}
+                        mainGoal={resolvedMainGoal}
+                        onAbrirDia={(iso) => { setHistoryDia(iso); setHistoryOpen(true); }}
+                        calendario={(
+                            <DiaryHistoryTrigger compacto onClick={() => { setHistoryDia(null); setHistoryOpen(true); }} />
+                        )}
+                    />
                 )}
 
                 {/* [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas
@@ -853,6 +881,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     targetMacros={{ protein: goalPro, carbs: goalCarb, fats: goalFat }}
                     targetMicros={microTargets}
                     mainGoal={resolvedMainGoal}
+                    diaInicial={historyDia}
                 />
             )}
 

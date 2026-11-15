@@ -100,11 +100,14 @@ describe('la tarjeta fusionada', () => {
         fetchWithAuth.mockImplementation(enrutar());
         render(<TrackingProgress planData={{ calories: 2000, macros: { protein: 150, carbs: 200, fats: 60 } }} userId="u1" />);
         await screen.findByText('Con datos de 1 de 2 comidas');
+        // [SEMANA-EN-PROGRESO] «Tu semana» pide además el rango de días (`/consumed-range/`): aquí se cuenta el DÍA.
+        const delDia = () => fetchWithAuth.mock.calls.filter((c) => String(c[0]).startsWith('/api/diary/consumed/')).length;
         const antes = fetchWithAuth.mock.calls.length;
+        const antesDelDia = delDia();
         await act(async () => { window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'tracking-progress' } })); });
-        expect(fetchWithAuth.mock.calls.length).toBe(antes);
+        expect(fetchWithAuth.mock.calls.length).toBe(antes);            // ni el día ni la tira
         await act(async () => { window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'diary-history', date: hoyISO() } })); });
-        await waitFor(() => expect(fetchWithAuth.mock.calls.length).toBe(antes + 1));
+        await waitFor(() => expect(delDia()).toBe(antesDelDia + 1));
     });
 });
 

@@ -44,7 +44,7 @@ describe('[364] «Regenerar» solo en respuestas a un mensaje tuyo', () => {
         const lista = readFileSync(resolve(__dirname, '..', 'components', 'agent', 'VirtualizedMessageList.jsx'), 'utf8');
         const pagina = readFileSync(resolve(__dirname, '..', 'pages', 'AgentPage.jsx'), 'utf8');
         expect(lista).toContain('puedeRegenerar={respondeAlUsuario(messages, index)}');
-        expect(pagina).toContain('puedeRegenerar={respondeAlUsuario(messages, i)}');
+        expect(pagina).toContain('puedeRegenerar={respondeAlUsuario(visibleMessages, i)}');   // [08425743] lista visible
         expect(pagina).toContain('if (!targetMsg?.isWelcome && !respondeAlUsuario(messagesRef.current, modelMsgIndex)) return;');
     });
 });

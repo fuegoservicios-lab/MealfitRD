@@ -4021,5 +4021,19 @@
   "Está tardando más de lo normal…": "This is taking longer than usual…",
   "{n} s": "{n}s",
   "Foto {n}": "Photo {n}",
-  "Foto {n} · {nombre}": "Photo {n} · {nombre}"
+  "Foto {n} · {nombre}": "Photo {n} · {nombre}",
+  "Tu semana": "Your week",
+  "{n} de {total} días en meta": "{n} of {total} days on goal",
+  "{n} días seguidos": {
+    "one": "{n} day in a row",
+    "other": "{n} days in a row"
+  },
+  "Meta cumplida": "Goal reached",
+  "Sin registros": "No entries",
+  "{kcal} kcal de más": "{kcal} kcal over",
+  "Te faltan {kcal} kcal": "{kcal} kcal to go",
+  "{kcal} kcal por debajo": "{kcal} kcal under",
+  "Ese día no anotaste comidas.": "You didn’t log any meals that day.",
+  "Ver este día": "View this day",
+  "Calendario": "Calendar"
 }

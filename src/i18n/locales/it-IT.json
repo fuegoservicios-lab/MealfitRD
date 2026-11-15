@@ -4021,5 +4021,19 @@
   "Está tardando más de lo normal…": "Sta richiedendo più del solito…",
   "{n} s": "{n} s",
   "Foto {n}": "Foto {n}",
-  "Foto {n} · {nombre}": "Foto {n} · {nombre}"
+  "Foto {n} · {nombre}": "Foto {n} · {nombre}",
+  "Tu semana": "La tua settimana",
+  "{n} de {total} días en meta": "{n} giorni su {total} in obiettivo",
+  "{n} días seguidos": {
+    "one": "{n} giorno di fila",
+    "other": "{n} giorni di fila"
+  },
+  "Meta cumplida": "Obiettivo raggiunto",
+  "Sin registros": "Nessuna registrazione",
+  "{kcal} kcal de más": "{kcal} kcal in più",
+  "Te faltan {kcal} kcal": "Ti mancano {kcal} kcal",
+  "{kcal} kcal por debajo": "{kcal} kcal in meno",
+  "Ese día no anotaste comidas.": "Quel giorno non hai registrato pasti.",
+  "Ver este día": "Vedi questo giorno",
+  "Calendario": "Calendario"
 }

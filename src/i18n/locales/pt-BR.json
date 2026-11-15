@@ -4021,5 +4021,19 @@
   "Está tardando más de lo normal…": "Está demorando mais que o normal…",
   "{n} s": "{n} s",
   "Foto {n}": "Foto {n}",
-  "Foto {n} · {nombre}": "Foto {n} · {nombre}"
+  "Foto {n} · {nombre}": "Foto {n} · {nombre}",
+  "Tu semana": "Sua semana",
+  "{n} de {total} días en meta": "{n} de {total} dias na meta",
+  "{n} días seguidos": {
+    "one": "{n} dia seguido",
+    "other": "{n} dias seguidos"
+  },
+  "Meta cumplida": "Meta cumprida",
+  "Sin registros": "Sem registros",
+  "{kcal} kcal de más": "{kcal} kcal a mais",
+  "Te faltan {kcal} kcal": "Faltam {kcal} kcal",
+  "{kcal} kcal por debajo": "{kcal} kcal abaixo",
+  "Ese día no anotaste comidas.": "Você não registrou refeições nesse dia.",
+  "Ver este día": "Ver este dia",
+  "Calendario": "Calendário"
 }

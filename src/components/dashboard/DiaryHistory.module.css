@@ -1261,3 +1261,20 @@
     text-transform: uppercase;
     color: var(--text-muted);
 }
+
+/* [SEMANA-EN-PROGRESO · 2026-11-15] La puerta del calendario como píldora, en la cabecera de «Tu semana». */
+.triggerCompacto {
+    min-height: 44px;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem 0.3rem 0.35rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+}
+
+.triggerCompacto .triggerIcon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+}
+
+.triggerCompacto .triggerChevron { display: none; }

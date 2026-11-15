@@ -58,7 +58,8 @@ describe('hilo: fecha en los mensajes y separadores en los dos renders', () => {
         expect(AGENT).toContain("{ role: 'model', content: fullText, created_at: new Date().toISOString() }");
     });
     it('render simple y virtualizado calculan el separador con la misma función', () => {
-        expect(AGENT).toContain('daySeparator={daySeparatorLabel(msg, previousDatedMessage(messages, i), { t, formatDate })}');
+        // [08425743] el render simple recorre `visibleMessages` (la conversación sin la burbuja de corte oculta)
+        expect(AGENT).toContain('daySeparator={daySeparatorLabel(msg, previousDatedMessage(visibleMessages, i), { t, formatDate })}');
         expect(VIRT).toContain('daySeparator={daySeparatorLabel(msg, previousDatedMessage(messages, index), { t, formatDate })}');
         expect(VIRT).toContain('[currentSessionId, onRegenerate, onErrorRetry, messages, t]');
     });
