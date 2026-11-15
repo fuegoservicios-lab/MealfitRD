@@ -58,6 +58,42 @@ export function respuestasConEscritas(dudas, elegidas, escritas) {
     return { texto, ajuste: null };
 }
 
+/**
+ * Desglosa respuestas y ajustes por cada foto (`index`) cuando el turno trae 1..4 fotos.
+ * Devuelve `null` si no hay índices válidos; si una foto tiene respuesta escrita, su `ajuste` es `null`.
+ */
+export function respuestasPorFoto(dudas, elegidas, escritas, fotoIndices) {
+    const lista = Array.isArray(dudas) ? dudas : [];
+    if (!lista.length || !Array.isArray(fotoIndices) || fotoIndices.length !== lista.length) return null;
+    const grupos = new Map();
+    const escrito = (i) => String(escritas?.[i] || '').trim();
+    lista.forEach((d, i) => {
+        const idx = Number(fotoIndices[i]);
+        if (!Number.isInteger(idx) || idx < 0) return;
+        if (!grupos.has(idx)) grupos.set(idx, []);
+        grupos.get(idx).push(i);
+    });
+    if (!grupos.size) return null;
+    return Array.from(grupos.keys())
+        .sort((a, b) => a - b)
+        .map((idx) => {
+            const indicesDudas = grupos.get(idx);
+            const tieneEscrita = indicesDudas.some((i) => !!escrito(i));
+            const subDudas = indicesDudas.map((i) => lista[i]);
+            const subElegidas = {};
+            const subEscritas = {};
+            indicesDudas.forEach((origI, localI) => {
+                if (elegidas?.[origI] !== undefined) subElegidas[localI] = elegidas[origI];
+                if (escritas?.[origI]) subEscritas[localI] = escritas[origI];
+            });
+            const r = tieneEscrita
+                ? respuestasConEscritas(subDudas, subElegidas, subEscritas)
+                : respuestasElegidas(subDudas, subElegidas);
+            return { index: idx, respuestas: r.texto, ajuste: r.ajuste };
+        })
+        .filter((entry) => entry.respuestas);
+}
+
 /** Lo que dice la burbuja del usuario (y se guarda) al contestar: su texto y, debajo, las respuestas. */
 export function textoDelTurno(pie, respuestas) {
     return [String(pie || '').trim(), String(respuestas || '').trim()].filter(Boolean).join('\n');

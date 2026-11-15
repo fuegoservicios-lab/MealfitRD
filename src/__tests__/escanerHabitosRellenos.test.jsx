@@ -9,7 +9,8 @@ import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import RespuestasDeLaFoto from '../components/agent/RespuestasDeLaFoto';
-import { dudasDeLasFotos, normalizarDudas } from '../utils/dudasDeLaFoto';
+import { dudasDeLasFotos, indicesFotosDeDudas, normalizarDudas } from '../utils/dudasDeLaFoto';
+import { respuestasPorFoto } from '../utils/fotoAntesDelCoach';
 
 const DUDAS_3 = [
     {
@@ -81,5 +82,60 @@ describe('ESCANER-HABITOS-Y-RELLENOS', () => {
             'queso cottage y mantequilla de mani · 3 huevos enteros',
             null,
         );
+    });
+
+    it('soporta 4 fotos y hasta 6 dudas por plato complejo sin recortar ni mezclar ajustes', () => {
+        const subidas = [
+            { dudas: DUDAS_3.slice(0, 2) }, // foto 0: 2 dudas
+            { dudas: DUDAS_3.slice(2, 3) }, // foto 1: 1 duda
+            { dudas: [] },                  // foto 2: 0 dudas
+            { dudas: [                      // foto 3: 2 dudas
+                {
+                    pregunta: '¿Qué carne es?',
+                    opciones: [
+                        { texto: 'Pollo', supuesta: true, ajuste: { calories: 0, protein: 0, carbs: 0, healthy_fats: 0 } },
+                        { texto: 'Salmón', ajuste: { calories: 90, protein: 2, carbs: 0, healthy_fats: 9 } },
+                    ],
+                },
+                {
+                    pregunta: '¿Con qué grasa se cocinó?',
+                    opciones: [
+                        { texto: 'A la plancha', supuesta: true, ajuste: { calories: 0, protein: 0, carbs: 0, healthy_fats: 0 } },
+                        { texto: 'Aceite', ajuste: { calories: 80, protein: 0, carbs: 0, healthy_fats: 9 } },
+                    ],
+                },
+            ] },
+        ];
+        const todas = dudasDeLasFotos(subidas);
+        const indices = indicesFotosDeDudas(subidas);
+        expect(todas).toHaveLength(5);
+        expect(indices).toEqual([0, 0, 1, 3, 3]);
+
+        // 5 dudas en un solo plato compuesto también pasan completas (hasta 6)
+        expect(normalizarDudas([...DUDAS_3, ...subidas[3].dudas])).toHaveLength(5);
+
+        const porFoto = respuestasPorFoto(
+            todas,
+            { 0: 1, 1: 1, 3: 1, 4: 1 },
+            { 2: 'harina de almendras' }, // foto 1 lleva escrita → su ajuste es null; fotos 0 y 3 conservan suma exacta
+            indices,
+        );
+        expect(porFoto).toEqual([
+            {
+                index: 0,
+                respuestas: 'Cottage y mantequilla de maní · 4 huevos enteros',
+                ajuste: { calories: 382, protein: 23, carbs: 8, healthy_fats: 28 },
+            },
+            {
+                index: 1,
+                respuestas: 'harina de almendras',
+                ajuste: null,
+            },
+            {
+                index: 3,
+                respuestas: 'Salmón · Aceite',
+                ajuste: { calories: 170, protein: 2, carbs: 0, healthy_fats: 18 },
+            },
+        ]);
     });
 });

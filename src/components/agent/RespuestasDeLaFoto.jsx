@@ -12,7 +12,7 @@ import { useT } from '../../i18n';
 import DudasDeLaFoto from '../common/DudasDeLaFoto';
 import { eleccionesSupuestas, respuestasConEscritas } from '../../utils/fotoAntesDelCoach';
 
-const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onOmitir = null, onParcial = null, enPanel = false }) => {
+const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onOmitir = null, onParcial = null, onCambioEstado = null, enPanel = false }) => {
     const t = useT();
     const [elegidas, setElegidas] = useState({});
     const [escritas, setEscritas] = useState({});
@@ -25,6 +25,7 @@ const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onO
         vigenteRef.current = { elegidas: nuevas, escritas: nuevasEscritas };
         setElegidas(nuevas);
         setEscritas(nuevasEscritas);
+        if (onCambioEstado) onCambioEstado({ elegidas: nuevas, escritas: nuevasEscritas });
         if (onParcial) onParcial(nuevas);   // [P1-PLAN-LOTE-695] lo tocado, por si luego escribe en la caja
         const completas = dudas.every((_, k) => nuevas[k] !== undefined || nuevasEscritas[k]);
         if (!completas || (enPanel && enviadoRef.current)) return;
@@ -56,6 +57,7 @@ const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onO
             if (limpio && !escritasCombinadas[idx]) escritasCombinadas[idx] = limpio;
         });
         const combinadas = { ...eleccionesSupuestas(dudas), ...antes };
+        if (onCambioEstado) onCambioEstado({ elegidas: combinadas, escritas: escritasCombinadas });
         const r = respuestasConEscritas(dudas, combinadas, escritasCombinadas);
         onOmitir(r.texto, r.ajuste);
     };
@@ -70,6 +72,7 @@ const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onO
     else if (onOtra) otra = (i) => onOtra(dudas[i].pregunta);   // [P1-PLAN-LOTE-347] el cursor a la caja de escribir
     return (
         <div className={enPanel ? 'chat-respuestas-foto chat-dudas-panel' : 'chat-respuestas-foto'}
+            style={enPanel ? { maxHeight: '48dvh', overflowY: 'auto' } : undefined}
             role="group" aria-label={t('Responde con un toque')}>
             <span className="chat-respuestas-foto-titulo">{titulo || t('Responde con un toque:')}</span>
             <DudasDeLaFoto dudas={dudasVista} respuestas={respuestasVista} confirmadas={{}} onElegir={elegir}

@@ -124,11 +124,11 @@ import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency, precalentarWorkerDeImagen, workerDeImagenDisponible } from '../utils/chatImageProcessing';
 import { vistaPreviaDelAdjunto, esIOS } from '../utils/vistaPreviaDelAdjunto';
-import { dudasDeLasFotos, mensajeDeRespuestas } from '../utils/dudasDeLaFoto';
+import { dudasDeLasFotos, indicesFotosDeDudas, mensajeDeRespuestas } from '../utils/dudasDeLaFoto';
 // [P1-PLAN-LOTE-690] las dudas de la foto se contestan ANTES de que hable el coach
 import {
     borrarFotoPendiente, conFotoPendiente, guardarFotoPendiente, hayQueEsperarRespuestas, leerFotoPendiente,
-    respuestaEscrita, textoDelTurno,
+    respuestaEscrita, respuestasPorFoto, textoDelTurno,
 } from '../utils/fotoAntesDelCoach';
 import RespuestasDeLaFoto from '../components/agent/RespuestasDeLaFoto';
 import { isNativeApp } from '../config/platform';
@@ -1697,6 +1697,7 @@ const AgentPage = () => {
     }, [_setFotoPendienteMem]);
     // [P1-PLAN-LOTE-695] Lo ya tocado en la tarjeta, para juntarlo con lo que se escriba después («Otra…»).
     const respuestasParcialesRef = useRef(null);
+    const respuestasDetalleRef = useRef(null);
     // [P1-PLAN-LOTE-347] «Otra…»: la pregunta de la duda como pista en la caja, hasta el siguiente envío.
     const [pistaDeRespuesta, setPistaDeRespuesta] = useState('');
     const isTurnActiveRef = useRef(false);
@@ -3939,9 +3940,11 @@ const AgentPage = () => {
                 if (visionPayload && options.respuestasDeLaFoto) {
                     if (options.respuestasDeLaFoto.texto) visionPayload.respuestas = options.respuestasDeLaFoto.texto;
                     if (options.respuestasDeLaFoto.ajuste) visionPayload.ajuste = options.respuestasDeLaFoto.ajuste;
+                    if (options.porFotoDeLaFoto?.length) visionPayload.por_foto = options.porFotoDeLaFoto;
                 }
                 // [P1-PLAN-LOTE-322] Las dudas de las fotos del turno, atadas a ESTE chat (no salen en otro).
                 const _dudasDelTurno = dudasDeLasFotos(uploadedAttachments);
+                const _idxFotos = indicesFotosDeDudas(uploadedAttachments);
                 setDudasDeLaFoto(_dudasDelTurno);
                 dudasDeLaFotoSesionRef.current = currentSessionId;
                 // [P1-PLAN-LOTE-690] …y si las hay, el coach ESPERA. Contestando antes de tenerlas, respondía otra cosa
@@ -3956,6 +3959,7 @@ const AgentPage = () => {
                         pie: userMsg,
                         attachments: _durableRetryAttachments(uploadedAttachments),
                         dudas: _dudasDelTurno,   // [P1-PLAN-LOTE-695] para volver a pintar la tarjeta
+                        dudasFotoIndices: _idxFotos,
                         burbuja: _burbujaDeFotoPendiente(userMsg, uploadedAttachments),
                     });
                     setMessages((prev) => prev.map((m) => (
@@ -4606,6 +4610,13 @@ const AgentPage = () => {
             if (!p.burbuja) return undefined;
             fuente = [...fuente.filter((m) => !m.isWelcome), { ...p.burbuja, clientMessageId: p.clientMessageId }];
         }
+        const _pendienteId = p.clientMessageId;
+        const _detalle = respuestasDetalleRef.current?.clientMessageId === _pendienteId
+            ? respuestasDetalleRef.current : null;
+        respuestasDetalleRef.current = null;
+        const porFoto = (_detalle && Array.isArray(p.dudasFotoIndices))
+            ? respuestasPorFoto(p.dudas, _detalle.elegidas, _detalle.escritas, p.dudasFotoIndices)
+            : null;
         const texto = String(respuestas || '').trim();
         return handleSendRef.current(textoDelTurno(p.pie, texto), {
             overrideAttachments: p.attachments,
@@ -4613,6 +4624,7 @@ const AgentPage = () => {
             fotoPendiente: p,
             sourceMessages: fuente,
             respuestasDeLaFoto: { texto, ajuste: ajuste || null },
+            porFotoDeLaFoto: porFoto?.length ? porFoto : undefined,
         });
     };
     const _descartarFotoPendiente = () => {
@@ -5082,6 +5094,12 @@ const AgentPage = () => {
                     titulo={fotoPendiente ? t('Antes de anotarlo, dime:') : null} enPanel={panelDeDudas}
                     onEnviar={(texto, ajuste) => (fotoPendienteRef.current ? _reanudarFoto(texto, ajuste) : handleSend(texto))}
                     onOmitir={fotoPendiente ? (texto, ajuste) => _reanudarFoto(texto, ajuste) : null}
+                    onCambioEstado={(detalle) => {
+                        respuestasDetalleRef.current = {
+                            clientMessageId: fotoPendienteRef.current?.clientMessageId,
+                            ...detalle,
+                        };
+                    }}
                     onParcial={(elegidas) => {   // [P1-PLAN-LOTE-695]
                         respuestasParcialesRef.current = {
                             clientMessageId: fotoPendienteRef.current?.clientMessageId,

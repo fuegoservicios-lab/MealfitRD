@@ -34,11 +34,11 @@ export function normalizarOpciones(opciones) {
     return out.length >= 2 ? out : [];
 }
 
-/** Las dudas de un análisis: `{ sobre, pregunta, opciones }`, máx. 3 en platos compuestos, con pregunta. */
+/** Las dudas de un análisis: `{ sobre, pregunta, opciones }`, máx. 6 en platos compuestos, con pregunta. */
 export function normalizarDudas(dudas) {
     return (Array.isArray(dudas) ? dudas : [])
         .filter((d) => d && typeof d === 'object' && String(d.pregunta || '').trim())
-        .slice(0, 3)
+        .slice(0, 6)
         .map((d) => ({
             sobre: String(d.sobre || '').slice(0, 60),
             pregunta: String(d.pregunta).trim().slice(0, 160),
@@ -46,13 +46,26 @@ export function normalizarDudas(dudas) {
         }));
 }
 
-/** Chat: las dudas CON opciones de las fotos de un turno (máx. 3 en total). Sin opciones no hay botones que ofrecer. */
+/** Chat: las dudas CON opciones de todas las fotos del turno (1..4 fotos, máx. 12 en total). */
 export function dudasDeLasFotos(subidas) {
     const out = [];
     for (const s of Array.isArray(subidas) ? subidas : []) {
         for (const d of normalizarDudas(s?.dudas)) {
             if (d.opciones.length >= 2) out.push(d);
-            if (out.length === 3) return out;
+            if (out.length === 12) return out;
+        }
+    }
+    return out;
+}
+
+/** Índice de foto (0-based) paralelo al arreglo que devuelve `dudasDeLasFotos(subidas)`. */
+export function indicesFotosDeDudas(subidas) {
+    const out = [];
+    const lista = Array.isArray(subidas) ? subidas : [];
+    for (let idx = 0; idx < lista.length; idx += 1) {
+        for (const d of normalizarDudas(lista[idx]?.dudas)) {
+            if (d.opciones.length >= 2) out.push(idx);
+            if (out.length === 12) return out;
         }
     }
     return out;
