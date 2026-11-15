@@ -30,10 +30,11 @@ describe('modos de scroll del chat', () => {
     it('subir por encima del ancla libera; bajar al fondo vuelve a pegar; la píldora solo cuando toca', () => {
         const i = SRC.indexOf('const handleMessagesScroll = useCallback(() => {');
         const body = SRC.slice(i, SRC.indexOf('const handleVirtualizedAtBottomChange', i));
+        expect(body).toContain("const distanceFromBottom = Math.max(0, rawDistance - (mode === 'anchored' ? spacerPxRef.current : 0));");
         expect(body).toContain("if (a?.placed && goingUp && el.scrollTop < (a.rowTop ?? 0) - 8) {");
         expect(body).toContain("if (distanceFromBottom > 120) _setMode('free');");
-        expect(body).toContain("} else if (distanceFromBottom <= 4) {");
-        expect(body).toContain("setShowJumpToLatest(m === 'free' || (m === 'anchored' && distanceFromBottom > 120));");
+        expect(body).toContain("} else if (distanceFromBottom <= 48) {");
+        expect(body).toContain("setShowJumpToLatest(distanceFromBottom > 100 && (m === 'free' || m === 'anchored'));");
     });
     it('cada burbuja lleva su localizador y enfocar la caja solo scrollea en móvil', () => {
         expect(read('src/components/agent/MessageBubble.jsx')).toContain('data-client-message-id={msg.clientMessageId || undefined}');

@@ -19,13 +19,13 @@ export function healthSourcesFor(context, text = '') {
     const words = String(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const ids = new Set(context === 'chat' ? [] : ['energy', 'foods', 'dri', 'diet']);
     if (context === 'tracking') ids.add('amdr');
-    if (/calori|kcal|energ|metabol|tdee|deficit|peso|weight|poids/.test(words)) ids.add('energy');
-    if (/comid|alimen|food|meal|kcal|carbo|gras|fat|nutri|portion/.test(words)) ids.add('foods');
-    if (/vitamin|mineral|fibra|fiber|fibre|agua|water|eau|hidrat|hydrat|hierro|iron|ferro|potas|calci|micronutr|magnes|zinc|folat|selen|iodine|yodo|iode/.test(words)) ids.add('dri');
-    if (/sodio|sodium|sal\b|salt|sugar|azucar|acucar|sucre|verdura|veget|fruta|fruit|dieta|diet|salud|health|sante/.test(words)) ids.add('diet');
-    if (/prote[iy]n|muscul|muscle|fuerza|strength/.test(words)) ids.add('protein');
-    if (/diabet|gluc|insulin/.test(words)) ids.add('diabetes');
-    if (/renal|rinon|kidney|nefr|dial[iy]s|rein\b/.test(words)) ids.add('kidney');
-    if (/hiperten|presion|tension|blood pressure|dash|cardio/.test(words)) ids.add('heart');
+    if (/\b(?:calori\w*|kcal\w*|energ\w*|metabol\w*|tdee|deficit\w*|peso\w*|weight\w*|poids)\b/.test(words)) ids.add('energy');
+    if (/\b(?:comid\w*|alimen\w*|food\w*|meal\w*|kcal\w*|carbo\w*|grasa\w*|grasos?|fat\w*|nutri\w*|portion\w*)\b/.test(words)) ids.add('foods');
+    if (/\b(?:vitamin\w*|mineral\w*|fibra\w*|fiber\w*|fibre\w*|agua|aguas|water|eau|hidrat\w*|hydrat\w*|hierro|iron|ferro|potas\w*|calci\w*|micronutr\w*|magnes\w*|zinc|folat\w*|selen\w*|iodine|yodo|iode)\b/.test(words)) ids.add('dri');
+    if (/\b(?:sodio|sodium|sal|sales|salt|sugar\w*|azucar\w*|acucar|sucre|verdura\w*|veget\w*|fruta\w*|fruit\w*|dieta\w*|diet\w*|salud\w*|health\w*|sante)\b/.test(words)) ids.add('diet');
+    if (/\b(?:prote[iy]n\w*|muscul\w*|muscle\w*|fuerza|strength)\b/.test(words)) ids.add('protein');
+    if (/\b(?:diabet\w*|gluc\w*|insulin\w*)\b/.test(words)) ids.add('diabetes');
+    if (/\b(?:renal\w*|rinon\w*|kidney\w*|nefr\w*|dial[iy]s\w*|rein)\b/.test(words)) ids.add('kidney');
+    if (/\b(?:hiperten\w*|presion\w*|tension|blood pressure|dash|cardio\w*)\b/.test(words)) ids.add('heart');
     return HEALTH_SOURCES.filter(source => ids.has(source.id));
 }

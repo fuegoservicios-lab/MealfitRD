@@ -18,6 +18,10 @@ describe('referencias visibles de salud', () => {
         expect(healthSourcesFor('chat', 'Hola, ¿cómo estás?')).toEqual([]);
         expect(healthSourcesFor('chat', 'Ya borré tu entrada.')).toEqual([]);
     });
+    it('no dispara falsos positivos por subcadenas (aguacate vs agua, engrasada vs grasa, ensalada vs sal)', () => {
+        expect(healthSourcesFor('chat', 'Mezcla harina de maíz y sofríe con pavo y aguacate en sartén ligeramente engrasada.')).toEqual([]);
+        expect(healthSourcesFor('chat', 'Salsa ligera para tus tacos.')).toEqual([]);
+    });
     it('incluye energía, catálogo, DRI y OMS junto al plan y al contador', () => {
         for (const context of ['plan', 'tracking']) {
             expect(healthSourcesFor(context).map(s => s.id)).toEqual(context === 'tracking'

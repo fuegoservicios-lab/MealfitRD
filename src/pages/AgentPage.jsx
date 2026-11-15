@@ -2633,11 +2633,12 @@ const AgentPage = () => {
         const el = messagesContainerRef.current;
         if (!el) return;
         try {
-            const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+            const rawDistance = el.scrollHeight - el.scrollTop - el.clientHeight;
+            const mode = scrollModeRef.current;
+            const distanceFromBottom = Math.max(0, rawDistance - (mode === 'anchored' ? spacerPxRef.current : 0));
             metricasScrollRef.current = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop, clientHeight: el.clientHeight };
             const goingUp = el.scrollTop < lastScrollTopRef.current - 1;
             lastScrollTopRef.current = el.scrollTop;
-            const mode = scrollModeRef.current;
             if (mode === 'anchored') {
                 const a = sentAnchorRef.current;
                 if (a?.placed && goingUp && el.scrollTop < (a.rowTop ?? 0) - 8) {
@@ -2657,11 +2658,11 @@ const AgentPage = () => {
                 });
                 if (alejarse === 'fijar') _pinBottomInstant();
                 else if (distanceFromBottom > 120) _setMode('free');
-            } else if (distanceFromBottom <= 4) {
+            } else if (distanceFromBottom <= 48) {
                 _setMode('bottom');
             }
             const m = scrollModeRef.current;
-            setShowJumpToLatest(m === 'free' || (m === 'anchored' && distanceFromBottom > 120));
+            setShowJumpToLatest(distanceFromBottom > 100 && (m === 'free' || m === 'anchored'));
         } catch (_e) {
             // best-effort
         }
