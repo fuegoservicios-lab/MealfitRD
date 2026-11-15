@@ -200,53 +200,229 @@ export function saludoDelCoach({ hora, nombre = '', modoContador = false, plato 
     return partes.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 }
 
-/**
- * Verdadero si el hilo solo tiene aviso(s) automático(s) del coach sin respuesta del usuario
- * cuyo momento ya pasó (día biológico distinto o franja anterior a la actual).
- */
-export function soloAvisoProactivoVencido(msgs, ahora = new Date()) {
-    if (!Array.isArray(msgs) || msgs.length === 0) return false;
-    const tieneInteraccionOTurno = msgs.some(
-        (m) => !m || m.role !== 'model' || m.isImage || m._isErrorBubble || m._stoppedByUser || m.isIncomplete || m.isStreaming,
-    );
-    if (tieneInteraccionOTurno) return false;
-    if (msgs.every((m) => m.isWelcome)) return false;
-    const ultimo = msgs[msgs.length - 1];
-    const rawDate = ultimo?.created_at ?? ultimo?.welcomeAt ?? null;
-    if (!rawDate) return false;
-    const fechaMsg = rawDate instanceof Date ? rawDate : new Date(rawDate);
-    if (Number.isNaN(fechaMsg.getTime())) return false;
+function _normalizarTextoAviso(texto) {
+    return String(texto || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+}
+
+const _PATRONES_COMIDA_AVISO = [
+    ['desayuno', /\b(?:desayun\w*|breakfast|cafe\s+da\s+manha|petit[- ]dejeuner|colazione)\b/],
+    ['almuerzo', /\b(?:almuerz\w*|almorz\w*|lunch|almoc(?:o|ar)|pranzo|pranz\w*)\b/],
+    ['merienda', /\b(?:meriend\w*|merend\w*|snack\w*|afternoon\s+snack|lanche|gouter)\b/],
+    ['cena', /\b(?:cen(?:a|as|e|o|ando|ar|aste|aron)|dinner|jantar|janta|diner)\b/],
+];
+const _DEJEUNER_RE = /\bdejeuner\b/g;
+
+function _inferirComidaDeAviso(texto) {
+    const norm = _normalizarTextoAviso(texto);
+    if (!norm) return null;
+    let mejorSlot = null;
+    let mejorPos = Infinity;
+    for (const [slot, patron] of _PATRONES_COMIDA_AVISO) {
+        const m = patron.exec(norm);
+        if (m && m.index < mejorPos) {
+            mejorSlot = slot;
+            mejorPos = m.index;
+        }
+    }
+    _DEJEUNER_RE.lastIndex = 0;
+    let dejMatch;
+    while ((dejMatch = _DEJEUNER_RE.exec(norm)) !== null) {
+        const prefix = norm.slice(Math.max(0, dejMatch.index - 6), dejMatch.index);
+        if (!/petit[- ]$/.test(prefix)) {
+            if (dejMatch.index < mejorPos) {
+                mejorSlot = 'almuerzo';
+                mejorPos = dejMatch.index;
+            }
+            break;
+        }
+    }
+    return mejorSlot;
+}
+
+function _normalizarSlotConsumido(raw) {
+    const norm = _normalizarTextoAviso(raw).trim();
+    if (!norm) return null;
+    if (['desayuno', 'breakfast', 'cafe da manha', 'petit-dejeuner', 'petit dejeuner', 'colazione'].includes(norm)) return 'desayuno';
+    if (['almuerzo', 'lunch', 'comida', 'almoco', 'dejeuner', 'pranzo'].includes(norm)) return 'almuerzo';
+    if (norm.includes('merienda') || norm.includes('snack') || norm.includes('lanche') || norm.includes('gouter')) return 'merienda';
+    if (['cena', 'dinner', 'jantar', 'janta', 'diner'].includes(norm)) return 'cena';
+    return null;
+}
+
+function _normalizarComidasHoy(comidasHoy) {
+    const slots = new Set();
+    const fechasMerienda = [];
+    for (const item of Array.isArray(comidasHoy) ? comidasHoy : []) {
+        const rawType = typeof item === 'object' && item !== null ? (item.meal_type ?? item.type) : item;
+        const slot = _normalizarSlotConsumido(rawType);
+        if (!slot) continue;
+        slots.add(slot);
+        if (slot === 'merienda' && typeof item === 'object' && item !== null) {
+            const rawDt = item.consumed_at ?? item.created_at ?? null;
+            const dt = rawDt instanceof Date ? rawDt : (rawDt ? new Date(rawDt) : null);
+            fechasMerienda.push(dt && !Number.isNaN(dt.getTime()) ? dt : null);
+        }
+    }
+    return { slots, fechasMerienda };
+}
+
+function _esBurbujaBloqueadaParaAuto(m) {
+    return !m || m.role !== 'model' || m.isImage || m._isErrorBubble || m._stoppedByUser || m.isIncomplete || m.isStreaming;
+}
+
+function _clasificarColaAutomatica(msgs) {
+    if (!Array.isArray(msgs) || msgs.length === 0) {
+        return { untouched: false, empty: true, hasRealPrefix: false, prefix: [], unanswered: [] };
+    }
+    if (msgs.some((m) => m?.isStreaming || m?.isIncomplete || m?._stoppedByUser || m?._isErrorBubble || m?.isImage)) {
+        return { untouched: true, empty: false, hasRealPrefix: false, prefix: msgs, unanswered: [] };
+    }
+    let lastUserIdx = -1;
+    for (let i = 0; i < msgs.length; i += 1) {
+        if (msgs[i]?.role === 'user') lastUserIdx = i;
+    }
+    if (lastUserIdx === -1) {
+        if (msgs.some(_esBurbujaBloqueadaParaAuto)) {
+            return { untouched: true, empty: false, hasRealPrefix: false, prefix: msgs, unanswered: [] };
+        }
+        return { untouched: false, empty: false, hasRealPrefix: false, prefix: [], unanswered: msgs };
+    }
+    const prefix = msgs.slice(0, Math.min(msgs.length, lastUserIdx + 2));
+    const tail = msgs.slice(Math.min(msgs.length, lastUserIdx + 2));
+    if (tail.some(_esBurbujaBloqueadaParaAuto)) {
+        return { untouched: true, empty: false, hasRealPrefix: true, prefix: msgs, unanswered: [] };
+    }
+    return { untouched: false, empty: false, hasRealPrefix: true, prefix, unanswered: tail };
+}
+
+function _avisoSigueVigente(msg, ahora = new Date(), comidasHoy = []) {
+    if (!msg || msg.isWelcome) return false;
     const ref = ahora instanceof Date ? ahora : new Date(ahora);
-    if (getBiologicalDateStr(fechaMsg) !== getBiologicalDateStr(ref)) return true;
-    return momentoDelDia(fechaMsg.getHours()) !== momentoDelDia(ref.getHours());
+    if (Number.isNaN(ref.getTime())) return true;
+    const rawDate = msg.created_at ?? msg.welcomeAt ?? null;
+    let fechaMsg = null;
+    let msgHour = null;
+    if (rawDate) {
+        fechaMsg = rawDate instanceof Date ? rawDate : new Date(rawDate);
+        if (!Number.isNaN(fechaMsg.getTime())) {
+            if (getBiologicalDateStr(fechaMsg) !== getBiologicalDateStr(ref)) return false;
+            msgHour = fechaMsg.getHours() + fechaMsg.getMinutes() / 60;
+        } else {
+            fechaMsg = null;
+        }
+    }
+    const slot = _inferirComidaDeAviso(msg.content);
+    if (!slot) {
+        if (!fechaMsg) return true;
+        return momentoDelDia(fechaMsg.getHours()) === momentoDelDia(ref.getHours());
+    }
+    const nowHour = ref.getHours() + ref.getMinutes() / 60;
+    const { slots, fechasMerienda } = _normalizarComidasHoy(comidasHoy);
+
+    if (slot === 'desayuno') {
+        if (slots.has('desayuno') || slots.has('almuerzo') || slots.has('cena')) return false;
+        return nowHour >= 4 && nowHour < 12;
+    }
+    if (slot === 'almuerzo') {
+        if (slots.has('almuerzo') || slots.has('cena')) return false;
+        return nowHour >= 4 && nowHour < 19;
+    }
+    if (slot === 'merienda') {
+        if (slots.has('cena')) return false;
+        if (msgHour !== null && msgHour < 12) {
+            if (slots.has('almuerzo') || nowHour >= 12 || nowHour < 4) return false;
+            if (!slots.has('merienda')) return true;
+            if (fechasMerienda.length === 0) return false;
+            return !fechasMerienda.some((dt) => !dt || dt.getHours() < 12 || (fechaMsg && dt >= fechaMsg));
+        }
+        if (nowHour >= 19 || nowHour < 4) return false;
+        if (!slots.has('merienda')) return true;
+        if (fechasMerienda.length === 0) return false;
+        return !fechasMerienda.some((dt) => !dt || (fechaMsg ? dt >= fechaMsg : dt.getHours() >= 12));
+    }
+    if (slot === 'cena') {
+        return !slots.has('cena');
+    }
+    return true;
 }
 
 /**
- * Actualiza in-place el único mensaje predeterminado cuando el hilo no tiene conversación real
- * (solo saludo inicial o avisos automáticos caducados), evitando clonación o acumulación.
+ * Verdadero si el hilo tiene aviso(s) automático(s) sin respuesta que están apilados,
+ * ya fueron cumplidos al registrar esa comida o ya pasó su ventana útil.
+ */
+export function soloAvisoProactivoVencido(msgs, ahora = new Date(), comidasHoy = []) {
+    const info = _clasificarColaAutomatica(msgs);
+    if (info.empty || info.untouched || info.unanswered.length === 0) return false;
+    if (!info.hasRealPrefix && info.unanswered.length === 1 && info.unanswered[0]?.isWelcome) return false;
+    if (info.unanswered.length > 1) return true;
+    return !_avisoSigueVigente(info.unanswered[0], ahora, comidasHoy);
+}
+
+/**
+ * Fusiona y actualiza in-place los mensajes automáticos sin respuesta:
+ * - Si hay varios avisos previos encadenados (p. ej. desayuno + almuerzo), descarta los
+ *   anteriores y conserva solo el más reciente mientras su comida siga pendiente.
+ * - Cuando esa comida ya se registró o venció su ventana/día, desaparecen todos los avisos
+ *   caducados dejando el único saludo del momento (o solo la conversación real previa).
  */
 export function actualizarMensajePredeterminado({
     prev,
     crearSaludo,
     ahora = new Date(),
+    comidasHoy = [],
     esChatViejo = false,
     hayFotoPendiente = false,
 }) {
     if (esChatViejo || hayFotoPendiente || typeof crearSaludo !== 'function') return prev;
-    const esUnicoSaludo = Array.isArray(prev) && prev.length === 1 && Boolean(prev[0]?.isWelcome);
-    const esVacio = !Array.isArray(prev) || prev.length === 0;
-    if (!esVacio && !esUnicoSaludo && !soloAvisoProactivoVencido(prev, ahora)) {
-        return prev;
+    const ref = ahora instanceof Date ? ahora : new Date(ahora);
+    const ts = Number.isFinite(ref.getTime()) ? ref.getTime() : Date.now();
+    const hacerSaludo = () => [{
+        role: 'model',
+        content: crearSaludo(),
+        isWelcome: true,
+        welcomeAt: ts,
+    }];
+
+    if (!Array.isArray(prev) || prev.length === 0) {
+        return hacerSaludo();
     }
+
+    const info = _clasificarColaAutomatica(prev);
+    if (info.untouched) return prev;
+
+    if (info.hasRealPrefix) {
+        if (info.unanswered.length === 0) return prev;
+        const proactivos = info.unanswered.filter((m) => !m.isWelcome);
+        const latest = proactivos[proactivos.length - 1] || null;
+        if (latest && _avisoSigueVigente(latest, ref, comidasHoy)) {
+            if (info.unanswered.length === 1 && info.unanswered[0] === latest) return prev;
+            return [...info.prefix, latest];
+        }
+        return info.prefix;
+    }
+
+    const proactivos = info.unanswered.filter((m) => !m.isWelcome);
+    if (proactivos.length > 0) {
+        const latest = proactivos[proactivos.length - 1];
+        if (_avisoSigueVigente(latest, ref, comidasHoy)) {
+            if (prev.length === 1 && prev[0] === latest) return prev;
+            return [latest];
+        }
+        return hacerSaludo();
+    }
+
+    const esUnicoSaludo = prev.length === 1 && Boolean(prev[0]?.isWelcome);
     const nuevo = crearSaludo();
     if (esUnicoSaludo && prev[0]?.content === nuevo) {
         return prev;
     }
-    const ts = (ahora instanceof Date ? ahora : new Date(ahora)).getTime();
     return [{
         role: 'model',
         content: nuevo,
         isWelcome: true,
-        welcomeAt: Number.isFinite(ts) ? ts : Date.now(),
+        welcomeAt: ts,
     }];
 }

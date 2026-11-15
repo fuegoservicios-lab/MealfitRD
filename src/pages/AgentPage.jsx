@@ -3109,15 +3109,17 @@ const AgentPage = () => {
                         borrarFotoPendiente(sessionId);
                         if (fotoPendienteRef.current?.clientMessageId === _pend.clientMessageId) _setFotoPendienteMem(null);
                     }
-                    if (!_pend && !(chatViejoElegidoRef.current && chatViejoElegidoRef.current === sessionId) && soloAvisoProactivoVencido(_conPend.mensajes)) {
+                    const _resumenActual = resumenHoyRef.current ?? leerResumenDeHoy(userProfile?.id);
+                    if (!_pend && !(chatViejoElegidoRef.current && chatViejoElegidoRef.current === sessionId) && soloAvisoProactivoVencido(_conPend.mensajes, new Date(), _resumenActual?.comidas)) {
                         setMessages(() => actualizarMensajePredeterminado({
                             prev: _conPend.mensajes,
                             crearSaludo: () => generateIntelligentWelcome(
                                 userProfile,
                                 formData,
                                 planData,
-                                resumenHoyRef.current ?? leerResumenDeHoy(userProfile?.id),
+                                _resumenActual,
                             ),
+                            comidasHoy: _resumenActual?.comidas,
                         }));
                     } else {
                         setMessages(_conPend.mensajes);
@@ -5804,6 +5806,7 @@ const AgentPage = () => {
         setMessages((prev) => actualizarMensajePredeterminado({
             prev,
             crearSaludo: () => generateIntelligentWelcome(userProfile, formData, planData, resumenHoy),
+            comidasHoy: resumenHoy?.comidas,
             esChatViejo: chatDeOtroDia || Boolean(chatViejoElegidoRef.current && chatViejoElegidoRef.current === currentSessionId),
             hayFotoPendiente: Boolean(fotoPendienteRef.current),
         }));

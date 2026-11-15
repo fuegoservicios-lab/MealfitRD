@@ -166,4 +166,68 @@ describe('Saludo predeterminado vivo por momento (sin clonar ni variar dentro de
 
         expect(JSON.parse(getByTestId('resumen').textContent).totales).toBeNull();
     });
+
+    it('a las 3:11 PM fusiona [desayuno, almuerzo] dejando solo almuerzo hasta registrarlo y luego desaparecen ambos', () => {
+        const desayunoNudge = {
+            id: 'm-des',
+            role: 'model',
+            content: '¿Te provoca desayunar una arepa rellena de carne de res y aguacate?',
+            created_at: new Date(2026, 10, 15, 8, 45, 0).toISOString(),
+        };
+        const almuerzoNudge = {
+            id: 'm-alm',
+            role: 'model',
+            content: 'Para almorzar, ¿qué te parece un filete de pescado con batata asada y habichuelas?',
+            created_at: new Date(2026, 10, 15, 12, 45, 0).toISOString(),
+        };
+        const tresOncePm = new Date(2026, 10, 15, 15, 11, 0);
+
+        // Con ambos apilados sin haber almorzado: solo desaparece desayuno, almuerzo se queda
+        expect(soloAvisoProactivoVencido([desayunoNudge, almuerzoNudge], tresOncePm, [])).toBe(true);
+        const soloAlmuerzo = actualizarMensajePredeterminado({
+            prev: [desayunoNudge, almuerzoNudge],
+            crearSaludo: () => 'Saludo merienda',
+            ahora: tresOncePm,
+            comidasHoy: [],
+        });
+        expect(soloAlmuerzo).toEqual([almuerzoNudge]);
+
+        // Un solo almuerzo pendiente a las 3:11 PM se conserva intacto (misma referencia)
+        expect(soloAvisoProactivoVencido(soloAlmuerzo, tresOncePm, [])).toBe(false);
+        expect(actualizarMensajePredeterminado({
+            prev: soloAlmuerzo,
+            crearSaludo: () => 'Saludo merienda',
+            ahora: tresOncePm,
+            comidasHoy: [],
+        })).toBe(soloAlmuerzo);
+
+        // Al registrar el almuerzo a las 3:15 PM: desaparece el aviso de almuerzo inmediatamente
+        const tresQuincePm = new Date(2026, 10, 15, 15, 15, 0);
+        expect(soloAvisoProactivoVencido(soloAlmuerzo, tresQuincePm, ['almuerzo'])).toBe(true);
+        const despuesAlmuerzo = actualizarMensajePredeterminado({
+            prev: soloAlmuerzo,
+            crearSaludo: () => '¡Buenas tardes! Llevas 750 de 2,050 kcal.',
+            ahora: tresQuincePm,
+            comidasHoy: ['almuerzo'],
+        });
+        expect(despuesAlmuerzo).toHaveLength(1);
+        expect(despuesAlmuerzo[0].isWelcome).toBe(true);
+        expect(despuesAlmuerzo[0].content).toBe('¡Buenas tardes! Llevas 750 de 2,050 kcal.');
+
+        // Si ya existía conversación real antes de los avisos apilados, desaparecen todos al cumplir el almuerzo
+        const conCharla = [
+            { role: 'user', content: 'Hola' },
+            { role: 'model', content: 'Hola, ¿cómo vas?' },
+            desayunoNudge,
+            almuerzoNudge,
+        ];
+        const postAlmuerzoConCharla = actualizarMensajePredeterminado({
+            prev: conCharla,
+            crearSaludo: () => 'No debe insertarse',
+            ahora: tresQuincePm,
+            comidasHoy: ['almuerzo'],
+        });
+        expect(postAlmuerzoConCharla).toHaveLength(2);
+        expect(postAlmuerzoConCharla.map((m) => m.content)).toEqual(['Hola', 'Hola, ¿cómo vas?']);
+    });
 });
