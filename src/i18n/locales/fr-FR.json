@@ -3902,8 +3902,8 @@
   "En meta": "Dans l’objectif",
   "Bajo la meta": "Sous l’objectif",
   "Sobre la meta": "Au-dessus de l’objectif",
-  "Zona en meta: {min}–{max} kcal ({minPct}–{maxPct} % de tu meta)": "Zone dans l’objectif : {min}–{max} kcal ({minPct}–{maxPct} % de votre objectif)",
-  "Muy por debajo de tu meta: un déficit tan grande cuesta energía y músculo.": "Bien en dessous de votre objectif : un déficit aussi marqué coûte énergie et muscle.",
+  "Zona en meta: {min}–{max} kcal ({minPct}–{maxPct} % de tu meta)": "Zone dans l’objectif : {min}–{max} kcal ({minPct}–{maxPct} % de votre objectif)",
+  "Muy por debajo de tu meta: un déficit tan grande cuesta energía y músculo.": "Bien en dessous de votre objectif : un déficit aussi marqué coûte énergie et muscle.",
   "Complemento": "Complément",
   "Complementos y bebidas": "Compléments et boissons",
   "{n} complementos": {
@@ -4019,5 +4019,7 @@
   "Pensando la respuesta…": "Réflexion en cours…",
   "Sigo en ello…": "J’y travaille encore…",
   "Está tardando más de lo normal…": "C’est plus long que d’habitude…",
-  "{n} s": "{n} s"
+  "{n} s": "{n} s",
+  "Foto {n}": "Photo {n}",
+  "Foto {n} · {nombre}": "Photo {n} · {nombre}"
 }

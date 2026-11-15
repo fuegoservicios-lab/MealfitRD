@@ -4019,5 +4019,7 @@
   "Pensando la respuesta…": "Pensando na resposta…",
   "Sigo en ello…": "Continuo trabalhando nisso…",
   "Está tardando más de lo normal…": "Está demorando mais que o normal…",
-  "{n} s": "{n} s"
+  "{n} s": "{n} s",
+  "Foto {n}": "Foto {n}",
+  "Foto {n} · {nombre}": "Foto {n} · {nombre}"
 }

@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { platoDesdeAnalisis } from '../components/dashboard/scanMealDishes';
 
 describe('[305] dudas de la foto en el escáner', () => {
-    it('el plato guarda las dudas del análisis (máx. 2, sin basura)', () => {
+    it('el plato guarda las dudas del análisis (máx. 6 desde cb9a6ba3, sin basura)', () => {
         const p = platoDesdeAnalisis({
             meal_name: 'Huevos revueltos', macros: { calories: 280 }, items: [],
             dudas: [{ sobre: 'huevo', pregunta: '¿Cuántos huevos eran?' }, { pregunta: '' }, 'x',
@@ -18,6 +18,7 @@ describe('[305] dudas de la foto en el escáner', () => {
             // [P1-PLAN-LOTE-322] cada duda trae ahora sus opciones de un toque (aquí ninguna)
             { sobre: 'huevo', pregunta: '¿Cuántos huevos eran?', opciones: [] },
             { sobre: 'aceite', pregunta: '¿Con aceite o mantequilla?', opciones: [] },
+            { sobre: '', pregunta: '¿Una tercera?', opciones: [] },
         ]);
         expect(platoDesdeAnalisis({ macros: {} }).dudas).toEqual([]);
     });

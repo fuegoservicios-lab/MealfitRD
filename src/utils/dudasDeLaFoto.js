@@ -3,6 +3,8 @@
 // El análisis de la foto (`POST /api/diary/upload`) trae hasta 2 dudas; cada una con 2-5 opciones y lo que cambia
 // cada opción en las macros del PLATO ENTERO (la que supuso la IA, en 0). El backend ya las normaliza; aquí se
 // vuelven a validar porque un servidor anterior o un JSON raro no pueden romper la hoja.
+import { t } from '../i18n';
+
 const MACROS = ['calories', 'protein', 'carbs', 'healthy_fats'];
 
 const _num = (v) => {
@@ -81,7 +83,8 @@ export function etiquetasFotosDesde(indices, subidas) {
     const lista = Array.isArray(subidas) ? subidas : [];
     return indices.map((idx) => {
         const nombre = String(lista[idx]?.meal_name || '').trim().slice(0, 38);
-        return nombre ? `Foto ${idx + 1} · ${nombre}` : `Foto ${idx + 1}`;
+        // [REVISION-88330c92] traducida: con la app en inglés salía «Foto 2 · …» en español
+        return nombre ? t('Foto {n} · {nombre}', { n: idx + 1, nombre }) : t('Foto {n}', { n: idx + 1 });
     });
 }
 

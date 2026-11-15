@@ -70,10 +70,10 @@
     padding: 0.16rem 0.55rem;
     margin-top: 0.15rem;
     border-radius: 999px;
-    font-size: 0.74rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.01em;
-    color: var(--primary, #818cf8);
+    color: var(--primary, #6366F1);
     background: color-mix(in srgb, var(--primary, #6366f1) 14%, transparent);
     border: 1px solid color-mix(in srgb, var(--primary, #6366f1) 28%, transparent);
 }

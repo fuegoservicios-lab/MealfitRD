@@ -4019,5 +4019,7 @@
   "Pensando la respuesta…": "Sto pensando alla risposta…",
   "Sigo en ello…": "Ci sto ancora lavorando…",
   "Está tardando más de lo normal…": "Sta richiedendo più del solito…",
-  "{n} s": "{n} s"
+  "{n} s": "{n} s",
+  "Foto {n}": "Foto {n}",
+  "Foto {n} · {nombre}": "Foto {n} · {nombre}"
 }
