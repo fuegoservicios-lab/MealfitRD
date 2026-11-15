@@ -9,7 +9,7 @@ import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import RespuestasDeLaFoto from '../components/agent/RespuestasDeLaFoto';
-import { dudasDeLasFotos, indicesFotosDeDudas, normalizarDudas } from '../utils/dudasDeLaFoto';
+import { dudasDeLasFotos, etiquetasFotosDesde, indicesFotosDeDudas, normalizarDudas } from '../utils/dudasDeLaFoto';
 import { respuestasPorFoto } from '../utils/fotoAntesDelCoach';
 
 const DUDAS_3 = [
@@ -137,5 +137,35 @@ describe('ESCANER-HABITOS-Y-RELLENOS', () => {
                 ajuste: { calories: 170, protein: 2, carbs: 0, healthy_fats: 18 },
             },
         ]);
+
+        const subidasConNombres = [
+            { meal_name: 'Bowl de frutas', dudas: DUDAS_3.slice(0, 2) },
+            { meal_name: 'Arroz con cerdo', dudas: DUDAS_3.slice(2, 3) },
+            { meal_name: 'Sándwiches de jamón', dudas: [] },
+            { meal_name: 'Salmón', dudas: subidas[3].dudas },
+        ];
+        const etiquetas = etiquetasFotosDesde(indices, subidasConNombres);
+        expect(etiquetas).toEqual([
+            'Foto 1 · Bowl de frutas',
+            'Foto 1 · Bowl de frutas',
+            'Foto 2 · Arroz con cerdo',
+            'Foto 4 · Salmón',
+            'Foto 4 · Salmón',
+        ]);
+        // Una sola foto con dudas NO muestra etiquetas extra
+        expect(etiquetasFotosDesde([0, 0], subidasConNombres)).toBeNull();
+
+        render(
+            <RespuestasDeLaFoto
+                dudas={todas}
+                etiquetas={etiquetas}
+                onEnviar={vi.fn()}
+                onOmitir={vi.fn()}
+                enPanel
+            />
+        );
+        expect(screen.getByText(/Foto 1 · Bowl de frutas/)).toBeTruthy();
+        expect(screen.getByText(/Foto 2 · Arroz con cerdo/)).toBeTruthy();
+        expect(screen.getByText(/Foto 4 · Salmón/)).toBeTruthy();
     });
 });

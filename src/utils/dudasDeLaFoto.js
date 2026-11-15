@@ -71,6 +71,20 @@ export function indicesFotosDeDudas(subidas) {
     return out;
 }
 
+/**
+ * Etiqueta por duda (`Foto N · Platillo`) cuando hay >= 2 fotos con dudas en el mismo turno;
+ * devuelve `null` si las dudas vienen de una sola foto para no recargar paneles simples.
+ */
+export function etiquetasFotosDesde(indices, subidas) {
+    if (!Array.isArray(indices) || !indices.length) return null;
+    if (new Set(indices).size < 2) return null;
+    const lista = Array.isArray(subidas) ? subidas : [];
+    return indices.map((idx) => {
+        const nombre = String(lista[idx]?.meal_name || '').trim().slice(0, 38);
+        return nombre ? `Foto ${idx + 1} · ${nombre}` : `Foto ${idx + 1}`;
+    });
+}
+
 /** Chat: UN mensaje con todas las respuestas («4 huevos · Arepa») — un solo turno del coach, no uno por duda.
  *  [P1-PLAN-LOTE-626] con lo que el usuario leyó (el coach entiende cualquier idioma). */
 export function mensajeDeRespuestas(dudas, elegidas) {

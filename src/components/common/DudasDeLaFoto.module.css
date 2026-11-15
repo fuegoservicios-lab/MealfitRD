@@ -62,3 +62,18 @@
 .grande .pregunta { font-size: 0.98rem; font-weight: 600; }
 .grande .opciones { gap: 0.5rem; }
 .grande .opcion { min-height: 48px; padding: 0.55rem 1.1rem; font-size: 1rem; }
+.fotoEtiqueta {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.16rem 0.55rem;
+    margin-top: 0.15rem;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--primary, #818cf8);
+    background: color-mix(in srgb, var(--primary, #6366f1) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary, #6366f1) 28%, transparent);
+}

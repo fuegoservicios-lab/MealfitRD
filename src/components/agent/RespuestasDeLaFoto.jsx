@@ -12,7 +12,7 @@ import { useT } from '../../i18n';
 import DudasDeLaFoto from '../common/DudasDeLaFoto';
 import { eleccionesSupuestas, respuestasConEscritas } from '../../utils/fotoAntesDelCoach';
 
-const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onOmitir = null, onParcial = null, onCambioEstado = null, enPanel = false }) => {
+const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onOmitir = null, onParcial = null, onCambioEstado = null, enPanel = false, etiquetas = null }) => {
     const t = useT();
     const [elegidas, setElegidas] = useState({});
     const [escritas, setEscritas] = useState({});
@@ -72,15 +72,23 @@ const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onO
     else if (onOtra) otra = (i) => onOtra(dudas[i].pregunta);   // [P1-PLAN-LOTE-347] el cursor a la caja de escribir
     return (
         <div className={enPanel ? 'chat-respuestas-foto chat-dudas-panel' : 'chat-respuestas-foto'}
-            style={enPanel ? { maxHeight: '48dvh', overflowY: 'auto' } : undefined}
+            style={enPanel ? { display: 'flex', flexDirection: 'column', maxHeight: '50dvh', overflow: 'hidden' } : undefined}
             role="group" aria-label={t('Responde con un toque')}>
-            <span className="chat-respuestas-foto-titulo">{titulo || t('Responde con un toque:')}</span>
-            <DudasDeLaFoto dudas={dudasVista} respuestas={respuestasVista} confirmadas={{}} onElegir={elegir}
-                onOtra={otra} otraConCampo={enPanel} grande={enPanel} centrarCampo={!enPanel}
-                onBorradorOtra={(i, val) => { borradorOtraRef.current[i] = val; }}
-                pistaOtra={enPanel ? t('Escribe tu respuesta') : null} />
+            <span className="chat-respuestas-foto-titulo"
+                style={enPanel ? { flexShrink: 0, paddingBottom: '0.35rem' } : undefined}>
+                {titulo || t('Responde con un toque:')}
+            </span>
+            <div style={enPanel ? { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingTop: '0.15rem', paddingRight: '0.2rem' } : undefined}>
+                <DudasDeLaFoto dudas={dudasVista} respuestas={respuestasVista} confirmadas={{}} onElegir={elegir}
+                    onOtra={otra} otraConCampo={enPanel} grande={enPanel} centrarCampo={!enPanel}
+                    etiquetas={etiquetas}
+                    onBorradorOtra={(i, val) => { borradorOtraRef.current[i] = val; }}
+                    pistaOtra={enPanel ? t('Escribe tu respuesta') : null} />
+            </div>
             {onOmitir && (
-                <button type="button" className="chat-respuestas-foto-omitir" onClick={omitir}>
+                <button type="button" className="chat-respuestas-foto-omitir"
+                    style={enPanel ? { flexShrink: 0, paddingTop: '0.35rem' } : undefined}
+                    onClick={omitir}>
                     {t('Omitir preguntas')}
                 </button>
             )}

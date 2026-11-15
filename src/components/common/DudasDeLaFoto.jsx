@@ -15,7 +15,7 @@ import styles from './DudasDeLaFoto.module.css';
 // teclado). `centrarCampo={false}`: el chat no centra el campo de «Otra…» — vive en la caja de escribir, que ya sube con
 // el teclado, y un `scrollIntoView` ahí desplazaría la página entera bajo el teclado de iOS.
 // `pistaOtra`: el texto guía del campo (en el panel, más estrecho, el del escáner se cortaba).
-const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = false, onOtra = null, otraConCampo = false, calculando = null, onEditando = null, onBorradorOtra = null, grande = false, centrarCampo = true, pistaOtra = null }) => {
+const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = false, onOtra = null, otraConCampo = false, calculando = null, onEditando = null, onBorradorOtra = null, grande = false, centrarCampo = true, pistaOtra = null, etiquetas = null }) => {
     const t = useT();
     const [reabiertas, setReabiertas] = useState({});
     const [otraAbierta, setOtraAbierta] = useState(null);
@@ -88,8 +88,11 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                 }
                 // [P1-PLAN-LOTE-361] mientras se calcula lo escrito, SOLO esta duda espera; las demás siguen tocables
                 const esperando = calculando === i;
+                const etiqueta = Array.isArray(etiquetas) ? etiquetas[i] : null;
+                const mostrarEtiqueta = Boolean(etiqueta && (i === 0 || etiquetas[i - 1] !== etiqueta));
                 return (
-                    <li key={d.pregunta} className={styles.duda}>
+                    <li key={`${i}-${d.pregunta}`} className={styles.duda}>
+                        {mostrarEtiqueta && <span className={styles.fotoEtiqueta}>📷 {etiqueta}</span>}
                         <span className={styles.pregunta}>{d.pregunta}</span>
                         {esperando && <span role="status" className={styles.calculando}>{t('Calculando…')}</span>}
                         {(d.opciones.length > 0 || onOtra) && (
@@ -176,6 +179,7 @@ DudasDeLaFoto.propTypes = {
     onOtra: PropTypes.func,
     otraConCampo: PropTypes.bool,
     calculando: PropTypes.number,
+    etiquetas: PropTypes.arrayOf(PropTypes.string),
     onEditando: PropTypes.func,
     onBorradorOtra: PropTypes.func,
     grande: PropTypes.bool,

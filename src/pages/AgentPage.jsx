@@ -124,7 +124,7 @@ import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency, precalentarWorkerDeImagen, workerDeImagenDisponible } from '../utils/chatImageProcessing';
 import { vistaPreviaDelAdjunto, esIOS } from '../utils/vistaPreviaDelAdjunto';
-import { dudasDeLasFotos, indicesFotosDeDudas, mensajeDeRespuestas } from '../utils/dudasDeLaFoto';
+import { dudasDeLasFotos, etiquetasFotosDesde, indicesFotosDeDudas, mensajeDeRespuestas } from '../utils/dudasDeLaFoto';
 // [P1-PLAN-LOTE-690] las dudas de la foto se contestan ANTES de que hable el coach
 import {
     borrarFotoPendiente, conFotoPendiente, guardarFotoPendiente, hayQueEsperarRespuestas, leerFotoPendiente,
@@ -430,6 +430,7 @@ const _durableRetryAttachments = (items) => (items || []).map((item) => ({
     image_url: item.image_url,
     description: item.description,
     kind: item.kind,
+    meal_name: item.meal_name || undefined,
     supplement_facts: item.supplement_facts,
     food_facts: item.food_facts,
     content_type: item.content_type || item.file?.type,
@@ -3828,6 +3829,7 @@ const AgentPage = () => {
                         image_url: data.image_url || '',
                         description: data.analysis_failed ? null : data.description,
                         kind: data.photo_kind || 'plato',
+                        meal_name: data.meal_name || '',
                         supplement_facts: data.supplement_facts || null,
                         food_facts: data.food_facts,
                         // [P1-PLAN-LOTE-322] las dudas con opciones: bajo la respuesta del coach, como botones
@@ -5092,6 +5094,7 @@ const AgentPage = () => {
             {dudasDeLaFoto.length > 0 && !isTurnActive && !chatDeOtroDia && dudasDeLaFotoSesionRef.current === currentSessionId && (
                 <RespuestasDeLaFoto key={fotoPendiente?.clientMessageId || 'tras-el-coach'} dudas={dudasDeLaFoto}
                     titulo={fotoPendiente ? t('Antes de anotarlo, dime:') : null} enPanel={panelDeDudas}
+                    etiquetas={etiquetasFotosDesde(fotoPendiente?.dudasFotoIndices, fotoPendiente?.attachments)}
                     onEnviar={(texto, ajuste) => (fotoPendienteRef.current ? _reanudarFoto(texto, ajuste) : handleSend(texto))}
                     onOmitir={fotoPendiente ? (texto, ajuste) => _reanudarFoto(texto, ajuste) : null}
                     onCambioEstado={(detalle) => {
