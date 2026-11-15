@@ -4035,5 +4035,7 @@
   "{kcal} kcal por debajo": "{kcal} kcal in meno",
   "Ese día no anotaste comidas.": "Quel giorno non hai registrato pasti.",
   "Ver este día": "Vedi questo giorno",
-  "Calendario": "Calendario"
+  "Calendario": "Calendario",
+  "No pudimos leer una de las fotos. Vuelve a elegirla antes de enviar.": "Non siamo riusciti a leggere una delle foto. Sceglila di nuovo prima di inviare.",
+  "Una de las fotos ya no está disponible. Quítala y vuelve a elegirla.": "Una delle foto non è più disponibile. Rimuovila e sceglila di nuovo."
 }
