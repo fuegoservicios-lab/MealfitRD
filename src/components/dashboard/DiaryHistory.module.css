@@ -346,6 +346,64 @@
     border-color: rgba(52, 211, 153, 0.35);
 }
 
+.quotaOverBadge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #C2410C;
+    background: rgba(249, 115, 22, 0.12);
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    white-space: nowrap;
+}
+
+:global(html[data-theme="dark"]) .quotaOverBadge {
+    color: #FDBA74;
+    background: rgba(249, 115, 22, 0.14);
+    border-color: rgba(251, 146, 60, 0.35);
+}
+
+.goalLegend {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.35rem 1.15rem 0.15rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.01em;
+}
+
+.goalLegendItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.32rem;
+}
+
+.goalLegendDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.goalLegendGreen {
+    background: #10B981;
+}
+
+.goalLegendAmber {
+    background: #F59E0B;
+}
+
+.goalLegendOrange {
+    background: #F97316;
+}
+
 .quotaNum {
     font-size: 2.05rem;
     font-weight: 800;

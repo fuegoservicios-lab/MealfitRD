@@ -3899,6 +3899,9 @@
   "{n} {unit} sobre la meta": "{n} {unit} acima da meta",
   "Meta alcanzada": "Meta atingida",
   "Meta del día alcanzada": "Meta do dia atingida",
+  "En meta": "Na meta",
+  "En curso": "Em andamento",
+  "Excedido": "Excedido",
   "Complemento": "Complemento",
   "Complementos y bebidas": "Complementos e bebidas",
   "{n} complementos": {

@@ -301,6 +301,7 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         expect(document.querySelector('[class*="quotaFillOver"]')).not.toBeNull();
         expect(document.querySelector('[class*="railFillComplete"]')).toBeNull();
         expect(screen.queryByText('Meta del día alcanzada')).toBeNull();
+        expect(screen.getByText('250 kcal sobre la meta')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /mes/i }));
         await waitFor(() => {
@@ -321,6 +322,62 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
             expect(document.querySelector('[class*="calCellDotGreen"]')).not.toBeNull();
             expect(document.querySelector('[class*="quotaFillComplete"]')).not.toBeNull();
             expect(screen.getByText('Meta del día alcanzada')).toBeInTheDocument();
+        });
+    });
+
+    it('[P1-DIARY-DAY-TARGETS] respeta la meta histórica por día sin reescribir días pasados al bajar de meta', async () => {
+        fetchWithAuth.mockImplementation(async (url) => {
+            if (url.includes('/api/diary/consumed-range')) {
+                return respuesta({
+                    days: [
+                        { date: HOY, calories: 2095, protein: 89, carbs: 262, healthy_fats: 82, meals_count: 3, target_calories: 2050, main_goal: 'lose_fat' },
+                        { date: AYER, calories: 3082, protein: 138, carbs: 358, healthy_fats: 120, meals_count: 4, target_calories: 3350, main_goal: 'gain_muscle' },
+                    ],
+                });
+            }
+            if (url.includes(`date=${HOY}`)) {
+                return respuesta({
+                    meals: [{ id: 'v1', meal_name: 'Cena viernes', meal_type: 'cena', calories: 2095, protein: 89, carbs: 262, healthy_fats: 82, created_at: _h.toISOString(), consumed_at: _h.toISOString() }],
+                    totals: { calories: 2095, protein: 89, carbs: 262, healthy_fats: 82 },
+                    targets: { calories: 2050, macros: { protein: 134, carbs: 251, fats: 57 }, main_goal: 'lose_fat' },
+                });
+            }
+            if (url.includes(`date=${AYER}`)) {
+                return respuesta({
+                    meals: [{ id: 'j1', meal_name: 'Comida jueves', meal_type: 'almuerzo', calories: 3082, protein: 138, carbs: 358, healthy_fats: 120, created_at: AYER_FECHA.toISOString(), consumed_at: AYER_FECHA.toISOString() }],
+                    totals: { calories: 3082, protein: 138, carbs: 358, healthy_fats: 120 },
+                    targets: { calories: 3350, macros: { protein: 180, carbs: 380, fats: 100 }, main_goal: 'gain_muscle' },
+                });
+            }
+            return respuesta({ meals: [], totals: {} });
+        });
+
+        render(
+            <DiaryHistory
+                userId="u-hist-goal"
+                open={true}
+                onClose={() => {}}
+                targetCalories={2050}
+                targetMacros={{ protein: 134, carbs: 251, fats: 57 }}
+                mainGoal="lose_fat"
+            />
+        );
+
+        // Tanto hoy (2095/2050 = 102%) como ayer (3082/3350 = 92%) deben verse en verde en la tira
+        await waitFor(() => {
+            expect(document.querySelectorAll('[class*="railFillComplete"]').length).toBe(2);
+        });
+        expect(document.querySelectorAll('[class*="railFillOver"]').length).toBe(0);
+
+        // Seleccionar ayer en la tira y verificar que muestra SU meta histórica (3350 kcal) y Meta del día alcanzada
+        const ayerBtn = screen.getByTitle(/3082 kcal/);
+        fireEvent.click(ayerBtn);
+
+        await waitFor(() => {
+            expect(screen.getByText('3082')).toBeInTheDocument();
+            expect(screen.getByText('de 3350 kcal')).toBeInTheDocument();
+            expect(screen.getByText('Meta del día alcanzada')).toBeInTheDocument();
+            expect(screen.getByText('138/180 g')).toBeInTheDocument();
         });
     });
 });

@@ -41,7 +41,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, ChevronRight, ChevronLeft, Trash2, Loader2, Plus, FlaskConical, Share, Check } from 'lucide-react';
+import { X, CalendarDays, ChevronRight, ChevronLeft, Trash2, Loader2, Plus, FlaskConical, Share, Check, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { confirmToast } from '../../utils/confirmToast';
@@ -353,6 +353,14 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         return m;
     }, [resumen]);
 
+    const diaTargets = dia?.iso === selected ? dia?.targets : null;
+    const selectedRow = porFecha.get(selected);
+    const selectedTargetCal = (diaTargets?.calories > 0 ? diaTargets.calories : null)
+        ?? (selectedRow?.target_calories > 0 ? selectedRow.target_calories : null)
+        ?? targetCalories;
+    const selectedTargetMacros = diaTargets?.macros || selectedRow?.target_macros || targetMacros;
+    const selectedMainGoal = diaTargets?.main_goal || selectedRow?.main_goal || resolvedMainGoal;
+
     useEffect(() => {
         if (!open || !userId) return undefined;
         let vivo = true;
@@ -384,7 +392,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                 const data = await res.json();
                 // [P1-COMPARTIR-DIA-PASADO] `iso`: la fecha viaja CON sus datos. Mientras carga otro día, `dia` sigue
                 // siendo el anterior, y compartir no puede juntar las cifras de uno con la fecha del otro.
-                if (vivo) setDia({ iso: selected, meals: data?.meals || [], totals: data?.totals || {} });
+                if (vivo) setDia({ iso: selected, meals: data?.meals || [], totals: data?.totals || {}, targets: data?.targets || null });
             } catch {
                 if (vivo) {
                     setDia(null);
@@ -704,10 +712,12 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                 const r = porFecha.get(iso);
                                 const kcal = r?.calories || 0;
                                 const conDatos = (r?.meals_count || 0) > 0;
-                                const alto = pct(kcal, targetCalories);
+                                const diaTargetCal = (r?.target_calories > 0 ? r.target_calories : null) ?? targetCalories;
+                                const diaMainGoal = r?.main_goal || resolvedMainGoal;
+                                const alto = pct(kcal, diaTargetCal);
                                 const activo = iso === selected;
                                 // [BB-024] Misma Banda de Éxito que TrackingProgress: verde en 90%-110% (115% músculo), naranja si excede.
-                                const estado = getCalorieGoalState(kcal, targetCalories, resolvedMainGoal);
+                                const estado = getCalorieGoalState(kcal, diaTargetCal, diaMainGoal);
                                 return (
                                     <button
                                         key={iso}
@@ -735,6 +745,21 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     </button>
                                 );
                             })}
+                        </div>
+
+                        <div className={styles.goalLegend} aria-hidden="true">
+                            <span className={styles.goalLegendItem}>
+                                <span className={`${styles.goalLegendDot} ${styles.goalLegendGreen}`} />
+                                {t('En meta')}
+                            </span>
+                            <span className={styles.goalLegendItem}>
+                                <span className={`${styles.goalLegendDot} ${styles.goalLegendAmber}`} />
+                                {t('En curso')}
+                            </span>
+                            <span className={styles.goalLegendItem}>
+                                <span className={`${styles.goalLegendDot} ${styles.goalLegendOrange}`} />
+                                {t('Excedido')}
+                            </span>
                         </div>
 
                         {semana && (
@@ -812,7 +837,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     const r = porFecha.get(iso);
                                     const kcal = r?.calories || 0;
                                     const conDatos = (r?.meals_count || 0) > 0;
-                                    const estado = getCalorieGoalState(kcal, targetCalories, resolvedMainGoal);
+                                    const diaTargetCal = (r?.target_calories > 0 ? r.target_calories : null) ?? targetCalories;
+                                    const diaMainGoal = r?.main_goal || resolvedMainGoal;
+                                    const estado = getCalorieGoalState(kcal, diaTargetCal, diaMainGoal);
                                     const activo = iso === selected;
                                     const esHoyDia = iso === hoyISO;
                                     const esFuturo = iso > hoyISO;
@@ -858,19 +885,34 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     );
                                 })}
                             </div>
+                            <div className={styles.goalLegend} aria-hidden="true">
+                                <span className={styles.goalLegendItem}>
+                                    <span className={`${styles.goalLegendDot} ${styles.goalLegendGreen}`} />
+                                    {t('En meta')}
+                                </span>
+                                <span className={styles.goalLegendItem}>
+                                    <span className={`${styles.goalLegendDot} ${styles.goalLegendAmber}`} />
+                                    {t('En curso')}
+                                </span>
+                                <span className={styles.goalLegendItem}>
+                                    <span className={`${styles.goalLegendDot} ${styles.goalLegendOrange}`} />
+                                    {t('Excedido')}
+                                </span>
+                            </div>
                         </div>
                     </>
                 )}
 
                 {(() => {
                     const kcalDia = num(totales.calories);
-                    const quotaEstado = getCalorieGoalState(kcalDia, targetCalories, resolvedMainGoal);
+                    const quotaEstado = getCalorieGoalState(kcalDia, selectedTargetCal, selectedMainGoal);
+                    const excesoKcal = Math.max(0, kcalDia - num(selectedTargetCal));
                     return (
                         <div className={styles.quota}>
                             <div className={styles.quotaTop}>
                                 <div className={styles.quotaNumbers}>
                                     <span className={styles.quotaNum}>{kcalDia}</span>
-                                    <span className={styles.quotaOf}>{t('de {kcal} kcal', { kcal: targetCalories })}</span>
+                                    <span className={styles.quotaOf}>{t('de {kcal} kcal', { kcal: selectedTargetCal })}</span>
                                 </div>
                                 {quotaEstado === 'green' && (
                                     <span className={styles.quotaCompleteBadge}>
@@ -878,12 +920,18 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                         {t('Meta del día alcanzada')}
                                     </span>
                                 )}
+                                {quotaEstado === 'over' && excesoKcal > 0 && (
+                                    <span className={styles.quotaOverBadge}>
+                                        <TrendingUp size={12} strokeWidth={2.5} aria-hidden="true" />
+                                        {t('{n} {unit} sobre la meta', { n: formatNumber(excesoKcal), unit: 'kcal' })}
+                                    </span>
+                                )}
                             </div>
                             <div className={styles.quotaBar}>
                                 <motion.div
                                     className={`${styles.quotaFill} ${quotaEstado === 'green' ? styles.quotaFillComplete : quotaEstado === 'over' ? styles.quotaFillOver : ''}`}
                                     initial={{ width: 0 }}
-                                    animate={{ width: `${pct(totales.calories, targetCalories)}%` }}
+                                    animate={{ width: `${pct(totales.calories, selectedTargetCal)}%` }}
                                     transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                                 />
                             </div>
@@ -893,7 +941,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
 
                 <div className={styles.macroRow}>
                     {getMacros(t).map((m) => {
-                        const meta = num(targetMacros?.[m.goal]) || 0;
+                        const meta = num(selectedTargetMacros?.[m.goal]) || 0;
                         return (
                             <div key={m.key} className={styles.macroCell}>
                                 <div className={styles.macroTop}>
@@ -1030,10 +1078,10 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         meal={fichaMeal}
                         userId={userId}
                         metas={{
-                            calories: targetCalories,
-                            protein: num(targetMacros?.protein),
-                            carbs: num(targetMacros?.carbs),
-                            fats: num(targetMacros?.fats),
+                            calories: selectedTargetCal,
+                            protein: num(selectedTargetMacros?.protein),
+                            carbs: num(selectedTargetMacros?.carbs),
+                            fats: num(selectedTargetMacros?.fats),
                         }}
                         microMetas={targetMicros}
                         onClose={cerrarFicha}
@@ -1048,10 +1096,10 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         diario={aCompartir.dia}
                         fecha={aCompartir.fecha}
                         metas={{
-                            calories: targetCalories,
-                            protein: num(targetMacros?.protein),
-                            carbs: num(targetMacros?.carbs),
-                            fats: num(targetMacros?.fats),
+                            calories: selectedTargetCal,
+                            protein: num(selectedTargetMacros?.protein),
+                            carbs: num(selectedTargetMacros?.carbs),
+                            fats: num(selectedTargetMacros?.fats),
                         }}
                         microMetas={targetMicros}
                     />

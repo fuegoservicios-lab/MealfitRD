@@ -3899,6 +3899,9 @@
   "{n} {unit} sobre la meta": "{n} {unit} au-dessus de l’objectif",
   "Meta alcanzada": "Objectif atteint",
   "Meta del día alcanzada": "Objectif du jour atteint",
+  "En meta": "Dans l’objectif",
+  "En curso": "En cours",
+  "Excedido": "Dépassé",
   "Complemento": "Complément",
   "Complementos y bebidas": "Compléments et boissons",
   "{n} complementos": {

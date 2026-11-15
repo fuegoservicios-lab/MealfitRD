@@ -3899,6 +3899,9 @@
   "{n} {unit} sobre la meta": "{n} {unit} above the goal",
   "Meta alcanzada": "Goal reached",
   "Meta del día alcanzada": "Daily goal reached",
+  "En meta": "On goal",
+  "En curso": "In progress",
+  "Excedido": "Exceeded",
   "Complemento": "Complement",
   "Complementos y bebidas": "Complements & beverages",
   "{n} complementos": {
