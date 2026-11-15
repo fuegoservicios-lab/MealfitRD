@@ -140,7 +140,7 @@ export function useChatAttachments({ onReject, concurrency = 2 } = {}) {
             const file = value instanceof File
                 ? value
                 : new File([value], `borrador-${index + 1}.jpg`, { type: value.type || 'image/jpeg' });
-            if (file.size > CHAT_IMAGE_MAX_SOURCE_BYTES) return [];
+            if (file.size <= 0 || file.size > CHAT_IMAGE_MAX_SOURCE_BYTES) return [];
             const id = attachmentId();
             return [{
                 id,

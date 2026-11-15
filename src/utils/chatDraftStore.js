@@ -39,22 +39,80 @@ const transact = async (mode, operation) => {
     });
 };
 
+async function readBlobBytes(blob) {
+    if (!(blob instanceof Blob)) return null;
+    try {
+        const buffer = typeof blob.arrayBuffer === 'function'
+            ? await blob.arrayBuffer()
+            : await new Response(blob).arrayBuffer();
+        return buffer && buffer.byteLength > 0 ? buffer : null;
+    } catch {
+        return null;
+    }
+}
+
+async function serializeDraftFile(value, index) {
+    const buffer = await readBlobBytes(value);
+    if (!buffer) return null;
+    return {
+        bytes: buffer,
+        name: String(value?.name || `borrador-${index + 1}.jpg`),
+        type: String(value?.type || 'image/jpeg') || 'image/jpeg',
+        lastModified: Number.isFinite(value?.lastModified) ? value.lastModified : Date.now(),
+    };
+}
+
+async function deserializeDraftFile(entry, index) {
+    if (!entry) return null;
+    if (entry instanceof Blob) {
+        const buffer = await readBlobBytes(entry);
+        if (!buffer) return null;
+        return new File([buffer], (entry instanceof File && entry.name) || `borrador-${index + 1}.jpg`, {
+            type: String(entry.type || 'image/jpeg') || 'image/jpeg',
+            lastModified: entry instanceof File && Number.isFinite(entry.lastModified) ? entry.lastModified : Date.now(),
+        });
+    }
+    const bytes = entry.bytes;
+    const isBinary = bytes instanceof ArrayBuffer
+        || ArrayBuffer.isView(bytes)
+        || Object.prototype.toString.call(bytes) === '[object ArrayBuffer]';
+    if (isBinary && Number(bytes.byteLength) > 0) {
+        return new File([bytes], String(entry.name || `borrador-${index + 1}.jpg`), {
+            type: String(entry.type || 'image/jpeg') || 'image/jpeg',
+            lastModified: Number.isFinite(entry.lastModified) ? entry.lastModified : Date.now(),
+        });
+    }
+    return null;
+}
+
 export async function loadChatDraft(sessionId) {
     if (!sessionId) return null;
-    return transact('readonly', (store) => store.get(sessionId));
+    const draft = await transact('readonly', (store) => store.get(sessionId));
+    if (!draft) return null;
+    const files = (await Promise.all(Array.from(draft.files || []).slice(0, 4).map(deserializeDraftFile)))
+        .filter(Boolean);
+    if (!String(draft.text || '').trim() && !files.length) return null;
+    return { ...draft, files };
 }
 
 export async function saveChatDraft(sessionId, { text = '', files = [] } = {}) {
     if (!sessionId) return;
-    const usableFiles = Array.from(files || []).filter((file) => file instanceof Blob).slice(0, 4);
-    if (!String(text).trim() && !usableFiles.length) {
+    const serializedFiles = (
+        await Promise.all(
+            Array.from(files || [])
+                .filter((file) => file instanceof Blob)
+                .slice(0, 4)
+                .map(serializeDraftFile),
+        )
+    ).filter(Boolean);
+    if (!String(text).trim() && !serializedFiles.length) {
         await deleteChatDraft(sessionId);
         return;
     }
     await transact('readwrite', (store) => store.put({
         sessionId,
         text: String(text),
-        files: usableFiles,
+        files: serializedFiles,
         updatedAt: Date.now(),
     }));
 }

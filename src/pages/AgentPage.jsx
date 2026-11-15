@@ -270,6 +270,11 @@ const _agentErrorCopy = () => ({
         text: t('Una imagen no tiene un formato compatible. Quítala y elige otra foto.'),
         retryable: false,
     },
+    422: {
+        icon: '🖼️',
+        text: t('No pudimos leer una de las fotos. Vuelve a elegirla antes de enviar.'),
+        retryable: false,
+    },
     504: {
         icon: '⏱',
         text: t('El asistente tardó más de la cuenta en responder. Puedes reintentar ahora.'),
@@ -3792,15 +3797,56 @@ const AgentPage = () => {
             setAbortController(controller);
             abortControllerRef.current = controller;
 
-            const localAttachments = currentAttachments.filter((item) => item.file instanceof Blob);
+            const localAttachments = currentAttachments.filter(
+                (item) => !item.attachment_id && (item.file instanceof Blob || typeof item.thumbDataUrl === 'string'),
+            );
             if (localAttachments.length) {
                 setStreamingStatus(t('Analizando tus fotos… puede tardar un minuto'));
                 const currentTzOffset = new Date().getTimezoneOffset();
+                const materializeAttachmentFile = async (item) => {
+                    const fileName = (item?.file instanceof File && item.file.name)
+                        ? item.file.name
+                        : 'foto.jpg';
+                    if (item?.file instanceof Blob) {
+                        try {
+                            const buffer = typeof item.file.arrayBuffer === 'function'
+                                ? await item.file.arrayBuffer()
+                                : await new Response(item.file).arrayBuffer();
+                            if (buffer && buffer.byteLength > 0) {
+                                return new File([buffer], fileName, {
+                                    type: String(item.file.type || 'image/jpeg') || 'image/jpeg',
+                                    lastModified: Number.isFinite(item.file.lastModified) ? item.file.lastModified : Date.now(),
+                                });
+                            }
+                        } catch {
+                            // WebKit puede invalidar handles Blob de IndexedDB entre recargas; probamos thumbDataUrl abajo.
+                        }
+                    }
+                    if (typeof item?.thumbDataUrl === 'string' && item.thumbDataUrl.startsWith('data:image/')) {
+                        try {
+                            const res = await fetch(item.thumbDataUrl);
+                            const blob = await res.blob();
+                            if (blob && blob.size > 0) {
+                                return new File([blob], fileName, { type: blob.type || 'image/jpeg' });
+                            }
+                        } catch {
+                            // Sin fallback usable
+                        }
+                    }
+                    return null;
+                };
                 const uploadOne = async (item) => {
                     const cached = attachmentUploadCacheRef.current.get(item.id);
                     if (cached) return cached;
+                    const fileToUpload = await materializeAttachmentFile(item);
+                    if (!fileToUpload) {
+                        const error = new Error('IMAGE_UNREADABLE');
+                        error.status = 415;
+                        error.userMessage = t('Una de las fotos ya no está disponible. Quítala y vuelve a elegirla.');
+                        throw error;
+                    }
                     const uploadForm = new FormData();
-                    uploadForm.append('file', item.file);
+                    uploadForm.append('file', fileToUpload, fileToUpload.name || 'foto.jpg');
                     uploadForm.append('user_id', session?.user?.id || userProfile?.id || localSessionId);
                     uploadForm.append('session_id', currentSessionId);
                     uploadForm.append('purpose', 'chat');
@@ -3817,6 +3863,7 @@ const AgentPage = () => {
                         error.userMessage = {
                             413: t('Una de las fotos pesa demasiado. Prueba con una más liviana.'),
                             415: t('Una de las fotos no se pudo leer. Usa JPG, PNG o HEIC.'),
+                            422: t('No pudimos leer una de las fotos. Vuelve a elegirla antes de enviar.'),
                             429: t('Vas muy rápido escaneando fotos. Espera unos segundos y reintenta.'),
                         }[response.status];
                         throw error;
@@ -3848,16 +3895,19 @@ const AgentPage = () => {
                 } catch (uploadError) {
                     if (uploadError?.name === 'AbortError') throw uploadError;
                     controller.abort();
+                    const retryItems = currentAttachments.map(
+                        (item) => attachmentUploadCacheRef.current.get(item.id) || item,
+                    );
                     _pushTurnError({
                         status: uploadError?.status || 0,
                         userMessage: uploadError?.userMessage,
                         retryPrompt: userMsg,
-                        retryAttachments: [],
-                        retryWithCurrentAttachments: true,
+                        retryAttachments: retryItems,
+                        retryWithCurrentAttachments: false,
                         retryTruncateIndex: originalUserMessageIndex,
                         clientMessageId,
                     });
-                    return; // conserva el rail de adjuntos para reintentar sin volver a elegir
+                    return; // conserva los adjuntos del turno en retryItems porque el rail ya se limpió al enviar
                 }
 
                 uploadedImageUrl = uploadedAttachments.find((item) => item.image_url)?.image_url || null;
