@@ -302,6 +302,7 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         expect(document.querySelector('[class*="railFillComplete"]')).toBeNull();
         expect(screen.queryByText('Meta del día alcanzada')).toBeNull();
         expect(screen.getByText('250 kcal sobre la meta')).toBeInTheDocument();
+        expect(screen.getByText(/Zona en meta:.*110 % de tu meta/)).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /mes/i }));
         await waitFor(() => {

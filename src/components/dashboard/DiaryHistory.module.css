@@ -269,7 +269,7 @@
     right: 0;
     bottom: 0;
     border-radius: 999px;
-    background: linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%);
+    background: linear-gradient(180deg, #FDE047 0%, #EAB308 100%);
     transition: background 0.25s ease, box-shadow 0.25s ease;
 }
 
@@ -279,7 +279,7 @@
 }
 
 .railFillOver {
-    background: linear-gradient(180deg, #FDBA74 0%, #F97316 100%) !important;
+    background: linear-gradient(180deg, #FB7185 0%, #EF4444 100%) !important;
 }
 
 .railEmpty {
@@ -356,16 +356,24 @@
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.01em;
-    color: #C2410C;
-    background: rgba(249, 115, 22, 0.12);
-    border: 1px solid rgba(249, 115, 22, 0.3);
+    color: #B91C1C;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.32);
     white-space: nowrap;
 }
 
 :global(html[data-theme="dark"]) .quotaOverBadge {
-    color: #FDBA74;
-    background: rgba(249, 115, 22, 0.14);
-    border-color: rgba(251, 146, 60, 0.35);
+    color: #FDA4AF;
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(248, 113, 113, 0.38);
+}
+
+.quotaHint {
+    margin-top: 0.42rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
 }
 
 .goalLegend {
@@ -397,11 +405,11 @@
 }
 
 .goalLegendAmber {
-    background: #F59E0B;
+    background: #EAB308;
 }
 
 .goalLegendOrange {
-    background: #F97316;
+    background: #EF4444;
 }
 
 .quotaNum {
@@ -473,7 +481,7 @@
 .quotaFill {
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #FBBF24, #F59E0B);
+    background: linear-gradient(90deg, #FDE047, #EAB308);
     transition: background 0.25s ease, box-shadow 0.25s ease;
 }
 
@@ -483,7 +491,7 @@
 }
 
 .quotaFillOver {
-    background: linear-gradient(90deg, #FDBA74, #F97316) !important;
+    background: linear-gradient(90deg, #FB7185, #EF4444) !important;
 }
 
 .macroRow {
@@ -1222,11 +1230,11 @@
 }
 
 .calCellDotYellow {
-    background: #F59E0B;
+    background: #EAB308;
 }
 
 .calCellDotOrange {
-    background: #F97316;
+    background: #EF4444;
 }
 
 .selectedDayHeader {

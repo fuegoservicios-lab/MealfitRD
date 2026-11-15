@@ -3900,8 +3900,9 @@
   "Meta alcanzada": "Objectif atteint",
   "Meta del día alcanzada": "Objectif du jour atteint",
   "En meta": "Dans l’objectif",
-  "En curso": "En cours",
-  "Excedido": "Dépassé",
+  "Bajo la meta": "Sous l’objectif",
+  "Sobre la meta": "Au-dessus de l’objectif",
+  "Zona en meta: {min}–{max} kcal (hasta {pct} % de tu meta)": "Zone dans l’objectif : {min}–{max} kcal (jusqu’à {pct} % de votre objectif)",
   "Complemento": "Complément",
   "Complementos y bebidas": "Compléments et boissons",
   "{n} complementos": {

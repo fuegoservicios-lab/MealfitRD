@@ -549,6 +549,23 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         setACompartir({ dia, fecha: mediodiaDe(dia.iso || selected) });
     };
 
+    const renderLeyendaEstados = () => (
+        <div className={styles.goalLegend} aria-hidden="true">
+            <span className={styles.goalLegendItem}>
+                <span className={`${styles.goalLegendDot} ${styles.goalLegendGreen}`} />
+                {t('En meta')}
+            </span>
+            <span className={styles.goalLegendItem}>
+                <span className={`${styles.goalLegendDot} ${styles.goalLegendAmber}`} />
+                {t('Bajo la meta')}
+            </span>
+            <span className={styles.goalLegendItem}>
+                <span className={`${styles.goalLegendDot} ${styles.goalLegendOrange}`} />
+                {t('Sobre la meta')}
+            </span>
+        </div>
+    );
+
     const renderComida = (meal) => {
         const h = horaFiable(meal);
         const creado = aFecha(meal?.created_at);
@@ -747,20 +764,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                             })}
                         </div>
 
-                        <div className={styles.goalLegend} aria-hidden="true">
-                            <span className={styles.goalLegendItem}>
-                                <span className={`${styles.goalLegendDot} ${styles.goalLegendGreen}`} />
-                                {t('En meta')}
-                            </span>
-                            <span className={styles.goalLegendItem}>
-                                <span className={`${styles.goalLegendDot} ${styles.goalLegendAmber}`} />
-                                {t('En curso')}
-                            </span>
-                            <span className={styles.goalLegendItem}>
-                                <span className={`${styles.goalLegendDot} ${styles.goalLegendOrange}`} />
-                                {t('Excedido')}
-                            </span>
-                        </div>
+                        {renderLeyendaEstados()}
 
                         {semana && (
                             <div className={styles.weekLine}>
@@ -885,20 +889,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     );
                                 })}
                             </div>
-                            <div className={styles.goalLegend} aria-hidden="true">
-                                <span className={styles.goalLegendItem}>
-                                    <span className={`${styles.goalLegendDot} ${styles.goalLegendGreen}`} />
-                                    {t('En meta')}
-                                </span>
-                                <span className={styles.goalLegendItem}>
-                                    <span className={`${styles.goalLegendDot} ${styles.goalLegendAmber}`} />
-                                    {t('En curso')}
-                                </span>
-                                <span className={styles.goalLegendItem}>
-                                    <span className={`${styles.goalLegendDot} ${styles.goalLegendOrange}`} />
-                                    {t('Excedido')}
-                                </span>
-                            </div>
+                            {renderLeyendaEstados()}
                         </div>
                     </>
                 )}
@@ -907,6 +898,11 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     const kcalDia = num(totales.calories);
                     const quotaEstado = getCalorieGoalState(kcalDia, selectedTargetCal, selectedMainGoal);
                     const excesoKcal = Math.max(0, kcalDia - num(selectedTargetCal));
+                    const rawGoal = String(selectedMainGoal || 'lose_fat').toLowerCase();
+                    const isMuscleGoal = rawGoal.includes('muscle') || rawGoal.includes('músculo') || rawGoal.includes('musculo');
+                    const maxPctVerde = isMuscleGoal ? 115 : 110;
+                    const minVerde = Math.round(num(selectedTargetCal) * 0.90);
+                    const maxVerde = Math.round(num(selectedTargetCal) * (maxPctVerde / 100));
                     return (
                         <div className={styles.quota}>
                             <div className={styles.quotaTop}>
@@ -935,6 +931,15 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                                 />
                             </div>
+                            {quotaEstado === 'over' && maxVerde > 0 && (
+                                <div className={styles.quotaHint}>
+                                    {t('Zona en meta: {min}–{max} kcal (hasta {pct} % de tu meta)', {
+                                        min: formatNumber(minVerde),
+                                        max: formatNumber(maxVerde),
+                                        pct: maxPctVerde,
+                                    })}
+                                </div>
+                            )}
                         </div>
                     );
                 })()}

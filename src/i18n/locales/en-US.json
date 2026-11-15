@@ -3900,8 +3900,9 @@
   "Meta alcanzada": "Goal reached",
   "Meta del día alcanzada": "Daily goal reached",
   "En meta": "On goal",
-  "En curso": "In progress",
-  "Excedido": "Exceeded",
+  "Bajo la meta": "Below goal",
+  "Sobre la meta": "Above goal",
+  "Zona en meta: {min}–{max} kcal (hasta {pct} % de tu meta)": "On-goal zone: {min}–{max} kcal (up to {pct}% of your goal)",
   "Complemento": "Complement",
   "Complementos y bebidas": "Complements & beverages",
   "{n} complementos": {

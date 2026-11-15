@@ -3900,8 +3900,9 @@
   "Meta alcanzada": "Meta atingida",
   "Meta del día alcanzada": "Meta do dia atingida",
   "En meta": "Na meta",
-  "En curso": "Em andamento",
-  "Excedido": "Excedido",
+  "Bajo la meta": "Abaixo da meta",
+  "Sobre la meta": "Acima da meta",
+  "Zona en meta: {min}–{max} kcal (hasta {pct} % de tu meta)": "Faixa na meta: {min}–{max} kcal (até {pct}% da sua meta)",
   "Complemento": "Complemento",
   "Complementos y bebidas": "Complementos e bebidas",
   "{n} complementos": {
