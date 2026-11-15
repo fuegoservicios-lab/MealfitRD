@@ -1,8 +1,7 @@
 import { useId, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation } from 'react-router-dom';
 import HealthSources from './HealthSources';
-import { Stethoscope } from 'lucide-react';
+import { ExternalLink, Stethoscope } from 'lucide-react';
 import { apexUrl } from '../../config/site';
 import { BRAND } from '../../data/routeMeta';
 import { useT } from '../../i18n';
@@ -11,7 +10,6 @@ import styles from './NotaAvisoMedico.module.css';
 
 const NotaAvisoMedico = () => {
     const t = useT();
-    const location = useLocation();
     const [open, setOpen] = useState(false);
     const titleId = useId();
     return (
@@ -30,12 +28,10 @@ const NotaAvisoMedico = () => {
                         {t('{app} no sustituye el consejo médico. Consulta a tu médico antes de cambiar tu alimentación.', { app: BRAND })}
                     </p>
                     <a href={apexUrl('/medical')} target="_blank" rel="noopener noreferrer" className={styles.enlace}>
-                        {t('Aviso médico')}
+                        <span>{t('Aviso médico')}</span>
+                        <ExternalLink size={15} aria-hidden="true" />
                     </a>
                     <HealthSources context="plan" />
-                    <Link to="/medical#fuentes" state={{ from: location.pathname }} onClick={() => setOpen(false)} className={styles.enlace}>
-                        {t('Fuentes de salud y nutrición')}
-                    </Link>
                 </Modal>, document.body
             )}
         </>

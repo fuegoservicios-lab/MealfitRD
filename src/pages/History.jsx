@@ -1927,23 +1927,25 @@ const History = () => {
                     : t('Genera tu primer plan nutricional y lo encontrarás aquí.')}
             </p>
             {/* [P1-PLAN-LOTE-151] Su único hover era un cambio de sombra NEGRA: invisible sobre el panel oscuro. */}
-            <button data-hover="boton" className={styles.emptyCta} onClick={enModoContador ? _verDiasAnteriores : _encenderElPlan}>
-                {enModoContador ? t('Ver mis días anteriores') : t('Crear mi primer plan')} <ChevronRight size={17} />
-            </button>
-            {enModoContador && (
-                <button
-                    type="button"
-                    data-hover="fantasma"
-                    onClick={_encenderElPlan}
-                    style={{
-                        marginTop: '0.6rem', padding: '0.45rem 0.9rem', borderRadius: '0.6rem',
-                        border: 0, background: 'transparent', color: 'var(--text-muted)',
-                        fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
-                    }}
-                >
-                    {t('Encender el plan')}
+            <div className={styles.emptyActions}>
+                <button data-hover="boton" className={styles.emptyCta} onClick={enModoContador ? _verDiasAnteriores : _encenderElPlan}>
+                    {enModoContador ? t('Ver mis días anteriores') : t('Crear mi primer plan')} <ChevronRight size={17} />
                 </button>
-            )}
+                {enModoContador && (
+                    <button
+                        type="button"
+                        data-hover="fantasma"
+                        onClick={_encenderElPlan}
+                        style={{
+                            padding: '0.5rem 1rem', borderRadius: '0.65rem',
+                            border: 0, background: 'transparent', color: 'var(--text-muted)',
+                            fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
+                        }}
+                    >
+                        {t('Encender el plan')}
+                    </button>
+                )}
+            </div>
         </div>
     );
 

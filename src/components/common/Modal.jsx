@@ -153,8 +153,8 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                         exit={{ opacity: 0 }}
                         onClick={() => { if (!disableClose) onClose(); }}
                         style={{
-                            position: 'absolute', inset: 0, 
-                            background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)'
+                            position: 'absolute', inset: 0,
+                            background: 'rgba(2, 6, 23, 0.6)', backdropFilter: 'blur(6px)'
                         }}
                         aria-hidden="true"
                     />
@@ -201,11 +201,13 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                         }}
                         style={{
                             background: 'var(--bg-card)',
+                            border: isMobile ? undefined : '1px solid color-mix(in srgb, var(--text-muted) 22%, var(--border))',
+                            borderTop: isMobile ? '1px solid color-mix(in srgb, var(--text-muted) 22%, var(--border))' : undefined,
                             borderRadius: isMobile ? '1.5rem 1.5rem 0 0' : '1.25rem',
                             padding: isMobile ? '1.5rem 1.25rem 2rem' : '2rem',
                             width: '100%', maxWidth, position: 'relative', zIndex: 1,
                             ...(adjustToKeyboard ? { maxHeight: '100%', overflowY: 'auto', overscrollBehavior: 'contain', scrollPadding: '1rem' } : {}),
-                            boxShadow: isMobile ? '0 -8px 30px rgba(0,0,0,0.12)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                            boxShadow: isMobile ? '0 -10px 32px rgba(0, 0, 0, 0.28)' : '0 24px 56px -12px rgba(0, 0, 0, 0.5)',
                             // [P2-MODAL-OUTLINE-A11Y] outline ahora gestionado
                             // por `.mealfit-modal-content:focus-visible` en
                             // index.css — keyboard users SÍ ven el indicador.

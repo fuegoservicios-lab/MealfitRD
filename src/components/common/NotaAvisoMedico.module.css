@@ -51,7 +51,7 @@
 }
 
 .explicacion {
-    margin: 0 0 1rem;
+    margin: 0 0 1.1rem;
     font-size: 0.95rem;
     line-height: 1.6;
     color: var(--text-muted);
@@ -60,10 +60,27 @@
 .enlace {
     display: inline-flex;
     align-items: center;
+    gap: 0.45rem;
     min-height: 44px;
+    padding: 0 0.95rem;
+    border: 1px solid color-mix(in srgb, var(--text-muted) 22%, var(--border));
+    border-radius: 10px;
+    background: var(--bg-muted);
     color: var(--primary);
     font-size: 0.9rem;
     font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration: none;
+    transition: background 150ms ease, border-color 150ms ease;
+}
+
+@media (hover: hover) {
+    .enlace:hover {
+        background: color-mix(in srgb, var(--primary) 10%, var(--bg-muted));
+        border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
+    }
+}
+
+.enlace:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
 }
