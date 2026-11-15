@@ -10,7 +10,7 @@ import React, { useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useT } from '../../i18n';
 import DudasDeLaFoto from '../common/DudasDeLaFoto';
-import { eleccionesSupuestas, respuestasConEscritas, respuestasElegidas } from '../../utils/fotoAntesDelCoach';
+import { eleccionesSupuestas, respuestasConEscritas } from '../../utils/fotoAntesDelCoach';
 
 const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onOmitir = null, onParcial = null, enPanel = false }) => {
     const t = useT();
@@ -19,6 +19,7 @@ const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onO
     // lo último elegido/escrito, sin esperar al render: tocar una opción con el campo de «Otra…» abierto dispara
     // primero el blur del campo (guarda lo escrito) y después el toque
     const vigenteRef = useRef({ elegidas: {}, escritas: {} });
+    const borradorOtraRef = useRef({});
     const enviadoRef = useRef(false);   // el panel manda UNA vez (Intro y el blur del mismo campo)
     const aplicar = (nuevas, nuevasEscritas) => {
         vigenteRef.current = { elegidas: nuevas, escritas: nuevasEscritas };
@@ -36,16 +37,26 @@ const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onO
         if (j >= dudas[i].opciones.length) return;   // [763] tocar lo ya escrito: sigue siendo la respuesta
         const sinEscrita = { ...escritasAntes };
         delete sinEscrita[i];
+        delete borradorOtraRef.current[i];
         aplicar({ ...antes, [i]: j }, sinEscrita);
     };
     const escribir = (i, texto) => {
         const { elegidas: antes, escritas: escritasAntes } = vigenteRef.current;
         const sinElegida = { ...antes };
         delete sinElegida[i];
+        delete borradorOtraRef.current[i];
         aplicar(sinElegida, { ...escritasAntes, [i]: texto });
     };
     const omitir = () => {
-        const r = respuestasElegidas(dudas, eleccionesSupuestas(dudas));
+        // Conserva lo ya elegido o escrito (incluso borrador sin confirmar de «Otra…») y usa supuestas solo en lo pendiente
+        const { elegidas: antes, escritas: escritasAntes } = vigenteRef.current;
+        const escritasCombinadas = { ...escritasAntes };
+        Object.entries(borradorOtraRef.current).forEach(([idx, val]) => {
+            const limpio = String(val || '').trim();
+            if (limpio && !escritasCombinadas[idx]) escritasCombinadas[idx] = limpio;
+        });
+        const combinadas = { ...eleccionesSupuestas(dudas), ...antes };
+        const r = respuestasConEscritas(dudas, combinadas, escritasCombinadas);
         onOmitir(r.texto, r.ajuste);
     };
     // [763] lo escrito se pinta como una opción más, marcada, al final de su duda
@@ -63,6 +74,7 @@ const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onO
             <span className="chat-respuestas-foto-titulo">{titulo || t('Responde con un toque:')}</span>
             <DudasDeLaFoto dudas={dudasVista} respuestas={respuestasVista} confirmadas={{}} onElegir={elegir}
                 onOtra={otra} otraConCampo={enPanel} grande={enPanel} centrarCampo={!enPanel}
+                onBorradorOtra={(i, val) => { borradorOtraRef.current[i] = val; }}
                 pistaOtra={enPanel ? t('Escribe tu respuesta') : null} />
             {onOmitir && (
                 <button type="button" className="chat-respuestas-foto-omitir" onClick={omitir}>

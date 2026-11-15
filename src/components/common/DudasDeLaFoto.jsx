@@ -15,7 +15,7 @@ import styles from './DudasDeLaFoto.module.css';
 // teclado). `centrarCampo={false}`: el chat no centra el campo de «Otra…» — vive en la caja de escribir, que ya sube con
 // el teclado, y un `scrollIntoView` ahí desplazaría la página entera bajo el teclado de iOS.
 // `pistaOtra`: el texto guía del campo (en el panel, más estrecho, el del escáner se cortaba).
-const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = false, onOtra = null, otraConCampo = false, calculando = null, onEditando = null, grande = false, centrarCampo = true, pistaOtra = null }) => {
+const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = false, onOtra = null, otraConCampo = false, calculando = null, onEditando = null, onBorradorOtra = null, grande = false, centrarCampo = true, pistaOtra = null }) => {
     const t = useT();
     const [reabiertas, setReabiertas] = useState({});
     const [otraAbierta, setOtraAbierta] = useState(null);
@@ -36,15 +36,18 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
     // llega pegado a un Intro) trae la clausura vieja, y con el estado solo podía mandar lo escrito dos veces.
     const otraAbiertaRef = useRef(null);
     const cerrarOtra = () => {
+        const previa = otraAbiertaRef.current;
         otraAbiertaRef.current = null;
         setOtraAbierta(null);
         setOtraTexto('');
+        if (previa !== null) onBorradorOtra?.(previa, '');
     };
     const tocarOtra = (i) => {
         if (!otraConCampo) { onOtra(i); return; }
         otraAbiertaRef.current = i;
         setOtraAbierta(i);
         setOtraTexto('');
+        onBorradorOtra?.(i, '');
     };
     const enviarOtra = (i) => {
         const texto = otraTexto.trim();
@@ -129,7 +132,11 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                                     disabled={bloqueado}
                                     aria-label={t('Tu respuesta: {x}', { x: d.pregunta })}
                                     placeholder={pistaOtra || t('Escríbelo: ej. 4 huevos con queso')}
-                                    onChange={(e) => setOtraTexto(e.target.value)}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setOtraTexto(val);
+                                        onBorradorOtra?.(i, val);
+                                    }}
                                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enviarOtra(i); } }}
                                     onBlur={() => enviarOtra(i)}
                                 />
@@ -170,6 +177,7 @@ DudasDeLaFoto.propTypes = {
     otraConCampo: PropTypes.bool,
     calculando: PropTypes.number,
     onEditando: PropTypes.func,
+    onBorradorOtra: PropTypes.func,
     grande: PropTypes.bool,
     centrarCampo: PropTypes.bool,
     pistaOtra: PropTypes.string,
