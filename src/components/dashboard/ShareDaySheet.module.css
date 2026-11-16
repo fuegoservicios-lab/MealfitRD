@@ -400,9 +400,10 @@
 
 .fotoCtaBrillo { flex-shrink: 0; color: #EC4899; animation: sdBrillo 2.4s ease-in-out infinite; }
 
+/* [P1-PLAN-LOTE-1049] el brote «respira» (late), no gira como una estrella */
 @keyframes sdBrillo {
-    0%, 100% { opacity: 0.55; transform: scale(0.92) rotate(0deg); }
-    50% { opacity: 1; transform: scale(1.12) rotate(12deg); }
+    0%, 100% { opacity: 0.6; transform: scale(0.94); }
+    50% { opacity: 1; transform: scale(1.1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -432,3 +433,22 @@
 .enlace:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.5); outline-offset: 2px; }
 
 .nota { margin: 0; font-size: 0.8rem; color: var(--text-muted, #64748B); text-align: center; }
+
+/* [P1-PLAN-LOTE-1048 · encuadre] La vista previa con foto se arrastra y se pellizca: el navegador no debe desplazar ni
+   hacer zoom de página con ese gesto. */
+.lienzo { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.lienzo:active { cursor: grabbing; }
+
+.pista { margin: 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted, #64748B); text-align: center; }
+
+.zoom {
+    width: min(100%, 280px);
+    min-height: 44px;
+    margin: 0;
+    accent-color: #EC4899;
+    cursor: pointer;
+}
+
+/* [P1-PLAN-LOTE-1049] el formato dice qué es: «4:5 · chats y feed» bajo «Publicación» */
+.formato { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.15; }
+.formatoSub { font-size: 0.75rem; font-weight: 500; opacity: 0.8; }

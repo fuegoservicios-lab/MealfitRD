@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { PayPalScriptProvider, PayPalButtons, FUNDING } from "@paypal/react-paypal-js";
-import { X, CreditCard, Sparkles, Lock, Tag, Check, AlertCircle, Loader2, ChevronRight, Zap, User, Calendar, ShieldCheck } from "lucide-react";
+import { X, CreditCard, Lock, Tag, Check, AlertCircle, Loader2, ChevronRight, Zap, User, Calendar, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';

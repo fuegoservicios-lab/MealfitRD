@@ -68,14 +68,15 @@ describe('[P1-HIST-3] History.jsx — fetch + state', () => {
         expect(importLine[0]).toMatch(/getLessonsCounts/);
     });
 
-    it('importa Sparkles desde lucide-react', () => {
-        // Icono que refuerza "aprendizaje" — diferenciador del producto.
-        expect(src).toMatch(/Sparkles/);
+    it('el icono de «aprendizaje» es el brote de la marca, no el destello de lucide', () => {
+        // Icono que refuerza "aprendizaje" — diferenciador del producto. [P1-PLAN-LOTE-1049] Era `Sparkles` de
+        // lucide, que el dueño leía como el logo de Gemini: ahora es `BroteChispa` (components/common).
+        expect(src).toMatch(/import BroteChispa from '\.\.\/components\/common\/BroteChispa'/);
         const lucideImport = src.match(
             /import\s*\{[^}]+\}\s*from\s*['"]lucide-react['"]/
         );
         expect(lucideImport).toBeTruthy();
-        expect(lucideImport[0]).toMatch(/Sparkles/);
+        expect(lucideImport[0]).not.toMatch(/\bSparkles\b/);
     });
 
     it('declara state lessonsCounts inicializado a {}', () => {

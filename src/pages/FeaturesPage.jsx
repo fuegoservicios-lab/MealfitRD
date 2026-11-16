@@ -2,9 +2,10 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
-    LayoutGrid, Check, FileDown, History, Sparkles, Gauge, Droplet,
+    LayoutGrid, Check, FileDown, History, Gauge, Droplet,
     Lightbulb, HeartPulse, UserPlus, Info, Plus,
 } from 'lucide-react';
+import BroteChispa from '../components/common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
 // [P2-PAPER-NO-INK · 2026-08-02, Task 13] Banda de cierre: última hija de las 6
 // rutas papel. Componente propio, NUNCA dentro de Footer.jsx (ver ClosingBand.jsx).
 // Sustituye al `.finalCta` local, que pedía el mismo clic con el mismo literal
@@ -204,7 +205,7 @@ const FEATURES = [
 const EXTRAS = [
     { Icon: FileDown, title: 'Exportación a PDF', text: 'Tu plan completo y tu lista de compras costeada, listos para imprimir o llevar al súper.' },
     { Icon: History, title: 'Historial de planes', text: 'Vuelve a cualquier plan anterior, compáralo y restáuralo cuando quieras.' },
-    { Icon: Sparkles, title: 'Súper Personalización', text: 'Un panel opt-in para afinar aún más el plan y el coach a tus detalles particulares.' },
+    { Icon: BroteChispa, title: 'Súper Personalización', text: 'Un panel opt-in para afinar aún más el plan y el coach a tus detalles particulares.' },
     { Icon: Gauge, title: '17 micronutrientes', text: 'Tu plan se compara contra las referencias diarias (DRI) con un medidor de cobertura.' },
     { Icon: HeartPulse, title: 'Multi-condición clínica', text: `Combina varias condiciones (p. ej. DM2 + HTA + colesterol) con reglas que se respetan a la vez. Verificado en ${CLINICAL.monthLong}: ${CLINICAL.safetyPct} % de lo entregado sin violaciones en la matriz de ${CLINICAL.n} perfiles clínicos.` },
     { Icon: Droplet, title: 'Hidratación diaria', text: 'Meta de agua personalizada según tu peso y actividad, con racha de días para mantener el hábito.' },

@@ -24,14 +24,40 @@ const BLANCO = '#FFFFFF';
 const CLARO = 'rgba(255, 255, 255, 0.86)';
 const TENUE = 'rgba(255, 255, 255, 0.7)';
 
-/** Recorte «cover»: qué trozo de una imagen w×h llena un lienzo W×H sin deformarla, centrado. */
-export function encajar(w, h, W = ANCHO, H = ALTO) {
-    if (!(w > 0 && h > 0)) return { sx: 0, sy: 0, sw: 0, sh: 0 };
-    const escala = Math.max(W / w, H / h);
+export const ZOOM_MAX = 3;
+export const ENCUADRE_INICIAL = Object.freeze({ zoom: 1, x: 0, y: 0 });
+const _acotar = (v, a, b) => Math.max(a, Math.min(b, Number(v) || 0));
+
+/** Recorte «cover»: qué trozo de una imagen w×h llena un lienzo W×H sin deformarla. [1048] `encuadre`: `zoom` (1 =
+ *  justo llena, hasta ZOOM_MAX) y `x`/`y` en [-1, 1] (-1 = el borde izquierdo/de arriba, 0 = centrado, 1 = el otro). */
+export function encajar(w, h, W = ANCHO, H = ALTO, encuadre = ENCUADRE_INICIAL) {
+    if (!(w > 0 && h > 0)) return { sx: 0, sy: 0, sw: 0, sh: 0, escala: 0 };
+    const escala = Math.max(W / w, H / h) * _acotar(encuadre?.zoom ?? 1, 1, ZOOM_MAX);
     const sw = W / escala;
     const sh = H / escala;
-    return { sx: (w - sw) / 2, sy: (h - sh) / 2, sw, sh };
+    const hx = (w - sw) / 2;
+    const hy = (h - sh) / 2;
+    return { sx: hx * (1 + _acotar(encuadre?.x, -1, 1)), sy: hy * (1 + _acotar(encuadre?.y, -1, 1)), sw, sh, escala };
 }
+
+/** El encuadre tras arrastrar `dx`/`dy` px DEL LIENZO (la foto sigue al dedo), o tras acercar `factor` veces. */
+export function moverEncuadre(encuadre, foto, { dx = 0, dy = 0, factor = 1 } = {}) {
+    const { w, h } = _dim(foto);
+    const e = { ...ENCUADRE_INICIAL, ...encuadre };
+    if (!(w > 0 && h > 0)) return e;
+    const zoom = _acotar(e.zoom * (Number(factor) || 1), 1, ZOOM_MAX);
+    const { sw, sh, escala } = encajar(w, h, ANCHO, ALTO, { ...e, zoom });
+    const hx = (w - sw) / 2;
+    const hy = (h - sh) / 2;
+    return {
+        zoom,
+        x: hx > 0.5 ? _acotar(e.x - dx / escala / hx, -1, 1) : 0,
+        y: hy > 0.5 ? _acotar(e.y - dy / escala / hy, -1, 1) : 0,
+    };
+}
+
+/** «Meta cumplida»: el día entre el 90 % y el 110 % de las calorías de la meta. */
+export const metaCumplida = (r) => r?.calorias?.meta > 0 && r.calorias.pct >= 90 && r.calorias.pct <= 110;
 
 /** El fichero elegido, listo para `drawImage` y ya derecho (las fotos del teléfono traen la rotación en el EXIF). */
 export async function cargarFoto(file) {
@@ -159,11 +185,31 @@ const _velo = (ctx, y0, y1, a0, a1) => {
     ctx.fillStyle = g; ctx.fillRect(0, Math.min(y0, y1), ANCHO, Math.abs(y1 - y0));
 };
 
+/** La píldora dorada «✓ META CUMPLIDA» con su brillo; `x` según `alinear`, `yCentro` su centro. */
+const _insignia = (ctx, x, yCentro, alinear = 'left') => {
+    const s = `✓  ${t('Meta cumplida')}`.toUpperCase();
+    ctx.save();
+    ctx.font = `800 24px ${FUENTE}`;
+    const letras = [...s];
+    const hueco = 24 * 0.12;
+    const ancho = letras.reduce((a, c) => a + ctx.measureText(c).width, 0) + hueco * (letras.length - 1) + 2 * 22;
+    const x0 = alinear === 'center' ? x - ancho / 2 : alinear === 'right' ? x - ancho : x;
+    const g = ctx.createLinearGradient(x0, 0, x0 + ancho, 0);
+    g.addColorStop(0, '#FDE68A'); g.addColorStop(1, '#F59E0B');
+    ctx.fillStyle = g; ctx.shadowColor = 'rgba(245, 158, 11, 0.7)'; ctx.shadowBlur = 26;
+    _rect(ctx, x0, yCentro - 25, ancho, 50, 25); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#3B2203'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    let cx = x0 + 22;
+    letras.forEach((c) => { ctx.fillText(c, cx, yCentro + 1); cx += ctx.measureText(c).width + hueco; });
+    ctx.restore();
+};
+
 /** La foto llenando el lienzo; sin foto, la noche de la app con sus dos brillos (los estilos sirven igual). */
-const _fondo = (ctx, foto) => {
+const _fondo = (ctx, foto, encuadre) => {
     const { w, h } = _dim(foto);
     if (w && h) {
-        const { sx, sy, sw, sh } = encajar(w, h);
+        const { sx, sy, sw, sh } = encajar(w, h, ANCHO, ALTO, encuadre);
         ctx.drawImage(foto, sx, sy, sw, sh, 0, 0, ANCHO, ALTO);
         return;
     }
@@ -220,6 +266,7 @@ const _titular = (ctx, r) => {
     const ancho = _texto(ctx, cifra, M - 6, yNumero, { tam, peso: 800 });
     _texto(ctx, 'kcal', M + ancho + 14, yNumero, { tam: 64, peso: 700, color: COLOR.calories[0] });
     _rotulo(ctx, t('Mi día'), M, yNumero - tam * 0.86, { tam: 32, color: COLOR.calories[0], aire: 0.3 });
+    if (metaCumplida(r)) _insignia(ctx, ANCHO - M, yNumero - tam * 0.86 - 11, 'right');
 };
 
 // ── «minimal»: solo las cifras, centradas (tipo sticker) ────────────────────────────────────────────────
@@ -238,6 +285,7 @@ const _minimal = (ctx, r) => {
         _texto(ctx, _valorMacro(mc), x, BASE - 126, { tam: 64, peso: 800, alinear: 'center' });
     });
     _rotulo(ctx, r.calorias.etiqueta, cx, BASE - 510, { tam: 28, alinear: 'center', aire: 0.3 });
+    if (metaCumplida(r)) _insignia(ctx, cx, BASE - 590, 'center');
     _texto(ctx, formatNumber(r.calorias.valor), cx, BASE - 340, { tam: 190, peso: 800, alinear: 'center' });
     if (r.calorias.meta > 0) {
         _texto(ctx, `/ ${formatNumber(r.calorias.meta)} kcal · ${formatPercent(r.calorias.pct)}`, cx, BASE - 272, { tam: 30, peso: 600, color: CLARO, alinear: 'center' });
@@ -283,6 +331,7 @@ const _cristal = (ctx, r, canvas) => {
             { tam: 30, peso: 800, alinear: 'right', sombra: false });
         _barra(ctx, x0, yy + 24, ancho, 14, mc.meta > 0 ? mc.pct : 100, COLOR[mc.clave]);
     });
+    if (metaCumplida(r)) _insignia(ctx, ANCHO / 2, y - 52, 'center');
     _velo(ctx, BASE - 60, ALTO, 0, 0.5);
     _texto(ctx, SITIO, ANCHO / 2, BASE, { tam: 30, peso: 700, color: CLARO, alinear: 'center' });
 };
@@ -296,24 +345,40 @@ const _aBlob = (canvas) => new Promise((resolve) => {
     try { canvas.toBlob(fin, 'image/jpeg', 0.92); } catch { fin(null); }
 });
 
-/** El JPEG de la historia (o null sin canvas 2D: jsdom, WebView rara). `foto`: lo que devuelve `cargarFoto`, o null. */
-export async function dibujarHistoriaConFoto(r, { foto = null, estilo = 'titular' } = {}) {
-    if (typeof document === 'undefined') return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = ANCHO; canvas.height = ALTO;
-    let ctx = null;
-    try { ctx = canvas.getContext('2d'); } catch { ctx = null; }
-    if (!ctx) return null;
+/** Espera (como mucho 1,5 s) a que Outfit esté lista: un lienzo pintado antes sale con la fuente del sistema. */
+export async function cargarFuentes() {
+    if (typeof document === 'undefined') return;
     try {
         await Promise.race([
             Promise.all([document.fonts?.load?.(`800 64px ${FUENTE}`), document.fonts?.load?.(`700 32px ${FUENTE}`), document.fonts?.load?.(`600 32px ${FUENTE}`)].filter(Boolean)),
             new Promise((ok) => setTimeout(ok, 1500)),
         ]);
     } catch { /* la fuente del sistema sirve */ }
+}
+
+/** Pinta la historia en `canvas` (lo pone a 1080×1920), SIN esperar nada: la vista previa en vivo repinta al arrastrar.
+ *  Devuelve false si no hay canvas 2D o el dibujo falló. */
+export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', encuadre = ENCUADRE_INICIAL } = {}) {
+    if (!canvas) return false;
+    if (canvas.width !== ANCHO) canvas.width = ANCHO;
+    if (canvas.height !== ALTO) canvas.height = ALTO;
+    let ctx = null;
+    try { ctx = canvas.getContext('2d'); } catch { ctx = null; }
+    if (!ctx) return false;
     try {
-        _fondo(ctx, foto);
+        ctx.clearRect(0, 0, ANCHO, ALTO);
+        _fondo(ctx, foto, encuadre);
         _cabecera(ctx, r);
         (_PINTAR[estilo] || _titular)(ctx, r, canvas);
-    } catch { return null; }
+        return true;
+    } catch { return false; }
+}
+
+/** El JPEG de la historia (o null sin canvas 2D: jsdom, WebView rara). `foto`: lo que devuelve `cargarFoto`, o null. */
+export async function dibujarHistoriaConFoto(r, { foto = null, estilo = 'titular', encuadre = ENCUADRE_INICIAL } = {}) {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    await cargarFuentes();
+    if (!pintarHistoria(canvas, r, { foto, estilo, encuadre })) return null;
     return _aBlob(canvas);
 }

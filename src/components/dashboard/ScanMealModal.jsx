@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import {
     Camera, Image as ImageIcon, Loader2, Check, X, AlertTriangle, ChevronRight, ChevronDown, Trash2, RotateCcw,
-    Refrigerator, Pencil, Sparkles, Plus,
+    Refrigerator, Pencil, Plus,
 } from 'lucide-react';
+import BroteChispa from '../common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 // [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes de mandar la foto o un texto a la IA.
@@ -563,7 +564,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
                             disabled={bloqueado || calculandoCorreccion !== null}
                             onClick={() => setCorrigiendo('ai_adjust')}
                         >
-                            <Sparkles size={14} className={styles.sparkleIcon} aria-hidden="true" />
+                            <BroteChispa size={14} className={styles.sparkleIcon} aria-hidden="true" />
                             {t('Ajustar plato con IA')}
                         </button>
                     )}
@@ -582,7 +583,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
                 {corrigiendo === 'ai_adjust' && (
                     <div className={styles.aiAdjustBox}>
                         <div className={styles.aiAdjustHeader}>
-                            <Sparkles size={15} className={styles.sparkleIcon} aria-hidden="true" />
+                            <BroteChispa size={15} className={styles.sparkleIcon} aria-hidden="true" />
                             <strong>{t('Dile a la IA qué cambiar o agregar')}</strong>
                         </div>
                         <CorregirConTexto

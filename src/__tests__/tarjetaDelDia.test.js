@@ -29,13 +29,14 @@ function conLienzo(ancho = 10) {
 
 describe('altoDeLaTarjeta', () => {
     it('crece con los micros y con las comidas', () => {
-        const sin = altoDeLaTarjeta(resumenDelDia({ consumed: base, metas: METAS }));
-        const conMicros = altoDeLaTarjeta(resumenDelDia({
+        // [P1-PLAN-LOTE-1049] el contenido crece con los micros (los lleva la historia) y con las comidas
+        const sin = altoDelContenido(resumenDelDia({ consumed: base, metas: METAS }));
+        const conMicros = altoDelContenido(resumenDelDia({
             consumed: { ...base, micros: { fiber_g: 5 }, microsCoverage: { con_datos: 1, total: 1 } }, metas: METAS }));
         const conComidas = altoDeLaTarjeta(resumenDelDia({ consumed: base, metas: METAS, incluirComidas: true }));
-        expect(sin).toBeGreaterThanOrEqual(1080);
+        expect(altoDeLaTarjeta(resumenDelDia({ consumed: base, metas: METAS }))).toBeGreaterThanOrEqual(1080);
         expect(conMicros).toBeGreaterThan(sin);
-        expect(conComidas).toBeGreaterThan(sin);
+        expect(conComidas).toBeGreaterThan(altoDeLaTarjeta(resumenDelDia({ consumed: base, metas: METAS })));
     });
 });
 
@@ -71,7 +72,7 @@ describe('dibujarTarjetaDelDia', () => {
             consumed: { ...base, micros: { fiber_g: 12.4, sodium_mg: 2310 }, microsCoverage: { con_datos: 1, total: 1 } },
             metas: METAS,
             microMetas: { fiber_g: { target: 38, kind: 'floor' }, sodium_mg: { target: 2000, kind: 'ceiling' } },
-        }));
+        }), { formato: 'historia' });   // [P1-PLAN-LOTE-1049] los micros van en la historia
         const todos = textos.map((x) => x.s).join(' | ');
         expect(textos.some((x) => /^≥ 2[.,\s]?310 \/ 2[.,\s]?000 mg$/.test(x.s)), todos).toBe(true);
         expect(textos.some((x) => /^≥ 12[.,]4 \/ 38 g$/.test(x.s)), todos).toBe(true);
@@ -136,7 +137,7 @@ describe('dibujarTarjetaDelDia', () => {
             });
             vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
             vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (cb) { cb(new Blob(['png'], { type: 'image/png' })); });
-            await dibujarTarjetaDelDia(resumen);
+            await dibujarTarjetaDelDia(resumen, { formato: combo.micros ? 'historia' : 'publicacion' });
             const divider = rects.find((r) => r.h === 2);
             expect(divider, `divider not found for combo ${JSON.stringify(combo)}`).toBeDefined();
             const dividerY = divider.y;
@@ -182,5 +183,39 @@ describe('[300] rediseño de la tarjeta', () => {
         expect(radios.filter((x) => x === 200).length).toBeGreaterThanOrEqual(2);   // pista + progreso de las calorías
         expect(radios.filter((x) => x === 92).length).toBeGreaterThanOrEqual(3);    // una pista por macro
         expect(curvas.length).toBeGreaterThanOrEqual(4);                              // las dos hojas del brote
+    });
+});
+
+// [P1-PLAN-LOTE-1049] Cada formato con los micros que caben: la publicación cuadra en 4:5 y la historia en 9:16.
+import { microsDelFormato, MICROS_POR_FORMATO } from '../utils/tarjetaDelDia';
+
+describe('[1049] los micros según el formato', () => {
+    const TODOS = { fiber_g: 30, sodium_mg: 1800, potassium_mg: 3000, calcium_mg: 900, iron_mg: 12, vit_c_mg: 80, vit_a_mcg: 700,
+        vit_d_mcg: 5, magnesium_mg: 300, zinc_mg: 9, b12_mcg: 2, folate_mcg: 300, vit_e_mg: 10, vit_k_mcg: 90, selenium_mcg: 50 };
+    const lleno = () => resumenDelDia({ consumed: { ...base, micros: TODOS, microsCoverage: { con_datos: 1, total: 1 } }, metas: METAS });
+
+    it('un día con todos los micros: la publicación queda en 1080×1350 y la historia en 1080×1920', () => {
+        expect(lleno().micros.length).toBeGreaterThan(6);
+        expect(altoDeLaTarjeta(lleno(), 'publicacion')).toBe(1350);
+        expect(altoDeLaTarjeta(lleno(), 'historia')).toBe(1920);
+    });
+
+    it('la historia lleva los 6 primeros con datos, en el orden de la app', () => {
+        const r = resumenDelDia({ consumed: { ...base, micros: { sodium_mg: 1800, iron_mg: 12, vit_c_mg: 80, zinc_mg: 9, b12_mcg: 2, selenium_mcg: 50, vit_k_mcg: 90 },
+            microsCoverage: { con_datos: 1, total: 1 } }, metas: METAS });
+        const claves = microsDelFormato(r.micros, 'historia').map((f) => f.key);
+        expect(claves).toHaveLength(MICROS_POR_FORMATO.historia);
+        expect(claves[0]).toBe('sodium_mg');                       // la fibra no tiene dato: no ocupa sitio
+        expect(claves).not.toContain('fiber_g');
+        expect(microsDelFormato(r.micros, 'publicacion')).toEqual([]);
+    });
+
+    it('no pinta ningún micro en la publicación', async () => {
+        const textos = conLienzo();
+        await dibujarTarjetaDelDia(lleno(), { formato: 'publicacion' });
+        expect(textos.map((x) => x.s)).not.toContain('Micros');
+        const textosH = conLienzo();
+        await dibujarTarjetaDelDia(lleno(), { formato: 'historia' });
+        expect(textosH.map((x) => x.s)).toContain('Micros');
     });
 });

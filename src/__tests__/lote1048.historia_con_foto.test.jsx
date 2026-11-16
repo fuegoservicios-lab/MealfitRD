@@ -15,7 +15,7 @@ vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), err
 
 import { toast } from 'sonner';
 import { dibujarTarjetaDelDia } from '../utils/tarjetaDelDia';
-import { cargarFoto, dibujarHistoriaConFoto, encajar, ESTILOS, ANCHO, ALTO } from '../utils/historiaConFoto';
+import { cargarFoto, dibujarHistoriaConFoto, encajar, moverEncuadre, metaCumplida, ENCUADRE_INICIAL, ZOOM_MAX, ESTILOS, ANCHO, ALTO } from '../utils/historiaConFoto';
 import { archivoDeImagen } from '../utils/compartirDia';
 import ShareDaySheet from '../components/dashboard/ShareDaySheet';
 
@@ -48,7 +48,42 @@ describe('[1048] encajar (recorte «cover»)', () => {
         expect(encajar(1000, 4000).sy).toBeGreaterThan(0);
     });
     it('sin medidas no divide entre cero', () => {
-        expect(encajar(0, 0)).toEqual({ sx: 0, sy: 0, sw: 0, sh: 0 });
+        expect(encajar(0, 0)).toMatchObject({ sx: 0, sy: 0, sw: 0, sh: 0 });
+    });
+});
+
+describe('[1048] encuadre: arrastrar y acercar', () => {
+    const foto = { width: 1200, height: 1600 };
+    it('x = -1 / 1 llega a cada borde; el zoom recorta menos foto', () => {
+        expect(encajar(1200, 1600, ANCHO, ALTO, { zoom: 1, x: -1, y: 0 }).sx).toBeCloseTo(0);
+        expect(encajar(1200, 1600, ANCHO, ALTO, { zoom: 1, x: 1, y: 0 }).sx).toBeCloseTo(300);
+        const z = encajar(1200, 1600, ANCHO, ALTO, { zoom: 2, x: 0, y: 0 });
+        expect(z.sw).toBeCloseTo(450);
+        expect(z.sh).toBeCloseTo(800);
+    });
+    it('la foto sigue al dedo: arrastrar a la derecha muestra más del lado izquierdo', () => {
+        const e = moverEncuadre(ENCUADRE_INICIAL, foto, { dx: 120 });
+        expect(e.x).toBeLessThan(0);
+        expect(e.y).toBe(0);                           // una 3:4 en 9:16 no tiene recorrido vertical sin zoom
+    });
+    it('nunca sale del borde ni pasa del zoom máximo, y nunca baja de llenar el lienzo', () => {
+        expect(moverEncuadre(ENCUADRE_INICIAL, foto, { dx: 99999 }).x).toBe(-1);
+        expect(moverEncuadre(ENCUADRE_INICIAL, foto, { factor: 50 }).zoom).toBe(ZOOM_MAX);
+        expect(moverEncuadre({ zoom: 1.5, x: 0, y: 0 }, foto, { factor: 0.1 }).zoom).toBe(1);
+    });
+    it('con zoom aparece el recorrido vertical', () => {
+        expect(moverEncuadre({ zoom: 2, x: 0, y: 0 }, foto, { dy: -200 }).y).toBeGreaterThan(0);
+    });
+});
+
+describe('[1048] «Meta cumplida»', () => {
+    const r = (valor, meta) => ({ calorias: { valor, meta, pct: meta ? Math.round((valor / meta) * 100) : 0 } });
+    it('entre el 90 % y el 110 % de la meta', () => {
+        expect(metaCumplida(r(3215, 3350))).toBe(true);
+        expect(metaCumplida(r(3000, 3350))).toBe(true);    // 90 %
+        expect(metaCumplida(r(2340, 3350))).toBe(false);   // 70 %
+        expect(metaCumplida(r(4000, 3350))).toBe(false);   // 119 %
+        expect(metaCumplida(r(2000, 0))).toBe(false);      // sin meta
     });
 });
 
@@ -75,6 +110,15 @@ describe('[1048] la hoja con foto', () => {
 
         fireEvent.click(screen.getByRole('radio', { name: 'Cristal' }));
         await waitFor(() => expect(dibujarHistoriaConFoto.mock.calls.at(-1)[1].estilo).toBe('cristal'));
+    });
+
+    it('el deslizador acerca la foto y el JPEG sale con ese encuadre; la vista previa es un lienzo', async () => {
+        render(<ShareDaySheet {...props} />);
+        fireEvent.change(screen.getByTestId('share-day-foto'), { target: { files: [_foto()] } });
+        const zoom = await screen.findByRole('slider', { name: /acercar la foto/i });
+        expect(screen.getByRole('img', { name: /tu historia con tu foto/i }).tagName).toBe('CANVAS');
+        fireEvent.change(zoom, { target: { value: '2' } });
+        await waitFor(() => expect(dibujarHistoriaConFoto.mock.calls.at(-1)[1].encuadre.zoom).toBeCloseTo(2));
     });
 
     it('comparte la historia como JPEG y «Quitar foto» vuelve a la tarjeta', async () => {

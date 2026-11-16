@@ -8,7 +8,7 @@ import { useDashboardAccountActions } from '../context/DashboardAccountActions';
 import AgentAccountMenu from '../components/agent/AgentAccountMenu';
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] SSOT del modo (perfil → espejo local).
 import { isTrackingMode, navItemsFor, neveraActiva } from '../config/dashboardNav';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, AudioLines, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Trash2, Check, Mic, PhoneCall, AudioLines, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { sendClientPerfTelemetry, sendStreamCutTelemetry, paqueteDelCliente } from '../utils/chatPerf';
 // [P1-PLAN-LOTE-726] la foto de plato que se manda al chat pasa a la ficha de la comida que el coach registra. Import

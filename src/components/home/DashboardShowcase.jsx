@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
-    Clock, Flame, FileDown, Search, Plus, Sparkles, Send, AlertTriangle,
+    Clock, Flame, FileDown, Search, Plus, Send, AlertTriangle,
 } from 'lucide-react';
+import BroteChispa from '../common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
 import SeeMoreLink from './SeeMoreLink';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { makeSectionMotion } from './sectionMotion';
@@ -272,7 +273,7 @@ export const ChatMockup = () => (
                     <span className={styles.mockHeaderSub}>En línea</span>
                 </div>
             </div>
-            <Sparkles size={15} className={styles.chatSparkle} {...ICON} />
+            <BroteChispa size={15} className={styles.chatSparkle} {...ICON} />
         </div>
         <div className={styles.chatBody}>
             <div className={styles.chatBubbleUser}>¿Puedo cambiar el almuerzo de mañana? Hoy almorcé pollo.</div>

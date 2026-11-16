@@ -41,9 +41,27 @@ export function altoDelContenido(r) {
     return h;
 }
 
+// [P1-PLAN-LOTE-1049 · 2026-11-16] Cada formato lleva los micros que CABEN en su tamaño. Con 18 micros la tarjeta crecía a
+// ~2 840 px en los dos formatos y «Publicación» e «Historia» salían iguales (y más largas que una historia): el dueño
+// preguntó cuál era la diferencia. Sin micros el contenido mide 1 290 px, así que en la publicación 4:5 (1 350) no cabe
+// ninguno; en la historia 9:16 (1 920) caben 6 justos (3 filas). Van los primeros CON DATOS, en el orden de
+// `filasMicros` (fibra, sodio, potasio, calcio, hierro, vitamina C: los que más miran). El texto los lleva todos.
+export const MICROS_POR_FORMATO = { publicacion: 0, historia: 6 };
+
+export function microsDelFormato(micros, formato = 'publicacion') {
+    const n = MICROS_POR_FORMATO[formato] ?? 0;
+    const lista = Array.isArray(micros) ? micros : [];
+    if (!n || !lista.length) return [];
+    const conDatos = lista.filter((f) => f.valor !== null && f.valor !== undefined);
+    return (conDatos.length ? conDatos : lista).slice(0, n);
+}
+
+/** El resumen tal como lo pinta ESE formato (sus micros recortados). */
+export const resumenDelFormato = (r, formato = 'publicacion') => ({ ...r, micros: microsDelFormato(r?.micros, formato) });
+
 /** Alto del lienzo: el del formato, o el del contenido si no cabe (nunca se recorta nada). */
 export function altoDeLaTarjeta(r, formato = 'publicacion') {
-    return Math.max(FORMATOS[formato] || FORMATOS.publicacion, altoDelContenido(r));
+    return Math.max(FORMATOS[formato] || FORMATOS.publicacion, altoDelContenido(resumenDelFormato(r, formato)));
 }
 
 /** Arco de progreso con extremos redondeados; empieza arriba y va en el sentido del reloj. */
@@ -158,8 +176,9 @@ const _aBlob = (canvas) => new Promise((resolve) => {
     }
 });
 
-export async function dibujarTarjetaDelDia(r, { formato = 'publicacion' } = {}) {
+export async function dibujarTarjetaDelDia(resumen, { formato = 'publicacion' } = {}) {
     if (typeof document === 'undefined') return null;
+    const r = resumenDelFormato(resumen, formato);
     const canvas = document.createElement('canvas');
     const alto = altoDeLaTarjeta(r, formato);
     canvas.width = ANCHO; canvas.height = alto;

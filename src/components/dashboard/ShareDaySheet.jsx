@@ -14,7 +14,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Sparkles } from 'lucide-react';
+import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera } from 'lucide-react';
+import BroteChispa from '../common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
 import { toast } from 'sonner';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
@@ -22,7 +23,7 @@ import { isNativeApp } from '../../config/platform';
 import { useT } from '../../i18n';
 import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, sabeCompartirImagenes, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
-import { cargarFoto, dibujarHistoriaConFoto } from '../../utils/historiaConFoto';
+import { cargarFoto, cargarFuentes, dibujarHistoriaConFoto, pintarHistoria, moverEncuadre, ENCUADRE_INICIAL, ZOOM_MAX, ANCHO as ANCHO_HISTORIA } from '../../utils/historiaConFoto';
 import { useAssessment } from '../../context/AssessmentContext';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import { getBiologicalDate } from '../../utils/diaBiologico';
@@ -51,8 +52,20 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
         if (!fichero) return;
         const lista = await cargarFoto(fichero);
         if (!lista) { toast.error(t('No se pudo abrir esa foto. Prueba con otra.'), { id: 'share-day-foto' }); return; }
+        setEncuadre(ENCUADRE_INICIAL);
         setFoto(lista);
     }, [t]);
+    // [P1-PLAN-LOTE-1048 · encuadre] La selfie se mueve con el dedo y se acerca pellizcando (o con el deslizador): la
+    // vista previa es un lienzo que se repinta en vivo; el JPEG que se comparte se rehace cuando el dedo se para.
+    const [encuadre, setEncuadre] = useState(ENCUADRE_INICIAL);
+    const [fuentesListas, setFuentesListas] = useState(false);
+    const lienzoRef = useRef(null);
+    const punteros = useRef(new Map());
+    useEffect(() => {
+        let vivo = true;
+        cargarFuentes().then(() => { if (vivo) setFuentesListas(true); });
+        return () => { vivo = false; };
+    }, []);
 
     // La tarjeta pasa `metas` como objeto literal, nuevo en CADA render suyo: se fija por sus cuatro números, o
     // cualquier re-render del panel con la hoja abierta y los mismos datos redibujaría la imagen y apagaría
@@ -78,13 +91,54 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
 
     useEffect(() => {
         let vivo = true;
-        const dibujo = foto ? dibujarHistoriaConFoto(resumen, { foto, estilo }) : dibujarTarjetaDelDia(resumen, { formato });
-        dibujo.then((blob) => {
-            if (!vivo) return;
-            setImagen({ blob, url: blob ? URL.createObjectURL(blob) : null, para: resumen, formato, foto, estilo });
-        }).catch(() => { if (vivo) setImagen({ blob: null, url: null, para: resumen, formato, foto, estilo }); });
-        return () => { vivo = false; };
-    }, [resumen, formato, foto, estilo]);
+        const fijar = (blob) => {
+            if (vivo) setImagen({ blob, url: blob ? URL.createObjectURL(blob) : null, para: resumen, formato, foto, estilo, encuadre });
+        };
+        // Con foto, el JPEG espera a que el dedo se pare (arrastrar pide decenas de encuadres por segundo). Sin foto, la
+        // tarjeta se dibuja en el acto, como siempre.
+        if (!foto) {
+            dibujarTarjetaDelDia(resumen, { formato }).then(fijar).catch(() => fijar(null));
+            return () => { vivo = false; };
+        }
+        const tope = setTimeout(() => {
+            dibujarHistoriaConFoto(resumen, { foto, estilo, encuadre }).then(fijar).catch(() => fijar(null));
+        }, 280);
+        return () => { vivo = false; clearTimeout(tope); };
+    }, [resumen, formato, foto, estilo, encuadre]);
+
+    // La vista previa en vivo: un fotograma por cambio.
+    useEffect(() => {
+        if (!foto) return undefined;
+        const id = requestAnimationFrame(() => pintarHistoria(lienzoRef.current, resumen, { foto, estilo, encuadre }));
+        return () => cancelAnimationFrame(id);
+    }, [foto, resumen, estilo, encuadre, fuentesListas]);
+
+    const onPunteroAbajo = useCallback((e) => {
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        punteros.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }, []);
+    const onPunteroMovido = useCallback((e) => {
+        const p = punteros.current;
+        const previo = p.get(e.pointerId);
+        if (!previo || !foto) return;
+        const caja = e.currentTarget.getBoundingClientRect();
+        const k = caja.width > 0 ? ANCHO_HISTORIA / caja.width : 1;     // px de pantalla → px del lienzo
+        if (p.size >= 2) {
+            const [a, b] = [...p.entries()].map(([id, v]) => (id === e.pointerId ? { x: e.clientX, y: e.clientY } : v));
+            const [a0, b0] = [...p.values()];
+            const antes = Math.hypot(a0.x - b0.x, a0.y - b0.y);
+            const ahora = Math.hypot(a.x - b.x, a.y - b.y);
+            if (antes > 0) setEncuadre((en) => moverEncuadre(en, foto, { factor: ahora / antes }));
+        } else {
+            const dx = (e.clientX - previo.x) * k;
+            const dy = (e.clientY - previo.y) * k;
+            setEncuadre((en) => moverEncuadre(en, foto, { dx, dy }));
+        }
+        p.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }, [foto]);
+    const onPunteroArriba = useCallback((e) => { punteros.current.delete(e.pointerId); }, []);
+    // El arrastre de la foto no es el gesto de cerrar la hoja (useBottomSheet escucha el toque en el diálogo).
+    const pararToque = useCallback((e) => e.stopPropagation(), []);
 
     // La URL en pantalla se revoca cuando otra YA la sustituyó (la limpieza de este efecto corre tras el commit de la
     // nueva) o al cerrar la hoja; antes se revocaba al EMPEZAR cada redibujo, con la imagen vieja aún en el <img>.
@@ -104,7 +158,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const puedeDescargar = !isNativeApp() && !conImagen && !!imagen.blob;
     // Mientras se redibuja (al cambiar «Incluir lo que comí») se sigue viendo la imagen anterior, pero no se comparte
     // ni se descarga: saldría la versión vieja.
-    const dibujando = imagen.para !== resumen || imagen.formato !== formato || imagen.foto !== foto || imagen.estilo !== estilo;
+    const dibujando = imagen.para !== resumen || imagen.formato !== formato || imagen.foto !== foto || imagen.estilo !== estilo || imagen.encuadre !== encuadre;
 
     // Un segundo toque mientras la hoja del sistema se abre hace que `navigator.share` rechace (InvalidStateError) y
     // saldría un «no dejó compartir» falso: se ignora. La marca se pone DESPUÉS de llamar a `compartir`, que invoca
@@ -177,7 +231,16 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
 
                 <div ref={bodyRef} className={styles.body}>
                     <div className={styles.preview} aria-busy={dibujando}>
-                        {imagen.url
+                        {foto ? (
+                            <canvas
+                                ref={lienzoRef} width={ANCHO_HISTORIA} height={1920}
+                                role="img" aria-label={t('Mi día: tu historia con tu foto')}
+                                className={`${styles.img} ${styles.lienzo}`}
+                                onPointerDown={onPunteroAbajo} onPointerMove={onPunteroMovido}
+                                onPointerUp={onPunteroArriba} onPointerCancel={onPunteroArriba}
+                                onTouchStart={pararToque} onTouchMove={pararToque} onTouchEnd={pararToque}
+                            />
+                        ) : imagen.url
                             ? <img src={imagen.url} alt={t('Mi día: calorías, macros y micros')} className={styles.img} />
                             : dibujando
                                 ? <Loader2 size={28} className="spin-animation" role="img" aria-label={t('Preparando la imagen…')} />
@@ -203,6 +266,12 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                                     </button>
                                 ))}
                             </div>
+                            <p className={styles.pista}>{t('Arrastra para encuadrar · pellizca para acercar')}</p>
+                            <input
+                                type="range" className={styles.zoom} min={1} max={ZOOM_MAX} step={0.01}
+                                value={encuadre.zoom} aria-label={t('Acercar la foto')}
+                                onChange={(e) => { const v = Number(e.target.value); setEncuadre((en) => moverEncuadre(en, foto, { factor: v / en.zoom })); }}
+                            />
                             <div className={styles.fotoAcciones}>
                                 <button type="button" className={styles.enlace} onClick={pedirFoto}>{t('Cambiar foto')}</button>
                                 <button type="button" className={styles.enlace} onClick={() => setFoto(null)}>{t('Quitar foto')}</button>
@@ -216,7 +285,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                                 <span>{t('Ponle tu foto')}</span>
                                 <span className={styles.fotoCtaSub}>{t('Tu selfie de fondo y tus cifras encima: lista para tu historia')}</span>
                             </span>
-                            <Sparkles size={18} className={styles.fotoCtaBrillo} aria-hidden="true" />
+                            <BroteChispa size={18} className={styles.fotoCtaBrillo} aria-hidden="true" />
                         </button>
                     )}
                     {!foto && (
@@ -228,7 +297,9 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                                         className={formato === clave ? `${styles.formato} ${styles.formatoActivo}` : styles.formato}
                                         onClick={() => setFormato(clave)}
                                     >
-                                        {rotulo}
+                                        <span>{rotulo}</span>
+                                        {/* [P1-PLAN-LOTE-1049] qué es cada uno («¿cuál es la diferencia?», el dueño) */}
+                                        <span className={styles.formatoSub}>{clave === 'publicacion' ? t('4:5 · chats y feed') : t('9:16 · historias y estados')}</span>
                                     </button>
                                 ))}
                             </div>

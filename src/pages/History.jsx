@@ -13,7 +13,8 @@ import { reanudarPlanes, reanudarTrasReactivar } from '../utils/planModeResume';
 // en modo privado lanza SecurityError con localStorage crudo.
 import { safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import { pedirAbrirDiasAnteriores } from '../utils/diasAnteriores';
-import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, Loader2, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search, Sun, Moon, Coffee, Fish } from 'lucide-react';
+import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, Loader2, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Search, Sun, Moon, Coffee, Fish } from 'lucide-react';
+import BroteChispa from '../components/common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -2928,7 +2929,7 @@ const History = () => {
                                     return (
                                         <div className={styles.lifetimeLessonsBlock}>
                                             <div className={styles.lifetimeLessonsHeader}>
-                                                <Sparkles size={16} strokeWidth={2.5} />
+                                                <BroteChispa size={16} strokeWidth={2.5} />
                                                 <strong>{t('Aprendizaje del usuario')}</strong>
                                                 {_proxyDegraded && (
                                                     <span
