@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, Share2, Copy, Download, MessageCircle, Loader2 } from 'lucide-react';
+import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
@@ -22,6 +22,7 @@ import { isNativeApp } from '../../config/platform';
 import { useT } from '../../i18n';
 import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, sabeCompartirImagenes, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
+import { cargarFoto, dibujarHistoriaConFoto } from '../../utils/historiaConFoto';
 import { useAssessment } from '../../context/AssessmentContext';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import { getBiologicalDate } from '../../utils/diaBiologico';
@@ -38,6 +39,20 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     // `para`: el resumen con el que se dibujó. «Dibujando» se DERIVA (el resumen vigente aún no tiene imagen) en vez
     // de marcarse con un setState síncrono en el efecto (react-hooks/set-state-in-effect, con techo en lint-count).
     const [imagen, setImagen] = useState({ blob: null, url: null, para: null });
+    // [P1-PLAN-LOTE-1048] La historia con TU foto (la selfie del espejo de fondo, las cifras encima). La foto se lee y
+    // se dibuja en el teléfono: no viaja a ningún servidor. Con foto, el formato es siempre historia (9:16).
+    const [foto, setFoto] = useState(null);
+    const [estilo, setEstilo] = useState('titular');
+    const inputFotoRef = useRef(null);
+    const pedirFoto = useCallback(() => inputFotoRef.current?.click(), []);
+    const onElegirFoto = useCallback(async (e) => {
+        const fichero = e.target.files?.[0];
+        e.target.value = '';                       // elegir la MISMA foto otra vez también dispara `change`
+        if (!fichero) return;
+        const lista = await cargarFoto(fichero);
+        if (!lista) { toast.error(t('No se pudo abrir esa foto. Prueba con otra.'), { id: 'share-day-foto' }); return; }
+        setFoto(lista);
+    }, [t]);
 
     // La tarjeta pasa `metas` como objeto literal, nuevo en CADA render suyo: se fija por sus cuatro números, o
     // cualquier re-render del panel con la hoja abierta y los mismos datos redibujaría la imagen y apagaría
@@ -63,12 +78,13 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
 
     useEffect(() => {
         let vivo = true;
-        dibujarTarjetaDelDia(resumen, { formato }).then((blob) => {
+        const dibujo = foto ? dibujarHistoriaConFoto(resumen, { foto, estilo }) : dibujarTarjetaDelDia(resumen, { formato });
+        dibujo.then((blob) => {
             if (!vivo) return;
-            setImagen({ blob, url: blob ? URL.createObjectURL(blob) : null, para: resumen, formato });
-        }).catch(() => { if (vivo) setImagen({ blob: null, url: null, para: resumen, formato }); });
+            setImagen({ blob, url: blob ? URL.createObjectURL(blob) : null, para: resumen, formato, foto, estilo });
+        }).catch(() => { if (vivo) setImagen({ blob: null, url: null, para: resumen, formato, foto, estilo }); });
         return () => { vivo = false; };
-    }, [resumen, formato]);
+    }, [resumen, formato, foto, estilo]);
 
     // La URL en pantalla se revoca cuando otra YA la sustituyó (la limpieza de este efecto corre tras el commit de la
     // nueva) o al cerrar la hoja; antes se revocaba al EMPEZAR cada redibujo, con la imagen vieja aún en el <img>.
@@ -88,7 +104,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const puedeDescargar = !isNativeApp() && !conImagen && !!imagen.blob;
     // Mientras se redibuja (al cambiar «Incluir lo que comí») se sigue viendo la imagen anterior, pero no se comparte
     // ni se descarga: saldría la versión vieja.
-    const dibujando = imagen.para !== resumen || imagen.formato !== formato;
+    const dibujando = imagen.para !== resumen || imagen.formato !== formato || imagen.foto !== foto || imagen.estilo !== estilo;
 
     // Un segundo toque mientras la hoja del sistema se abre hace que `navigator.share` rechace (InvalidStateError) y
     // saldría un «no dejó compartir» falso: se ignora. La marca se pone DESPUÉS de llamar a `compartir`, que invoca
@@ -126,9 +142,9 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
         if (!imagen.url) return;
         const a = document.createElement('a');
         a.href = imagen.url;
-        a.download = 'mi-dia-bioboros.png';
+        a.download = imagen.blob?.type === 'image/jpeg' ? 'mi-dia-bioboros.jpg' : 'mi-dia-bioboros.png';
         document.body.appendChild(a); a.click(); a.remove();
-    }, [imagen.url]);
+    }, [imagen.url, imagen.blob]);
 
     const cuerpo = (
         <div className={styles.overlay}>
@@ -170,21 +186,58 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                 </div>
 
                 <div className={styles.footer}>
-                    <div className={styles.formatos} role="radiogroup" aria-label={t('Formato de la imagen')}>
-                        {[['publicacion', t('Publicación')], ['historia', t('Historia')]].map(([clave, rotulo]) => (
-                            <button
-                                key={clave} type="button" role="radio" aria-checked={formato === clave}
-                                className={formato === clave ? `${styles.formato} ${styles.formatoActivo}` : styles.formato}
-                                onClick={() => setFormato(clave)}
-                            >
-                                {rotulo}
-                            </button>
-                        ))}
-                    </div>
-                    <label className={styles.toggle}>
-                        <input type="checkbox" checked={incluirComidas} onChange={(e) => setIncluirComidas(e.target.checked)} />
-                        <span>{t('Incluir lo que comí')}</span>
-                    </label>
+                    <input
+                        ref={inputFotoRef} type="file" accept="image/*" className={styles.inputOculto}
+                        onChange={onElegirFoto} tabIndex={-1} aria-hidden="true" data-testid="share-day-foto"
+                    />
+                    {foto ? (
+                        <div className={styles.conFoto}>
+                            <div className={styles.formatos} role="radiogroup" aria-label={t('Estilo de la historia')}>
+                                {[['titular', t('Titular')], ['minimal', t('Minimal')], ['cristal', t('Cristal')]].map(([clave, rotulo]) => (
+                                    <button
+                                        key={clave} type="button" role="radio" aria-checked={estilo === clave}
+                                        className={estilo === clave ? `${styles.formato} ${styles.formatoActivo}` : styles.formato}
+                                        onClick={() => setEstilo(clave)}
+                                    >
+                                        {rotulo}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className={styles.fotoAcciones}>
+                                <button type="button" className={styles.enlace} onClick={pedirFoto}>{t('Cambiar foto')}</button>
+                                <button type="button" className={styles.enlace} onClick={() => setFoto(null)}>{t('Quitar foto')}</button>
+                            </div>
+                            <p className={styles.nota}>{t('Tu foto no sale de tu teléfono: la imagen se arma aquí.')}</p>
+                        </div>
+                    ) : (
+                        <button type="button" className={styles.fotoCta} onClick={pedirFoto}>
+                            <span className={styles.fotoCtaIcono} aria-hidden="true"><Camera size={20} /></span>
+                            <span className={styles.fotoCtaTexto}>
+                                <span>{t('Ponle tu foto')}</span>
+                                <span className={styles.fotoCtaSub}>{t('Tu selfie de fondo y tus cifras encima: lista para tu historia')}</span>
+                            </span>
+                            <Sparkles size={18} className={styles.fotoCtaBrillo} aria-hidden="true" />
+                        </button>
+                    )}
+                    {!foto && (
+                        <>
+                            <div className={styles.formatos} role="radiogroup" aria-label={t('Formato de la imagen')}>
+                                {[['publicacion', t('Publicación')], ['historia', t('Historia')]].map(([clave, rotulo]) => (
+                                    <button
+                                        key={clave} type="button" role="radio" aria-checked={formato === clave}
+                                        className={formato === clave ? `${styles.formato} ${styles.formatoActivo}` : styles.formato}
+                                        onClick={() => setFormato(clave)}
+                                    >
+                                        {rotulo}
+                                    </button>
+                                ))}
+                            </div>
+                            <label className={styles.toggle}>
+                                <input type="checkbox" checked={incluirComidas} onChange={(e) => setIncluirComidas(e.target.checked)} />
+                                <span>{t('Incluir lo que comí')}</span>
+                            </label>
+                        </>
+                    )}
                     <div className={styles.actions}>
                         {compartirImagen && (
                             <button type="button" className={`${styles.primary} ${styles.principal}`} onClick={onCompartir} disabled={dibujando || compartiendo || !archivo}>

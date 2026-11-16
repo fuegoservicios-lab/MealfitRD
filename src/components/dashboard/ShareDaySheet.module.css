@@ -344,3 +344,91 @@
 .principal { grid-column: 1 / -1; min-height: 58px; }
 .principalTexto { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
 .principalSub { font-size: 0.78rem; font-weight: 500; opacity: 0.85; }
+
+/* [P1-PLAN-LOTE-1048] La historia con tu foto. La invitación es LO que se ve al abrir: borde con el degradado de las
+   historias (índigo → rosa → ámbar) y un destello; con la foto puesta, el selector de estilo ocupa su sitio. */
+.inputOculto { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+.fotoCta {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 60px;
+    padding: 0.6rem 0.9rem;
+    border: 2px solid transparent;
+    border-radius: 16px;
+    background:
+        linear-gradient(var(--bg-card, #ffffff), var(--bg-card, #ffffff)) padding-box,
+        linear-gradient(115deg, #6366F1, #EC4899 55%, #F59E0B) border-box;
+    color: var(--text-main, #0F172A);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 10px 26px -14px rgba(236, 72, 153, 0.6);
+    transition: box-shadow 0.15s ease;
+}
+
+.fotoCta:hover { box-shadow: 0 14px 30px -14px rgba(236, 72, 153, 0.75); }
+.fotoCta:focus-visible { outline: 3px solid rgba(236, 72, 153, 0.5); outline-offset: 2px; }
+
+.fotoCtaIcono {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #6366F1, #EC4899 60%, #F59E0B);
+    color: #fff;
+}
+
+.fotoCtaTexto {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    font-size: 0.98rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.fotoCtaSub { font-size: 0.8rem; font-weight: 500; color: var(--text-muted, #64748B); }
+
+.fotoCtaBrillo { flex-shrink: 0; color: #EC4899; animation: sdBrillo 2.4s ease-in-out infinite; }
+
+@keyframes sdBrillo {
+    0%, 100% { opacity: 0.55; transform: scale(0.92) rotate(0deg); }
+    50% { opacity: 1; transform: scale(1.12) rotate(12deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fotoCtaBrillo { animation: none; }
+    .fotoCta { transition: none; }
+}
+
+.conFoto { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
+.conFoto .formatos { margin-bottom: 0; }
+
+.fotoAcciones { display: flex; gap: 0.5rem; }
+
+.enlace {
+    min-height: 44px;
+    padding: 0 0.8rem;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--primary, #4F46E5);
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.enlace:hover { background: color-mix(in srgb, var(--primary, #6366F1) 10%, transparent); }
+.enlace:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.5); outline-offset: 2px; }
+
+.nota { margin: 0; font-size: 0.8rem; color: var(--text-muted, #64748B); text-align: center; }

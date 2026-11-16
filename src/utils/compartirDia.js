@@ -120,7 +120,9 @@ export const urlWhatsApp = (texto) => `https://wa.me/?text=${encodeURIComponent(
 
 export function archivoDeImagen(blob, nombre = 'mi-dia-bioboros.png') {
     if (!blob || typeof File !== 'function') return null;
-    try { return new File([blob], nombre, { type: 'image/png' }); } catch { return null; }
+    // [P1-PLAN-LOTE-1048] la historia con foto sale en JPEG (un PNG de una foto pesa 5-8 MB): tipo y extensión la siguen
+    const jpeg = blob.type === 'image/jpeg';
+    try { return new File([blob], jpeg ? nombre.replace(/\.png$/, '.jpg') : nombre, { type: jpeg ? 'image/jpeg' : 'image/png' }); } catch { return null; }
 }
 
 export function puedeCompartirImagen(archivo) {

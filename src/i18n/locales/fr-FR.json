@@ -4047,5 +4047,15 @@
   "Este mes: media de {kcal} kcal en {n} días con registro": {
     "one": "Ce mois-ci : moyenne de {kcal} kcal sur {n} jour enregistré",
     "other": "Ce mois-ci : moyenne de {kcal} kcal sur {n} jours enregistrés"
-  }
+  },
+  "Ponle tu foto": "Ajoutez votre photo",
+  "Tu selfie de fondo y tus cifras encima: lista para tu historia": "Votre selfie en fond et vos chiffres par-dessus : prêt pour votre story",
+  "Estilo de la historia": "Style de la story",
+  "Titular": "Grand titre",
+  "Minimal": "Minimal",
+  "Cristal": "Verre",
+  "Cambiar foto": "Changer de photo",
+  "Quitar foto": "Retirer la photo",
+  "Tu foto no sale de tu teléfono: la imagen se arma aquí.": "Votre photo ne quitte pas votre téléphone : l’image est créée ici.",
+  "No se pudo abrir esa foto. Prueba con otra.": "Impossible d’ouvrir cette photo. Essayez avec une autre."
 }
