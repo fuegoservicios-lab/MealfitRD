@@ -100,6 +100,20 @@ describe('[SEMANAS-NUMERADAS] semana 1, semana 2… hasta el infinito', () => {
         expect(dias.map((d) => d.estado)).toEqual(['vacio', 'vacio', 'vacio', 'vacio', 'futuro', 'futuro', 'futuro']);
         expect(dias[3].esHoy).toBe(true);
     });
+
+    it('de madrugada (00:00–03:59 AM) el día calendario ya no lleva candado aunque el contador siga cerrando el día biológico', () => {
+        const dias = construirDias({
+            hoyISO: '2026-11-15',
+            calendarioISO: '2026-11-16',
+            filas: [],
+            hoy: { calories: 2844, mealsCount: 4 },
+            targetCalories: 2050,
+            fechas: fechasDeLaSemana('2026-11-15', 1),
+        });
+        expect(dias[0]).toMatchObject({ iso: '2026-11-15', esHoy: true, esCalendarioHoy: false, calories: 2844, estado: 'pasado' });
+        expect(dias[1]).toMatchObject({ iso: '2026-11-16', esHoy: false, esCalendarioHoy: true, estado: 'vacio' });
+        expect(dias.slice(2).every((d) => d.estado === 'futuro')).toBe(true);
+    });
 });
 
 describe('[SEMANA-EN-PROGRESO] la tira en pantalla', () => {
@@ -187,6 +201,25 @@ describe('[SEMANA-EN-PROGRESO] la tira en pantalla', () => {
         expect(hoy).toContain('animation: girar');
         expect(css).not.toContain('latido');
         expect(css).toMatch(/@keyframes girar \{ to \{ transform: rotate\(360deg\); \} \}/);
+    });
+
+    it('de madrugada (02:11 AM) quita "Hoy" de ayer (15) y quita el candado del día calendario actual (16)', async () => {
+        vi.setSystemTime(new Date(2026, 10, 16, 2, 11, 0));
+        fetchWithAuth.mockResolvedValue({ ok: true, json: async () => ({ days: [] }) });
+        montar({ hoy: { calories: 2844, protein: 120, carbs: 290, fats: 95, mealsCount: 4 }, targetCalories: 2050 });
+        await waitFor(() => expect(screen.getByRole('heading', { name: 'Semana 1' })).toBeInTheDocument());
+        const botones = diasEnPantalla();
+        // 15 (domingo) sigue activo con 2844 kcal pero ya no dice "Hoy" arriba; muestra la letra del domingo
+        expect(screen.queryByText('Hoy')).not.toBeInTheDocument();
+        expect(botones[0]).toHaveAttribute('aria-label', expect.stringContaining('15'));
+        expect(botones[0]).not.toHaveAttribute('aria-label', expect.stringContaining('Hoy'));
+        // 16 (lunes) ya está desbloqueado (sin candado y habilitado)
+        expect(botones[1]).not.toBeDisabled();
+        expect(botones[1]).toHaveAttribute('aria-label', expect.stringContaining('Sin registros'));
+        // 17+ siguen con candado
+        expect(botones[2]).toBeDisabled();
+        // Restaurar reloj para tests posteriores si hubiera
+        vi.setSystemTime(new Date(2026, 10, 18, 15, 0, 0));
     });
 });
 

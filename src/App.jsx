@@ -434,7 +434,6 @@ function useAppToastTheme() {
     const [tema, setTema] = useState(leer);
     useEffect(() => {
         if (typeof document === 'undefined') return undefined;
-        setTema(leer());
         const obs = new MutationObserver(() => setTema(leer()));
         obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
         return () => obs.disconnect();

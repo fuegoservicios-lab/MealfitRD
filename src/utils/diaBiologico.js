@@ -14,15 +14,24 @@ export const getBiologicalDate = (now = new Date()) => {
     return new Date(t - ROLLOVER_MS);
 };
 
-/**
- * Devuelve la fecha del día biológico en formato YYYY-MM-DD en hora local.
- */
-export const getBiologicalDateStr = (now = new Date()) => {
-    const d = getBiologicalDate(now);
+const _aISO = (d) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+};
+
+/**
+ * Devuelve la fecha del día biológico en formato YYYY-MM-DD en hora local.
+ */
+export const getBiologicalDateStr = (now = new Date()) => _aISO(getBiologicalDate(now));
+
+/**
+ * Devuelve la fecha de calendario local en formato YYYY-MM-DD (sin desplazar por rollover).
+ */
+export const getCalendarDateStr = (now = new Date()) => {
+    const d = now instanceof Date ? now : new Date(now);
+    return _aISO(d);
 };
 
 /**

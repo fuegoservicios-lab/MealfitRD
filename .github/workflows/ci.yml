@@ -124,7 +124,9 @@ jobs:
       # Hoy la baseline está limpia y el lint es BLOQUEANTE vía el tope de avisos.
       # [CI-LINT-2026-11-14] 70 -> 64: los 7 errores de variables sin usar fuera, 4 setState-en-efecto pasados a
       # estado derivado y 2 helpers puros sacados de ficheros de componentes. El techo baja con el suelo.
-      - run: npx eslint . --max-warnings 64
+      # [2026-11-16] 64 -> 59: 4 exhaustive-deps (useMemo en Dashboard/QStapleFoods, helper fuera de DiaryHistory,
+      # ref capturada en Pantry) y 1 set-state-in-effect (App) — lint-count.mjs ya lo decía.
+      - run: npx eslint . --max-warnings 59
       # [P2-LINT-RATCHET-POR-REGLA] El techo global es FUNGIBLE: arreglar un aviso
       # de estilo libera hueco para que entre uno de hooks, y el numero total no
       # se entera. Este gate pone techo POR REGLA, y una regla no declarada tiene

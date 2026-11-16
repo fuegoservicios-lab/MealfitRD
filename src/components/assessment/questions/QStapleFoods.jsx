@@ -69,7 +69,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
     // buscador no tenía nada contra qué buscar.
     const [catalogoFallo, setCatalogoFallo] = useState(false);
 
-    const staples = formData.stapleFoods || [];
+    const staples = useMemo(() => formData.stapleFoods || [], [formData.stapleFoods]);
     const atMax = staples.length >= STAPLE_FOODS_MAX;
     const anchors = Array.isArray(formData.stapleAnchors) ? formData.stapleAnchors : [];
     const [editing, setEditing] = useState(null);

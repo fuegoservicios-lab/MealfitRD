@@ -44,17 +44,20 @@ export function estadoDelDia({ calories, mealsCount, target, mainGoal }) {
 
 /**
  * @param {string}   hoyISO          el día biológico de hoy
+ * @param {string}   [calendarioISO] el día calendario local real (difiere de `hoyISO` de 00:00 a 03:59 AM)
  * @param {object[]} filas           `days` de `/api/diary/consumed-range` (solo trae los días CON registros)
  * @param {object}   hoy             lo que la tarjeta ya sabe de hoy, en vivo: gana a la fila del endpoint
  * @param {number}   targetCalories  la meta de hoy (y la de un día sin meta propia guardada)
  */
-export function construirDias({ hoyISO, filas, hoy = null, targetCalories = 0, targetMacros = null, mainGoal = '', n = DIAS_EN_TIRA, fechas = null }) {
+export function construirDias({ hoyISO, calendarioISO = hoyISO, filas, hoy = null, targetCalories = 0, targetMacros = null, mainGoal = '', n = DIAS_EN_TIRA, fechas = null }) {
     const porFecha = new Map();
     (Array.isArray(filas) ? filas : []).forEach((r) => { if (r && r.date) porFecha.set(String(r.date), r); });
+    const corteFuturo = calendarioISO && calendarioISO > hoyISO ? calendarioISO : hoyISO;
     return (fechas || ultimosDias(hoyISO, n)).map((iso) => {
         const esHoy = iso === hoyISO;
+        const esCalendarioHoy = iso === corteFuturo;
         // [SEMANAS-NUMERADAS] un día de la semana en curso que aún no llega: ni vacío ni fallado
-        if (iso > hoyISO) return { iso, esHoy: false, calories: 0, mealsCount: 0, protein: 0, carbs: 0, fats: 0, target: 0, targetMacros: null, ratio: 0, estado: 'futuro' };
+        if (iso > corteFuturo) return { iso, esHoy: false, esCalendarioHoy: false, calories: 0, mealsCount: 0, protein: 0, carbs: 0, fats: 0, target: 0, targetMacros: null, ratio: 0, estado: 'futuro' };
         const r = porFecha.get(iso) || {};
         const vivo = esHoy && hoy ? hoy : null;
         const calories = Math.round(Number(vivo ? vivo.calories : r.calories) || 0);
@@ -66,6 +69,7 @@ export function construirDias({ hoyISO, filas, hoy = null, targetCalories = 0, t
         return {
             iso,
             esHoy,
+            esCalendarioHoy,
             calories,
             mealsCount,
             protein: Math.round(Number(vivo ? vivo.protein : r.protein) || 0),

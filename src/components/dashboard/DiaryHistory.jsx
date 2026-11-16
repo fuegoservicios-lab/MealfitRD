@@ -55,7 +55,7 @@ import LogMealModal from './LogMealModal';
 // foto del escáner si este dispositivo la guardó.
 import { useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
 import MiniaturaDeComida from './MiniaturaDeComida';
-import { getBiologicalDate, getBiologicalDateStr } from '../../utils/diaBiologico';
+import { getBiologicalDate, getBiologicalDateStr, getCalendarDateStr } from '../../utils/diaBiologico';
 import { getCalorieGoalBand, getCalorieGoalState, isStrongDeficit, resolveMainGoal } from '../../utils/calorieGoalStatus';
 import { ESTRELLAS_MAX, estrellasDeLaSemana, inicioDeLaSemana1, numeroDeSemana } from '../../utils/progresoDeLosDias';
 import { safeLocalStorageGet } from '../../utils/safeLocalStorage';
@@ -226,6 +226,24 @@ const horaFiable = (meal) => {
 // cosmética — «03:05» y «15:05» son horas distintas para quien espera AM/PM.
 const hhmm = (d) => formatDate(d, { timeStyle: 'short' });
 
+const _recalcularDia = (iso, meals, targets) => {
+    const { micros, coverage } = resumirMicros(meals);
+    const sum = (k) => Math.round(meals.reduce((acc, m) => acc + (Number(m?.[k]) || 0), 0));
+    return {
+        iso,
+        meals,
+        targets,
+        totals: {
+            calories: sum('calories'),
+            protein: sum('protein'),
+            carbs: sum('carbs'),
+            healthy_fats: Math.round(meals.reduce((acc, m) => acc + (Number(m?.healthy_fats ?? m?.fats) || 0), 0)),
+            micros,
+            micros_coverage: coverage,
+        },
+    };
+};
+
 const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacros = {}, targetMicros = null, mainGoal = null, diaInicial = null }) => {
     const t = useT();
     const tn = useTn();
@@ -237,6 +255,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     // esté cerrado, así que con `[]` el «hoy» era el del día en que se montó: con la app abierta desde anoche, la tira
     // seguía en ayer y lo que se registraba desde aquí caía en un día desplazado. Al abrir, además, se vuelve a HOY.
     const hoyISO = useMemo(() => getBiologicalDateStr(new Date()), [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    const calendarioHoyISO = useMemo(() => getCalendarDateStr(new Date()), [open]); // eslint-disable-line react-hooks/exhaustive-deps
     const [selected, setSelected] = useState(hoyISO);
     // [SEMANA-EN-PROGRESO] «Tu semana» abre el cajón YA en el día tocado (`diaInicial`); sin él, en hoy como siempre.
     useEffect(() => { if (open) setSelected(diaInicial || getBiologicalDateStr(new Date())); }, [open, diaInicial]);
@@ -459,30 +478,12 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     // [P1-PLAN-LOTE-105] Mientras está abierto, lo que cambie el diario desde fuera (registrar desde el
     // componedor —que dispara `mealfit:refresh-inventory`—, borrar en la tarjeta, el coach) se refleja aquí sin
     // cerrar y volver a abrir. El borrado propio sube `version` a mano y lleva `source` para no reaccionar dos veces.
-    const _recalcularDia = useCallback((iso, meals, targets) => {
-        const { micros, coverage } = resumirMicros(meals);
-        const sum = (k) => Math.round(meals.reduce((acc, m) => acc + (Number(m?.[k]) || 0), 0));
-        return {
-            iso,
-            meals,
-            targets,
-            totals: {
-                calories: sum('calories'),
-                protein: sum('protein'),
-                carbs: sum('carbs'),
-                healthy_fats: Math.round(meals.reduce((acc, m) => acc + (Number(m?.healthy_fats ?? m?.fats) || 0), 0)),
-                micros,
-                micros_coverage: coverage,
-            },
-        };
-    }, []);
-
     const _quitarComidaDeDia = useCallback((prev, mealId) => {
         if (!prev || !Array.isArray(prev.meals)) return prev;
         const meals = prev.meals.filter((m) => m.id !== mealId);
         if (meals.length === prev.meals.length) return prev;
         return _recalcularDia(prev.iso, meals, prev.targets ?? null);
-    }, [_recalcularDia]);
+    }, []);
 
     useEffect(() => {
         if (!open) return undefined;
@@ -586,7 +587,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const fecha = desdeISO(selected);
     const esHoy = selected === hoyISO;
     const atras = diasAtras(selected, hoyISO);
-    const esAyer = atras === 1;
+    const esHoyCalendario = selected === calendarioHoyISO;
+    const esAyerCalendario = diasAtras(selected, calendarioHoyISO) === 1;
     const puedeRegistrar = atras >= 0 && atras <= DIAS_ATRAS_REGISTRO;
     const totales = dia?.totals || {};
     const coberturaMicros = dia ? (totales.micros_coverage || { con_datos: 0, total: (dia.meals || []).length }) : null;
@@ -751,8 +753,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     mes: getMeses(t)[fecha.getMonth()],
                                 })}
                             </h2>
-                            {(esHoy || esAyer) && (
-                                <div className={styles.dateRelative}>{esHoy ? t('Hoy') : t('Ayer')}</div>
+                            {(esHoyCalendario || esAyerCalendario) && (
+                                <div className={styles.dateRelative}>{esHoyCalendario ? t('Hoy') : t('Ayer')}</div>
                             )}
                         </div>
                     </div>
@@ -833,8 +835,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     const lleno = Math.max(0.06, Math.min(1, diaTargetCal > 0 ? kcal / diaTargetCal : 0));
                                     const apagada = !!filtro && clave !== filtro;
                                     const activo = iso === selected;
-                                    const esHoyDia = iso === hoyISO;
-                                    const esFuturo = iso > hoyISO;
+                                    const esHoyDia = iso === calendarioHoyISO;
+                                    const esFuturo = iso > calendarioHoyISO;
 
                                     const sem = i % 7 === 0 ? semanasDelMes[i / 7] : undefined;
                                     return (

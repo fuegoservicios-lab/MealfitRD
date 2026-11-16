@@ -19,7 +19,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronLeft, ChevronRight, Flame, Lock, Plus, Star, Trophy } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 import { formatDate, formatNumber, useT, useTn } from '../../i18n';
-import { getBiologicalDateStr } from '../../utils/diaBiologico';
+import { getBiologicalDateStr, getCalendarDateStr } from '../../utils/diaBiologico';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import {
     DIAS_DE_LA_SEMANA, DIAS_EN_TIRA, DIAS_MAX_HISTORIA, ESTRELLAS_MAX, construirDias, estrellasDeLaSemana,
@@ -52,6 +52,7 @@ const SemanaEnProgreso = ({
     const [elegido, setElegido] = useState(null);
     const [vista, setVista] = useState({ semana: null, sentido: 0 });   // semana null = la semana en curso
     const hoyISO = getBiologicalDateStr(new Date());
+    const calendarioISO = getCalendarDateStr(new Date());
 
     useEffect(() => {
         if (!userId) return undefined;
@@ -105,9 +106,9 @@ const SemanaEnProgreso = ({
     const enCurso = semana === semanaActual;
     const dias = useMemo(
         () => construirDias({
-            hoyISO, filas, hoy, targetCalories, targetMacros, mainGoal, fechas: fechasDeLaSemana(inicio, semana),
+            hoyISO, calendarioISO, filas, hoy, targetCalories, targetMacros, mainGoal, fechas: fechasDeLaSemana(inicio, semana),
         }),
-        [hoyISO, filas, hoy, targetCalories, targetMacros, mainGoal, inicio, semana],
+        [hoyISO, calendarioISO, filas, hoy, targetCalories, targetMacros, mainGoal, inicio, semana],
     );
     const racha = useMemo(
         () => rachaEnMeta(construirDias({
@@ -137,7 +138,7 @@ const SemanaEnProgreso = ({
         if (d.estado === 'pasado') return t('{kcal} kcal de más', { kcal });
         return d.esHoy ? t('Te faltan {kcal} kcal', { kcal }) : t('{kcal} kcal por debajo', { kcal });
     };
-    const fechaLarga = (d) => (d.esHoy
+    const fechaLarga = (d) => (d.esCalendarioHoy
         ? t('Hoy')
         : formatDate(mediodiaDe(d.iso), { weekday: 'long', day: 'numeric', month: 'long' }));
     const fechaCorta = (iso) => formatDate(mediodiaDe(iso), { day: 'numeric', month: 'short' });
@@ -263,7 +264,7 @@ const SemanaEnProgreso = ({
                             style={{ '--i': i }}
                         >
                             <span className={styles.letra}>
-                                {d.esHoy ? t('Hoy') : formatDate(mediodiaDe(d.iso), { weekday: 'narrow' })}
+                                {d.esHoy && d.esCalendarioHoy ? t('Hoy') : formatDate(mediodiaDe(d.iso), { weekday: 'narrow' })}
                             </span>
                             <span className={styles.nodo}>
                                 {enlace && <i className={enlace} aria-hidden="true" />}

@@ -1725,9 +1725,9 @@ const PantryPage = () => {
     // abandonada. El cleanup cancela los timeouts pendientes. El fetch al
     // re-montar (+ refetch on focus) reconcilia el estado.
     useEffect(() => {
+        const _ops = pendingOps.current;
         return () => {
             try {
-                const _ops = pendingOps.current;
                 if (_ops) {
                     _ops.forEach((op) => {
                         if (op?.timeout) {

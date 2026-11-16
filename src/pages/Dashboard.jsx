@@ -5018,7 +5018,7 @@ const DashboardInner = () => {
     // (la razón, en utils/planWeeks.js).
     const weekNavReady = useMemo(() => buildTimeline(planData).ok, [planData]);
 
-    const currentDayMeals = currentDayRecord?.meals || [];
+    const currentDayMeals = useMemo(() => currentDayRecord?.meals || [], [currentDayRecord?.meals]);
 
     // [P1-NOTEBOOK-MARGIN-EMPTY · 2026-08-21] ¿El día activo tiene platos que
     // renderizar? MISMA condición que decide EmptyState vs timeline en el render
