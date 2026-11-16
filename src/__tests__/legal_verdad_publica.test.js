@@ -301,6 +301,9 @@ const EXIGIDAS = [
     { frase: 'y las fotos que envíes al chat, con lo que escribas para aclararlas', porque: 'la lista de lo que se envía (Política de IA §2)' },
     { frase: 'No recibe sus fotos.', porque: 'OpenAI no recibe ninguna foto: el único cliente de imágenes va a Gemini (Privacidad §8)' },
     { frase: 'las que sube sin llegar a enviarlas, pasadas 24 horas', porque: 'la purga de adjuntos del chat sin mensaje (db_chat._cleanup_orphan_chat_attachments + cron horario del lote 798), Privacidad §2' },
+    // [P1-PLAN-LOTE-1041 · 2026-11-16] Plazo de las fotos del chat, decidido por el dueño (A-31): 90 días.
+    { frase: 'y, en todo caso, pasados 90 días desde que la envió', porque: 'retencion_fotos_chat.purgar_fotos_viejas (cron diario, lote 1041), Privacidad §2' },
+    { frase: 'Las fotos que usted envía al chat del coach se borran pasados 90 días desde que las envió', porque: 'el mismo cron, Privacidad §9' },
     { frase: '<strong>Borrador del chat (<code>IndexedDB</code>):</strong>', porque: 'chatDraftStore.js: texto y hasta 4 fotos por conversación en el dispositivo (Privacidad §13)' },
     { frase: 'más allá de lo que el personal escriba como motivo de un ajuste, que no debe incluir datos personales', porque: 'la única salvedad que el código permite al registro del equipo (Privacidad §9)' },
     { frase: 'estima las macros de las comidas que usted anota por escrito', porque: 'OpenAI en Privacidad §4, como en §8' },
@@ -352,8 +355,13 @@ describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
     // [P1-PLAN-LOTE-836 · 2026-09-29] Cambió el fondo de estas dos políticas (acceso del equipo, cuentas de prueba, plazo
     // del rastro, finalidad de prueba): Privacidad §14 promete publicar el cambio con su nueva fecha, la misma del apex.
     // [P1-PLAN-LOTE-995 · 2026-11-13] Y otra vez: DeepSeek sale y el coach pasa a Google (también la Política de IA).
-    it.each(['Política de Privacidad', 'Política de Protección de Datos', 'Política de Uso de Inteligencia Artificial'])('«%s» lleva la fecha del cambio (13 de Noviembre, 2026)', (titulo) => {
+    it.each(['Política de Protección de Datos', 'Política de Uso de Inteligencia Artificial'])('«%s» lleva la fecha del cambio (13 de Noviembre, 2026)', (titulo) => {
         expect(texto).toContain(`title="${titulo}" lastUpdated="13 de Noviembre, 2026"`);
+    });
+    // [P1-PLAN-LOTE-1041 · 2026-11-16] Privacidad cambia sola: las fotos del chat se borran a los 90 días (§2 y §9);
+    // misma fecha que el apex (bioboros-cinematic b21da72).
+    it('«Política de Privacidad» lleva la fecha del cambio (16 de Noviembre, 2026)', () => {
+        expect(texto).toContain('title="Política de Privacidad" lastUpdated="16 de Noviembre, 2026"');
     });
 
     // Sin esta comprobación, borrar la sección entera dejaría el test en verde: el
