@@ -128,15 +128,11 @@ describe('el diario de días anteriores', () => {
         const sodio = screen.getByRole('progressbar', { name: 'Sodio' });
         expect(sodio.getAttribute('aria-valuenow')).toBe('600');
         expect(sodio.getAttribute('aria-valuemax')).toBe('2000');
-        expect(screen.getByText('Últimos 7 días: media de 700 kcal en 1 día con registro')).toBeInTheDocument();
-        // «+14» pide dos semanas más a la tira (hasta 90)
-        const antes = fetchWithAuth.mock.calls.length;
-        fireEvent.click(screen.getByRole('button', { name: 'Ver 2 semanas más' }));
-        await waitFor(() => {
-            const urls = fetchWithAuth.mock.calls.slice(antes).map((c) => String(c[0]));
-            expect(urls.some((u) => u.includes('/api/diary/consumed-range/u1?days=28'))).toBe(true);
-        });
-        expect(screen.getAllByRole('tab')).toHaveLength(28);
+        // [CALENDARIO-SOLO-MES] el cajón abre en el mes: pide 90 días de una vez y resume el mes (ya no hay tira ni «+14»)
+        expect(screen.getByText('Este mes: media de 700 kcal en 1 día con registro')).toBeInTheDocument();
+        expect(fetchWithAuth.mock.calls.some((c) => String(c[0]).includes('/api/diary/consumed-range/u1?days=90'))).toBe(true);
+        expect(screen.queryByRole('tab')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Semana' })).toBeNull();
     });
 
     it('borra desde el cajón, vuelve a pedir el día y avisa a la tarjeta con su origen', async () => {
@@ -155,7 +151,27 @@ describe('el diario de días anteriores', () => {
             expect(urls.filter((u) => u.startsWith('/api/diary/consumed/u1?date='))).toHaveLength(1);
             expect(urls.filter((u) => u.startsWith('/api/diary/consumed-range/'))).toHaveLength(1);
         });
+        // El borrado es optimista: la comida desaparece antes de depender del refetch y un segundo clic no repite DELETE
+        expect(screen.queryByText('Galletas')).toBeNull();
         window.removeEventListener('mealfit:diary-changed', oido);
+    });
+
+    it('ignora el segundo clic inmediato mientras el diálogo de confirmación sigue abierto (no dispara doble DELETE)', async () => {
+        fetchWithAuth.mockImplementation(enrutar());
+        let resolver;
+        confirmToast.mockImplementation(() => new Promise((r) => { resolver = r; }));
+        abrir();
+        await screen.findByText('Galletas');
+        const btn = screen.getByRole('button', { name: 'Eliminar Galletas del diario' });
+        fireEvent.click(btn);
+        fireEvent.click(btn);
+        expect(confirmToast).toHaveBeenCalledTimes(1);
+        await act(async () => { resolver(true); });
+        await waitFor(() => {
+            const deletes = fetchWithAuth.mock.calls.filter(([, o]) => o?.method === 'DELETE');
+            expect(deletes).toHaveLength(1);
+        });
+        expect(screen.queryByText('Galletas')).toBeNull();
     });
 
     it('«Registrar comida» hoy abre el componedor en el día 0; se refresca al registrar desde fuera', async () => {

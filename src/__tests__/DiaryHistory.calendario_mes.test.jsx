@@ -64,7 +64,7 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         });
     });
 
-    it('pinta la raya en verde (railFillComplete) al completar la meta de calorías, y ámbar si no se completó', async () => {
+    it('pinta la raya en verde (calCellDotGreen) al completar la meta de calorías, y ámbar si no se completó', async () => {
         render(
             <DiaryHistory
                 userId="u-123"
@@ -79,9 +79,9 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         });
 
         // En la tira de días (en document.body por createPortal):
-        // HOY tiene 2100 kcal (meta 2000) => railFillComplete
+        // HOY tiene 2100 kcal (meta 2000) => calCellDotGreen
         await waitFor(() => {
-            const completes = document.querySelectorAll('[class*="railFillComplete"]');
+            const completes = document.querySelectorAll('[class*="calCellDotGreen"]');
             expect(completes.length).toBeGreaterThanOrEqual(1);
         });
 
@@ -101,11 +101,8 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         );
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /mes/i })).toBeInTheDocument();
         });
 
-        const tabMes = screen.getByRole('button', { name: /mes/i });
-        fireEvent.click(tabMes);
 
         // Debe renderizarse el contenedor de calendario y la cuadrícula
         await waitFor(() => {
@@ -128,10 +125,8 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         );
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /mes/i })).toBeInTheDocument();
         });
 
-        fireEvent.click(screen.getByRole('button', { name: /mes/i }));
 
         await waitFor(() => {
             expect(screen.getByRole('grid', { name: /calendario mensual/i })).toBeInTheDocument();
@@ -144,6 +139,22 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         // Punto amarillo (calCellDotYellow) para el día incompleto (ayer: 1200 kcal)
         const dotYellow = document.querySelector('[class*="calCellDotYellow"]');
         expect(dotYellow).not.toBeNull();
+
+        // [SEMANAS-ALINEADAS] cada fila con días ya vividos lleva su semana numerada y sus estrellas
+        expect(screen.getAllByRole('img', { name: /^Semana \d+: \d de 3 estrellas$/ }).length).toBeGreaterThanOrEqual(1);
+        // [CALENDARIO-SOLO-MES] no hay pestaña «Semana»; la leyenda es un filtro con conteos que apaga los demás días
+        expect(screen.queryByRole('button', { name: 'Semana' })).toBeNull();
+        const enMeta = screen.getByRole('button', { name: /En meta/ });
+        expect(enMeta).toHaveAttribute('aria-pressed', 'false');
+        expect(document.querySelectorAll('[class*="calCellDimmed"]').length).toBe(0);
+        fireEvent.click(enMeta);
+        expect(enMeta).toHaveAttribute('aria-pressed', 'true');
+        const apagadas = document.querySelectorAll('[class*="calCellDimmed"]').length;
+        expect(apagadas).toBeGreaterThan(20);
+        expect(dotYellow.closest('button').className).toMatch(/calCellDimmed/);
+        expect(document.querySelector('[class*="calCellDotGreen"]').closest('button').className).not.toMatch(/calCellDimmed/);
+        fireEvent.click(enMeta);                       // otra vez: se quita el filtro
+        expect(document.querySelectorAll('[class*="calCellDimmed"]').length).toBe(0);
     });
 
     it('permite navegar al mes anterior con la flecha y regresar a hoy con el botón de fecha', async () => {
@@ -157,10 +168,8 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         );
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /mes/i })).toBeInTheDocument();
         });
 
-        fireEvent.click(screen.getByRole('button', { name: /mes/i }));
 
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /mes anterior/i })).toBeInTheDocument();
@@ -196,10 +205,8 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         );
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /mes/i })).toBeInTheDocument();
         });
 
-        fireEvent.click(screen.getByRole('button', { name: /mes/i }));
 
         // Contenedor scrollable unificado
         const drawerBody = document.querySelector('[class*="drawerBody"]');
@@ -257,12 +264,11 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         );
 
         await waitFor(() => {
-            expect(document.querySelectorAll('[class*="railFillComplete"]').length).toBeGreaterThanOrEqual(1);
+            expect(document.querySelectorAll('[class*="calCellDotGreen"]').length).toBeGreaterThanOrEqual(1);
         });
         expect(document.querySelector('[class*="quotaFillComplete"]')).not.toBeNull();
         expect(screen.getByText('Meta del día alcanzada')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /mes/i }));
         await waitFor(() => {
             expect(document.querySelector('[class*="calCellDotGreen"]')).not.toBeNull();
             expect(document.querySelector('[class*="calCellDotYellow"]')).not.toBeNull();
@@ -296,15 +302,14 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         );
 
         await waitFor(() => {
-            expect(document.querySelector('[class*="railFillOver"]')).not.toBeNull();
+            expect(document.querySelector('[class*="calCellDotOrange"]')).not.toBeNull();
         });
         expect(document.querySelector('[class*="quotaFillOver"]')).not.toBeNull();
-        expect(document.querySelector('[class*="railFillComplete"]')).toBeNull();
+        expect(document.querySelector('[class*="calCellDotGreen"]')).toBeNull();
         expect(screen.queryByText('Meta del día alcanzada')).toBeNull();
         expect(screen.getByText('250 kcal sobre la meta')).toBeInTheDocument();
         expect(screen.getByText(/Zona en meta:.*80–105 % de tu meta/)).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /mes/i }));
         await waitFor(() => {
             expect(document.querySelector('[class*="calCellDotOrange"]')).not.toBeNull();
         });
@@ -366,9 +371,9 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
 
         // Tanto hoy (2095/2050 = 102%) como ayer (3082/3350 = 92%) deben verse en verde en la tira
         await waitFor(() => {
-            expect(document.querySelectorAll('[class*="railFillComplete"]').length).toBe(2);
+            expect(document.querySelectorAll('[class*="calCellDotGreen"]').length).toBe(2);
         });
-        expect(document.querySelectorAll('[class*="railFillOver"]').length).toBe(0);
+        expect(document.querySelectorAll('[class*="calCellDotOrange"]').length).toBe(0);
 
         // Seleccionar ayer en la tira y verificar que muestra SU meta histórica (3350 kcal) y Meta del día alcanzada
         const ayerBtn = screen.getByTitle(/3082 kcal/);

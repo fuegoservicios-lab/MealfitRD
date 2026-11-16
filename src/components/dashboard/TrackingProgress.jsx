@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share, ChevronRight, Info, Utensils, CupSoda } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
@@ -209,6 +209,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // para que un doble-tap no dispare dos DELETE del mismo id.
     const [mealsExpanded, setMealsExpanded] = useState(false);
     const [deletingMealId, setDeletingMealId] = useState(null);
+    const deletingIdsRef = useRef(new Set());
+    const deletedIdsRef = useRef(new Set());
     // [P1-PLAN-LOTE-721] La comida cuya ficha está abierta (la fila tal cual llegó del día), o null.
     const [fichaMeal, setFichaMeal] = useState(null);
     const handleFichaClose = useCallback(() => setFichaMeal(null), []);
@@ -334,12 +336,15 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                 const data = await res.json();
                 
                 if (isMounted && data.totals) {
+                    const filtradas = Array.isArray(data.meals)
+                        ? data.meals.filter((m) => !deletedIdsRef.current.has(m?.id))
+                        : data.meals;
                     // [P1-TRACKING-NEW-PLAN-ZERO · 2026-07-12 · revertido
                     // P1-DAILY-NOT-CYCLE · 2026-07-28] El endpoint YA acota a
                     // "hoy" (ver docstring de `_buildConsumedSnapshot`) — no
                     // hay nada adicional que filtrar por plan aquí.
                     const nextSnapshot = _buildConsumedSnapshot({
-                        meals: data.meals,
+                        meals: filtradas,
                         totals: data.totals,
                         cacheKey: consumedCacheKey,
                     });
@@ -385,6 +390,15 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
         // [P1-PLAN-LOTE-105] El diario de días anteriores también borra (cualquier día, hoy incluido) y avisa
         // con `mealfit:diary-changed`; el borrado PROPIO de esta tarjeta lleva `source` y ya actualizó el estado.
         const onDiaryChanged = (e) => {
+            if (isMounted && e?.detail?.source !== 'tracking-progress' && e?.detail?.deletedMeal?.id) {
+                const deletedId = e.detail.deletedMeal.id;
+                deletingIdsRef.current.add(deletedId);
+                deletedIdsRef.current.add(deletedId);
+                setConsumed((prev) => _buildConsumedSnapshot({
+                    meals: (prev?.meals || []).filter((m) => m.id !== deletedId),
+                    cacheKey: consumedCacheKey,
+                }));
+            }
             if (isMounted && e?.detail?.source !== 'tracking-progress') fetchConsumed();
         };
         window.addEventListener('mealfit:refresh-inventory', onAgentRefreshInventory);
@@ -418,21 +432,27 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // reversa.
     // [P1-PLAN-LOTE-721] Devuelve true si se borró (la ficha se cierra entonces) y borra también la foto del dispositivo.
     const handleDeleteMeal = useCallback(async (meal) => {
-        if (!meal?.id || deletingMealId) return false;
+        if (!meal?.id || deletingMealId || deletingIdsRef.current.has(meal.id)) return false;
+        deletingIdsRef.current.add(meal.id);
 
         const ok = await confirmToast(
             t('¿Eliminar "{nombre}" del diario? Esta acción no se puede deshacer.', { nombre: meal.meal_name }),
             { confirmLabel: t('Eliminar'), cancelLabel: t('Cancelar'), danger: true }
         );
-        if (!ok) return false;
+        if (!ok) {
+            deletingIdsRef.current.delete(meal.id);
+            return false;
+        }
 
         setDeletingMealId(meal.id);
         try {
             const res = await fetchWithAuth(`/api/diary/consumed/${meal.id}`, { method: 'DELETE' });
+            const alreadyGone = res.status === 404;
             const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data?.success) {
+            if (!alreadyGone && (!res.ok || !data?.success)) {
                 throw new Error(data?.detail || data?.message || t('No se pudo eliminar la comida.'));
             }
+            deletedIdsRef.current.add(meal.id);
 
             // Recalcula totales/count con la fila ya fuera — mismo builder
             // que usa el fetch inicial, así el resultado es idéntico al que
@@ -443,10 +463,12 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                 meals: (prev?.meals || []).filter((m) => m.id !== meal.id),
                 cacheKey: consumedCacheKey,
             }));
+            setFichaMeal((cur) => (cur?.id === meal.id ? null : cur));
             borrarFotoDeComidaEnSegundoPlano(userId, meal.id);
-            toast.success(t('"{nombre}" eliminada del diario.', { nombre: meal.meal_name }));
+            if (!alreadyGone) toast.success(t('"{nombre}" eliminada del diario.', { nombre: meal.meal_name }));
             return true;
         } catch (err) {
+            deletingIdsRef.current.delete(meal.id);
             console.error('Error eliminando comida del diario:', err);
             toast.error(t('No se pudo eliminar la comida. Intenta de nuevo.'));
             return false;

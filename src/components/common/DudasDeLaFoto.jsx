@@ -92,7 +92,12 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                 const mostrarEtiqueta = Boolean(etiqueta && (i === 0 || etiquetas[i - 1] !== etiqueta));
                 return (
                     <li key={`${i}-${d.pregunta}`} className={styles.duda}>
-                        {mostrarEtiqueta && <span className={styles.fotoEtiqueta}>📷 {etiqueta}</span>}
+                        {mostrarEtiqueta && (
+                            <span className={styles.fotoEtiqueta}>
+                                <span className={styles.fotoPunto} aria-hidden="true" />
+                                {etiqueta}
+                            </span>
+                        )}
                         <span className={styles.pregunta}>{d.pregunta}</span>
                         {esperando && <span role="status" className={styles.calculando}>{t('Calculando…')}</span>}
                         {(d.opciones.length > 0 || onOtra) && (
@@ -153,7 +158,9 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => enviarOtra(i)}
                                 >
-                                    ✓
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                        <path d="M5 12.5 9.5 17 19 7" />
+                                    </svg>
                                 </button>
                             </div>
                         )}

@@ -115,6 +115,21 @@ export function inicioDelViaje(filas, hoyISO, guardado = null) {
     return min;
 }
 
+/**
+ * El domingo de la semana de calendario de `iso`. [SEMANAS-ALINEADAS · 2026-11-15] Las semanas numeradas van de domingo a
+ * sábado, como las filas del calendario del mes: así «S9» en el mes y «Semana 9» en Progreso son los mismos 7 días.
+ */
+export function domingoDe(iso) {
+    const f = mediodiaDe(iso);
+    f.setDate(f.getDate() - f.getDay());
+    return aISO(f);
+}
+
+/** El día 1 de la Semana 1: el domingo de la semana en la que el usuario registró por primera vez. */
+export function inicioDeLaSemana1(filas, hoyISO, guardado = null) {
+    return domingoDe(inicioDelViaje(filas, hoyISO, guardado));
+}
+
 /** En qué semana (1…∞) cae `iso` contando desde `inicioISO`. */
 export function numeroDeSemana(inicioISO, iso) {
     return Math.max(1, Math.floor(diasEntre(inicioISO, iso) / DIAS_DE_LA_SEMANA) + 1);

@@ -76,7 +76,8 @@ describe('chatPerf (G-01)', () => {
             path.resolve(__dirname, '../pages/AgentPage.jsx'),
             'utf8',
         );
-        expect(src).toContain("import { sendClientPerfTelemetry } from '../utils/chatPerf';");
+        // [P1-PLAN-LOTE-1038] el mismo import trae también la telemetría del corte del stream
+        expect(src).toMatch(/import \{ sendClientPerfTelemetry(?:, \w+)* \} from '\.\.\/utils\/chatPerf';/);
         expect(src).toContain('let _firstPaintedAt = null;');
         expect(src).toContain('corr: dataObj.corr || null');
         expect(src).toContain('sendClientPerfTelemetry({');

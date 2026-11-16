@@ -41,6 +41,54 @@ export const buildClientPerfPayload = ({
     };
 };
 
+// [P1-PLAN-LOTE-1040 · A-33 · 2026-11-16] Qué paquete de la app habla con el servidor. En la app nativa el teléfono
+// aplica el paquete OTA nuevo al SEGUNDO arranque: tras un deploy conviven paquetes viejos y nuevos, y el servidor
+// tiene que saber cuáles siguen vivos antes de retirar nada del protocolo del stream. Viaja en el CUERPO del chat
+// (no en una cabecera: en nativo toda llamada es de otro origen y una cabecera nueva exigiría su preflight).
+export const paqueteDelCliente = () => {
+    try {
+        if (typeof __OTA_BUNDLE_ID__ === 'string' && __OTA_BUNDLE_ID__) return `ota:${__OTA_BUNDLE_ID__}`.slice(0, 48);
+        if (typeof __WEB_BUILD_ID__ === 'string' && __WEB_BUILD_ID__) return `web:${__WEB_BUILD_ID__}`.slice(0, 48);
+    } catch { /* sin defines (tests): desconocido */ }
+    return 'web:?';
+};
+
+// [P1-PLAN-LOTE-1038 · A-23 · 2026-11-16] El stream se cortó y el rescate terminó: ¿recuperó la respuesta?
+// Desde que el turno corre en su propio hilo en el servidor (lote 760), el servidor ya no ve los cortes: solo el
+// cliente sabe si el usuario se quedó sin respuesta. Un evento por episodio, sin texto del usuario.
+export const RESULTADOS_DE_CORTE = ['rescued', 'exhausted', 'dead'];
+
+export const buildStreamCutPayload = ({ sessionId, outcome, attempts = 0, waitedMs, platform } = {}) => {
+    if (!sessionId || !RESULTADOS_DE_CORTE.includes(outcome)) return null;
+    return {
+        event: 'stream_cut',
+        session_id: String(sessionId),
+        outcome,
+        attempts: Math.max(0, Math.min(100, Math.round(Number(attempts) || 0))),
+        waited_ms: _roundMs(waitedMs) ?? 0,
+        platform: (platform || detectClientPlatform()),
+    };
+};
+
+export const sendStreamCutTelemetry = (episodio, { fetcher = fetchWithAuth } = {}) => {
+    const payload = buildStreamCutPayload(episodio || {});
+    if (!payload || typeof fetcher !== 'function') return Promise.resolve(false);
+    try {
+        return Promise.resolve(
+            fetcher('/api/chat/client-metrics', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                keepalive: true,
+            })
+        )
+            .then(() => true)
+            .catch(() => false);
+    } catch {
+        return Promise.resolve(false);
+    }
+};
+
 export const sendClientPerfTelemetry = (metrics, { fetcher = fetchWithAuth } = {}) => {
     const payload = buildClientPerfPayload(metrics || {});
     if (!payload || typeof fetcher !== 'function') return Promise.resolve(false);

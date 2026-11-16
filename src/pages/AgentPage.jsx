@@ -10,7 +10,7 @@ import AgentAccountMenu from '../components/agent/AgentAccountMenu';
 import { isTrackingMode, navItemsFor, neveraActiva } from '../config/dashboardNav';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, AudioLines, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
-import { sendClientPerfTelemetry } from '../utils/chatPerf';
+import { sendClientPerfTelemetry, sendStreamCutTelemetry, paqueteDelCliente } from '../utils/chatPerf';
 // [P1-PLAN-LOTE-726] la foto de plato que se manda al chat pasa a la ficha de la comida que el coach registra. Import
 // DINÁMICO: el almacén de fotos (IndexedDB) no entra en el trozo de esta página, que tiene techo de peso.
 const cargarFotosDelChat = () => import('../utils/fotosDelChat');
@@ -59,7 +59,7 @@ import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P1-CHAT-NARRATION-KEPT · 2026-07-28] Strip de tags UI_ACTION (SSOT
 // compartida chunk/done) + reconciliación del payload `done` contra lo ya
 // mostrado, en vez de blind-replace. Ver el módulo para el rationale completo.
-import { stripUiActionTags, reconcileFinalChatText } from '../utils/chatStreamReconcile';
+import { stripUiActionTags, reconcileFinalChatText, aplicarAccionesDeUi } from '../utils/chatStreamReconcile';
 // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Lógica pura del turno (burbujas colgadas, id de turno,
 // refresco de cuota al cierre, unión de listas clínicas) — ver el módulo.
 import {
@@ -347,6 +347,9 @@ const ESTADO_POR_CODIGO_DE_ERROR = {
     unavailable: 503,
     timeout: 504,
     internal: 500,
+    // [P1-PLAN-LOTE-1038 · A-23] reintento del mismo mensaje con el primer turno aún vivo: es un CORTE (502), así el
+    // rescate sondea el historial y adopta la respuesta cuando ese turno termine, en vez de ofrecer otro reintento.
+    turn_in_progress: 502,
 };
 
 const _buildAgentErrorMessage = ({
@@ -3400,6 +3403,7 @@ const AgentPage = () => {
 
         st.active = true;
         st.inFlight = false;
+        if (st.startedSig !== _sig) { st.startedSig = _sig; st.startedAt = Date.now(); }   // [P1-PLAN-LOTE-1038] inicio del episodio
         setRecoveringTurn(true);
 
         const _poll = async () => {
@@ -3424,6 +3428,7 @@ const AgentPage = () => {
                 // refresh re-sondeaba 26s más por el mismo huérfano.
                 safeLocalStorageSet(_orphanDismissKey(currentSessionId), cur.sig);
                 safeLocalStorageSet(_orphanReasonKey(currentSessionId), motivo);
+                sendStreamCutTelemetry({ sessionId: currentSessionId, outcome: motivo, attempts: cur.attempts, waitedMs: Date.now() - (cur.startedAt || Date.now()) });
                 setRecoveringTurn(false);
                 setMessages(prev => {
                     const lastPrev = prev[prev.length - 1];
@@ -3468,6 +3473,7 @@ const AgentPage = () => {
                         cur.inFlight = false;
                         _cerrarListeners();
                         cur.doneSig = cur.sig; // respuesta encontrada — episodio cerrado
+                        sendStreamCutTelemetry({ sessionId: currentSessionId, outcome: 'rescued', attempts: cur.attempts, waitedMs: Date.now() - (cur.startedAt || Date.now()) });
                         setRecoveringTurn(false);
                         fetchSessionMessages(currentSessionId);
                         return;
@@ -4168,7 +4174,8 @@ const AgentPage = () => {
                         form_data: formData,
                         local_date: localDateStr,
                         tz_offset: now.getTimezoneOffset(),
-                        is_call_mode: !!callModeRef.current
+                        is_call_mode: !!callModeRef.current,
+                        bundle: paqueteDelCliente(),   // [P1-PLAN-LOTE-1040 · A-33] paquetes vivos
                     })
                 });
 
@@ -4405,14 +4412,19 @@ const AgentPage = () => {
                                         const _displayedBeforeDone = fullText;
                                         // Limpieza de seguridad al final por si el chunk llegó mal cortado
                                         // (misma SSOT `stripUiActionTags` que el path de chunk streaming).
-                                        const _finalResponse = stripUiActionTags(dataObj.response, {
+                                        // [P1-PLAN-LOTE-1040 · A-27] lo que el texto ya disparó, para que `done.ui_actions` (las acciones que salen de
+                                        // las herramientas EJECUTADAS, no de que el modelo escriba la marca) solo aplique las que falten.
+                                        const _accionesHechas = new Set();
+                                        const _accionesUi = {
                                             onRefreshPlan: () => {
+                                                _accionesHechas.add('REFRESH_PLAN');
                                                 if (session?.user?.id) {
                                                     restoreSessionData(session.user.id);
                                                 }
                                             },
                                             // [P3-WATER-TRACKER · 2026-05-16] Misma limpieza para REFRESH_HYDRATION.
                                             onRefreshHydration: () => {
+                                                _accionesHechas.add('REFRESH_HYDRATION');
                                                 window.dispatchEvent(new CustomEvent('mealfit:refresh-hydration'));
                                             },
                                             // [P1-CHAT-UI-ACTION-INVENTORY · 2026-05-20] Misma limpieza
@@ -4420,9 +4432,12 @@ const AgentPage = () => {
                                             // streaming no contenía el tag completo (race), el evento `done`
                                             // trae el response completo donde sí está.
                                             onRefreshInventory: () => {
+                                                _accionesHechas.add('REFRESH_INVENTORY');
                                                 window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory'));
                                             },
-                                        });
+                                        };
+                                        const _finalResponse = stripUiActionTags(dataObj.response, _accionesUi);
+                                        aplicarAccionesDeUi(dataObj.ui_actions, _accionesUi, _accionesHechas);
                                         fullText = reconcileFinalChatText(_displayedBeforeDone, _finalResponse);
                                         // [P1-PLAN-LOTE-137 · 2026-09-20] Fin de turno, SIEMPRE (no depende de que el
                                         // modelo emita un tag): el coach pudo anotar una comida o un vaso, y el
@@ -5920,14 +5935,39 @@ const AgentPage = () => {
                 .chat-dudas-panel {
                     width: 100%;
                     margin: 0 auto;
-                    padding: 0.95rem 1rem 0.35rem;
-                    border: 1px solid var(--border);
-                    border-radius: 1.5rem;
-                    background: var(--bg-muted);
+                    padding: 0.9rem 1rem 0.55rem;
+                    border: 1px solid var(--border-light, rgba(148, 163, 184, 0.16));
+                    border-radius: 1.35rem;
+                    background: var(--bg-card);
+                    box-shadow: 0 -10px 30px -14px rgba(2, 6, 23, 0.55);
                     animation: chat-dudas-panel-entra 0.26s cubic-bezier(0.32, 0.72, 0, 1);
                 }
-                .chat-dudas-panel .chat-respuestas-foto-titulo { display: block; font-size: 0.95rem; color: var(--text-main); }
-                .chat-dudas-panel .chat-respuestas-foto-omitir { display: block; margin: 0.7rem auto 0; min-height: 44px; font-size: 0.88rem; }
+                .chat-dudas-panel .chat-respuestas-foto-titulo {
+                    display: block;
+                    font-size: 0.93rem;
+                    letter-spacing: -0.01em;
+                    color: var(--text-main);
+                    border-bottom: 1px solid var(--border-light, rgba(148, 163, 184, 0.14));
+                }
+                .chat-dudas-scroll { scrollbar-width: none; }
+                .chat-dudas-scroll::-webkit-scrollbar { display: none; }
+                .chat-dudas-panel .chat-respuestas-foto-omitir {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0.45rem auto 0;
+                    min-height: 40px;
+                    padding: 0.35rem 1rem;
+                    border-radius: 999px;
+                    font-size: 0.84rem;
+                    text-decoration: none;
+                    opacity: 0.85;
+                    transition: opacity 150ms ease, background-color 150ms ease;
+                }
+                .chat-dudas-panel .chat-respuestas-foto-omitir:hover {
+                    opacity: 1;
+                    background: color-mix(in srgb, var(--text-main) 6%, transparent);
+                }
                 .input-wrapper > [hidden] { display: none !important; }
                 @keyframes chat-dudas-panel-entra {
                     from { opacity: 0; transform: translateY(14px); }

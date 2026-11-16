@@ -75,7 +75,7 @@ const abrir = (onClose = () => {}) => render(
     <DiaryHistory userId="u1" open onClose={onClose} targetCalories={2050} targetMacros={{ protein: 134, carbs: 251, fats: 57 }} targetMicros={null} />
 );
 const irAAyer = async () => {
-    const tiras = await screen.findAllByRole('tab');
+    const tiras = (await screen.findAllByRole('gridcell')).filter((c) => !c.disabled);   // [CALENDARIO-SOLO-MES] los días son las celdas del mes
     fireEvent.click(tiras[tiras.length - 2]);
     await screen.findByText('2 panecillos con queso, jamón de pavo y aderezo');
 };
@@ -124,7 +124,7 @@ describe('[P1-COMPARTIR-DIA-PASADO] compartir desde el Diario', () => {
         await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Compartir tu día' })).toBeNull());
 
         // ayer, sin registro: el botón desaparece
-        const tiras = screen.getAllByRole('tab');
+        const tiras = screen.getAllByRole('gridcell').filter((c) => !c.disabled);
         fireEvent.click(tiras[tiras.length - 2]);
         await waitFor(() => expect(screen.queryByRole('button', { name: /^Compartir (mi|este) día$/ })).toBeNull());
     });
@@ -139,7 +139,7 @@ describe('[P1-COMPARTIR-DIA-PASADO] compartir desde el Diario', () => {
         fireEvent.click(boton);
         await screen.findByRole('dialog', { name: 'Compartir tu día' });
 
-        const tiras = screen.getAllByRole('tab');
+        const tiras = screen.getAllByRole('gridcell').filter((c) => !c.disabled);
         fireEvent.keyDown(document, { key: 'ArrowLeft' });
         expect(tiras[tiras.length - 2].getAttribute('aria-selected')).toBe('true');
 
@@ -168,7 +168,7 @@ describe('[P1-COMPARTIR-DIA-PASADO] compartir desde el Diario', () => {
         const hoy = await screen.findByRole('button', { name: 'Compartir mi día' });
         await waitFor(() => expect(hoy).not.toBeDisabled());
 
-        const tiras = screen.getAllByRole('tab');
+        const tiras = screen.getAllByRole('gridcell').filter((c) => !c.disabled);
         fireEvent.click(tiras[tiras.length - 2]);
         const boton = await screen.findByRole('button', { name: 'Compartir este día' });
         expect(boton).toBeDisabled();

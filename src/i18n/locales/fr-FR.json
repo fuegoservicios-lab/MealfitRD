@@ -1083,7 +1083,6 @@
   "Elegir avatar": "Choisir un avatar",
   "Elegir de galería": "Choisir dans la galerie",
   "Elegir de la galería": "Choisir dans la galerie",
-  "Elegir día": "Choisir un jour",
   "Elegiste \"Personalizar\" y el monto no llega al mínimo.": "Vous avez choisi « Personnaliser » et le montant n'atteint pas le minimum.",
   "Elegiste reponer solo en la compra grande y no congelas: la proteína fresca es para la primera semana; después huevos, enlatados, legumbres y queso curado. Estas cantidades cubren todo tu ciclo de {duracion}.": "Vous avez choisi de ne réapprovisionner qu'à la grande course et vous ne congelez pas : la protéine fraîche est pour la première semaine ; ensuite œufs, conserves, légumineuses et fromage affiné. Ces quantités couvrent tout votre cycle de {duracion}.",
   "Elegiste reponer solo en la compra grande: congela la proteína de la segunda semana el día de la compra; de la tercera en adelante, huevos, enlatados, legumbres y queso curado. Estas cantidades cubren todo tu ciclo de {duracion}.": "Vous avez choisi de ne réapprovisionner qu'à la grande course : congelez la protéine de la deuxième semaine le jour des courses ; à partir de la troisième, œufs, conserves, légumineuses et fromage affiné. Ces quantités couvrent tout votre cycle de {duracion}.",
@@ -1829,6 +1828,8 @@
   "No se pudo actualizar la preferencia. Inténtalo de nuevo.": "Impossible de mettre à jour la préférence. Réessayez.",
   "No se pudo agregar el alimento.": "Impossible d'ajouter l'aliment.",
   "No se pudo ajustar la cantidad.": "Impossible d'ajuster la quantité.",
+  "Quitar {n} g": "Retirer {n} g",
+  "Añadir {n} g": "Ajouter {n} g",
   "No se pudo arreglar el día": "Impossible de corriger la journée",
   "No se pudo calcular la proyección de compras.": "La projection des courses n'a pas pu être calculée.",
   "No se pudo cambiar el envase.": "Impossible de changer le conditionnement.",
@@ -3341,11 +3342,6 @@
   "Micros": "Micros",
   "Faltan datos de micronutrientes. Añade la etiqueta del alimento en el chat.": "Données sur les micronutriments manquantes. Ajoutez l’étiquette dans le chat.",
   "Extras y snacks": "Extras et collations",
-  "Ver 2 semanas más": "Voir 2 semaines de plus",
-  "Últimos 7 días: media de {kcal} kcal en {n} días con registro": {
-    "one": "7 derniers jours : moyenne de {kcal} kcal sur {n} jour enregistré",
-    "other": "7 derniers jours : moyenne de {kcal} kcal sur {n} jours enregistrés"
-  },
   "Registrar en este día": "Enregistrer ce jour-là",
   "Solo se puede registrar hasta 7 días atrás.": "Vous ne pouvez enregistrer que jusqu’à 7 jours en arrière.",
   "Revisa y registra": "Vérifiez et enregistrez",
@@ -3962,7 +3958,6 @@
   "Ej: Batida de avena con leche y guineo": "Ex : Smoothie à l'avoine avec lait et banane",
   "Calendario y comidas": "Calendrier et repas",
   "Registro por día": "Journal quotidien",
-  "Semana": "Semaine",
   "OMS": "OMS",
   "Ninguna comida registrada trae este dato todavía.": "Aucun repas enregistré n’a encore cette donnée.",
   "Calculado con {known} de {total} comidas. Lo que no tiene datos no se suma, así que el total real puede ser mayor.": "Calculé avec {known} repas sur {total}. Ce qui n’a pas de données n’est pas additionné, donc le total réel peut être plus élevé.",
@@ -3998,10 +3993,8 @@
   "Función en desarrollo activo": "Fonction en développement actif",
   "Ir a hoy ({dia})": "Aller à aujourd'hui ({dia})",
   "Medicamentos actuales (opcional) — si no tomas medicamentos, pulsa «Ninguno»": "Médicaments actuels (facultatif) — si vous n'en prenez pas, touchez « Aucun »",
-  "Mes": "Mois",
   "Mes anterior": "Mois précédent",
   "Mes siguiente": "Mois suivant",
-  "Modo de vista": "Mode d'affichage",
   "No tienes notificaciones pendientes.": "Vous n'avez aucune notification en attente.",
   "No tienes otras notificaciones pendientes.": "Vous n'avez aucune autre notification en attente.",
   "Sobre los datos": "À propos des données",
@@ -4049,5 +4042,10 @@
   "Faltan {n} días en meta para otra estrella": {
     "one": "Encore {n} jour dans l’objectif pour une autre étoile",
     "other": "Encore {n} jours dans l’objectif pour une autre étoile"
+  },
+  "Resaltar días": "Mettre des jours en évidence",
+  "Este mes: media de {kcal} kcal en {n} días con registro": {
+    "one": "Ce mois-ci : moyenne de {kcal} kcal sur {n} jour enregistré",
+    "other": "Ce mois-ci : moyenne de {kcal} kcal sur {n} jours enregistrés"
   }
 }

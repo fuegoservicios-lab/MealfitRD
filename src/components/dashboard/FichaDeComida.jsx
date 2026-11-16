@@ -33,7 +33,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, RotateCcw, Trash2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, RotateCcw, Trash2, Loader2, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -74,6 +74,9 @@ const aFecha = (raw) => {
     return Number.isNaN(d.getTime()) ? null : d;
 };
 
+// [P1-PLAN-LOTE-1039] lo que mueve cada toque de −/+ en los gramos de una pieza
+const PASO_GRAMOS = 10;
+
 const num = (v) => {
     const n = Number(v);
     return Number.isFinite(n) ? Math.round(n) : 0;
@@ -100,6 +103,10 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     const [repitiendo, setRepitiendo] = useState(false);
     const [eliminando, setEliminando] = useState(false);
     const [ampliada, setAmpliada] = useState(false);
+    // [P1-PLAN-LOTE-1039 · A-41] −/+ de gramos por pieza: los totales que devuelve el servidor sustituyen a los de la
+    // lista del día hasta que esta se vuelva a pedir. `ajustando` = índice del renglón en vuelo (uno a la vez).
+    const [totales, setTotales] = useState(null);
+    const [ajustando, setAjustando] = useState(null);
     const visorRef = useRef(null);
     const ampliarRef = useRef(null);
 
@@ -178,12 +185,13 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
 
     // De dónde vino (`consumed_meals.source`): ya no se pinta [762], pero decide si la receta del plan es la de ESTE plato.
     const fuente = detalle.meal?.source;
-    const kcal = num(meal?.calories);
+    const vivo = totales || meal;
+    const kcal = num(vivo?.calories);
     const metaKcal = num(metas?.calories);
     const macros = [
-        { clave: 'protein', rotulo: t('Proteína'), g: num(meal?.protein), meta: num(metas?.protein), color: '#3B82F6' },
-        { clave: 'carbs', rotulo: t('Carbos'), g: num(meal?.carbs), meta: num(metas?.carbs), color: '#10B981' },
-        { clave: 'fats', rotulo: t('Grasas'), g: num(meal?.healthy_fats ?? meal?.fats), meta: num(metas?.fats), color: '#EC4899' },
+        { clave: 'protein', rotulo: t('Proteína'), g: num(vivo?.protein), meta: num(metas?.protein), color: '#3B82F6' },
+        { clave: 'carbs', rotulo: t('Carbos'), g: num(vivo?.carbs), meta: num(metas?.carbs), color: '#10B981' },
+        { clave: 'fats', rotulo: t('Grasas'), g: num(vivo?.healthy_fats ?? vivo?.fats), meta: num(metas?.fats), color: '#EC4899' },
     ];
     const microsDeLaComida = meal?.micros?.values || null;
 
@@ -250,6 +258,32 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     };
 
     const lineas = detalle.meal?.ingredientes?.lineas || [];
+
+    // [P1-PLAN-LOTE-1039 · A-41] La foto no sabe cuánto pesaba la pechuga; quien se la comió, sí. Cada toque manda los
+    // gramos NUEVOS de esa pieza y el servidor mueve los totales lo que la pieza aporta según el catálogo (sin IA).
+    const ajustar = async (indice, gramos) => {
+        if (ajustando !== null || !meal?.id) return;
+        setAjustando(indice);
+        try {
+            const res = await fetchWithAuth(`/api/diary/consumed/${meal.id}/gramos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ indice, gramos }),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok || !data?.success || !data.meal) throw new Error('ajuste');
+            setDetalle({ estado: 'listo', meal: data.meal });
+            setTotales({
+                calories: data.meal.calories, protein: data.meal.protein,
+                carbs: data.meal.carbs, healthy_fats: data.meal.healthy_fats,
+            });
+            window.dispatchEvent(new Event('mealfit:refresh-inventory'));
+        } catch {
+            toast.error(t('No se pudo ajustar la cantidad.'));
+        } finally {
+            setAjustando(null);
+        }
+    };
 
     const cuerpo = (
         <div className={styles.overlay}>
@@ -351,7 +385,25 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                                 {lineas.map((l, i) => (
                                     <li key={`${l.texto}-${i}`} className={styles.ingrediente}>
                                         <span>{lineaDeIngredienteLegible(l.texto, t)}</span>
-                                        {Number.isFinite(l.kcal) && <span className={styles.ingredienteKcal}>{formatNumber(l.kcal)} kcal</span>}
+                                        {Number.isFinite(l.ajustable_g) ? (
+                                            <span className={styles.gramos}>
+                                                <button type="button" className={styles.gramosBtn}
+                                                    onClick={() => ajustar(i, l.ajustable_g - PASO_GRAMOS)}
+                                                    disabled={ajustando !== null || l.ajustable_g <= PASO_GRAMOS}
+                                                    aria-label={t('Quitar {n} g', { n: PASO_GRAMOS })}>
+                                                    <Minus size={14} strokeWidth={2.5} aria-hidden="true" />
+                                                </button>
+                                                <span className={styles.gramosValor} aria-live="polite">
+                                                    {ajustando === i ? <Loader2 size={14} className="spin-animation" aria-hidden="true" /> : `${formatNumber(l.ajustable_g)} g`}
+                                                </span>
+                                                <button type="button" className={styles.gramosBtn}
+                                                    onClick={() => ajustar(i, l.ajustable_g + PASO_GRAMOS)}
+                                                    disabled={ajustando !== null}
+                                                    aria-label={t('Añadir {n} g', { n: PASO_GRAMOS })}>
+                                                    <Plus size={14} strokeWidth={2.5} aria-hidden="true" />
+                                                </button>
+                                            </span>
+                                        ) : (Number.isFinite(l.kcal) && <span className={styles.ingredienteKcal}>{formatNumber(l.kcal)} kcal</span>)}
                                     </li>
                                 ))}
                             </ul>

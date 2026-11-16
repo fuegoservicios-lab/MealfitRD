@@ -75,10 +75,12 @@ const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onO
             style={enPanel ? { display: 'flex', flexDirection: 'column', maxHeight: '50dvh', overflow: 'hidden' } : undefined}
             role="group" aria-label={t('Responde con un toque')}>
             <span className="chat-respuestas-foto-titulo"
-                style={enPanel ? { flexShrink: 0, paddingBottom: '0.35rem' } : undefined}>
+                style={enPanel ? { flexShrink: 0, paddingBottom: '0.55rem' } : undefined}>
                 {titulo || t('Responde con un toque:')}
             </span>
-            <div style={enPanel ? { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingTop: '0.15rem', paddingRight: '0.2rem' } : undefined}>
+            <div
+                className={enPanel ? 'chat-dudas-scroll' : undefined}
+                style={enPanel ? { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingTop: '0.6rem', paddingBottom: '0.2rem' } : undefined}>
                 <DudasDeLaFoto dudas={dudasVista} respuestas={respuestasVista} confirmadas={{}} onElegir={elegir}
                     onOtra={otra} otraConCampo={enPanel} grande={enPanel} centrarCampo={!enPanel}
                     etiquetas={etiquetas}
@@ -87,7 +89,7 @@ const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null, titulo = null, onO
             </div>
             {onOmitir && (
                 <button type="button" className="chat-respuestas-foto-omitir"
-                    style={enPanel ? { flexShrink: 0, paddingTop: '0.35rem' } : undefined}
+                    style={enPanel ? { flexShrink: 0 } : undefined}
                     onClick={omitir}>
                     {t('Omitir preguntas')}
                 </button>

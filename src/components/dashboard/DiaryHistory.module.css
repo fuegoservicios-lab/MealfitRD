@@ -379,8 +379,10 @@
 .goalLegend {
     display: flex;
     align-items: center;
-    gap: 0.85rem;
-    padding: 0.35rem 1.15rem 0.15rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.4rem 0.45rem;
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--text-muted);
@@ -834,7 +836,6 @@
     .calGrid { gap: 3px; }
     .calCell { min-height: 38px; }
     .calCellNum { font-size: 0.84rem; }
-    .calCellDot { width: 10px; height: 3px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1119,7 +1120,7 @@
 
 .calWeekHeader {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: 30px repeat(7, 1fr);
     text-align: center;
     gap: 4px;
     margin-bottom: 0.4rem;
@@ -1138,26 +1139,52 @@
     font-weight: 800;
 }
 
+/* [SEMANAS-ALINEADAS] la 1.ª columna lleva la semana numerada de cada fila («S9») y sus estrellas */
+.calWeekTag {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+}
+
+.calWeekTag b {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+    line-height: 1;
+}
+
+.calWeekTagNow b { color: var(--primary); }
+
+.calWeekStars { display: inline-flex; gap: 0; }
+.calWeekStarOff { stroke: rgba(148, 163, 184, 0.45); }
+.calWeekStarOn { stroke: #F59E0B; fill: #FBBF24; }
+
 .calGrid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: 30px repeat(7, 1fr);
     gap: 5px;
+    animation: calEntra 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;   /* se vuelve a montar al cambiar de mes */
 }
 
 .calCell {
     aspect-ratio: 1;
-    min-height: 44px;
+    min-height: 36px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     position: relative;
-    border-radius: 8px;
+    border-radius: 50%;
     border: 1px solid transparent;
     background: rgba(148, 163, 184, 0.05);
     color: var(--text-main);
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease, transform 0.12s ease;
     padding: 2px;
 }
 
@@ -1199,7 +1226,12 @@
     border: 1px dashed #818CF8;
 }
 
+.calCell:active:not(:disabled) { transform: scale(0.9); }
+
 .calCellNum {
+    position: relative;
+    display: grid;
+    place-items: center;
     font-size: 0.9rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -1210,31 +1242,83 @@
     font-weight: 800;
 }
 
-.calCellIndicator {
-    height: 4px;
-    margin-top: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* [CALENDARIO-SOLO-MES · 2026-11-15] cada día lleva su ANILLO (como la tira de afuera): se llena con las kcal frente a
+   la meta de ese día. Verde = en meta (con ✓), ámbar = bajo, rojo = sobre. */
+.calRing {
+    position: absolute;
+    inset: 3px;
+    width: calc(100% - 6px);
+    height: calc(100% - 6px);
+    transform: rotate(-90deg);
+    pointer-events: none;
+}
+
+.calRingTrack {
+    fill: none;
+    stroke: rgba(148, 163, 184, 0.2);
+    stroke-width: 3;
 }
 
 .calCellDot {
-    width: 14px;
-    height: 3px;
-    border-radius: 999px;
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: var(--largo);
+    stroke-dashoffset: var(--resto);
+    animation: calAnillo 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .calCellDotGreen {
-    background: #10B981;
-    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    stroke: #10B981;
+    filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.55));
 }
 
-.calCellDotYellow {
-    background: #EAB308;
+.calCellDotYellow { stroke: #EAB308; }
+.calCellDotOrange { stroke: #EF4444; }
+
+.calCellDimmed { opacity: 0.22; }
+.calCellDimmed.calCellOtherMonth, .calCellDimmed.calCellFuture { opacity: 0.12; }
+
+@keyframes calAnillo { from { stroke-dashoffset: var(--largo); } }
+@keyframes calEntra { from { opacity: 0; transform: translateY(6px) scale(0.98); } }
+
+/* la leyenda es ahora un filtro: tocar «En meta» resalta esos días del mes */
+.monthSummary { padding-top: 0.55rem; }
+.monthSummary .weekLine { text-align: center; padding-bottom: 0.2rem; }
+
+.goalChip {
+    min-height: 34px;
+    padding: 0.3rem 0.5rem;
+    white-space: nowrap;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    font: inherit;
+    color: var(--text-muted);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
 }
 
-.calCellDotOrange {
-    background: #EF4444;
+.goalChip:active:not(:disabled) { transform: scale(0.96); }
+.goalChip:disabled { opacity: 0.45; cursor: default; }
+.goalChip:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+.goalChipActive {
+    color: var(--text-main);
+    border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.goalChipCount {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-main);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .calCellDot, .calGrid { animation: none; }
+    .goalChip { transition: none; }
 }
 
 .selectedDayHeader {

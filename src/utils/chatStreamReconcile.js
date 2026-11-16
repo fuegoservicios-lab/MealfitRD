@@ -61,6 +61,28 @@ export function stripUiActionTags(text, handlers = {}) {
     return out;
 }
 
+// [P1-PLAN-LOTE-1040 · A-27 · 2026-11-16] `done.ui_actions`: las acciones de interfaz que salen de lo que el turno
+// EJECUTÓ (servidor: `acciones_de_ui.py`), no de que el modelo se acordara de escribir la marca. Aplica las que el
+// texto no disparó ya (`yaHechas`); un paquete viejo sin este campo sigue con las marcas.
+const _HANDLER_DE_ACCION = {
+    REFRESH_PLAN: 'onRefreshPlan',
+    REFRESH_HYDRATION: 'onRefreshHydration',
+    REFRESH_INVENTORY: 'onRefreshInventory',
+};
+
+export function aplicarAccionesDeUi(acciones, handlers = {}, yaHechas = new Set()) {
+    if (!Array.isArray(acciones)) return [];
+    const aplicadas = [];
+    for (const accion of acciones) {
+        const nombre = _HANDLER_DE_ACCION[accion];
+        if (!nombre || yaHechas.has(accion) || typeof handlers[nombre] !== 'function') continue;
+        handlers[nombre]();
+        yaHechas.add(accion);
+        aplicadas.push(accion);
+    }
+    return aplicadas;
+}
+
 /**
  * Reconcilia el texto final del turno (`done.response`, ya limpio de tags
  * UI_ACTION) contra lo que ya está en pantalla (acumulado de eventos

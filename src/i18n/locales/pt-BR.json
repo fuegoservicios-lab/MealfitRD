@@ -1083,7 +1083,6 @@
   "Elegir avatar": "Escolher avatar",
   "Elegir de galería": "Escolher da galeria",
   "Elegir de la galería": "Escolher da galeria",
-  "Elegir día": "Escolher dia",
   "Elegiste \"Personalizar\" y el monto no llega al mínimo.": "Você escolheu \"Personalizar\" e o valor não atinge o mínimo.",
   "Elegiste reponer solo en la compra grande y no congelas: la proteína fresca es para la primera semana; después huevos, enlatados, legumbres y queso curado. Estas cantidades cubren todo tu ciclo de {duracion}.": "Você escolheu repor só na compra grande e não congela: a proteína fresca é para a primeira semana; depois ovos, enlatados, leguminosas e queijo curado. Estas quantidades cobrem todo o seu ciclo de {duracion}.",
   "Elegiste reponer solo en la compra grande: congela la proteína de la segunda semana el día de la compra; de la tercera en adelante, huevos, enlatados, legumbres y queso curado. Estas cantidades cubren todo tu ciclo de {duracion}.": "Você escolheu repor só na compra grande: congele a proteína da segunda semana no dia da compra; da terceira em diante, ovos, enlatados, leguminosas e queijo curado. Estas quantidades cobrem todo o seu ciclo de {duracion}.",
@@ -1829,6 +1828,8 @@
   "No se pudo actualizar la preferencia. Inténtalo de nuevo.": "Não foi possível atualizar a preferência. Tente de novo.",
   "No se pudo agregar el alimento.": "Não foi possível adicionar o alimento.",
   "No se pudo ajustar la cantidad.": "Não foi possível ajustar a quantidade.",
+  "Quitar {n} g": "Tirar {n} g",
+  "Añadir {n} g": "Adicionar {n} g",
   "No se pudo arreglar el día": "Não foi possível corrigir o dia",
   "No se pudo calcular la proyección de compras.": "Não foi possível calcular a projeção de compras.",
   "No se pudo cambiar el envase.": "Não foi possível trocar a embalagem.",
@@ -3341,11 +3342,6 @@
   "Micros": "Micros",
   "Faltan datos de micronutrientes. Añade la etiqueta del alimento en el chat.": "Faltam dados de micronutrientes. Adicione o rótulo do alimento no chat.",
   "Extras y snacks": "Extras e lanches",
-  "Ver 2 semanas más": "Ver mais 2 semanas",
-  "Últimos 7 días: media de {kcal} kcal en {n} días con registro": {
-    "one": "Últimos 7 dias: média de {kcal} kcal em {n} dia com registro",
-    "other": "Últimos 7 dias: média de {kcal} kcal em {n} dias com registro"
-  },
   "Registrar en este día": "Registrar neste dia",
   "Solo se puede registrar hasta 7 días atrás.": "Só é possível registrar até 7 dias atrás.",
   "Revisa y registra": "Revise e registre",
@@ -3962,7 +3958,6 @@
   "Ej: Batida de avena con leche y guineo": "Ex: Vitamina de aveia com leite e banana",
   "Calendario y comidas": "Calendário e refeições",
   "Registro por día": "Registro diário",
-  "Semana": "Semana",
   "OMS": "OMS",
   "Ninguna comida registrada trae este dato todavía.": "Nenhuma refeição registrada tem este dado ainda.",
   "Calculado con {known} de {total} comidas. Lo que no tiene datos no se suma, así que el total real puede ser mayor.": "Calculado com {known} de {total} refeições. O que não tem dados não é somado, então o total real pode ser maior.",
@@ -3998,10 +3993,8 @@
   "Función en desarrollo activo": "Função em desenvolvimento ativo",
   "Ir a hoy ({dia})": "Ir para hoje ({dia})",
   "Medicamentos actuales (opcional) — si no tomas medicamentos, pulsa «Ninguno»": "Medicamentos atuais (opcional) — se você não toma medicamentos, toque em «Nenhum»",
-  "Mes": "Mês",
   "Mes anterior": "Mês anterior",
   "Mes siguiente": "Próximo mês",
-  "Modo de vista": "Modo de visualização",
   "No tienes notificaciones pendientes.": "Você não tem notificações pendentes.",
   "No tienes otras notificaciones pendientes.": "Você não tem outras notificações pendentes.",
   "Sobre los datos": "Sobre os dados",
@@ -4049,5 +4042,10 @@
   "Faltan {n} días en meta para otra estrella": {
     "one": "Falta {n} dia na meta para outra estrela",
     "other": "Faltam {n} dias na meta para outra estrela"
+  },
+  "Resaltar días": "Destacar dias",
+  "Este mes: media de {kcal} kcal en {n} días con registro": {
+    "one": "Este mês: média de {kcal} kcal em {n} dia com registro",
+    "other": "Este mês: média de {kcal} kcal em {n} dias com registro"
   }
 }

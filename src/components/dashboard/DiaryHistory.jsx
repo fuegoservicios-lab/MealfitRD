@@ -37,11 +37,11 @@
 // [P1-COMPARTIR-DIA-PASADO · 2026-09-24] Compartir CUALQUIER día, no solo hoy (el dueño: «¿y si yo quisiera compartir
 // días pasados?»): el botón de la tarjeta de hoy vive también aquí, junto al total del día, y abre la MISMA hoja con el
 // día que se mira y su fecha.
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, ChevronRight, ChevronLeft, Trash2, Loader2, Plus, FlaskConical, Share, Check, TrendingUp } from 'lucide-react';
+import { X, CalendarDays, ChevronRight, ChevronLeft, Trash2, Loader2, Plus, FlaskConical, Share, Check, TrendingUp, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { confirmToast } from '../../utils/confirmToast';
@@ -49,7 +49,7 @@ import { formatDate, formatNumber, getLocale, useT, useTn } from '../../i18n';
 import { useAssessment } from '../../context/AssessmentContext';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import MicrosList from './MicrosList';
-import { useMicrosSubtitulo } from './microsShared';
+import { resumirMicros, useMicrosSubtitulo } from './microsShared';
 import LogMealModal from './LogMealModal';
 // [P1-PLAN-LOTE-721 · 2026-09-28] La fila abre la ficha del plato (perezosa, como el escáner) y lleva la miniatura de la
 // foto del escáner si este dispositivo la guardó.
@@ -57,6 +57,8 @@ import { useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/use
 import MiniaturaDeComida from './MiniaturaDeComida';
 import { getBiologicalDate, getBiologicalDateStr } from '../../utils/diaBiologico';
 import { getCalorieGoalBand, getCalorieGoalState, isStrongDeficit, resolveMainGoal } from '../../utils/calorieGoalStatus';
+import { ESTRELLAS_MAX, estrellasDeLaSemana, inicioDeLaSemana1, numeroDeSemana } from '../../utils/progresoDeLosDias';
+import { safeLocalStorageGet } from '../../utils/safeLocalStorage';
 import styles from './DiaryHistory.module.css';
 
 // [P1-PLAN-LOTE-224 · 2026-09-24] El escáner, igual: perezoso y montado al abrirlo (ver TrackingProgress). Este cajón
@@ -73,7 +75,7 @@ const FichaDeComida = lazy(() => import('./FichaDeComida'));
 // italiano; en inglés va con mayúscula (salía «You logged it on monday 21»).
 const _diaEnFrase = (dia) => (String(getLocale() || '').startsWith('en') ? String(dia || '') : String(dia || '').toLowerCase());
 
-const DIAS_TIRA = 14;
+const CAL_ANILLO = 2 * Math.PI * 15;   // el anillo de cada día del mes
 // Tope del endpoint (`/consumed-range` clampa a 90) y del retrodatado (`days_ago` ≤ 7 en el backend).
 const DIAS_MAX = 90;
 const DIAS_ATRAS_REGISTRO = 7;
@@ -238,25 +240,22 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const [selected, setSelected] = useState(hoyISO);
     // [SEMANA-EN-PROGRESO] «Tu semana» abre el cajón YA en el día tocado (`diaInicial`); sin él, en hoy como siempre.
     useEffect(() => { if (open) setSelected(diaInicial || getBiologicalDateStr(new Date())); }, [open, diaInicial]);
-    const [modoVista, setModoVista] = useState('tira'); // 'tira' | 'calendario'
+    // [CALENDARIO-SOLO-MES · 2026-11-15] El dueño: la pestaña «Semana» era «incómoda e innecesaria» (la semana ya se ve
+    // afuera, en la tarjeta de Progreso). El cajón abre directo en el MES.
+    const [filtro, setFiltro] = useState(null);   // null | 'green' | 'under' | 'over': resalta esos días del mes
     const [calDate, setCalDate] = useState(() => {
         const d = getBiologicalDate(new Date());
         return new Date(d.getFullYear(), d.getMonth(), 1, 12, 0, 0, 0);
     });
     useEffect(() => {
         if (open) {
-            const hoy = getBiologicalDate(new Date());
-            setCalDate(new Date(hoy.getFullYear(), hoy.getMonth(), 1, 12, 0, 0, 0));
+            // abre en el mes del día con el que se abre (el tocado afuera, o hoy)
+            const base = diaInicial ? desdeISO(diaInicial) : getBiologicalDate(new Date());
+            setCalDate(new Date(base.getFullYear(), base.getMonth(), 1, 12, 0, 0, 0));
+            setFiltro(null);
         }
-    }, [open]);
-    const [maxDias, setMaxDias] = useState(DIAS_TIRA);
-
-    // Al abrir calendario, asegurar al menos 90 días de datos (3 meses)
-    useEffect(() => {
-        if (modoVista === 'calendario' && maxDias < 90) {
-            setMaxDias(90);
-        }
-    }, [modoVista, maxDias]);
+    }, [open, diaInicial]);
+    const [maxDias, setMaxDias] = useState(DIAS_MAX);
 
     const cambiarMes = useCallback((delta) => {
         setCalDate((actual) => {
@@ -294,6 +293,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     // [P1-PLAN-LOTE-105] sube cuando algo cambió (borrar aquí, registrar en el componedor, la tarjeta o el chat)
     const [version, setVersion] = useState(0);
     const [borrandoId, setBorrandoId] = useState(null);
+    const borrandoRef = useRef(new Set());
+    const eliminadasRef = useRef(new Set());
     const [registrando, setRegistrando] = useState(false);
     // [P1-PLAN-LOTE-124] El dueño: «registrar comida mediante ver días anteriores no aparece la manera de agregar
     // mediante la cámara o foto». El componedor se montaba aquí sin `onScan`, y sin él no pinta las pestañas
@@ -305,8 +306,6 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const [fichaMeal, setFichaMeal] = useState(null);
     const idsConFoto = useIdsConFoto(userId);
     const cierreRef = useRef(null);
-    const stripRef = useRef(null);
-    const activoRef = useRef(null);
     const bodyScrollRef = useRef(null);
     const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
 
@@ -354,6 +353,47 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         return m;
     }, [resumen]);
 
+    // [CALENDARIO-SOLO-MES] el mes de un vistazo: cuántos días en meta / bajo / sobre, y la media de los registrados
+    const estadoDe = useCallback((iso) => {
+        const r = porFecha.get(iso);
+        if (!r || !((r.meals_count || 0) > 0)) return null;
+        const meta = (r.target_calories > 0 ? r.target_calories : null) ?? targetCalories;
+        const e = getCalorieGoalState(r.calories || 0, meta, r.main_goal || resolvedMainGoal);
+        return e === 'green' || e === 'over' ? e : 'under';
+    }, [porFecha, targetCalories, resolvedMainGoal]);
+    const mes = useMemo(() => {
+        const out = { green: 0, under: 0, over: 0, n: 0, kcal: 0 };
+        calDias.forEach((c) => {
+            if (!c.currentMonth || c.iso > hoyISO) return;
+            const e = estadoDe(c.iso);
+            if (!e) return;
+            out[e] += 1;
+            out.n += 1;
+            out.kcal += Number(porFecha.get(c.iso)?.calories) || 0;
+        });
+        return { ...out, media: out.n ? Math.round(out.kcal / out.n) : 0 };
+    }, [calDias, hoyISO, estadoDe, porFecha]);
+
+    // [SEMANAS-ALINEADAS · 2026-11-15] cada fila del mes ES una semana numerada (domingo a sábado): «S9» y sus estrellas.
+    // El primer día lo guarda la tarjeta de Progreso; sin él, sale de lo que haya cargado.
+    const semanasDelMes = useMemo(() => {
+        const guardado = userId ? safeLocalStorageGet(`mealfit_semana_inicio_${userId}`, null) : null;
+        const inicio = inicioDeLaSemana1(resumen, hoyISO, guardado);
+        const out = [];
+        for (let i = 0; i < calDias.length; i += 7) {
+            const fila = calDias.slice(i, i + 7);
+            const domingo = fila[0]?.iso;
+            if (!domingo || domingo < inicio || domingo > hoyISO) { out.push(null); continue; }
+            const enMeta = fila.filter((c) => c.iso <= hoyISO && estadoDe(c.iso) === 'green').length;
+            out.push({
+                numero: numeroDeSemana(inicio, domingo),
+                estrellas: estrellasDeLaSemana(enMeta),
+                enCurso: hoyISO >= domingo && hoyISO <= fila[6].iso,
+            });
+        }
+        return out;
+    }, [calDias, resumen, hoyISO, userId, estadoDe]);
+
     const diaTargets = dia?.iso === selected ? dia?.targets : null;
     const selectedRow = porFecha.get(selected);
     const selectedTargetCal = (diaTargets?.calories > 0 ? diaTargets.calories : null)
@@ -393,7 +433,17 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                 const data = await res.json();
                 // [P1-COMPARTIR-DIA-PASADO] `iso`: la fecha viaja CON sus datos. Mientras carga otro día, `dia` sigue
                 // siendo el anterior, y compartir no puede juntar las cifras de uno con la fecha del otro.
-                if (vivo) setDia({ iso: selected, meals: data?.meals || [], totals: data?.totals || {}, targets: data?.targets || null });
+                if (vivo) {
+                    const filtradas = Array.isArray(data?.meals)
+                        ? data.meals.filter((m) => !eliminadasRef.current.has(m?.id))
+                        : [];
+                    const baseDia = { iso: selected, meals: filtradas, totals: data?.totals || {}, targets: data?.targets || null };
+                    setDia(
+                        filtradas.length !== (data?.meals || []).length
+                            ? _recalcularDia(selected, filtradas, data?.targets || null)
+                            : baseDia
+                    );
+                }
             } catch {
                 if (vivo) {
                     setDia(null);
@@ -409,32 +459,49 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     // [P1-PLAN-LOTE-105] Mientras está abierto, lo que cambie el diario desde fuera (registrar desde el
     // componedor —que dispara `mealfit:refresh-inventory`—, borrar en la tarjeta, el coach) se refleja aquí sin
     // cerrar y volver a abrir. El borrado propio sube `version` a mano y lleva `source` para no reaccionar dos veces.
+    const _recalcularDia = useCallback((iso, meals, targets) => {
+        const { micros, coverage } = resumirMicros(meals);
+        const sum = (k) => Math.round(meals.reduce((acc, m) => acc + (Number(m?.[k]) || 0), 0));
+        return {
+            iso,
+            meals,
+            targets,
+            totals: {
+                calories: sum('calories'),
+                protein: sum('protein'),
+                carbs: sum('carbs'),
+                healthy_fats: Math.round(meals.reduce((acc, m) => acc + (Number(m?.healthy_fats ?? m?.fats) || 0), 0)),
+                micros,
+                micros_coverage: coverage,
+            },
+        };
+    }, []);
+
+    const _quitarComidaDeDia = useCallback((prev, mealId) => {
+        if (!prev || !Array.isArray(prev.meals)) return prev;
+        const meals = prev.meals.filter((m) => m.id !== mealId);
+        if (meals.length === prev.meals.length) return prev;
+        return _recalcularDia(prev.iso, meals, prev.targets ?? null);
+    }, [_recalcularDia]);
+
     useEffect(() => {
         if (!open) return undefined;
-        const refrescar = (e) => { if (e?.detail?.source !== 'diary-history') setVersion((v) => v + 1); };
+        const refrescar = (e) => {
+            if (e?.detail?.source === 'diary-history') return;
+            const deletedId = e?.detail?.deletedMeal?.id;
+            if (deletedId) {
+                eliminadasRef.current.add(deletedId);
+                setDia((prev) => _quitarComidaDeDia(prev, deletedId));
+            }
+            setVersion((v) => v + 1);
+        };
         window.addEventListener('mealfit:refresh-inventory', refrescar);
         window.addEventListener('mealfit:diary-changed', refrescar);
         return () => {
             window.removeEventListener('mealfit:refresh-inventory', refrescar);
             window.removeEventListener('mealfit:diary-changed', refrescar);
         };
-    }, [open]);
-
-    // [P1-DIARY-STRIP-SCROLL] Los 14 días no caben y la barra está oculta: sin
-    // esto la tira abría por los días MÁS VIEJOS y hoy/ayer quedaban fuera de
-    // pantalla. Se ancla al día ACTIVO para que también siga a las flechas.
-    useEffect(() => {
-        if (!open) return;
-        const nodo = activoRef.current;
-        const cinta = stripRef.current;
-        if (!nodo || !cinta || typeof cinta.scrollTo !== 'function') return;
-        const izq = nodo.offsetLeft - (cinta.clientWidth - nodo.offsetWidth) / 2;
-        cinta.scrollTo({
-            left: Math.max(0, izq),
-            behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-                ? 'auto' : 'smooth',
-        });
-    }, [open, selected, dias]);
+    }, [open, _quitarComidaDeDia]);
 
     const moverDia = useCallback((delta) => {
         setSelected((actual) => {
@@ -473,32 +540,41 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     // barras cambian) y a quien más escuche.
     // [P1-PLAN-LOTE-721] true si se borró (la ficha se cierra entonces); borra también la foto del dispositivo.
     const borrarComida = useCallback(async (meal) => {
-        if (!meal?.id || borrandoId) return false;
+        if (!meal?.id || borrandoId || borrandoRef.current.has(meal.id)) return false;
+        borrandoRef.current.add(meal.id);
         const ok = await confirmToast(
             t('¿Eliminar "{nombre}" del diario? Esta acción no se puede deshacer.', { nombre: meal.meal_name }),
             { confirmLabel: t('Eliminar'), cancelLabel: t('Cancelar'), danger: true }
         );
-        if (!ok) return false;
+        if (!ok) {
+            borrandoRef.current.delete(meal.id);
+            return false;
+        }
         setBorrandoId(meal.id);
         try {
             const res = await fetchWithAuth(`/api/diary/consumed/${meal.id}`, { method: 'DELETE' });
+            const yaEliminada = res.status === 404;
             const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data?.success) throw new Error(data?.detail || data?.message || 'delete failed');
+            if (!yaEliminada && (!res.ok || !data?.success)) throw new Error(data?.detail || data?.message || 'delete failed');
+            eliminadasRef.current.add(meal.id);
+            setDia((prev) => _quitarComidaDeDia(prev, meal.id));
+            setFichaMeal((cur) => (cur?.id === meal.id ? null : cur));
             setVersion((v) => v + 1);
             try {
                 window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'diary-history', date: selected, userId, deletedMeal: { id: meal.id, name: meal.meal_name } } }));
             } catch { /* best-effort */ }
             borrarFotoDeComidaEnSegundoPlano(userId, meal.id);
-            toast.success(t('"{nombre}" eliminada del diario.', { nombre: meal.meal_name }));
+            if (!yaEliminada) toast.success(t('"{nombre}" eliminada del diario.', { nombre: meal.meal_name }));
             return true;
         } catch (err) {
+            borrandoRef.current.delete(meal.id);
             console.error('Error eliminando comida del diario:', err);
             toast.error(t('No se pudo eliminar la comida. Intenta de nuevo.'));
             return false;
         } finally {
             setBorrandoId(null);
         }
-    }, [borrandoId, selected, t, userId]);
+    }, [_quitarComidaDeDia, borrandoId, selected, t, userId]);
 
     const cerrarComponedor = useCallback(() => setRegistrando(false), []);
     const pasarAlEscaner = useCallback(() => { setRegistrando(false); setEscaneando(true); }, []);
@@ -528,15 +604,6 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         return m;
     }, [dia, t]);
 
-    // [P1-PLAN-LOTE-105] La semana en una línea: media de kcal en los días CON registro de los últimos 7.
-    const semana = useMemo(() => {
-        const ultimos = dias.slice(-7);
-        const con = ultimos.map((iso) => porFecha.get(iso)).filter((r) => (r?.meals_count || 0) > 0);
-        if (!con.length) return null;
-        const media = Math.round(con.reduce((s, r) => s + (Number(r.calories) || 0), 0) / con.length);
-        return { media, n: con.length };
-    }, [dias, porFecha]);
-
     const sinNada = !cargando && !error && (dia?.meals || []).length === 0;
     // [P1-COMPARTIR-DIA-PASADO] Como en la tarjeta, se comparte un día CON comidas. Mientras carga otro, el botón se
     // queda (no parpadea al pasar entre días con registro) pero apagado: `dia` todavía es el anterior.
@@ -550,20 +617,37 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         setACompartir({ dia, fecha: mediodiaDe(dia.iso || selected) });
     };
 
-    const renderLeyendaEstados = () => (
-        <div className={styles.goalLegend} aria-hidden="true">
-            <span className={styles.goalLegendItem}>
-                <span className={`${styles.goalLegendDot} ${styles.goalLegendGreen}`} />
-                {t('En meta')}
-            </span>
-            <span className={styles.goalLegendItem}>
-                <span className={`${styles.goalLegendDot} ${styles.goalLegendAmber}`} />
-                {t('Bajo la meta')}
-            </span>
-            <span className={styles.goalLegendItem}>
-                <span className={`${styles.goalLegendDot} ${styles.goalLegendOrange}`} />
-                {t('Sobre la meta')}
-            </span>
+    const FILTROS = [
+        { clave: 'green', texto: t('En meta'), punto: styles.goalLegendGreen },
+        { clave: 'under', texto: t('Bajo la meta'), punto: styles.goalLegendAmber },
+        { clave: 'over', texto: t('Sobre la meta'), punto: styles.goalLegendOrange },
+    ];
+    const renderResumenDelMes = () => (
+        <div className={styles.monthSummary}>
+            <div className={styles.goalLegend} role="group" aria-label={t('Resaltar días')}>
+                {FILTROS.map((f) => (
+                    <button
+                        key={f.clave}
+                        type="button"
+                        className={`${styles.goalLegendItem} ${styles.goalChip} ${filtro === f.clave ? styles.goalChipActive : ''}`}
+                        aria-pressed={filtro === f.clave}
+                        disabled={mes[f.clave] === 0}
+                        onClick={() => setFiltro((actual) => (actual === f.clave ? null : f.clave))}
+                    >
+                        <span className={`${styles.goalLegendDot} ${f.punto}`} />
+                        {f.texto}
+                        <b className={styles.goalChipCount}>{mes[f.clave]}</b>
+                    </button>
+                ))}
+            </div>
+            {mes.n > 0 && (
+                <div className={styles.weekLine}>
+                    {tn(mes.n,
+                        'Este mes: media de {kcal} kcal en {n} día con registro',
+                        'Este mes: media de {kcal} kcal en {n} días con registro',
+                        { kcal: formatNumber(mes.media), n: mes.n })}
+                </div>
+            )}
         </div>
     );
 
@@ -574,7 +658,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         return (
             <div key={meal.id || meal.meal_name} className={styles.meal}>
                 {/* [P1-PLAN-LOTE-721] la fila abre la ficha del plato (sin id no: no hay qué pedir) */}
-                <button type="button" className={styles.mealBody} onClick={() => setFichaMeal(meal)} disabled={!meal.id}>
+                <button type="button" className={styles.mealBody} onClick={() => !borrando && setFichaMeal(meal)} disabled={!meal.id || borrando}>
                     {meal.id && idsConFoto.has(meal.id) && (
                         <MiniaturaDeComida userId={userId} mealId={meal.id} className={styles.mealThumb} />
                     )}
@@ -671,112 +755,11 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                 <div className={styles.dateRelative}>{esHoy ? t('Hoy') : t('Ayer')}</div>
                             )}
                         </div>
-                        <div className={styles.viewTabs} aria-label={t('Modo de vista')}>
-                            <button
-                                type="button" aria-pressed={modoVista === 'tira'}
-                                className={`${styles.viewTab} ${modoVista === 'tira' ? styles.viewTabActive : ''}`}
-                                onClick={() => {
-                                    setModoVista('tira');
-                                    if (typeof bodyScrollRef.current?.scrollTo === 'function') {
-                                        bodyScrollRef.current.scrollTo({ top: 0, behavior: 'instant' });
-                                    } else if (bodyScrollRef.current) {
-                                        bodyScrollRef.current.scrollTop = 0;
-                                    }
-                                }}
-                            >
-                                {t('Semana')}
-                            </button>
-                            <button
-                                type="button" aria-pressed={modoVista === 'calendario'}
-                                className={`${styles.viewTab} ${modoVista === 'calendario' ? styles.viewTabActive : ''}`}
-                                onClick={() => {
-                                    setModoVista('calendario');
-                                    const d = desdeISO(selected);
-                                    setCalDate(new Date(d.getFullYear(), d.getMonth(), 1, 12, 0, 0, 0));
-                                    if (typeof bodyScrollRef.current?.scrollTo === 'function') {
-                                        bodyScrollRef.current.scrollTo({ top: 0, behavior: 'instant' });
-                                    } else if (bodyScrollRef.current) {
-                                        bodyScrollRef.current.scrollTop = 0;
-                                    }
-                                }}
-                            >
-                                <CalendarDays size={13} aria-hidden="true" />
-                                {t('Mes')}
-                            </button>
-                        </div>
                     </div>
                 </header>
 
                 <div ref={bodyScrollRef} className={styles.drawerBody}>
 
-                {modoVista === 'tira' ? (
-                    <>
-                        <div ref={stripRef} className={styles.strip} role="tablist" aria-label={t('Elegir día')}>
-                            {/* [P1-PLAN-LOTE-105] la tira crece hacia atrás de dos en dos semanas, hasta el tope del endpoint */}
-                            {maxDias < DIAS_MAX && (
-                                <button
-                                    type="button"
-                                    className={styles.moreDays}
-                                    onClick={() => setMaxDias((n) => Math.min(DIAS_MAX, n + DIAS_TIRA))}
-                                    title={t('Ver 2 semanas más')}
-                                    aria-label={t('Ver 2 semanas más')}
-                                >
-                                    <span className={styles.moreDaysArrow} aria-hidden="true">‹</span>
-                                    <span>+14</span>
-                                </button>
-                            )}
-                            {dias.map((iso) => {
-                                const d = desdeISO(iso);
-                                const r = porFecha.get(iso);
-                                const kcal = r?.calories || 0;
-                                const conDatos = (r?.meals_count || 0) > 0;
-                                const diaTargetCal = (r?.target_calories > 0 ? r.target_calories : null) ?? targetCalories;
-                                const diaMainGoal = r?.main_goal || resolvedMainGoal;
-                                const alto = pct(kcal, diaTargetCal);
-                                const activo = iso === selected;
-                                // [BB-024] Misma Banda de Éxito por objetivo que TrackingProgress (SSOT: calorieGoalStatus.js).
-                                const estado = getCalorieGoalState(kcal, diaTargetCal, diaMainGoal);
-                                return (
-                                    <button
-                                        key={iso}
-                                        ref={activo ? activoRef : null}
-                                        type="button" role="tab" aria-selected={activo}
-                                        className={`${styles.dayBtn} ${activo ? styles.dayBtnActive : ''}`}
-                                        onClick={() => setSelected(iso)}
-                                        title={conDatos
-                                            ? t('{kcal} kcal · {n} comida(s)', { kcal, n: r.meals_count })
-                                            : t('Sin registro')}
-                                    >
-                                        <span className={styles.dayLetter}>{diaLetra(d)}</span>
-                                        <span className={`${styles.rail} ${conDatos ? '' : styles.railEmpty}`}>
-                                            {conDatos && (
-                                                <motion.span
-                                                    className={`${styles.railFill} ${estado === 'green' ? styles.railFillComplete : estado === 'over' ? styles.railFillOver : ''}`}
-                                                    initial={{ height: 0 }}
-                                                    animate={{ height: `${Math.max(alto, 8)}%` }}
-                                                    transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
-                                                />
-                                            )}
-                                        </span>
-                                        <span className={styles.dayNum}>{d.getDate()}</span>
-                                        <span className={iso === hoyISO ? styles.todayDot : styles.todayDotHidden} />
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        {renderLeyendaEstados()}
-
-                        {semana && (
-                            <div className={styles.weekLine}>
-                                {tn(semana.n,
-                                    'Últimos 7 días: media de {kcal} kcal en {n} día con registro',
-                                    'Últimos 7 días: media de {kcal} kcal en {n} días con registro',
-                                    { kcal: formatNumber(semana.media), n: semana.n })}
-                            </div>
-                        )}
-                    </>
-                ) : (
                     <>
                         <div
                             className={styles.calendarContainer}
@@ -826,6 +809,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                             </div>
 
                             <div className={styles.calWeekHeader}>
+                                <span aria-hidden="true" />
                                 {diasSemanaLetras.map((letra, idx) => (
                                     <span
                                         key={idx}
@@ -836,7 +820,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                 ))}
                             </div>
 
-                            <div className={styles.calGrid} role="grid" aria-label={t('Calendario mensual')}>
+                            <div key={`${calDate.getFullYear()}-${calDate.getMonth()}`} className={styles.calGrid} role="grid" aria-label={t('Calendario mensual')}>
                                 {calDias.map((c, i) => {
                                     const iso = c.iso;
                                     const r = porFecha.get(iso);
@@ -845,13 +829,36 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     const diaTargetCal = (r?.target_calories > 0 ? r.target_calories : null) ?? targetCalories;
                                     const diaMainGoal = r?.main_goal || resolvedMainGoal;
                                     const estado = getCalorieGoalState(kcal, diaTargetCal, diaMainGoal);
+                                    const clave = !conDatos ? null : (estado === 'green' || estado === 'over' ? estado : 'under');
+                                    const lleno = Math.max(0.06, Math.min(1, diaTargetCal > 0 ? kcal / diaTargetCal : 0));
+                                    const apagada = !!filtro && clave !== filtro;
                                     const activo = iso === selected;
                                     const esHoyDia = iso === hoyISO;
                                     const esFuturo = iso > hoyISO;
 
+                                    const sem = i % 7 === 0 ? semanasDelMes[i / 7] : undefined;
                                     return (
+                                        <Fragment key={iso || i}>
+                                        {i % 7 === 0 && (
+                                            <span
+                                                className={`${styles.calWeekTag} ${sem?.enCurso ? styles.calWeekTagNow : ''}`}
+                                                role={sem ? 'img' : undefined}
+                                                aria-hidden={sem ? undefined : 'true'}
+                                                aria-label={sem ? `${t('Semana {n}', { n: sem.numero })}: ${t('{n} de {total} estrellas', { n: sem.estrellas, total: ESTRELLAS_MAX })}` : undefined}
+                                            >
+                                                {sem && (
+                                                    <>
+                                                        <b aria-hidden="true">S{sem.numero}</b>
+                                                        <span className={styles.calWeekStars} aria-hidden="true">
+                                                            {Array.from({ length: ESTRELLAS_MAX }, (_, k) => (
+                                                                <Star key={k} size={8} strokeWidth={2.5} className={k < sem.estrellas ? styles.calWeekStarOn : styles.calWeekStarOff} />
+                                                            ))}
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </span>
+                                        )}
                                         <button
-                                            key={iso || i}
                                             type="button"
                                             role="gridcell"
                                             aria-selected={activo}
@@ -862,6 +869,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                                 ${activo ? styles.calCellActive : ''}
                                                 ${esHoyDia ? styles.calCellToday : ''}
                                                 ${esFuturo ? styles.calCellFuture : ''}
+                                                ${apagada ? styles.calCellDimmed : ''}
                                             `}
                                             onClick={() => {
                                                 if (esFuturo) return;
@@ -875,25 +883,29 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                                 ? t('{kcal} kcal · {n} comida(s)', { kcal, n: r.meals_count })
                                                 : t('Sin registro')}
                                         >
-                                            <span className={styles.calCellNum}>{c.day}</span>
-                                            <span className={styles.calCellIndicator}>
-                                                {conDatos && (
-                                                    <span
-                                                        className={`
-                                                            ${styles.calCellDot}
-                                                            ${estado === 'green' ? styles.calCellDotGreen : estado === 'over' ? styles.calCellDotOrange : styles.calCellDotYellow}
-                                                        `}
+                                            {conDatos && (
+                                                <svg className={styles.calRing} viewBox="0 0 36 36" aria-hidden="true">
+                                                    <circle className={styles.calRingTrack} cx="18" cy="18" r="15" />
+                                                    <circle
+                                                        className={`${styles.calCellDot} ${estado === 'green' ? styles.calCellDotGreen : estado === 'over' ? styles.calCellDotOrange : styles.calCellDotYellow}`}
+                                                        cx="18" cy="18" r="15"
+                                                        style={{ '--largo': CAL_ANILLO, '--resto': CAL_ANILLO * (1 - lleno) }}
                                                     />
-                                                )}
+                                                </svg>
+                                            )}
+                                            <span className={styles.calCellNum}>
+                                                {estado === 'green' && conDatos
+                                                    ? <Check size={15} strokeWidth={3.25} aria-label={String(c.day)} />
+                                                    : c.day}
                                             </span>
                                         </button>
+                                        </Fragment>
                                     );
                                 })}
                             </div>
-                            {renderLeyendaEstados()}
+                            {renderResumenDelMes()}
                         </div>
                     </>
-                )}
 
                 {(() => {
                     const kcalDia = num(totales.calories);

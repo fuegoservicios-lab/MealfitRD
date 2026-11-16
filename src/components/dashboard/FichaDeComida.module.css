@@ -426,6 +426,45 @@
 
 .ingrediente > span:first-child::first-letter { text-transform: uppercase; }
 
+/* [P1-PLAN-LOTE-1039 · A-41] gramos de una pieza, con −/+ (área táctil 44 px; el número a 12 px o más) */
+.gramos {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    align-self: center;
+}
+
+.gramosBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: -10px -6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted, #64748B);
+    cursor: pointer;
+    border-radius: 999px;
+}
+
+.gramosBtn:hover:not(:disabled) { color: var(--text-main, #0F172A); }
+.gramosBtn:focus-visible { outline: 2px solid var(--primary, #6366F1); outline-offset: -8px; }
+.gramosBtn:disabled { opacity: 0.4; cursor: default; }
+
+.gramosValor {
+    min-width: 3.6rem;
+    text-align: center;
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-main, #0F172A);
+    display: inline-flex;
+    justify-content: center;
+}
+
 .ingredienteKcal {
     flex: 0 0 auto;
     font-size: 0.82rem;

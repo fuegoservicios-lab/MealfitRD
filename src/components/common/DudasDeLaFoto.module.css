@@ -1,24 +1,41 @@
 /* [P1-PLAN-LOTE-322] Dudas de la foto con respuestas de un toque (escáner y chat). */
-.lista { list-style: none; margin: 0.45rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
-.duda { display: flex; flex-direction: column; gap: 0.45rem; }
-.pregunta { line-height: 1.35; }
-.opciones { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.lista { list-style: none; margin: 0.35rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.8rem; }
+.duda { display: flex; flex-direction: column; gap: 0.5rem; }
+.duda + .duda {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-light, rgba(148, 163, 184, 0.14));
+}
+.pregunta { line-height: 1.38; font-size: 0.94rem; font-weight: 600; color: var(--text-main); }
+.opciones { display: flex; flex-wrap: wrap; gap: 0.48rem; }
 .opcion {
-    min-height: 44px;
-    padding: 0.45rem 0.95rem;
+    min-height: 42px;
+    padding: 0.48rem 0.95rem;
     border-radius: 999px;
-    border: 1px solid var(--border, rgba(148, 163, 184, 0.35));
-    background: var(--bg-card, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-main) 14%, transparent);
+    background: color-mix(in srgb, var(--bg-card, transparent) 86%, var(--bg-muted, transparent));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     color: var(--text-main);
     font: inherit;
+    font-size: 0.92rem;
     font-weight: 600;
     cursor: pointer;
     touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 110ms cubic-bezier(0.23, 1, 0.32, 1),
+                background-color 160ms ease,
+                border-color 160ms ease,
+                box-shadow 160ms ease,
+                color 160ms ease;
 }
+.opcion:active:not(:disabled) { transform: scale(0.97); }
+.opcion:focus-visible { outline: 2px solid var(--primary, #818CF8); outline-offset: 2px; }
 .opcion:disabled { opacity: 0.55; cursor: default; }
 .elegida {
-    border-color: var(--primary, #6366F1);
-    background: color-mix(in srgb, var(--primary, #6366F1) 22%, transparent);
+    border-style: solid;
+    border-color: color-mix(in srgb, var(--primary, #6366F1) 75%, transparent);
+    background: color-mix(in srgb, var(--primary, #6366F1) 22%, var(--bg-card, transparent));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary, #6366F1) 25%, transparent),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .cerrada { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; min-height: 32px; }
 .cambiar {
@@ -32,48 +49,118 @@
     font-weight: 600;
     cursor: pointer;
 }
-/* [P1-PLAN-LOTE-347] «Otra…» y su campo */
-.otra { border-style: dashed; border-color: color-mix(in srgb, var(--text-main) 40%, transparent); }
-.otraCampo { display: flex; gap: 0.5rem; align-items: stretch; }
+/* [P1-PLAN-LOTE-347] «Otra…» y su campo cápsula unificado */
+.otra {
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--primary, #818CF8) 38%, color-mix(in srgb, var(--text-main) 22%, transparent));
+    background: color-mix(in srgb, var(--bg-page, transparent) 45%, transparent);
+    color: var(--text-muted);
+}
+.otra.elegida {
+    border-style: solid;
+    border-color: var(--primary, #818CF8);
+    color: var(--text-main);
+    background: color-mix(in srgb, var(--primary, #6366F1) 18%, var(--bg-card, transparent));
+}
+.otraCampo {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 4px 4px 4px 14px;
+    margin-top: 0.15rem;
+    border-radius: 16px;
+    border: 1.5px solid color-mix(in srgb, var(--primary, #818CF8) 42%, var(--border, rgba(148, 163, 184, 0.35)));
+    background: var(--bg-page, var(--bg-card));
+    box-shadow: 0 2px 10px -4px rgba(2, 6, 23, 0.35);
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.otraCampo:focus-within {
+    border-color: var(--primary, #818CF8);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #6366F1) 22%, transparent),
+                0 6px 16px -6px rgba(2, 6, 23, 0.45);
+}
 .otraInput {
     flex: 1;
     min-width: 0;
-    min-height: 44px;
-    padding: 0.5rem 0.8rem;
-    border-radius: 0.75rem;
-    border: 1px solid var(--border);
-    background: var(--bg-card);
+    min-height: 40px;
+    padding: 0.3rem 0.25rem;
+    border: none;
+    outline: none;
+    background: transparent;
+    box-shadow: none;
     color: var(--text-main);
     font: inherit;
     font-size: 1rem; /* 16 px: iOS no hace zoom al enfocar */
+    font-weight: 500;
+    caret-color: var(--primary, #818CF8);
+}
+.otraInput::placeholder {
+    color: var(--text-muted);
+    opacity: 0.72;
+}
+.otraInput:focus,
+.otraInput:focus-visible {
+    outline: none;
+    box-shadow: none;
 }
 /* [P1-PLAN-LOTE-360] sin botón «Recalcular»: se recalcula al terminar de escribir */
 /* [P1-PLAN-LOTE-361] la duda cuya respuesta escrita se está calculando */
 .calculando { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
 /* [P1-PLAN-LOTE-362] el ✓ de «Otra…» y cómo se aplica */
 .aplicar {
-    min-width: 44px; min-height: 44px; border: none; border-radius: 0.75rem;
-    background: var(--primary-fill); color: #fff; font-size: 1.1rem; font-weight: 700; cursor: pointer;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border: none;
+    border-radius: 12px;
+    background: var(--cta-fill, var(--primary-fill));
+    color: #fff;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 6px rgba(67, 56, 202, 0.35);
+    transition: transform 110ms cubic-bezier(0.23, 1, 0.32, 1), opacity 150ms ease;
 }
-.aplicar:disabled { opacity: 0.45; cursor: default; }
-.otraAyuda { font-size: 0.78rem; color: var(--text-muted); }
+.aplicar:active:not(:disabled) { transform: scale(0.94); }
+.aplicar:focus-visible { outline: 2px solid var(--primary, #818CF8); outline-offset: 2px; }
+.aplicar:disabled { opacity: 0.32; cursor: default; box-shadow: none; }
+.otraAyuda {
+    font-size: 0.75rem;
+    line-height: 1.3;
+    color: var(--text-light, var(--text-muted));
+    opacity: 0.78;
+    padding-left: 0.25rem;
+}
 /* [P1-PLAN-LOTE-763] En el panel del chat (el sitio del teclado): botones del tamaño de una tecla, pregunta legible. */
-.grande { gap: 0.85rem; margin-top: 0.6rem; }
-.grande .pregunta { font-size: 0.98rem; font-weight: 600; }
+.grande { gap: 0.9rem; margin-top: 0.1rem; }
+.grande .duda + .duda { padding-top: 0.85rem; }
+.grande .pregunta { font-size: 0.96rem; font-weight: 600; }
 .grande .opciones { gap: 0.5rem; }
-.grande .opcion { min-height: 48px; padding: 0.55rem 1.1rem; font-size: 1rem; }
+.grande .opcion { min-height: 46px; padding: 0.5rem 1.05rem; font-size: 0.96rem; }
 .fotoEtiqueta {
     align-self: flex-start;
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    padding: 0.16rem 0.55rem;
-    margin-top: 0.15rem;
+    gap: 0.4rem;
+    padding: 0.2rem 0.65rem;
+    margin-bottom: 0.05rem;
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.015em;
     color: var(--primary, #6366F1);
-    background: color-mix(in srgb, var(--primary, #6366f1) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--primary, #6366f1) 28%, transparent);
+    background: color-mix(in srgb, var(--primary, #6366F1) 14%, var(--bg-card, transparent));
+    border: 1px solid color-mix(in srgb, var(--primary, #6366F1) 28%, transparent);
+}
+.fotoPunto {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.85;
 }

@@ -16,14 +16,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, ChevronLeft, ChevronRight, Flame, Lock, Plus, Star } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Flame, Lock, Plus, Star, Trophy } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 import { formatDate, formatNumber, useT, useTn } from '../../i18n';
 import { getBiologicalDateStr } from '../../utils/diaBiologico';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import {
     DIAS_DE_LA_SEMANA, DIAS_EN_TIRA, DIAS_MAX_HISTORIA, ESTRELLAS_MAX, construirDias, estrellasDeLaSemana,
-    faltanParaLaSiguienteEstrella, fechasDeLaSemana, inicioDelViaje, mediodiaDe, numeroDeSemana, rachaEnMeta,
+    domingoDe, faltanParaLaSiguienteEstrella, fechasDeLaSemana, inicioDelViaje, mediodiaDe, numeroDeSemana, rachaEnMeta,
     ultimosDias,
 } from '../../utils/progresoDeLosDias';
 import styles from './SemanaEnProgreso.module.css';
@@ -92,11 +92,13 @@ const SemanaEnProgreso = ({
         };
     }, []);
 
-    const inicio = useMemo(
+    // Se guarda el PRIMER DÍA con registros; las semanas se cuentan desde el domingo de esa semana (como el calendario).
+    const primerDia = useMemo(
         () => inicioDelViaje(filas, hoyISO, userId ? safeLocalStorageGet(_claveInicio(userId), null) : null),
         [filas, hoyISO, userId],
     );
-    useEffect(() => { if (userId) safeLocalStorageSet(_claveInicio(userId), inicio); }, [userId, inicio]);
+    useEffect(() => { if (userId) safeLocalStorageSet(_claveInicio(userId), primerDia); }, [userId, primerDia]);
+    const inicio = domingoDe(primerDia);
 
     const semanaActual = numeroDeSemana(inicio, hoyISO);
     const semana = Math.max(1, Math.min(vista.semana ?? semanaActual, semanaActual));
@@ -155,7 +157,8 @@ const SemanaEnProgreso = ({
         >
             <div className={styles.cabecera}>
                 <div className={styles.nivel}>
-                    <span className={styles.insignia} aria-hidden="true"><b key={semana}>{semana}</b></span>
+                    {/* el número ya lo dice el título: la insignia lleva el trofeo (dorada con las 3 estrellas) */}
+                    <span className={styles.insignia} aria-hidden="true"><Trophy key={semana} size={22} strokeWidth={2.25} /></span>
                     <div className={styles.nivelTexto}>
                         <h3 className={styles.titulo}>{titulo}</h3>
                         <p className={styles.sub}>

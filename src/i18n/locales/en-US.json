@@ -1083,7 +1083,6 @@
   "Elegir avatar": "Choose avatar",
   "Elegir de galería": "Choose from gallery",
   "Elegir de la galería": "Choose from gallery",
-  "Elegir día": "Choose day",
   "Elegiste \"Personalizar\" y el monto no llega al mínimo.": "You chose \"Custom\" and the amount is below the minimum.",
   "Elegiste reponer solo en la compra grande y no congelas: la proteína fresca es para la primera semana; después huevos, enlatados, legumbres y queso curado. Estas cantidades cubren todo tu ciclo de {duracion}.": "You chose to restock only on the big trip and you don't freeze: fresh protein is for the first week; after that, eggs, canned goods, legumes and aged cheese. These amounts cover your whole {duracion} cycle.",
   "Elegiste reponer solo en la compra grande: congela la proteína de la segunda semana el día de la compra; de la tercera en adelante, huevos, enlatados, legumbres y queso curado. Estas cantidades cubren todo tu ciclo de {duracion}.": "You chose to restock only on the big trip: freeze the second week's protein on shopping day; from the third week on, eggs, canned goods, legumes and aged cheese. These amounts cover your whole {duracion} cycle.",
@@ -1829,6 +1828,8 @@
   "No se pudo actualizar la preferencia. Inténtalo de nuevo.": "Couldn't update the preference. Try again.",
   "No se pudo agregar el alimento.": "Couldn't add the food.",
   "No se pudo ajustar la cantidad.": "Couldn't adjust the amount.",
+  "Quitar {n} g": "Remove {n} g",
+  "Añadir {n} g": "Add {n} g",
   "No se pudo arreglar el día": "Couldn't fix the day",
   "No se pudo calcular la proyección de compras.": "The shopping projection could not be calculated.",
   "No se pudo cambiar el envase.": "Couldn't change the package.",
@@ -3341,11 +3342,6 @@
   "Micros": "Micros",
   "Faltan datos de micronutrientes. Añade la etiqueta del alimento en el chat.": "Micronutrient data is missing. Add the food label in the chat.",
   "Extras y snacks": "Extras and snacks",
-  "Ver 2 semanas más": "Show 2 more weeks",
-  "Últimos 7 días: media de {kcal} kcal en {n} días con registro": {
-    "one": "Last 7 days: average of {kcal} kcal over {n} logged day",
-    "other": "Last 7 days: average of {kcal} kcal over {n} logged days"
-  },
   "Registrar en este día": "Log on this day",
   "Solo se puede registrar hasta 7 días atrás.": "You can only log up to 7 days back.",
   "Revisa y registra": "Review and log",
@@ -3962,7 +3958,6 @@
   "Ej: Batida de avena con leche y guineo": "E.g., Oatmeal smoothie with milk and banana",
   "Calendario y comidas": "Calendar & meals",
   "Registro por día": "Daily log",
-  "Semana": "Week",
   "OMS": "WHO",
   "Ninguna comida registrada trae este dato todavía.": "None of your logged meals has this data yet.",
   "Calculado con {known} de {total} comidas. Lo que no tiene datos no se suma, así que el total real puede ser mayor.": "Calculated from {known} of {total} meals. Anything without data isn’t added, so the real total may be higher.",
@@ -3998,10 +3993,8 @@
   "Función en desarrollo activo": "Feature in active development",
   "Ir a hoy ({dia})": "Go to today ({dia})",
   "Medicamentos actuales (opcional) — si no tomas medicamentos, pulsa «Ninguno»": "Current medications (optional) — if you don't take any, tap “None”",
-  "Mes": "Month",
   "Mes anterior": "Previous month",
   "Mes siguiente": "Next month",
-  "Modo de vista": "View mode",
   "No tienes notificaciones pendientes.": "You have no pending notifications.",
   "No tienes otras notificaciones pendientes.": "You have no other pending notifications.",
   "Sobre los datos": "About the data",
@@ -4049,5 +4042,10 @@
   "Faltan {n} días en meta para otra estrella": {
     "one": "{n} more day on goal for another star",
     "other": "{n} more days on goal for another star"
+  },
+  "Resaltar días": "Highlight days",
+  "Este mes: media de {kcal} kcal en {n} días con registro": {
+    "one": "This month: {kcal} kcal average over {n} logged day",
+    "other": "This month: {kcal} kcal average over {n} logged days"
   }
 }

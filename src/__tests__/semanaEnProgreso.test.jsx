@@ -2,7 +2,7 @@
  * [SEMANA-EN-PROGRESO · 2026-11-15] «Tu semana»: el progreso de los días a la vista en la pestaña Progreso.
  * El dueño: «que el usuario pueda ver el progreso de los días desde afuera, qué día ha completado».
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -13,7 +13,7 @@ import { fetchWithAuth } from '../config/api';
 import SemanaEnProgreso from '../components/dashboard/SemanaEnProgreso';
 import { getBiologicalDateStr } from '../utils/diaBiologico';
 import {
-    construirDias, diasEnMetaDeLaSemana, estadoDelDia, estrellasDeLaSemana, faltanParaLaSiguienteEstrella,
+    construirDias, diasEnMetaDeLaSemana, domingoDe, estadoDelDia, estrellasDeLaSemana, faltanParaLaSiguienteEstrella, inicioDeLaSemana1,
     fechasDeLaSemana, inicioDelViaje, numeroDeSemana, rachaEnMeta, ultimosDias,
 } from '../utils/progresoDeLosDias';
 
@@ -80,6 +80,16 @@ describe('[SEMANAS-NUMERADAS] semana 1, semana 2… hasta el infinito', () => {
         ]);
     });
 
+    it('[SEMANAS-ALINEADAS] las semanas van de domingo a sábado, como las filas del calendario', () => {
+        expect(domingoDe('2026-11-15')).toBe('2026-11-15');                 // un domingo es su propio inicio
+        expect(domingoDe('2026-11-18')).toBe('2026-11-15');
+        expect(domingoDe('2026-11-01')).toBe('2026-11-01');
+        expect(domingoDe('2026-10-31')).toBe('2026-10-25');                 // cruza de mes
+        // primer registro un miércoles: la Semana 1 empieza el domingo anterior
+        expect(inicioDeLaSemana1([fila('2026-10-28', 2000)], HOY)).toBe('2026-10-25');
+        expect(numeroDeSemana(inicioDeLaSemana1([fila('2026-10-28', 2000)], HOY), HOY)).toBe(4);
+    });
+
     it('estrellas: 3, 5 y 7 días en meta', () => {
         expect([0, 2, 3, 4, 5, 6, 7].map(estrellasDeLaSemana)).toEqual([0, 0, 1, 1, 2, 2, 3]);
         expect([0, 2, 3, 5, 6, 7].map(faltanParaLaSiguienteEstrella)).toEqual([3, 1, 2, 2, 1, 0]);
@@ -93,9 +103,12 @@ describe('[SEMANAS-NUMERADAS] semana 1, semana 2… hasta el infinito', () => {
 });
 
 describe('[SEMANA-EN-PROGRESO] la tira en pantalla', () => {
-    const hoyISO = getBiologicalDateStr(new Date());
-    const [ayerISO, anteayerISO] = [ultimosDias(hoyISO, 3)[1], ultimosDias(hoyISO, 3)[0]];
-    const hace9 = ultimosDias(hoyISO, 10)[0];
+    // [SEMANAS-ALINEADAS] un miércoles fijo: hoy = mié 18-nov-2026; su semana va del dom 15 al sáb 21.
+    const hoyISO = '2026-11-18';
+    const [ayerISO, anteayerISO] = ['2026-11-17', '2026-11-16'];
+    const hace9 = '2026-11-09';                                            // lunes de la semana anterior (dom 8 – sáb 14)
+    beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2026, 10, 18, 15, 0, 0)); });
+    afterAll(() => { vi.useRealTimers(); });
 
     beforeEach(() => {
         window.localStorage.clear();
@@ -122,10 +135,11 @@ describe('[SEMANA-EN-PROGRESO] la tira en pantalla', () => {
         expect(diasEnPantalla()).toHaveLength(7);
         await waitFor(() => expect(screen.getByText('1 de 7 días en meta')).toBeInTheDocument());
         expect(fetchWithAuth).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/diary\/consumed-range\/u-1\?days=365&tzOffset=/));
-        // el primer registro fue anteayer: hoy es el día 3 de la Semana 1 y quedan 4 con candado
+        expect(getBiologicalDateStr(new Date())).toBe(hoyISO);
+        // el primer registro fue anteayer (lunes): la Semana 1 empieza ese domingo; hoy, miércoles, es el día 4 y quedan 3 con candado
         expect(screen.getByRole('heading', { name: 'Semana 1' })).toBeInTheDocument();
-        expect(screen.getByText('Día 3 de 7')).toBeInTheDocument();
-        expect(diasEnPantalla().filter((b) => b.disabled)).toHaveLength(4);
+        expect(screen.getByText('Día 4 de 7')).toBeInTheDocument();
+        expect(diasEnPantalla().filter((b) => b.disabled)).toHaveLength(3);
         expect(screen.getByRole('img', { name: '0 de 3 estrellas' })).toBeInTheDocument();
         expect(screen.getByText('Faltan 2 días en meta para otra estrella')).toBeInTheDocument();
     });
@@ -135,14 +149,14 @@ describe('[SEMANA-EN-PROGRESO] la tira en pantalla', () => {
         montar({ onAbrirDia });
         await waitFor(() => expect(screen.getByText('1 de 7 días en meta')).toBeInTheDocument());
         const botones = diasEnPantalla();
-        fireEvent.click(botones[1]);                                    // ayer
+        fireEvent.click(botones[2]);                                    // ayer (martes)
         expect(await screen.findByText('Meta cumplida')).toBeInTheDocument();
         expect(screen.getByText('3 comidas')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Ver este día/ }));
         expect(onAbrirDia).toHaveBeenCalledWith(ayerISO);
-        fireEvent.click(botones[0]);                                    // anteayer: se pasó
+        fireEvent.click(botones[1]);                                    // anteayer (lunes): se pasó
         expect(await screen.findByText('600 kcal de más')).toBeInTheDocument();
-        fireEvent.click(botones[2]);                                    // hoy, en curso
+        fireEvent.click(botones[3]);                                    // hoy (miércoles), en curso
         expect(await screen.findByText(/^Te faltan 1[.,]100 kcal$/)).toBeInTheDocument();   // el separador es del locale
     });
 
@@ -150,7 +164,7 @@ describe('[SEMANA-EN-PROGRESO] la tira en pantalla', () => {
         fetchWithAuth.mockResolvedValue({ ok: true, json: async () => ({ days: [fila(hace9, 2000, { target_calories: 2000 })] }) });
         montar();
         expect(await screen.findByRole('heading', { name: 'Semana 2' })).toBeInTheDocument();
-        expect(screen.getByText('Día 3 de 7')).toBeInTheDocument();
+        expect(screen.getByText('Día 4 de 7')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Semana siguiente' })).toBeDisabled();
         fireEvent.click(screen.getByRole('button', { name: 'Semana anterior' }));
         expect(await screen.findByRole('heading', { name: 'Semana 1' })).toBeInTheDocument();

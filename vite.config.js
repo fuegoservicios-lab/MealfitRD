@@ -367,6 +367,9 @@ export default defineConfig(({ mode }) => {
     // de `native` va vacio y `src/native/liveUpdate.js` no hace nada.
     // Anchor: P1-PLAN-LOTE-108-OTA-BUNDLE-ID.
     __OTA_BUNDLE_ID__: JSON.stringify(mode === 'native' ? (process.env.MF_OTA_BUNDLE_ID || otaStamp()) : ''),
+    // [P1-PLAN-LOTE-1040 · A-33] Sello del build WEB: `__APP_RELEASE__` es la versión del package (igual en todos los
+    // deploys) y la PWA también puede seguir corriendo un paquete viejo desde su caché. Solo lo lee `paqueteDelCliente`.
+    __WEB_BUILD_ID__: JSON.stringify(mode === 'native' ? '' : otaStamp()),
   },
   // [P2-DEV-LAN · 2026-08-23] El bucle de trabajo en un TELÉFONO real. Emular un móvil
   // en el escritorio no reproduce el teclado de iOS — y ahí es donde viven los defectos
