@@ -4172,5 +4172,46 @@
   "Resumen de tu semana": "Your weekly summary",
   "El domingo por la mañana: cómo cerró tu semana y que empieza la siguiente.": "Sunday morning: how your week closed and that the next one starts.",
   "La IA puede equivocarse; revisa lo importante": "AI can make mistakes; double-check what matters",
-  "Cuando tu plan esté listo, encontrarás aquí el porqué de tu plan, los pasos a seguir y los tips del chef.": "Once your plan is ready, you’ll find here why it’s built this way, the steps to follow and the chef’s tips."
+  "Cuando tu plan esté listo, encontrarás aquí el porqué de tu plan, los pasos a seguir y los tips del chef.": "Once your plan is ready, you’ll find here why it’s built this way, the steps to follow and the chef’s tips.",
+  "Ver los rangos y cómo subir": "See the ranks and how to level up",
+  "Tu rango": "Your rank",
+  "{n} estrellas en total": {
+    "one": "{n} star in total",
+    "other": "{n} stars in total"
+  },
+  "Te faltan {n} para {rango}": {
+    "one": "{n} more for {rango}",
+    "other": "{n} more for {rango}"
+  },
+  "Avance hacia {rango}": "Progress toward {rango}",
+  "Estás en la cima: llegaste a Diamante.": "You're at the top: you reached Diamond.",
+  "semanas perfectas": {
+    "one": "perfect week",
+    "other": "perfect weeks"
+  },
+  "semanas a tu ritmo": {
+    "one": "week at your pace",
+    "other": "weeks at your pace"
+  },
+  "cierra tu primera semana para ver tu ritmo": "finish your first week to see your pace",
+  "Los rangos": "The ranks",
+  "Tu punto de partida": "Your starting point",
+  "Desde {n} estrellas": {
+    "one": "From {n} star",
+    "other": "From {n} stars"
+  },
+  "Conseguido": "Unlocked",
+  "Estás aquí": "You're here",
+  "Faltan {n} ★": {
+    "one": "{n} ★ to go",
+    "other": "{n} ★ to go"
+  },
+  "Cómo se ganan las estrellas": "How you earn stars",
+  "Cada semana, según los días que cierras dentro de tu meta:": "Each week, by the days you finish within your goal:",
+  "{n} días en meta": {
+    "one": "{n} day on goal",
+    "other": "{n} days on goal"
+  },
+  "Las estrellas no se pierden: un día flojo solo deja de sumar.": "Stars never go away: an off day just doesn't add.",
+  "con 3 días en meta en una semana ganas la primera": "with 3 days on goal in a week you earn the first"
 }

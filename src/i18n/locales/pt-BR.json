@@ -4172,5 +4172,46 @@
   "Resumen de tu semana": "Resumo da sua semana",
   "El domingo por la mañana: cómo cerró tu semana y que empieza la siguiente.": "Domingo de manhã: como sua semana fechou e que a próxima começa.",
   "La IA puede equivocarse; revisa lo importante": "A IA pode errar; confira o que for importante",
-  "Cuando tu plan esté listo, encontrarás aquí el porqué de tu plan, los pasos a seguir y los tips del chef.": "Quando seu plano estiver pronto, você vai encontrar aqui o porquê do seu plano, os passos a seguir e as dicas do chef."
+  "Cuando tu plan esté listo, encontrarás aquí el porqué de tu plan, los pasos a seguir y los tips del chef.": "Quando seu plano estiver pronto, você vai encontrar aqui o porquê do seu plano, os passos a seguir e as dicas do chef.",
+  "Ver los rangos y cómo subir": "Ver os níveis e como subir",
+  "Tu rango": "Seu nível",
+  "{n} estrellas en total": {
+    "one": "{n} estrela no total",
+    "other": "{n} estrelas no total"
+  },
+  "Te faltan {n} para {rango}": {
+    "one": "Falta {n} para {rango}",
+    "other": "Faltam {n} para {rango}"
+  },
+  "Avance hacia {rango}": "Progresso até {rango}",
+  "Estás en la cima: llegaste a Diamante.": "Você está no topo: chegou ao Diamante.",
+  "semanas perfectas": {
+    "one": "semana perfeita",
+    "other": "semanas perfeitas"
+  },
+  "semanas a tu ritmo": {
+    "one": "semana no seu ritmo",
+    "other": "semanas no seu ritmo"
+  },
+  "cierra tu primera semana para ver tu ritmo": "feche sua primeira semana para ver seu ritmo",
+  "Los rangos": "Os níveis",
+  "Tu punto de partida": "Seu ponto de partida",
+  "Desde {n} estrellas": {
+    "one": "A partir de {n} estrela",
+    "other": "A partir de {n} estrelas"
+  },
+  "Conseguido": "Conquistado",
+  "Estás aquí": "Você está aqui",
+  "Faltan {n} ★": {
+    "one": "Falta {n} ★",
+    "other": "Faltam {n} ★"
+  },
+  "Cómo se ganan las estrellas": "Como se ganham as estrelas",
+  "Cada semana, según los días que cierras dentro de tu meta:": "Toda semana, pelos dias que você fecha dentro da sua meta:",
+  "{n} días en meta": {
+    "one": "{n} dia na meta",
+    "other": "{n} dias na meta"
+  },
+  "Las estrellas no se pierden: un día flojo solo deja de sumar.": "As estrelas não se perdem: um dia fraco só deixa de somar.",
+  "con 3 días en meta en una semana ganas la primera": "com 3 dias na meta numa semana você ganha a primeira"
 }

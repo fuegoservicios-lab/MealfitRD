@@ -4172,5 +4172,46 @@
   "Resumen de tu semana": "Il riepilogo della tua settimana",
   "El domingo por la mañana: cómo cerró tu semana y que empieza la siguiente.": "La domenica mattina: com’è andata la tua settimana e che inizia la prossima.",
   "La IA puede equivocarse; revisa lo importante": "L’IA può sbagliare: controlla ciò che conta",
-  "Cuando tu plan esté listo, encontrarás aquí el porqué de tu plan, los pasos a seguir y los tips del chef.": "Quando il tuo piano sarà pronto, troverai qui il perché del tuo piano, i passi da seguire e i consigli dello chef."
+  "Cuando tu plan esté listo, encontrarás aquí el porqué de tu plan, los pasos a seguir y los tips del chef.": "Quando il tuo piano sarà pronto, troverai qui il perché del tuo piano, i passi da seguire e i consigli dello chef.",
+  "Ver los rangos y cómo subir": "Vedi i ranghi e come salire",
+  "Tu rango": "Il tuo rango",
+  "{n} estrellas en total": {
+    "one": "{n} stella in totale",
+    "other": "{n} stelle in totale"
+  },
+  "Te faltan {n} para {rango}": {
+    "one": "Ne manca {n} per {rango}",
+    "other": "Ne mancano {n} per {rango}"
+  },
+  "Avance hacia {rango}": "Avanzamento verso {rango}",
+  "Estás en la cima: llegaste a Diamante.": "Sei in cima: hai raggiunto Diamante.",
+  "semanas perfectas": {
+    "one": "settimana perfetta",
+    "other": "settimane perfette"
+  },
+  "semanas a tu ritmo": {
+    "one": "settimana al tuo ritmo",
+    "other": "settimane al tuo ritmo"
+  },
+  "cierra tu primera semana para ver tu ritmo": "chiudi la tua prima settimana per vedere il tuo ritmo",
+  "Los rangos": "I ranghi",
+  "Tu punto de partida": "Il tuo punto di partenza",
+  "Desde {n} estrellas": {
+    "one": "Da {n} stella",
+    "other": "Da {n} stelle"
+  },
+  "Conseguido": "Ottenuto",
+  "Estás aquí": "Sei qui",
+  "Faltan {n} ★": {
+    "one": "Manca {n} ★",
+    "other": "Mancano {n} ★"
+  },
+  "Cómo se ganan las estrellas": "Come si guadagnano le stelle",
+  "Cada semana, según los días que cierras dentro de tu meta:": "Ogni settimana, in base ai giorni che chiudi dentro il tuo obiettivo:",
+  "{n} días en meta": {
+    "one": "{n} giorno nell’obiettivo",
+    "other": "{n} giorni nell’obiettivo"
+  },
+  "Las estrellas no se pierden: un día flojo solo deja de sumar.": "Le stelle non si perdono: un giorno storto semplicemente non conta.",
+  "con 3 días en meta en una semana ganas la primera": "con 3 giorni nell’obiettivo in una settimana guadagni la prima"
 }

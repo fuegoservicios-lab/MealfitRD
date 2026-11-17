@@ -564,13 +564,31 @@
 /* [P1-PLAN-LOTE-1059 · plan 1030] El rango (por estrellas totales, del servidor) pinta la insignia; la línea de texto
    va con tokens. La semana perfecta sigue mandando: dorada. */
 .rango {
-    margin: 0.1rem 0 0;
-    font-size: 0.75rem;
+    /* [P1-PLAN-LOTE-1068] Es un botón que abre la escalera: nombre con «›» y, DEBAJO, lo que falta (antes iba
+       detrás de un «·» y partía la línea en tres renglones). */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.05rem;
+    margin: 0.15rem 0 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 0.8125rem;
     font-weight: 600;
+    text-align: left;
     color: var(--text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
 }
+.rango:focus-visible, .insigniaBoton:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.rangoNombre { display: inline-flex; align-items: center; gap: 0.15rem; color: var(--primary); font-weight: 700; }
+.rango:hover .rangoNombre { color: var(--primary-dark); }
 
-.rangoFalta { font-weight: 500; }
+.rangoFalta { font-weight: 500; font-size: 0.75rem; }
+
+.insigniaBoton { border: 0; padding: 0; cursor: pointer; }
 
 .rango_bronce { background: linear-gradient(155deg, #D9A066 0%, #B87333 50%, #8C5523 100%); }
 .rango_plata { background: linear-gradient(155deg, #E5E7EB 0%, #9CA3AF 50%, #6B7280 100%); }

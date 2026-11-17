@@ -2131,3 +2131,6 @@
 
 /* [P1-PLAN-LOTE-1066] Los botones comunes de una fila no se encogen al faltar sitio. */
 .botonSinEncoger { flex-shrink: 0; }
+
+/* [P1-PLAN-LOTE-1068] Aire sobre la zona de peligro (antes en línea). */
+.zonaDePeligro { margin-top: 1.75rem; }

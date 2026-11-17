@@ -4571,7 +4571,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 DeleteAccountSection trae su propia card + confirmación.
                                 Aire generoso arriba: es destructiva, no debe leerse como
                                 parte del bloque de export. */}
-                            <div style={{ marginTop: '1.75rem' }}>
+                            <div className={styles.zonaDePeligro}>
                                 <DeleteAccountSection />
                             </div>
                         </section>

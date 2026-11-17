@@ -28,6 +28,7 @@ import {
 } from '../../utils/progresoDeLosDias';
 import { useResumenDeProgreso } from '../../hooks/useResumenDeProgreso';
 import { pedirSemanas } from '../../utils/progresoServidor';
+import EscaleraDeRangos from './EscaleraDeRangos';
 import CierreDeSemana from './CierreDeSemana';
 import styles from './SemanaEnProgreso.module.css';
 
@@ -59,6 +60,7 @@ const SemanaEnProgreso = ({
     // [P1-PLAN-LOTE-1059 · plan 1030] el juego según el SERVIDOR: su día 1 manda sobre lo deducido en este teléfono
     const servidor = useResumenDeProgreso(userId);
     const [semanasViejas, setSemanasViejas] = useState(null);
+    const [escaleraAbierta, setEscaleraAbierta] = useState(false);
 
     useEffect(() => {
         if (!userId) return undefined;
@@ -181,7 +183,20 @@ const SemanaEnProgreso = ({
             <div className={styles.cabecera}>
                 <div className={styles.nivel}>
                     {/* el número ya lo dice el título: la insignia lleva el trofeo (dorada con las 3 estrellas) */}
-                    <span className={`${styles.insignia} ${rango ? styles[`rango_${rango.clave}`] || '' : ''}`} aria-hidden="true"><Trophy key={semana} size={22} strokeWidth={2.25} /></span>
+                    {/* [P1-PLAN-LOTE-1068] Con rango, la insignia abre la escalera de rangos (petición del dueño). */}
+                    {rango ? (
+                        <button
+                            type="button"
+                            className={`${styles.insignia} ${styles.insigniaBoton} ${styles[`rango_${rango.clave}`] || ''}`}
+                            onClick={() => setEscaleraAbierta(true)}
+                            aria-label={t('Ver los rangos y cómo subir')}
+                            aria-haspopup="dialog"
+                        >
+                            <Trophy key={semana} size={22} strokeWidth={2.25} aria-hidden="true" />
+                        </button>
+                    ) : (
+                        <span className={styles.insignia} aria-hidden="true"><Trophy key={semana} size={22} strokeWidth={2.25} /></span>
+                    )}
                     <div className={styles.nivelTexto}>
                         <h3 className={styles.titulo}>{titulo}</h3>
                         <p className={styles.sub}>
@@ -190,18 +205,20 @@ const SemanaEnProgreso = ({
                                 : `${fechaCorta(dias[0].iso)} – ${fechaCorta(dias[DIAS_DE_LA_SEMANA - 1].iso)}`}
                         </p>
                         {rango && (
-                            <p className={styles.rango}>
-                                {t('Rango {rango}', { rango: nombreDelRango(rango.clave) })}
+                            <button type="button" className={styles.rango} onClick={() => setEscaleraAbierta(true)} aria-haspopup="dialog">
+                                <span className={styles.rangoNombre}>
+                                    {t('Rango {rango}', { rango: nombreDelRango(rango.clave) })}
+                                    <ChevronRight size={14} strokeWidth={2.5} aria-hidden="true" />
+                                </span>
                                 {rango.siguiente && rango.estrellas_para_el_siguiente > 0 && (
                                     <span className={styles.rangoFalta}>
-                                        {' · '}
                                         {tn(rango.estrellas_para_el_siguiente,
                                             'Te falta {n} estrella para {rango}',
                                             'Te faltan {n} estrellas para {rango}',
                                             { n: rango.estrellas_para_el_siguiente, rango: nombreDelRango(rango.siguiente) })}
                                     </span>
                                 )}
-                            </p>
+                            </button>
                         )}
                     </div>
                 </div>
@@ -210,6 +227,14 @@ const SemanaEnProgreso = ({
 
             {/* [P1-PLAN-LOTE-1059 · plan 1035] cierre de semana e hitos: una vez, y se marcan vistos en el servidor */}
             <CierreDeSemana userId={userId} eventos={servidor?.eventos} />
+            {rango && (
+                <EscaleraDeRangos
+                    abierta={escaleraAbierta}
+                    onCerrar={() => setEscaleraAbierta(false)}
+                    estrellas={Number(servidor?.total?.estrellas) || 0}
+                    semanasCerradas={Math.max(0, (Number(servidor?.total?.semanas) || 1) - 1)}
+                />
+            )}
 
             <div className={styles.resumen}>
                 <span

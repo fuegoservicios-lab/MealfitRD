@@ -1,0 +1,210 @@
+/* [P1-PLAN-LOTE-1068 · 2026-11-17] La escalera de rangos. Solo tokens; los metales son los MISMOS degradados de la
+   insignia de la semana (composes), para que el rango se vea igual en la tarjeta y aquí. Nada se mueve al pasar el
+   ratón; las dos animaciones (raíl y barra) se apagan con movimiento reducido. */
+.hoja {
+    position: relative;
+    /* El Modal no limita la altura de su contenido: la hoja es más alta que un teléfono de 844 px y su cabecera
+       quedaba FUERA de la pantalla. Se desplaza dentro de sí misma. */
+    max-height: min(88dvh, 780px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 1.5rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+    color: var(--text-main);
+}
+
+/* ── Cabecera: tu gema, tu rango y la barra hacia el siguiente ── */
+.cabecera { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.antetitulo {
+    margin: 0.75rem 0 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.titulo { margin: 0.15rem 0 0; font-size: 1.875rem; font-weight: 800; line-height: 1.1; }
+.total {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0.4rem 0 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.gema {
+    position: relative;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 44px;
+    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+    color: white;
+}
+.gema::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    clip-path: inherit;
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 55%);
+}
+.gema svg { position: relative; }
+.gemaGrande { width: 76px; height: 84px; }
+.gemaGrande::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.5) 50%, transparent 65%);
+    transform: translateX(-120%);
+    animation: destello 4.5s ease-in-out 0.6s infinite;
+}
+
+.metal_bronce { composes: rango_bronce from './SemanaEnProgreso.module.css'; }
+.metal_plata { composes: rango_plata from './SemanaEnProgreso.module.css'; }
+.metal_oro { composes: rango_oro from './SemanaEnProgreso.module.css'; }
+.metal_platino { composes: rango_platino from './SemanaEnProgreso.module.css'; }
+.metal_diamante { composes: rango_diamante from './SemanaEnProgreso.module.css'; }
+
+.progreso { width: 100%; margin-top: 1.1rem; }
+.progresoTexto {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.progresoFalta { color: var(--text-main); font-weight: 700; font-size: 0.8125rem; }
+.barra {
+    position: relative;
+    height: 10px;
+    margin-top: 0.4rem;
+    border-radius: var(--radius-full);
+    background: var(--surface-sunken);
+    overflow: hidden;
+}
+.barraRelleno {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: calc(var(--avance) * 100%);
+    min-width: 10px;
+    border-radius: inherit;
+    animation: crecer 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: left center;
+}
+.cima { margin: 1rem 0 0; font-size: 0.9375rem; color: var(--text-muted); }
+
+/* ── El camino en semanas ── */
+.camino {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    margin-top: 1.1rem;
+}
+.caminoDato {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    padding: 0.75rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-card);
+    text-align: center;
+}
+.caminoNumero { font-size: 1.5rem; font-weight: 800; line-height: 1.1; color: var(--primary); font-variant-numeric: tabular-nums; }
+.caminoTexto { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); line-height: 1.3; }
+
+/* ── La escalera: de Diamante (arriba) a Bronce (abajo), con un raíl que se llena desde abajo ── */
+.escalera {
+    position: relative;
+    list-style: none;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.escalera::before,
+.escalera::after {
+    content: '';
+    position: absolute;
+    left: 31px;
+    width: 3px;
+    border-radius: var(--radius-full);
+    bottom: 28px;
+}
+.escalera::before { top: 28px; background: var(--border); }
+.escalera::after {
+    height: calc((100% - 56px) * var(--relleno));
+    background: var(--primary);
+    animation: subir 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: bottom center;
+}
+
+.peldano {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem 0.75rem 0.55rem 0.7rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-lg);
+}
+.peldanoTexto { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.peldanoNombre { font-size: 1rem; font-weight: 700; }
+.peldanoDesde { font-size: 0.8125rem; color: var(--text-muted); }
+.peldanoEstado {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.actual {
+    border-color: var(--primary-light);
+    background: color-mix(in srgb, var(--primary) 9%, var(--surface-card));
+    box-shadow: var(--cta-shadow);
+}
+.actual .peldanoEstado {
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--radius-full);
+    background: var(--primary-fill);
+    color: white;
+}
+.logrado .peldanoEstado { color: var(--primary); }
+.bloqueado .gema { filter: grayscale(0.85) brightness(0.9); opacity: 0.55; }
+.bloqueado .peldanoNombre { color: var(--text-muted); }
+
+/* ── Cómo se ganan ── */
+.reglas {
+    margin-top: 1.25rem;
+    padding: 1rem;
+    border-radius: var(--radius-lg);
+    background: var(--surface-sunken);
+}
+.reglasTitulo { margin: 0; font-size: 0.9375rem; font-weight: 700; }
+.reglasTexto { margin: 0.3rem 0 0.6rem; font-size: 0.8125rem; color: var(--text-muted); }
+.reglasLista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.regla { display: flex; align-items: center; gap: 0.6rem; font-size: 0.875rem; font-weight: 600; }
+.reglaEstrellas { display: inline-flex; gap: 2px; }
+.reglasNota { margin: 0.7rem 0 0; font-size: 0.75rem; color: var(--text-muted); }
+
+.estrellaLlena { composes: estrellaGanada from './SemanaEnProgreso.module.css'; }
+.estrellaVacia { color: color-mix(in srgb, var(--text-muted) 45%, transparent); }
+
+@keyframes crecer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes subir { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes destello { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .barraRelleno, .escalera::after, .gemaGrande::after { animation: none; }
+}
