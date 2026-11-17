@@ -56,7 +56,7 @@ describe('[P1-PLAN-LOTE-1059] la tarjeta con el día 1 del servidor', () => {
         fetchWithAuth.mockImplementation(respuestas(RESUMEN));
         montar();
         expect(await screen.findByText('Rango Bronce')).toBeInTheDocument();
-        expect(screen.getByText(/Te faltan 7 estrellas para Plata/)).toBeInTheDocument();
+        expect(screen.getByText(/Faltan 7 ★ para Plata/)).toBeInTheDocument();
     });
 
     it('sin red, pinta con el resumen guardado', async () => {

@@ -4157,10 +4157,6 @@
   "Llegaste a la Semana {n}": "You reached Week {n}",
   "Sigue sumando días.": "Keep adding days.",
   "Tus semanas": "Your weeks",
-  "Te faltan {n} estrellas para {rango}": {
-    "one": "{n} more star for {rango}",
-    "other": "{n} more stars for {rango}"
-  },
   "{n} estrellas": {
     "one": "{n} star",
     "other": "{n} stars"
@@ -4213,5 +4209,9 @@
     "other": "{n} days on goal"
   },
   "Las estrellas no se pierden: un día flojo solo deja de sumar.": "Stars never go away: an off day just doesn't add.",
-  "con 3 días en meta en una semana ganas la primera": "with 3 days on goal in a week you earn the first"
+  "con 3 días en meta en una semana ganas la primera": "with 3 days on goal in a week you earn the first",
+  "Faltan {n} ★ para {rango}": {
+    "one": "{n} ★ to {rango}",
+    "other": "{n} ★ to {rango}"
+  }
 }

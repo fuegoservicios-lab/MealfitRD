@@ -4157,10 +4157,6 @@
   "Llegaste a la Semana {n}": "Vous avez atteint la semaine {n}",
   "Sigue sumando días.": "Continuez à cumuler les jours.",
   "Tus semanas": "Vos semaines",
-  "Te faltan {n} estrellas para {rango}": {
-    "one": "Encore {n} étoile pour {rango}",
-    "other": "Encore {n} étoiles pour {rango}"
-  },
   "{n} estrellas": {
     "one": "{n} étoile",
     "other": "{n} étoiles"
@@ -4213,5 +4209,9 @@
     "other": "{n} jours dans l’objectif"
   },
   "Las estrellas no se pierden: un día flojo solo deja de sumar.": "Les étoiles ne se perdent pas : un jour moins bon ne compte simplement pas.",
-  "con 3 días en meta en una semana ganas la primera": "avec 3 jours dans l’objectif en une semaine, vous gagnez la première"
+  "con 3 días en meta en una semana ganas la primera": "avec 3 jours dans l’objectif en une semaine, vous gagnez la première",
+  "Faltan {n} ★ para {rango}": {
+    "one": "Encore {n} ★ pour {rango}",
+    "other": "Encore {n} ★ pour {rango}"
+  }
 }

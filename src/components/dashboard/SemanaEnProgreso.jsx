@@ -213,8 +213,9 @@ const SemanaEnProgreso = ({
                                 {rango.siguiente && rango.estrellas_para_el_siguiente > 0 && (
                                     <span className={styles.rangoFalta}>
                                         {tn(rango.estrellas_para_el_siguiente,
-                                            'Te falta {n} estrella para {rango}',
-                                            'Te faltan {n} estrellas para {rango}',
+                                            // [P1-PLAN-LOTE-1068] corto: junto al botón del calendario la frase larga partía «Oro» a otra línea
+                                            'Falta {n} ★ para {rango}',
+                                            'Faltan {n} ★ para {rango}',
                                             { n: rango.estrellas_para_el_siguiente, rango: nombreDelRango(rango.siguiente) })}
                                     </span>
                                 )}
