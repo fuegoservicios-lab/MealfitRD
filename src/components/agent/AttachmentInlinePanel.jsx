@@ -27,6 +27,9 @@ export function AttachmentInlinePanel({ open, onClose, onGallery, onCamera, trig
             if (!dentro) onCloseRef.current();
         };
         const tecla = (e) => { if (e.key === 'Escape') { e.preventDefault(); onCloseRef.current(); } };
+        // [P1-PLAN-LOTE-1053] Un toque FUERA (también el que empieza un scroll de la conversación) lo cierra. El arrastre
+        // que lo dejaba abierto empezaba SOBRE el panel, y ese lo frena el CSS (`touch-action: none`). No se escucha
+        // `scroll`: la lista se recoloca sola al abrirse el panel y lo cerraría nada más abrir.
         document.addEventListener('pointerdown', fuera, true);
         document.addEventListener('keydown', tecla);
         return () => {

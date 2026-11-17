@@ -147,3 +147,14 @@ describe('[1050] «Compartir»: nuestro selector de foto', () => {
         await waitFor(() => expect(takeNativeChatPhoto).toHaveBeenCalledWith({ lado: 2400 }));
     });
 });
+
+describe('[1053] arrastrar sobre el panel no panea la página', () => {
+    it('el panel no deja arrastrar (touch-action: none) y no se cierra solo con un scroll programático', () => {
+        const css = leer('components/agent/AttachmentInlinePanel.css').replace(/\/\*[\s\S]*?\*\//g, '');
+        const regla = css.match(/\.attach-inline\s*\{([^}]*)\}/)[1];
+        expect(regla).toMatch(/touch-action:\s*none/);
+        expect(regla).toMatch(/overscroll-behavior:\s*contain/);
+        const codigo = leer('components/agent/AttachmentInlinePanel.jsx').replace(/^\s*\/\/.*$/gm, '');
+        expect(codigo).not.toMatch(/addEventListener\('scroll'/);
+    });
+});

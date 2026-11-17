@@ -20,6 +20,10 @@
     box-shadow: 0 -10px 30px -12px rgba(2, 6, 23, 0.45);
     animation: attach-inline-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
     transform-origin: bottom center;
+    /* [P1-PLAN-LOTE-1053] un arrastre sobre el panel no desplaza nada: con el teclado abierto, el WebView de iOS lo usaba
+       para panear la página entera (lote 115) y el cursor del cuadro quedaba desplazado */
+    touch-action: none;
+    overscroll-behavior: contain;
 }
 
 @keyframes attach-inline-in {
