@@ -636,7 +636,7 @@ const AgentPage = () => {
     // [P1-SETTINGS-DIALOG · 2026-08-10] Ubicación de fondo para abrir la
     // configuración como ventana sin desmontar la conversación.
     const location = useLocation();
-    const { setLocale } = useI18n();   // [P1-PLAN-LOTE-900] «cámbiala a inglés»
+    const { setLocale, locale: localeActivo, catalogVersion } = useI18n();   // [P1-PLAN-LOTE-900] «cámbiala a inglés»
     const isAgentRouteActive = location.pathname.startsWith('/dashboard/agent');
     const [titlePollCount, setTitlePollCount] = useState(0);
     const [showNavMenu, setShowNavMenu] = useState(false);
@@ -5788,10 +5788,18 @@ const AgentPage = () => {
     }, [chatSessions]);
 
     // Rotulado fuera del memo: barato y siempre en el idioma activo.
-    const ETIQUETA_GRUPO = { hoy: t('Hoy'), '30dias': '', antiguos: t('Más antiguos') };
-    const gruposConEtiqueta = groupedSessions.map(
-        (g) => ({ ...g, label: ETIQUETA_GRUPO[g.id] ?? '' })
-    );
+    // [P1-PLAN-LOTE-1055] …y memorizado por sus etiquetas (cadenas: cambian con el idioma), para que «Recientes»
+    // (React.memo) no se repinte en cada tecla. Por lo mismo, las funciones que recibe van con identidad estable.
+    const etiquetaHoy = t('Hoy');
+    const etiquetaAntiguos = t('Más antiguos');
+    const gruposConEtiqueta = useMemo(() => {
+        const ETIQUETA_GRUPO = { hoy: etiquetaHoy, '30dias': '', antiguos: etiquetaAntiguos };
+        return groupedSessions.map((g) => ({ ...g, label: ETIQUETA_GRUPO[g.id] ?? '' }));
+    }, [groupedSessions, etiquetaHoy, etiquetaAntiguos]);
+    const handleNewChatEstable = useStableCallback(handleNewChat);
+    const handleVolverAHoyEstable = useStableCallback(handleVolverAHoy);
+    const handleDeleteChatEstable = useStableCallback(handleDeleteChat);
+    const setCurrentSessionIdEstable = useStableCallback(setCurrentSessionId);
     // [P1-PLAN-LOTE-411] los atajos: en el teléfono y sin escribir.
     // [P1-PLAN-LOTE-691 · 2026-09-28] Antes solo con el hilo recién empezado (≤4 mensajes): el chat del día nace con
     // los avisos del coach (desayuno, almuerzo, merienda, cena), así que a media tarde ya pasaba de 4 y «Escanear mi
@@ -5869,9 +5877,27 @@ const AgentPage = () => {
         enLinea: isOnline,
         firmaDescartada: _descartadoActual,
     });
-    const visibleMessages = _ocultarCorteEnCurso
+    const visibleMessages = useMemo(() => (_ocultarCorteEnCurso
         ? mensajesVisiblesParaElUsuario(messages, true)
-        : messages;
+        : messages), [_ocultarCorteEnCurso, messages]);   // [P1-PLAN-LOTE-1055] identidad estable para `burbujasDelHilo`
+    // [P1-PLAN-LOTE-1055 · 2026-11-17] Las burbujas del hilo, memorizadas. El chat se vuelve a pintar en CADA tecla; antes
+    // eso recorría todos los mensajes calculando el separador de día (dos fechas por mensaje) y creando un elemento por
+    // burbuja, aunque cada `MemoizedMessageBubble` terminara sin repintarse. Medido en el arnés (desarrollo, CPU ×4, 40
+    // mensajes): era el bloque más caro de cada tecla. Ahora solo se rehace cuando cambian los mensajes, la sesión, el
+    // idioma o el momento del día (`welcomeClockKey`: «Hoy»/«Ayer» dependen de la fecha de hoy).
+    const burbujasDelHilo = useMemo(() => visibleMessages.map((msg, i) => (
+        <MemoizedMessageBubble
+            key={i}
+            msg={msg}
+            index={i}
+            currentSessionId={currentSessionId}
+            onRegenerate={handleRegenerate}
+            onErrorRetry={retryErrorMessage}
+            daySeparator={daySeparatorLabel(msg, previousDatedMessage(visibleMessages, i), { t, formatDate })}
+            puedeRegenerar={respondeAlUsuario(visibleMessages, i)}
+        />
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- idioma y día cambian `t`/`formatDate` sin cambiar su identidad
+    )), [visibleMessages, currentSessionId, handleRegenerate, retryErrorMessage, localeActivo, catalogVersion, welcomeClockKey]);
     const showCoachPensando = isLoading || recoveringTurn || _ocultarCorteEnCurso;
     const coachPensandoStatus = (recoveringTurn || _ocultarCorteEnCurso) && !isLoading
         ? t('Recuperando tu respuesta…')
@@ -6402,15 +6428,16 @@ const AgentPage = () => {
                 <SidebarRecientes
                     showSidebar={showSidebar}
                     setShowSidebar={setShowSidebar}
-                    handleNewChat={handleNewChat}
+                    handleNewChat={handleNewChatEstable}
                     chatDeOtroDia={chatDeOtroDia}
-                    onVolverAHoy={handleVolverAHoy}
+                    onVolverAHoy={handleVolverAHoyEstable}
                     isLoadingSessions={isLoadingSessions}
                     chatSessions={chatSessions}
                     groupedSessions={gruposConEtiqueta}
                     currentSessionId={currentSessionId}
-                    setCurrentSessionId={setCurrentSessionId}
-                    handleDeleteChat={handleDeleteChat}
+                    setCurrentSessionId={setCurrentSessionIdEstable}
+                    handleDeleteChat={handleDeleteChatEstable}
+                    relojDelDia={welcomeClockKey}
                     isLoading={isTurnActive}
                     isMobile={isMobile}
                     sidebarRef={sidebarRef}
@@ -6802,20 +6829,7 @@ const AgentPage = () => {
                                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: 'var(--text-muted)', gap: '0.5rem' }}>
                                         <Loader2 className="spin-fast" size={20} /> {t('Cargando mensajes...')}
                                     </div>
-                                ) : (
-                                    visibleMessages.map((msg, i) => (
-                                        <MemoizedMessageBubble
-                                            key={i}
-                                            msg={msg}
-                                            index={i}
-                                            currentSessionId={currentSessionId}
-                                            onRegenerate={handleRegenerate}
-                                            onErrorRetry={retryErrorMessage}
-                                            daySeparator={daySeparatorLabel(msg, previousDatedMessage(visibleMessages, i), { t, formatDate })}
-                                            puedeRegenerar={respondeAlUsuario(visibleMessages, i)}
-                                        />
-                                    ))
-                                )}
+                                ) : burbujasDelHilo}
                                 {showCoachPensando && (
                                     /* [COACH-EMBLEMA · 2026-11-13] La espera dice solo cosas ciertas: el estado que
                                        reporta el servidor (`streamingStatus`, ya traducido por fase) o, sin él, una

@@ -14,7 +14,7 @@
 // Contrato nuevo: la altura es FUNCIÓN del estado, no efecto colateral de un
 // evento. `useAutosizeTextarea` re-mide en cada commit donde cambia la firma
 // (valor + lo que altere el ancho disponible) y ante `resize` de la ventana.
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 
 /** Techo del auto-resize: ≈5 líneas; a partir de ahí, scroll interno. */
 export const CHAT_TEXTAREA_MAX_HEIGHT_PX = 120;
@@ -53,11 +53,29 @@ export function autosizeTextarea(el, maxHeightPx = CHAT_TEXTAREA_MAX_HEIGHT_PX) 
  *   valor escalar mantiene el array de deps estable para el linter.
  * @param {number} [maxHeightPx]
  */
+/**
+ * [P1-PLAN-LOTE-1055 · 2026-11-17] ¿Basta con MIRAR? Al teclear al final, el texto solo puede crecer: si con el mismo
+ * ancho todavía cabe en la altura que ya tiene, no hay nada que cambiar. `autosizeTextarea` pone `height:auto` para
+ * poder medir, y eso descoloca toda la página dos veces por tecla (una al medir y otra al devolverle la altura): en el
+ * arnés de producción era el 28 % del trabajo de cada tecla. Aquí solo se lee; cualquier otro caso (borrar, enviar, pegar
+ * en medio, otro ancho, no cabe) va por el camino completo de siempre.
+ */
+function bastaConMirar(el, previo) {
+    if (!el || !previo || !el.style.height) return false;
+    const valor = el.value;
+    if (valor.length < previo.valor.length || !valor.startsWith(previo.valor)) return false;
+    if (el.clientWidth !== previo.ancho) return false;
+    return el.scrollHeight <= el.clientHeight;
+}
+
 export function useAutosizeTextarea(ref, signature, maxHeightPx = CHAT_TEXTAREA_MAX_HEIGHT_PX) {
+    const previoRef = useRef(null);
     // useLayoutEffect: la remedida ocurre antes del paint → cero flicker al
     // teclear (el usuario nunca ve el frame con la altura vieja).
     useLayoutEffect(() => {
-        autosizeTextarea(ref.current, maxHeightPx);
+        const el = ref.current;
+        if (!bastaConMirar(el, previoRef.current)) autosizeTextarea(el, maxHeightPx);
+        previoRef.current = el ? { valor: el.value, ancho: el.clientWidth } : null;
     }, [ref, signature, maxHeightPx]);
 
     // Rotación del dispositivo / redimensionar la ventana cambian cuántas

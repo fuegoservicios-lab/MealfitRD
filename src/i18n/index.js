@@ -63,6 +63,7 @@ import { isApexHost } from '../config/site';
 // apex (`@sentry` fuera del entry, `landing_apex_antipatterns.md`).
 import { etiquetarIdioma, captureException } from '../utils/observability';
 import { trackEvent } from '../utils/analytics';
+import { formateadorDeFecha, formateadorDeNumero } from './formateadores';
 
 // ---------------------------------------------------------------------------
 // Cargadores de catálogo
@@ -395,7 +396,7 @@ export function formatDate(value, options) {
     try {
         const d = value instanceof Date ? value : new Date(value);
         if (Number.isNaN(d.getTime())) return '';
-        return new Intl.DateTimeFormat(_locale, options).format(d);
+        return formateadorDeFecha(_locale, options).format(d);   // [P1-PLAN-LOTE-1055] reutilizado
     } catch {
         return '';
     }
@@ -444,7 +445,7 @@ export function formatCurrency(value, code = 'USD', options) {
     const n = Number(value);
     if (!Number.isFinite(n)) return '';
     try {
-        return new Intl.NumberFormat(_locale, { style: 'currency', currency: code, ...(options || {}) }).format(n);
+        return formateadorDeNumero(_locale, { style: 'currency', currency: code, ...(options || {}) }).format(n);
     } catch {
         // Degrada al formato de siempre antes que dejar el precio en blanco.
         return `US$${n.toFixed(2)}`;
@@ -504,7 +505,7 @@ export function formatNumber(value, options) {
     const n = Number(value);
     if (!Number.isFinite(n)) return '';
     try {
-        return new Intl.NumberFormat(_locale, options).format(n);
+        return formateadorDeNumero(_locale, options).format(n);
     } catch {
         return String(n);
     }
@@ -522,7 +523,7 @@ export function formatPercent(points, options) {
     const n = Number(points);
     if (!Number.isFinite(n)) return '';
     try {
-        return new Intl.NumberFormat(_locale, { style: 'percent', maximumFractionDigits: 0, ...(options || {}) }).format(n / 100);
+        return formateadorDeNumero(_locale, { style: 'percent', maximumFractionDigits: 0, ...(options || {}) }).format(n / 100);
     } catch {
         return `${n}%`;
     }

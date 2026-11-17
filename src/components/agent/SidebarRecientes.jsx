@@ -4,7 +4,12 @@ import { formatDate, useT } from '../../i18n';
 import CuentaRegresivaChat from './CuentaRegresivaChat';
 import { nuevoChatBloqueado, diaAlElegir } from '../../utils/chatSessionDay';
 
-export const SidebarRecientes = ({
+// [P1-PLAN-LOTE-1055 · 2026-11-17] Memorizado: el chat se vuelve a pintar en CADA tecla y en cada trozo de la respuesta, y
+// esta lista (oculta casi siempre en el teléfono) se repintaba entera con él — con un `formatDate` por chat. Medido en el
+// arnés de producción: ~12 % del trabajo de cada tecla. El chat le pasa funciones de identidad estable
+// (`useStableCallback`) y los grupos memorizados; `relojDelDia` (sin usar aquí) la repinta al cambiar el momento del día,
+// que es cuando `nuevoChatBloqueado` puede cambiar de respuesta sin que cambie otra prop.
+const SidebarRecientesBase = ({
     showSidebar,
     setShowSidebar,
     handleNewChat,
@@ -353,3 +358,5 @@ export const SidebarRecientes = ({
         </div>
     );
 };
+
+export const SidebarRecientes = React.memo(SidebarRecientesBase);

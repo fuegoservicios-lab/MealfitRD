@@ -71,7 +71,8 @@ describe('AgentPage: reanudación instantánea sin flash de "Sin conexión"', ()
         expect(src).toContain('setTimeout(_poll, 0)');
         expect(src).toContain('const _despertarAlVolver = () => {');
         expect(src).toContain('_prefetchedHistoryRef.current');
-        expect(src).toContain('const visibleMessages = _ocultarCorteEnCurso');
+        // [P1-PLAN-LOTE-1055] ahora memorizado (`useMemo`), misma derivación
+        expect(src).toMatch(/const visibleMessages = (useMemo\(\(\) => \()?_ocultarCorteEnCurso/);
         expect(src).toContain('isLoading={showCoachPensando}');
         expect(ESPERA_TRAS_VOLVER_MS).toBeLessThanOrEqual(1000);
     });
