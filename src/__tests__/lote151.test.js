@@ -43,6 +43,8 @@ describe('lote 151 · el velo del ratón tiene la forma del control', () => {
                 while (fin < lineas.length - 1 && !/^\s*\/?>/.test(lineas[fin])) fin++;
                 const cuerpo = lineas.slice(ini, fin + 1).join('\n');
                 if (/borderRadius|border-radius|className/.test(cuerpo)) continue;
+                // [P1-PLAN-LOTE-1066] El botón común trae su radio en Button.module.css (`--radius-lg`).
+                if (/<Button\b/.test(cuerpo)) continue;
                 // `style={{ ...algo }}`: vale si ESE objeto lleva el radio
                 const esparcidos = [...cuerpo.matchAll(/\.\.\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]);
                 const heredado = esparcidos.some((nombre) => {

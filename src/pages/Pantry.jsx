@@ -53,6 +53,7 @@ import { BrandSelect } from '../components/pantry/BrandSelect';
 // (los tokens var(--*) ya existen en index.css). Sustituye la metáfora de
 // "electrodoméstico físico" anterior; misma lógica/handlers/datos reales.
 import fstyles from './Pantry.fridge.module.css';
+import Button from '../components/ui/Button';
 // [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] Layout móvil dedicado (tarjeta por
 // alimento) — se elige por breakpoint JS, no por container query.
 import mstyles from './Pantry.mobileFridge.module.css';
@@ -3372,22 +3373,16 @@ const PantryPage = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                            <button data-hover="fila"
+                                            {/* [P1-PLAN-LOTE-1066] Botón común: abierto = principal índigo (antes un degradado
+                                                celeste propio), cerrado = secundario. El clic lo recibe la fila. */}
+                                            <Button
+                                                variant={isPickerOpen ? 'primary' : 'secondary'}
+                                                size="sm"
+                                                data-hover="fila"
                                                 disabled={isAdding}
-                                                style={{
-                                                    background: isPickerOpen
-                                                        ? 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)'
-                                                        : 'var(--bg-muted)',
-                                                    color: isPickerOpen ? 'white' : 'var(--secondary)',
-                                                    border: isPickerOpen ? 'none' : '1px solid var(--border)',
-                                                    padding: '0.5rem 1rem',
-                                                    borderRadius: '99px', fontWeight: 700, cursor: 'pointer',
-                                                    boxShadow: isPickerOpen ? '0 4px 12px -2px rgba(14, 165, 233, 0.45)' : 'none',
-                                                    whiteSpace: 'nowrap',
-                                                }}
                                             >
                                                 {isPickerOpen ? t('Cerrar') : t('Elegir')}
-                                            </button>
+                                            </Button>
                                         </div>
 
                                         <AnimatePresence initial={false}>
@@ -3436,10 +3431,10 @@ const PantryPage = () => {
                                                                     onClick={() => setPickerQty(q => Math.min(999, q + 1))}
                                                                     style={{
                                                                         border: 'none',
-                                                                        background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)',
+                                                                        background: 'var(--primary-fill)', // [P1-PLAN-LOTE-1066] acción = índigo sólido (antes degradado celeste)
                                                                         color: 'white', borderRadius: '99px', padding: '0.5rem',
                                                                         cursor: 'pointer', touchAction: 'manipulation',
-                                                                        boxShadow: '0 4px 12px -2px rgba(14, 165, 233, 0.45)',
+                                                                        boxShadow: 'var(--cta-shadow)',
                                                                     }}
                                                                     aria-label={t('Aumentar cantidad')}
                                                                 >
@@ -3477,9 +3472,9 @@ const PantryPage = () => {
                                                                                 style={{
                                                                                     padding: '0.45rem 0.9rem',
                                                                                     borderRadius: '99px',
-                                                                                    border: isActive ? '2px solid #0EA5E9' : '1px solid var(--border)',
-                                                                                    background: isActive ? 'rgba(14, 165, 233, 0.08)' : 'var(--bg-card)',
-                                                                                    color: isActive ? 'var(--ink-dairy)' : 'var(--text-main)',
+                                                                                    border: isActive ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                                                                    background: isActive ? 'color-mix(in srgb, var(--primary) 8%, transparent)' : 'var(--bg-card)',
+                                                                                    color: isActive ? 'var(--primary)' : 'var(--text-main)',
                                                                                     fontWeight: isActive ? 700 : 500,
                                                                                     fontSize: '0.85rem',
                                                                                     cursor: 'pointer',
@@ -3535,22 +3530,9 @@ const PantryPage = () => {
                                                         )}
 
                                                         {/* Preview + Botón confirmar */}
-                                                        <button data-hover="boton"
-                                                            type="button"
+                                                        <Button variant="primary" block data-hover="boton"
                                                             disabled={isAdding}
                                                             onClick={() => handleAddNewItem(item, pickerQty, pickerUnit)}
-                                                            style={{
-                                                                width: '100%',
-                                                                padding: '0.9rem 1rem',
-                                                                background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)',
-                                                                color: 'white', border: 'none', borderRadius: '1rem',
-                                                                fontWeight: 800, fontSize: '1rem',
-                                                                cursor: isAdding ? 'wait' : 'pointer',
-                                                                opacity: isAdding ? 0.7 : 1,
-                                                                boxShadow: '0 6px 18px -4px rgba(14, 165, 233, 0.55)',
-                                                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                                                touchAction: 'manipulation',
-                                                            }}
                                                         >
                                                             {isAdding ? (
                                                                 <><Loader2 size={18} className="spin-fast" /> {t('Añadiendo…')}</>
@@ -3559,7 +3541,7 @@ const PantryPage = () => {
                                                             ) : (
                                                                 <><Plus size={18} strokeWidth={3} /> {t('Añadir {cantidad} {unidad}{marca} a la nevera', { cantidad: pickerQty, unidad: pickerUnit, marca: pickerBrand ? ` · ${pickerBrand}` : '' })}</>
                                                             )}
-                                                        </button>
+                                                        </Button>
                                                     </div>
                                                 </motion.div>
                                             )}
@@ -3579,7 +3561,7 @@ const PantryPage = () => {
                                 {catalogError && suggestedMasterItems.length === 0 && (
                                     <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }} role="status">
                                         <div>{t('No pudimos cargar los alimentos. Vuelve a intentarlo.')}</div>
-                                        <button type="button" onClick={ensureCatalog} style={{ marginTop: '0.75rem', padding: '0.7rem 1rem', borderRadius: '0.75rem', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)' }}>{t('Reintentar')}</button>
+                                        <Button variant="secondary" onClick={ensureCatalog} className={fstyles.reintentarCatalogo}>{t('Reintentar')}</Button>
                                     </div>
                                 )}
                                 {addItemSearch.trim() && suggestedMasterItems.length === 0 && !catalogLoading && masterList.length > 0 && (
@@ -3747,11 +3729,11 @@ const PantryPage = () => {
                                     disabled={qtyEditSaving || qtyEditValue >= 999}
                                     style={{
                                         border: 'none',
-                                        background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)',
+                                        background: 'var(--primary-fill)', // [P1-PLAN-LOTE-1066] acción = índigo sólido (antes degradado celeste)
                                         color: 'white', borderRadius: '99px', width: '3rem', height: '3rem',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                         cursor: qtyEditSaving || qtyEditValue >= 999 ? 'not-allowed' : 'pointer',
-                                        boxShadow: '0 4px 14px -2px rgba(14, 165, 233, 0.5)',
+                                        boxShadow: 'var(--cta-shadow)',
                                         touchAction: 'manipulation',
                                     }}
                                     aria-label={t('Aumentar cantidad')}
@@ -3774,9 +3756,9 @@ const PantryPage = () => {
                                         style={{
                                             padding: '0.35rem 0.85rem',
                                             borderRadius: '99px',
-                                            border: qtyEditValue === preset ? '2px solid #0EA5E9' : '1px solid var(--border)',
-                                            background: qtyEditValue === preset ? 'rgba(14, 165, 233, 0.08)' : 'var(--bg-card)',
-                                            color: qtyEditValue === preset ? 'var(--ink-dairy)' : 'var(--text-muted)',
+                                            border: qtyEditValue === preset ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                            background: qtyEditValue === preset ? 'color-mix(in srgb, var(--primary) 8%, transparent)' : 'var(--bg-card)',
+                                            color: qtyEditValue === preset ? 'var(--primary)' : 'var(--text-muted)',
                                             fontWeight: qtyEditValue === preset ? 700 : 500,
                                             fontSize: '0.85rem', cursor: 'pointer',
                                             touchAction: 'manipulation',
@@ -3802,20 +3784,13 @@ const PantryPage = () => {
 
                             {/* Botones */}
                             <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                <button data-hover="fila"
-                                    type="button"
+                                <Button variant="secondary" className={fstyles.qtyCancelar} data-hover="fila"
                                     onClick={() => setQtyEditItem(null)}
                                     disabled={qtyEditSaving}
-                                    style={{
-                                        flex: 1, padding: '0.9rem', background: 'var(--bg-muted)',
-                                        color: 'var(--text-main)', border: 'none', borderRadius: '0.9rem',
-                                        fontWeight: 700, cursor: qtyEditSaving ? 'not-allowed' : 'pointer',
-                                    }}
                                 >
                                     {t('Cancelar')}
-                                </button>
-                                <button data-hover="boton"
-                                    type="button"
+                                </Button>
+                                <Button variant="primary" className={fstyles.qtyGuardar} data-hover="boton"
                                     onClick={async () => {
                                         const targetItem = qtyEditItem;
                                         const target = Math.max(0, Math.min(999, Math.round(Number(qtyEditValue) || 0)));
@@ -3840,22 +3815,13 @@ const PantryPage = () => {
                                         }
                                     }}
                                     disabled={qtyEditSaving || qtyEditValue === '' || qtyEditValue === null}
-                                    style={{
-                                        flex: 1.4, padding: '0.9rem',
-                                        background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)',
-                                        color: 'white', border: 'none', borderRadius: '0.9rem',
-                                        fontWeight: 800, cursor: qtyEditSaving ? 'wait' : 'pointer',
-                                        boxShadow: '0 6px 18px -4px rgba(14, 165, 233, 0.55)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                        opacity: qtyEditSaving ? 0.75 : 1,
-                                    }}
                                 >
                                     {qtyEditSaving ? (
                                         <><Loader2 size={16} className="spin-fast" /> {t('Guardando…')}</>
                                     ) : (
                                         <>{t('Guardar')}</>
                                     )}
-                                </button>
+                                </Button>
                             </div>
                         </motion.div>
                     </>

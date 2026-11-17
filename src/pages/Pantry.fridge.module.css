@@ -400,3 +400,10 @@
 .reconcileActions button:disabled { opacity: 0.45; cursor: not-allowed; }
 /* [P1-PLAN-LOTE-766] Alacena con suplementos y sin alimentos: una línea discreta, no el «vacía» grande. */
 .soloSuplementos { margin: 2px 4px 14px; font-size: .82rem; line-height: 1.5; color: var(--text-muted); text-align: center; }
+
+/* [P1-PLAN-LOTE-1066] Reintentar el catálogo: botón común, con aire sobre el aviso. */
+.reintentarCatalogo { margin-top: 0.75rem; }
+
+/* [P1-PLAN-LOTE-1066] Los dos botones de la hoja de cantidad: mismo reparto que antes (1 : 1,4). */
+.qtyCancelar { flex: 1; }
+.qtyGuardar { flex: 1.4; }

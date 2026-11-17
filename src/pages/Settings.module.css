@@ -2128,3 +2128,6 @@
 :global(html[data-theme="dark"]) .inDialog .grid::after {
     display: none;
 }
+
+/* [P1-PLAN-LOTE-1066] Los botones comunes de una fila no se encogen al faltar sitio. */
+.botonSinEncoger { flex-shrink: 0; }

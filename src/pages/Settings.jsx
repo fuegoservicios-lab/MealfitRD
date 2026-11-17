@@ -16,6 +16,7 @@ import { useAssessment } from '../context/AssessmentContext';
 import { useNavigate } from 'react-router-dom';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import styles from './Settings.module.css';
+import Button from '../components/ui/Button';
 import { fetchWithAuth } from '../config/api';
 // [P2-NEW-WINDOW-CONFIRM-SETTINGS · 2026-05-15] Reemplazo Promise-based
 // para los 2 `window.confirm` legacy del flujo Renovar/Cero (líneas ~847,
@@ -3784,22 +3785,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     <span style={{ flex: 1, minWidth: 0 }}>
                                         {t('Tus avisos pueden llegar con unos minutos de margen. Para que suenen a su hora exacta, permite «Alarmas y recordatorios».')}
                                     </span>
-                                    <button
-                                        type="button"
+                                    <Button variant="secondary" size="sm" className={styles.botonSinEncoger}
                                         data-hover="fantasma"
                                         onClick={async () => {
                                             const ok = await pedirAlarmaExacta();
                                             setAlarmaExactaFalta(!ok);
                                             if (ok) toast.success(t('Listo: tus avisos sonarán a su hora.'));
                                         }}
-                                        style={{
-                                            flexShrink: 0, padding: '0.4rem 0.75rem', borderRadius: '0.55rem',
-                                            border: '1px solid var(--border)', background: 'transparent',
-                                            color: 'var(--text-main)', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
-                                        }}
                                     >
                                         {t('Permitir')}
-                                    </button>
+                                    </Button>
                                 </div>
                             )}
 
@@ -3869,13 +3864,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             </div>
                                         </div>
                                     </div>
-                                    <button data-hover="fila"
-                                        type="button"
-                                        onClick={cargarPlanMode}
-                                        style={{ flexShrink: 0, padding: '0.5rem 0.9rem', borderRadius: '0.65rem', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-main)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}
-                                    >
+                                    {/* [P1-PLAN-LOTE-1066] Botón común (antes estilos en línea). */}
+                                    <Button variant="secondary" size="sm" onClick={cargarPlanMode} className={styles.botonSinEncoger}>
                                         {t('Reintentar')}
-                                    </button>
+                                    </Button>
                                 </div>
                             )}
                             {!isGuest && planModeState !== null && (
@@ -3987,13 +3979,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             </div>
                                         </div>
                                     </div>
-                                    <button data-hover="fila"
-                                        type="button"
+                                    <Button variant="secondary" size="sm" className={styles.botonSinEncoger} data-hover="fila"
                                         onClick={() => setLtmReintento((n) => n + 1)}
-                                        style={{ flexShrink: 0, padding: '0.5rem 0.9rem', borderRadius: '0.65rem', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-main)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}
                                     >
                                         {t('Reintentar')}
-                                    </button>
+                                    </Button>
                                 </div>
                             )}
                             {!isGuest && ltmEnabled !== null && (
@@ -4542,17 +4532,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         {t('Controla si la IA aprende de tus conversaciones. Se activa o se pausa en Capacidades.')}
                                     </div>
                                 </div>
-                                <button data-hover="fila"
-                                    type="button"
+                                <Button variant="secondary" size="sm" className={styles.botonSinEncoger} data-hover="fila"
                                     onClick={() => navigateToSection('preferences')}
-                                    style={{
-                                        flexShrink: 0, padding: '0.5rem 1rem', borderRadius: '0.65rem',
-                                        border: '1px solid var(--border)', background: 'var(--bg-muted)',
-                                        color: 'var(--text-main)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
-                                    }}
                                 >
                                     {t('Administrar')}
-                                </button>
+                                </Button>
                             </div>
 
                             <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.75rem' }}>{t('Tus datos')}</h3>
@@ -4567,23 +4551,20 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         {t('Descarga una copia JSON de tu perfil, planes, nevera, comidas registradas y memoria del agente.')}
                                     </div>
                                 </div>
-                                <button
-                                    type="button"
+                                {/* [P1-PLAN-LOTE-1066] Botón común, principal índigo sólido (antes estilos en línea). */}
+                                <Button
+                                    variant="primary"
+                                    size="sm"
                                     onClick={handleExportData}
                                     disabled={isExportingData}
                                     data-hover="boton"
-                                    style={{
-                                        flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.45rem',
-                                        padding: '0.5rem 1rem', borderRadius: '0.65rem', border: 'none',
-                                        background: 'var(--primary-fill)', color: '#fff', fontWeight: 600, fontSize: '0.85rem',
-                                        cursor: isExportingData ? 'wait' : 'pointer', opacity: isExportingData ? 0.7 : 1,
-                                    }}
+                                    className={styles.botonSinEncoger}
                                 >
                                     {isExportingData
                                         ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} aria-hidden="true" />
                                         : <Download size={15} aria-hidden="true" />}
                                     {isExportingData ? t('Exportando…') : t('Exportar datos')}
-                                </button>
+                                </Button>
                             </div>
                             {/* [P2-PRIVACY-SETTINGS v4 · 2026-07-04] Zona de peligro real
                                 (antes en Suscripción — estaba duplicada con una fila acá).
