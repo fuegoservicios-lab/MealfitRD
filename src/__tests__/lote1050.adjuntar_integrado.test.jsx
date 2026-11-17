@@ -56,6 +56,17 @@ describe('[1050] el panel de adjuntar integrado', () => {
         expect(codigo).not.toMatch(/getBoundingClientRect|createPortal|visualViewport/);
     });
 
+    it('[1051] cuelga ENCIMA del cuadro por CSS y no empuja la línea de escribir (iOS dejaba el cursor en el sitio viejo)', () => {
+        const css = leer('components/agent/AttachmentInlinePanel.css').replace(/\/\*[\s\S]*?\*\//g, '');
+        const regla = css.match(/\.attach-inline\s*\{([^}]*)\}/)[1];
+        expect(regla).toMatch(/position:\s*absolute/);
+        expect(regla).toMatch(/bottom:\s*calc\(100% \+ 8px\)/);
+        expect(regla).not.toMatch(/margin-bottom/);
+        const src = leer('pages/AgentPage.jsx');
+        const caja = src.slice(src.indexOf('<div className="input-box-dictable" style={{'), src.indexOf('<AttachmentInlinePanel'));
+        expect(caja).toMatch(/position: 'relative'/);
+    });
+
     it('no roba el foco: el cuadro de texto sigue enfocado al tocar una opción (el teclado de iOS no se cierra)', () => {
         const onGallery = vi.fn();
         render(<Arnes onGallery={onGallery} />);

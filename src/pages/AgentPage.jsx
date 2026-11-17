@@ -5340,6 +5340,8 @@ const AgentPage = () => {
                     </div>
                 )}
                 <div className="input-box-dictable" style={{
+                    // [P1-PLAN-LOTE-1051] referencia del panel de adjuntar, que cuelga ENCIMA del cuadro (no lo empuja)
+                    position: 'relative',
                     display: 'flex',
                     flexDirection: 'column',
                     background: isCentered ? 'var(--bg-muted)' : 'var(--bg-muted)',
@@ -5356,7 +5358,9 @@ const AgentPage = () => {
                 }}>
                     {/* [P1-PLAN-LOTE-1050] Con el teclado abierto, «Añadir imagen» es parte del cuadro de escribir (pegado
                         al teclado): no se mide ni se coloca nada, así que no se descoloca al bajar el teclado ni al hacer
-                        una captura. Sin teclado sigue la hoja inferior de siempre. */}
+                        una captura. Sin teclado sigue la hoja inferior de siempre.
+                        [P1-PLAN-LOTE-1051] Cuelga ENCIMA del cuadro (CSS, `bottom: 100%`) y no lo empuja: dentro del flujo
+                        bajaba la línea de escribir y iOS seguía pintando el cursor en el sitio viejo, sobre «Galería». */}
                     <AttachmentInlinePanel
                         open={showAttachmentSource && Boolean(attachmentAnchorRect)}
                         onClose={() => { reopenKeyboardAfterAttachmentRef.current = false; setShowAttachmentSource(false); }}

@@ -1,13 +1,23 @@
-/* [P1-PLAN-LOTE-1050] El panel de «Añadir imagen» vive DENTRO del cuadro de escribir: dos opciones lado a lado arriba,
-   separadas de la fila de texto por una línea fina. El cuadro ya va pegado al teclado, así que el panel también. */
+/* [P1-PLAN-LOTE-1050] El panel de «Añadir imagen» va con el cuadro de escribir: dos opciones lado a lado, justo encima.
+   El cuadro ya va pegado al teclado, así que el panel también. */
 .attach-inline {
+    /* [P1-PLAN-LOTE-1051] Cuelga encima del cuadro de escribir (su padre, `position: relative`) en vez de ir dentro de
+       su flujo: así la línea de escribir NO se mueve al abrir y cerrar. Si se movía, iOS dejaba el cursor (el caret) del
+       cuadro enfocado pintado en su posición vieja, encima de «Galería» (captura del dueño, 16-nov). Va colocado por CSS
+       respecto al cuadro, que ya sube y baja con el teclado: nada se mide, así que tampoco se descoloca. */
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
+    z-index: 2;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
-    width: 100%;
-    padding: 0.15rem 0.1rem 0.6rem;
-    margin-bottom: 0.45rem;
-    border-bottom: 1px solid var(--border);
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 1.5rem;
+    background: var(--bg-muted);
+    box-shadow: 0 -10px 30px -12px rgba(2, 6, 23, 0.45);
     animation: attach-inline-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
     transform-origin: bottom center;
 }
