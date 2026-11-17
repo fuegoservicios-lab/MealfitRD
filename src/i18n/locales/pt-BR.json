@@ -4128,7 +4128,7 @@
   "Ya generaste 3 informes hoy. Podrás generar otro mañana.": "Você já gerou 3 relatórios hoje. Poderá gerar outro amanhã.",
   "No pudimos generar el informe. Inténtalo de nuevo.": "Não conseguimos gerar o relatório. Tente de novo.",
   "Del {a} al {b}": "De {a} a {b}",
-  "Este informe resume lo que la persona registró en Bioboros (comidas, agua, peso). Son datos autorreportados y estimaciones. No es un diagnóstico ni sustituye la valoración de un profesional de la salud.": "Este relatório resume o que a pessoa registrou no Bioboros (refeições, água, peso). São dados autorrelatados e estimativas. Não é um diagnóstico nem substitui a avaliação de um profissional de saúde.",
+  "Este informe resume lo que la persona registró en {app} (comidas, agua, peso). Son datos autorreportados y estimaciones. No es un diagnóstico ni sustituye la valoración de un profesional de la salud.": "Este relatório resume o que a pessoa registrou no {app} (refeições, água, peso). São dados autorrelatados e estimativas. Não é um diagnóstico nem substitui a avaliação de um profissional de saúde.",
   "Informe para tu médico": "Relatório para o seu médico",
   "Generado el {f}": "Gerado em {f}",
   "Un resumen de lo que registraste para llevárselo a tu médico o nutricionista. No es un diagnóstico.": "Um resumo do que você registrou para levar ao seu médico ou nutricionista. Não é um diagnóstico.",

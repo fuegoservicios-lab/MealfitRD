@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, Loader2, Share2, Trash2 } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
+import { BRAND } from '../data/routeMeta';
 import { useAssessment } from '../context/AssessmentContext';
 import { formatDate, formatNumber, useT } from '../i18n';
 import { bloquesDeLaRedaccion, bloquesDelInforme } from '../utils/informeMedicoTexto';
@@ -114,7 +115,7 @@ export default function InformeMedico() {
         })
         : '');
 
-    const aviso = t('Este informe resume lo que la persona registró en Bioboros (comidas, agua, peso). Son datos autorreportados y estimaciones. No es un diagnóstico ni sustituye la valoración de un profesional de la salud.');
+    const aviso = t('Este informe resume lo que la persona registró en {app} (comidas, agua, peso). Son datos autorreportados y estimaciones. No es un diagnóstico ni sustituye la valoración de un profesional de la salud.', { app: BRAND });
     const bloques = useMemo(() => (informe ? [
         ...bloquesDeLaRedaccion(informe.narrative, { t }),
         ...bloquesDelInforme(informe.data, { t, fmt }),
