@@ -5,7 +5,7 @@
 // ESCRITURA del swap (`/swap-meal/persist` escribe con la ruta jsonb
 // `{days,<i>,meals,<j>}`) y de `regenerateDay`. Al mostrar también días
 // ARCHIVADOS —que viven en `_archived_days`, con su PROPIO rango de índices—
-// mezclar los dos rangos haría que "Cambiar Plato" reescribiera otro día.
+// mezclar los dos rangos haría que "Cambiar plato" reescribiera otro día.
 import { describe, it, expect } from 'vitest';
 import { writableDayIndex } from '../utils/planWeeks';
 

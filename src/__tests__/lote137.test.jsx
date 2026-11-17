@@ -187,7 +187,7 @@ describe('lote 137 · el Agente', () => {
         // [P1-PLAN-LOTE-411] el contador no ofrece «qué me toca»: su atajo de modo es «¿Cómo voy hoy?»
         expect(a).toContain('modoContador: enModoContador,');
         expect(leer('src/utils/atajosDelChat.js')).toContain("candidatos.push(modoContador ? msg('como-voy', t('¿Cómo voy hoy?')) : msg('me-toca', t('¿Qué me toca ahora?')));");
-        expect(a).toContain("? [{ icon: '💪', text: t('¿Cuánta proteína me falta hoy?') },");
+        expect(a).toContain("? [{ icon: 'proteina', text: t('¿Cuánta proteína me falta hoy?') },");
     });
 
     it('el widget de ayuda no sugiere «cambiar un plato del día» a quien no tiene plan', () => {

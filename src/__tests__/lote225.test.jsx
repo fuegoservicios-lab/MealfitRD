@@ -175,7 +175,7 @@ describe('2 · los avisos del servidor, recompuestos', () => {
 
     it('observaciones del revisor: legibles o fuera', async () => {
         await loadLocale('en-US');
-        const conocida = 'Día 2, almuerzo: Algunos platos se parecen a los de tus planes recientes — usa «Cambiar Plato» si quieres más variedad.';
+        const conocida = 'Día 2, almuerzo: Algunos platos se parecen a los de tus planes recientes — usa «Cambiar plato» si quieres más variedad.';
         expect(reviewIssueLegible(conocida, t, 'en-US')).not.toContain('Algunos platos');
         expect(reviewIssueLegible('Una observación nueva del modelo.', t, 'en-US')).toBeNull();
         expect(reviewIssueLegible('Una observación nueva del modelo.', t, 'es-DO')).toBe('Una observación nueva del modelo.');

@@ -47,7 +47,7 @@ describe('[P1-PLAN-LOTE-54] el panel dice el tiempo de cocina', () => {
         fireEvent.click(screen.getByRole('button', { expanded: false }));
         expect(container.textContent).toContain('Tiempo de cocina');
         expect(container.textContent).toContain('(unos 10 min por comida), 7 de las comidas revisadas piden más: hasta 30 min');
-        expect(container.textContent).toContain('“Cambiar Plato”');
+        expect(container.textContent).toContain('“Cambiar plato”');
     });
 
     it('con el tope del backend dice «al menos»', () => {

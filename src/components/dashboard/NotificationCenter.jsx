@@ -500,7 +500,7 @@ export default function NotificationCenter({ hidden = false }) {
             closeDrawer();
             return;
         }
-        // quality (u otros): llevar al plan donde están Cambiar Plato / Regenerar.
+        // quality (u otros): llevar al plan donde están Cambiar plato / Regenerar.
         navigate('/dashboard');
         closeDrawer();
     }, [isGuest, navigate, closeDrawer, t]);

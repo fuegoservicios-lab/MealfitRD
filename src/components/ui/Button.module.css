@@ -1,0 +1,48 @@
+/* [P1-PLAN-LOTE-1064 · 2026-11-17] El botón de la app. Solo tokens: los temas los redefinen en index.css. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  font-family: inherit;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.md { min-height: 44px; padding: 0 1.1rem; font-size: 0.9375rem; }
+.sm { min-height: 38px; padding: 0 0.8rem; font-size: 0.8125rem; }
+.iconOnly { padding: 0; aspect-ratio: 1; }
+.iconOnly.md { width: 44px; }
+.iconOnly.sm { width: 38px; }
+.block { display: flex; width: 100%; }
+
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { cursor: wait; opacity: 0.6; }
+.btn[aria-disabled='true'] { cursor: pointer; }
+
+.primary { background: var(--primary-fill); color: #FFFFFF; }
+.primary:hover:not(:disabled) { background: var(--primary-dark); }
+
+.secondary {
+  background: var(--surface-card);
+  border-color: var(--border);
+  color: var(--text-main);
+}
+.secondary:hover:not(:disabled) { border-color: var(--primary-light); }
+.secondary svg { color: var(--primary); }
+
+.text { background: transparent; color: var(--primary); }
+.text:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+
+.danger { background: var(--danger-fill); color: #FFFFFF; }
+.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger-fill) 85%, #000000); }
+
+.secondary[aria-disabled='true'] svg { color: var(--text-muted); }
+.secondary[aria-disabled='true'] { color: var(--text-muted); }

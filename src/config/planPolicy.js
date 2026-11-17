@@ -212,10 +212,10 @@ export const prepTimeFact = (fidelity) => {
 export const prepTimeCopy = (t, f) => {
     const v = { n: f.n, max: _num(f.max), budget: _num(f.budget) };
     if (f.n === 1) {
-        return t('Con el tiempo que marcaste (unos {budget} min por comida), una de las comidas revisadas pide más: {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarla con “Cambiar Plato”.', v);
+        return t('Con el tiempo que marcaste (unos {budget} min por comida), una de las comidas revisadas pide más: {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarla con “Cambiar plato”.', v);
     }
     if (f.capped) {
-        return t('Con el tiempo que marcaste (unos {budget} min por comida), al menos {n} de las comidas revisadas piden más: hasta {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarlas con “Cambiar Plato”.', v);
+        return t('Con el tiempo que marcaste (unos {budget} min por comida), al menos {n} de las comidas revisadas piden más: hasta {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarlas con “Cambiar plato”.', v);
     }
-    return t('Con el tiempo que marcaste (unos {budget} min por comida), {n} de las comidas revisadas piden más: hasta {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarlas con “Cambiar Plato”.', v);
+    return t('Con el tiempo que marcaste (unos {budget} min por comida), {n} de las comidas revisadas piden más: hasta {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarlas con “Cambiar plato”.', v);
 };

@@ -156,7 +156,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                     border-color: rgba(52,211,153,0.55); background: rgba(52,211,153,0.08); color: #e8fff5;
                     box-shadow: 0 6px 16px -8px rgba(52,211,153,0.35);
                 }
-                .rc-scale:active:not(:disabled), .rc-confirm:active:not(:disabled) { transform: scale(0.96); }
+                .rc-scale:active:not(:disabled), .rc-confirm:active:not(:disabled) { transform: scale(0.97); }
                 .rc-scale.is-on, .rc-confirm.is-on {
                     border-color: #34d399; background: rgba(52,211,153,0.16); color: #34d399;
                     box-shadow: inset 0 0 0 1px rgba(52,211,153,0.35);

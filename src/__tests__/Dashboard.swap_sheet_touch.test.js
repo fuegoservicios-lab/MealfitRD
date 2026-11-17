@@ -5,7 +5,7 @@
 // uno quiere salir deslizando el menú hacia abajo») y la barra de scroll chocaba con el chip
 // del cupo «5/10». Ahora: gesto propio con eventos touch — el contenido scrollea nativo; si
 // está arriba del todo y el dedo baja, la hoja sigue al dedo (motion value) y al soltar
-// cierra por distancia o velocidad, o vuelve con muelle. De paso, «Cambiar Plato» y
+// cierra por distancia o velocidad, o vuelve con muelle. De paso, «Cambiar plato» y
 // «Actualizar platos» en táctil: hover solo con puntero fino, :active visible, 44/48 px.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -87,7 +87,7 @@ describe('hoja de motivos: scroll nativo y deslizar-para-cerrar desde cualquier 
 });
 
 describe('botones de cambiar/actualizar en táctil', () => {
-    it('Cambiar Plato: hover solo con puntero fino, :active táctil y 44px', () => {
+    it('Cambiar plato: hover solo con puntero fino, :active táctil y 44px', () => {
         const i = DASH.indexOf('.meal-act-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }');
         expect(i).toBeGreaterThan(0);
         const block = DASH.slice(i, i + 1800);

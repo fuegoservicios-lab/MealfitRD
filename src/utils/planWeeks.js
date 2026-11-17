@@ -91,7 +91,7 @@ function sameDay(a, b) {
 // ⚠️ `idx` de un día vivo es su posición en `plan_data.days`, que es la
 // DIRECCIÓN DE ESCRITURA del swap: `/swap-meal/persist` escribe con la ruta
 // jsonb `{days,<i>,meals,<j>}`. Nunca mezclar los dos rangos en un índice
-// común — el día 0 dejaría de ser `days[0]` y un "Cambiar Plato" reescribiría
+// común — el día 0 dejaría de ser `days[0]` y un "Cambiar plato" reescribiría
 // otro día en silencio. El guard vive en `writableDayIndex`, más abajo.
 export function buildTimeline(planData) {
     if (!planData || typeof planData !== 'object') return { ok: false, entries: [] };

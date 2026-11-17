@@ -32,6 +32,7 @@ import { projectMeasureForCountry, unitOptionsForCountry } from '../config/unitS
 // fetchWithAuth; el cliente anterior queda solo para Auth (otros archivos).
 import { Search, Plus, Minus, Trash2, Tag, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX, Refrigerator, Thermometer } from 'lucide-react';
 import { toast } from 'sonner';
+import iconoDeAviso from '../utils/iconoDeAviso';
 import { fetchWithAuth, API_BASE } from '../config/api';
 import { getShelfLifeBadge, getShelfLifeBadgeStyle } from '../utils/shelfLife';
 import { safeJSONParseObject } from '../utils/safeJSONParse';
@@ -1644,7 +1645,7 @@ const PantryPage = () => {
                 safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
                 setPlanData(result.plan_data);
                 if (!silentSuccess) {
-                    toast.success(t('Lista de compras actualizada'), { icon: '🛒', duration: 3000 });
+                    toast.success(t('Lista de compras actualizada'), { icon: iconoDeAviso('compras'), duration: 3000 });
                 }
                 // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir `_coherence_warnings`
                 // que el backend emite cuando el guard P2-COHERENCE-1 detecta
@@ -1878,7 +1879,7 @@ const PantryPage = () => {
 
         // Toast con opción de deshacer real (insert)
         toast.success(t('{alimento} eliminado', { alimento: nombreDelAlimento(deletedItem.ingredient_name) }), {
-            icon: '🗑️',
+            icon: iconoDeAviso('borrado'),
             duration: 5000,
             action: {
                 label: t('Deshacer'),
@@ -1912,7 +1913,7 @@ const PantryPage = () => {
                         );
                         // Salió del estado "agotado" porque el usuario lo recuperó.
                         _removeDepleted(deletedItem);
-                        toast.success(t('{alimento} restaurado', { alimento: nombreDelAlimento(deletedItem.ingredient_name) }), { icon: '↩️', duration: 2000 });
+                        toast.success(t('{alimento} restaurado', { alimento: nombreDelAlimento(deletedItem.ingredient_name) }), { icon: iconoDeAviso('deshacer'), duration: 2000 });
                         // [P3-AUDIT-8] Revertir el delta: el item está de
                         // vuelta, la lista de compras debe excluirlo otra vez.
                         // [P2-NEW-12 · 2026-05-11] Debounced — undo masivo no
@@ -2080,7 +2081,7 @@ const PantryPage = () => {
                             cantidad: safeQty, unidad: glossUnitWord(dup.unit || '', t), alimento: nombreDeFila(masterItem),
                         }).trim());
                     } else {
-                        toast.success(t('{alimento} ya estaba en tu nevera', { alimento: nombreDeFila(masterItem) }), { icon: '✅' });
+                        toast.success(t('{alimento} ya estaba en tu nevera', { alimento: nombreDeFila(masterItem) }), { icon: iconoDeAviso('hecho') });
                     }
                     _recordRecentAdd(masterItem, (dup && dup.unit) || finalUnit);
                     _closeAddMenu();
@@ -2191,7 +2192,7 @@ const PantryPage = () => {
                     invalidateInventoryCache();
                     await fetchData(false);
                     _removeDepleted(entry);
-                    toast.success(t('{alimento} ya estaba en tu nevera', { alimento: nombreDelAlimento(entry.ingredient_name) }), { icon: '✅', duration: 2000 });
+                    toast.success(t('{alimento} ya estaba en tu nevera', { alimento: nombreDelAlimento(entry.ingredient_name) }), { icon: iconoDeAviso('hecho'), duration: 2000 });
                     return;
                 }
                 throw insErr;
@@ -2203,7 +2204,7 @@ const PantryPage = () => {
             _removeDepleted(entry);
             toast.success(t('{alimento} repuesto ({cantidad} {unidad})', {
                 alimento: nombreDelAlimento(entry.ingredient_name), cantidad: restoreQty, unidad: glossUnitWord(entry.unit || '', t),
-            }).trim(), { icon: '✅', duration: 2000 });
+            }).trim(), { icon: iconoDeAviso('hecho'), duration: 2000 });
             _scheduleRecalcShoppingList();
         } catch (err) {
             console.error('Restore depleted error:', err);

@@ -59,7 +59,7 @@ describe('el menú a sangre en el teléfono', () => {
         expect(acciones).toContain('border-top: none;');
     });
 
-    it('«Cambiar Plato» crece con base 0 y bloqueado (candado) no se estira', () => {
+    it('«Cambiar plato» crece con base 0 y bloqueado (candado) no se estira', () => {
         expect(BLOQUE).toContain('.meal-actions-row .meal-act-btn:nth-child(2):not([aria-disabled="true"]) {');
         expect(BLOQUE).toContain('flex: 1 1 0 !important;');
         // el inline que obligaba al !important sigue ahí; si se quita, la regla puede simplificarse

@@ -241,7 +241,7 @@ describe('[P1-SWAP-LOCK-EXPLAINS] un bloqueo que se puede preguntar', () => {
     });
 
     it('el bloqueado NO usa `disabled`, o el toque no llegaría', () => {
-        expect(bloqueBoton, 'no se encontró el botón de Cambiar Plato').not.toBe('');
+        expect(bloqueBoton, 'no se encontró el botón de Cambiar plato').not.toBe('');
         // La clave del arreglo: `disabled` impide el click, y sin click no hay forma de
         // explicar nada en un teléfono (no hay `title` sin puntero).
         expect(bloqueBoton).toMatch(/disabled=\{!swapLockReason/);
@@ -280,7 +280,7 @@ describe('[P1-SWAP-LOCK-EXPLAINS] un bloqueo que se puede preguntar', () => {
         // no quitar el texto también del botón que sí funciona.
         //
         // [P1-I18N-BOTON-CAMBIAR-PLATO-CLAVADO-POR-TEST · 2026-08-23] Anclado por ESTRUCTURA
-        // (`data-testid="swap-label"`), no por el copy `Cambiar Plato</span>`. Exigir el
+        // (`data-testid="swap-label"`), no por el copy `Cambiar plato</span>`. Exigir el
         // literal hacía que el botón principal de cada comida saliera en español en los
         // cinco idiomas —la traducción existía, revisada, y la prosa del propio Dashboard
         // la usaba viva: «usa Changer de plat en esa comida», nombrando un botón que en la

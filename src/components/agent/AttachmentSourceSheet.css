@@ -85,7 +85,7 @@
     gap: 0.2rem;
 }
 
-.attachment-source-action:active { transform: scale(0.98); }
+.attachment-source-action:active { transform: scale(0.97); }
 
 .attachment-source-action > .attachment-source-ico {
     width: 44px;

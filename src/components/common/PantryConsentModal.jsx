@@ -10,7 +10,7 @@ import { unidadParaCantidad } from "../../utils/cantidadIngrediente";
 /**
  * PantryConsentModal — "Nevera estricta + consentimiento" [P1-PANTRY-STRICT-CONSENT · 2026-08-02]
  *
- * Decisión del owner: tras la compra inicial, los cambios de plato (Cambiar Plato /
+ * Decisión del owner: tras la compra inicial, los cambios de plato (Cambiar plato /
  * Actualizar día / Arreglar este día) cocinan SOLO de la Nevera física por default. Si
  * el chef no encuentra una alternativa nevera-only, el backend responde
  * `needs_new_ingredients` (nombre + cantidad + precio RD$ estimado por ingrediente) en

@@ -252,7 +252,7 @@ export function eatenChipLabel(slotMealType) {
  *
  * `cta`:
  *  - 'unlock' (default) — superficie con controles REALMENTE deshabilitados
- *    (Dashboard: Cambiar Plato/Me gusta están `disabled` de verdad; Recetas,
+ *    (Dashboard: Cambiar plato/Me gusta están `disabled` de verdad; Recetas,
  *    desde [P1-EATEN-RECIPE-LOCK · 2026-07-28]: "Descargar PDF" + checkboxes
  *    de ingredientes + toggle de pasos). Mismo string en el chip Y en cada
  *    control bloqueado — una sola fuente, cero drift entre apariciones.

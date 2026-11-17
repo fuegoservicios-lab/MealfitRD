@@ -1226,7 +1226,7 @@
     border: 1px dashed #818CF8;
 }
 
-.calCell:active:not(:disabled) { transform: scale(0.9); }
+.calCell:active:not(:disabled) { transform: scale(0.97); }
 
 .calCellNum {
     position: relative;
@@ -1300,7 +1300,7 @@
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
 }
 
-.goalChip:active:not(:disabled) { transform: scale(0.96); }
+.goalChip:active:not(:disabled) { transform: scale(0.97); }
 .goalChip:disabled { opacity: 0.45; cursor: default; }
 .goalChip:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 

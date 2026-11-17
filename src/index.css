@@ -1196,7 +1196,7 @@ html[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
   transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .touch-scale:active {
-  transform: scale(0.94) !important;
+  transform: scale(0.97) !important;
   transition: transform 0.05s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1966,7 +1966,7 @@ button.ui-close:hover:not(:disabled) {
 .ui-btn-danger:disabled { opacity: 0.55; cursor: not-allowed; }
 button.ui-close:active:not(:disabled) {
     background: color-mix(in srgb, var(--text-main, #0F172A) 14%, transparent) !important;
-    transform: scale(0.98);
+    transform: scale(0.97);
 }
 button.ui-close[aria-disabled="true"] { cursor: not-allowed; opacity: 0.5; transform: none; }
 button.ui-close:focus-visible {
@@ -2026,7 +2026,7 @@ html[data-tabbar-plegada] {
             drop-shadow(0 5px 12px rgb(0 0 0 / .32))
             drop-shadow(0 0 9px rgb(255 255 255 / .22));
   }
-  [data-hover="boton"]:not(:disabled):active { transform: scale(.98); filter: brightness(.97); }
+  [data-hover="boton"]:not(:disabled):active { transform: scale(0.97); filter: brightness(.97); }
 
   [data-hover="fila"]:not(:disabled):hover {
     box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--text-main) 6%, transparent),
@@ -2070,4 +2070,14 @@ html[data-tabbar-plegada] {
 }
 @media (prefers-reduced-motion: reduce) {
   [data-hover="boton"]:hover, [data-hover="boton"]:active { transform: none !important; }
+}
+
+/* [P1-PLAN-LOTE-1064 · 2026-11-17] Decisión del dueño: al PULSAR, todos los controles responden igual,
+   encogiendo a 0,97 (como iOS). Especificidad CERO (:where): cualquier botón con su propio `transform`
+   (centrados con translate, FAB…) conserva el suyo y no se descoloca. Al pasar el ratón no se mueve nada
+   (Buttons.hover_no_motion.test.js); con movimiento reducido, tampoco al pulsar. */
+@media (prefers-reduced-motion: no-preference) {
+  :where(button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active) {
+    transform: scale(0.97);
+  }
 }

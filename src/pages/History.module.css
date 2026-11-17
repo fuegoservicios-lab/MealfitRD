@@ -612,7 +612,7 @@
 }
 
 .editButton:active, .cancelButton:active {
-    transform: scale(0.95);
+    transform: scale(0.97);
 }
 
 .editButton {
@@ -1696,7 +1696,7 @@
     border-color: color-mix(in srgb, var(--text-main) 25%, var(--border));
     background: color-mix(in srgb, var(--text-main) 6%, var(--bg-muted));
 }
-.confirmCancelBtn:active { transform: scale(0.98); }
+.confirmCancelBtn:active { transform: scale(0.97); }
 
 .confirmAcceptBtn {
     flex: 1.4;
@@ -1720,7 +1720,7 @@
     filter: brightness(1.09);
     box-shadow: 0 16px 30px -10px color-mix(in srgb, var(--tone-btn-b) 70%, transparent);
 }
-.confirmAcceptBtn:active { transform: scale(0.98); }
+.confirmAcceptBtn:active { transform: scale(0.97); }
 
 .confirmCancelBtn:focus-visible,
 .confirmAcceptBtn:focus-visible {

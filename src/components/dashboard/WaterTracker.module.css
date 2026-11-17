@@ -100,7 +100,7 @@
   transition: transform .12s, box-shadow .18s;
 }
 .cup:hover { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--water-2) 55%, transparent); }
-.cup:active { transform: scale(.92); }
+.cup:active { transform: scale(0.97); }
 .cup:focus-visible { outline: 2px solid var(--water-2); outline-offset: 2px; }
 .cupWater {
   position: absolute; inset: auto 0 0 0;

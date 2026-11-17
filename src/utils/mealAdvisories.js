@@ -17,7 +17,7 @@
  *                                     (prefijos/orden/tiempo) tras los backstops.
  *   - `_cross_week_repeat`          → [P2-AUDIT-V7-BATCH · 2026-07-04] (P2-6) el plato repite el
  *                                     mismo slot de una semana previa del plan (check determinista
- *                                     del merge de chunks; la palanca es "Cambiar Plato").
+ *                                     del merge de chunks; la palanca es "Cambiar plato").
  *
  * NINGUNO bloquea — son informativos (el usuario puede regenerar/cambiar el plato). Pre-fix el backend
  * los calculaba y persistía pero el frontend NUNCA los mostraba, mientras que señales hermanas (banner de

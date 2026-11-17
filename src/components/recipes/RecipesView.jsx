@@ -287,7 +287,7 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
           `<button>`, sin necesitar `tabIndex` explícito) y el bloqueo real
           sigue siendo absoluto porque vive en JS: el early-return dentro del
           handler (mismo patrón que el resto del repo, ej. Dashboard.jsx
-          "Cambiar Plato") cubre tanto el click de mouse como el Enter/Space
+          "Cambiar plato") cubre tanto el click de mouse como el Enter/Space
           nativo de un `<button>` enfocado — `aria-disabled` NO desactiva la
           activación por teclado por sí solo, por eso el guard en el handler
           sigue siendo obligatorio, no solo defensa-en-profundidad. Texto

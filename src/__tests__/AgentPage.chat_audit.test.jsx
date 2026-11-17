@@ -148,7 +148,7 @@ describe('[5] reintentar una regeneración sigue siendo regeneración', () => {
 describe('[6] 409 con copy propio y botón de recargar', () => {
     const KEY = 'Esa respuesta cambió mientras tanto. Recarga la conversación para ver la versión actual.';
     it('entrada 409 en el mapa de copy, recarga en vez de reintentar', () => {
-        expect(AP).toMatch(/409: \{\s*icon: '🔄',\s*text: t\('Esa respuesta cambió mientras tanto\./);
+        expect(AP).toMatch(/409: \{\s*icon: 'recargar',\s*text: t\('Esa respuesta cambió mientras tanto\./);
         expect(AP).toContain('if (message.reloadHistory) {');
         expect(AP).toContain('fetchSessionMessages(currentSessionId);');
         const mb = read('src/components/agent/MessageBubble.jsx');

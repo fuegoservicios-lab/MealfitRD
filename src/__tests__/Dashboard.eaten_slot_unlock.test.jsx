@@ -1,6 +1,6 @@
 // [P1-EATEN-SLOT-UNLOCK · 2026-07-28] La única razón por la que bloquear un
 // meal-card ya comido es aceptable es la escotilla de escape escrita en el
-// propio `title` de "Cambiar Plato"/"Me gusta": "Bórralo en 'Progreso en
+// propio `title` de "Cambiar plato"/"Me gusta": "Bórralo en 'Progreso en
 // Tiempo Real' para desbloquear." Dos suites cubren cada mitad por separado:
 //   - TrackingProgress.diary_editable.test.jsx prueba que el DELETE funciona
 //     y actualiza ESA card (nunca monta "Tu Menú").

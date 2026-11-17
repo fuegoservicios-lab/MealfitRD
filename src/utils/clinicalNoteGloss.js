@@ -213,13 +213,13 @@ export const glossClinicalNote = (note, t) => {
 // «Día N, slot: » cuando hablan de un plato concreto. Mismo motor que los disclaimers: se
 // sustituye la frase conocida por su traducción y el prefijo se compone con claves propias.
 const _REVIEW_ISSUE_COPIES = (t) => [
-    t('el plato es más de otro momento del día. Si no te convence, cámbialo con «Cambiar Plato».'),
+    t('el plato es más de otro momento del día. Si no te convence, cámbialo con «Cambiar plato».'),
     t('Algunas cantidades de la lista de compras pueden variar respecto a las recetas — revísalas antes de comprar.'),
-    t('Algunos platos se parecen a los de tus planes recientes — usa «Cambiar Plato» si quieres más variedad.'),
+    t('Algunos platos se parecen a los de tus planes recientes — usa «Cambiar plato» si quieres más variedad.'),
     t('Un día repite la misma proteína en más de una comida — puedes cambiar uno de esos platos.'),
     t('Un día repite la misma fruta en más de una comida — puedes cambiar uno de esos platos.'),
-    t('Hay preparaciones parecidas repetidas — usa «Cambiar Plato» si quieres más variedad.'),
-    t('Un mismo plato se repite en varios días — usa «Cambiar Plato» si quieres más variedad.'),
+    t('Hay preparaciones parecidas repetidas — usa «Cambiar plato» si quieres más variedad.'),
+    t('Un mismo plato se repite en varios días — usa «Cambiar plato» si quieres más variedad.'),
     t('Algún plato no siguió al 100% la estructura planificada.'),
     t('Algún día queda por debajo de tu meta de proteína — puedes cambiar un plato por uno con más proteína.'),
     t('Un día supera el techo de proteína indicado para tu condición — cambia un plato por uno más ligero.'),

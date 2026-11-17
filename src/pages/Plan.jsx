@@ -1374,7 +1374,7 @@ const Plan = () => {
                 // nuevo → el badge "Nd" debe arrancar en 0/1, no quedarse en el día del plan anterior
                 // (visto en vivo: badge clavado en "6d" tras renovar). Esto NO afecta el shift-plan ni el
                 // corte de días: ésos dependen de `grocery_start_date` (siempre = now). El single-meal
-                // swap ("Cambiar Plato") NO pasa por aquí, así que no reinicia el ciclo. La lectura local
+                // swap ("Cambiar plato") NO pasa por aquí, así que no reinicia el ciclo. La lectura local
                 // de `oldPlan` se eliminó: su único uso era heredar cycle_start_date (ahora innecesario);
                 // el `oldPlan` del state (useState) es independiente y sigue intacto para el PreviewScreen.
                 //

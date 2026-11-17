@@ -235,3 +235,6 @@
     border-radius: 999px;
     padding: 0.2rem 0.7rem;
 }
+
+/* [P1-PLAN-LOTE-1064] El icono lucide del error (antes un emoji pegado al texto). */
+.chat-error-icon { flex: none; margin-right: -0.4rem; }

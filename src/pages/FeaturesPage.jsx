@@ -215,7 +215,7 @@ const EXTRAS = [
 
 const FAQS = [
     { q: '¿Qué pasa si se me acaban los créditos del mes?', a: 'Tu Historial, tu Nevera y los planes que ya generaste siguen disponibles. Lo que se pausa es generar o regenerar planes, hablar con el coach IA y escanear comidas, hasta tu próximo ciclo o hasta subir de plan.' },
-    { q: '¿Puedo cambiar una comida sin perder el resto de mi plan?', a: 'Sí. Pídeselo al coach IA —«cambia el almuerzo de mañana»— o usa «Cambiar Plato» en esa comida puntual. El resto del plan, tus macros y tu lista de compras se ajustan sin rehacer nada desde cero.' },
+    { q: '¿Puedo cambiar una comida sin perder el resto de mi plan?', a: 'Sí. Pídeselo al coach IA —«cambia el almuerzo de mañana»— o usa «Cambiar plato» en esa comida puntual. El resto del plan, tus macros y tu lista de compras se ajustan sin rehacer nada desde cero.' },
     { q: '¿La lista de compras sirve en cualquier supermercado dominicano?', a: 'Los precios se calculan con datos reales de supermercados dominicanos como guía de costo, pero no está integrada a un supermercado en particular ni reserva tus productos — tú decides dónde comprar.' },
     { q: '¿Qué cambia entre el Plan Gratis y los planes pagos?', a: 'El Plan Gratis te deja crear y usar un plan completo sin tarjeta, con todas las funciones incluidas. Lo que suman los planes pagos son más créditos al mes. Compara todo en Precios.' },
 ];

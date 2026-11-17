@@ -2,7 +2,7 @@
  * [P1-I18N-EATEN-CLAIM-FRASE-FABRICADA · 2026-08-23] El único motivo por el que un control
  * está bloqueado se pintaba como un párrafo español fabricado a mano.
  *
- * Cuando el usuario ya registró la comida de ese horario, «Cambiar Plato» y «Me gusta» se
+ * Cuando el usuario ya registró la comida de ese horario, «Cambiar plato» y «Me gusta» se
  * bloquean y al tocarlos aparece un toast que explica por qué. `eatenClaimForSlot`
  * CONCATENABA cadenas españolas:
  *

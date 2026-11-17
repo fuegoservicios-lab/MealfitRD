@@ -111,7 +111,7 @@ export default function SaludPanel({ onDirtyChange }) {
     return (
         <div data-salud-panel style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <p style={{ ...ayuda, margin: 0 }}>
-                {t('Los cambios se aplican a tus próximos bloques del plan. Si tu plan actual tiene algo que ya no puedes comer, cámbialo con «Cambiar Plato».')}
+                {t('Los cambios se aplican a tus próximos bloques del plan. Si tu plan actual tiene algo que ya no puedes comer, cámbialo con «Cambiar plato».')}
             </p>
 
             <section aria-labelledby="salud-dieta">

@@ -27,14 +27,14 @@ describe('P1-QUALITY-MINOR-SILENT', () => {
         expect(dash).not.toContain('el ajuste automático no terminó');
         expect(dash).not.toContain("t('Menor')");
         expect(dash).toContain("t('Tu plan está listo, con un detalle por revisar')");
-        expect(dash).toContain("t('Abajo te contamos qué pasó. Si un día no te convence, cámbialo con Cambiar Plato.')");
+        expect(dash).toContain("t('Abajo te contamos qué pasó. Si un día no te convence, cámbialo con Cambiar plato.')");
         expect(dash).toContain("t('Qué pasó: {motivo}', { motivo: _reasonLabel })");
         expect(bell).toContain("t('Qué pasó:')");
     });
-    it('el cuerpo del titular sigue conteniendo «Cambiar Plato» (el render lo pone en negrita partiendo por ese texto)', () => {
-        const i = dash.indexOf("t('Abajo te contamos qué pasó. Si un día no te convence, cámbialo con Cambiar Plato.')");
+    it('el cuerpo del titular sigue conteniendo «Cambiar plato» (el render lo pone en negrita partiendo por ese texto)', () => {
+        const i = dash.indexOf("t('Abajo te contamos qué pasó. Si un día no te convence, cámbialo con Cambiar plato.')");
         expect(i).toBeGreaterThan(-1);
-        expect(dash.slice(i, i + 200)).toContain('Cambiar Plato');
+        expect(dash.slice(i, i + 200)).toContain('Cambiar plato');
     });
     it('el flag de severidad sigue leyéndose (telemetría intacta, G10)', () => {
         expect(dash).toContain('_quality_degraded_severity');

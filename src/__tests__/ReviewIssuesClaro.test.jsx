@@ -10,18 +10,18 @@ const es = (s, vars) => (vars ? s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k]
 
 describe('glossReviewIssue', () => {
     it('en español deja el texto igual (prefijo Día N, slot + copy)', () => {
-        const txt = 'Día 2, almuerzo: el plato es más de otro momento del día. Si no te convence, cámbialo con «Cambiar Plato».';
+        const txt = 'Día 2, almuerzo: el plato es más de otro momento del día. Si no te convence, cámbialo con «Cambiar plato».';
         expect(glossReviewIssue(txt, es)).toBe(txt);
     });
     it('traduce el copy y compone el prefijo con claves propias', () => {
         const en = (s, vars) => {
             const map = {
-                'el plato es más de otro momento del día. Si no te convence, cámbialo con «Cambiar Plato».': 'that dish belongs to another time of day.',
+                'el plato es más de otro momento del día. Si no te convence, cámbialo con «Cambiar plato».': 'that dish belongs to another time of day.',
                 'Día {n}': 'Day {n}', 'Almuerzo': 'Lunch', '{dia}, {slot}: ': '{dia}, {slot}: ',
             };
             return es(map[s] || s, vars);
         };
-        const txt = 'Día 2, almuerzo: el plato es más de otro momento del día. Si no te convence, cámbialo con «Cambiar Plato».';
+        const txt = 'Día 2, almuerzo: el plato es más de otro momento del día. Si no te convence, cámbialo con «Cambiar plato».';
         expect(glossReviewIssue(txt, en)).toBe('Day 2, lunch: that dish belongs to another time of day.');
     });
     it('desconocido queda tal cual; fail-soft sin t', () => {

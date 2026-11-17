@@ -126,6 +126,7 @@ const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietT
     };
 };
 import { toast } from 'sonner';
+import iconoDeAviso from '../utils/iconoDeAviso';
 // [P2-FRONTEND-DOMINICAN-FALLBACK · 2026-08-21] SSOT de países del frontend (espejo del
 // backend con test de paridad). Comparar contra 'DO' a mano aquí sería la tabla que
 // P1-DIET-CANON-SSOT prohíbe.
@@ -3229,7 +3230,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             safeLocalStorageRemove('mealfit_day_regen_inflight');
             if (!cancelled) { setDayRegenInFlight(false); setDayRegenIndex(null); }  // [P2-DAYREGEN-OVERLAY-SCOPE]
             if (applied && !cancelled) {
-                toast.success(t('¡Día actualizado!'), { description: t('Tus platos nuevos ya están listos.'), icon: '👨‍🍳' });
+                toast.success(t('¡Día actualizado!'), { description: t('Tus platos nuevos ya están listos.'), icon: iconoDeAviso('chef') });
                 // [P1-CREDITS-LIVE-REFRESH · 2026-07-10] el regen cobró 1 crédito server-side →
                 // refrescar el contador en vivo (antes solo se veía al recargar la web).
                 try {
@@ -3378,7 +3379,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             safeLocalStorageRemove('mealfit_meal_regen_inflight');
             if (!cancelled) setMealRegenInFlight(null);
             if (applied && !cancelled) {
-                toast.success(t('¡Plato actualizado!'), { description: t('Tu plato nuevo ya está listo.'), icon: '👨‍🍳' });
+                toast.success(t('¡Plato actualizado!'), { description: t('Tu plato nuevo ya está listo.'), icon: iconoDeAviso('chef') });
             }
         };
         let sawFlag = false;
@@ -4522,7 +4523,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             toast.success(t('¡Bienvenido a {plan}!', { plan: planName }), {
                 description: t('Has desbloqueado acceso premium.'),
                 duration: 5000,
-                icon: '🌟'
+                icon: iconoDeAviso('premium')
             });
             return true;
         } catch (error) {

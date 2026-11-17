@@ -179,7 +179,7 @@ function ReachedChip({ e, worstDayNum = null }) {
                             {s.estimado && <span className={styles.qEst}> · ≈ {t('estimado')}</span>}
                             {worstDayNum != null && (
                                 <span className={styles.qDayNote}>
-                                    {' '}{t('· el promedio cumple, pero el Día {n} quedó corto en este micro — refuérzalo ese día (Cambiar Plato)', { n: worstDayNum })}
+                                    {' '}{t('· el promedio cumple, pero el Día {n} quedó corto en este micro — refuérzalo ese día (Cambiar plato)', { n: worstDayNum })}
                                 </span>
                             )}
                         </span>

@@ -15,6 +15,7 @@ import { useT, formatDate } from '../../i18n';
 import { timeLabel } from '../../utils/chatTimeline';
 import { ChatImage } from './ChatImage';
 import './MessageBubble.css';
+import IconoDelChat from './IconoDelChat';
 
 // [P1-PLAN-LOTE-1061 · 2026-11-17] Sin fila de acciones (👍 👎 🔄 copiar) bajo cada respuesta. El dueño: «quitar todo,
 // para mejor experiencia». Medido: 1 👍 y 0 👎 en 1.154 respuestas en 60 días; copiar sigue con mantener pulsado
@@ -282,6 +283,9 @@ export const MemoizedMessageBubble = React.memo(({ msg, onErrorRetry, daySeparat
                     partía el texto en un párrafo propio y el botón caía a una tercera línea). */}
                 {isErrorBubble && (
                     <div className="chat-error-line" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem 0.9rem', fontSize: '0.9rem', minHeight: 32 }}>
+                        {msg.errorIcon && (
+                            <IconoDelChat nombre={msg.errorIcon} size={16} className="chat-error-icon" />
+                        )}
                         <span>{msg.content}</span>
                         {msg.retryable && typeof onErrorRetry === 'function' && (
                             <ErrorRetryButton onClick={() => onErrorRetry(msg)} reload={msg.reloadHistory === true} />

@@ -1,4 +1,4 @@
-// [P1-SWAP-PANTRY-GATE · 2026-07-30] El botón "Cambiar Plato" (swap individual)
+// [P1-SWAP-PANTRY-GATE · 2026-07-30] El botón "Cambiar plato" (swap individual)
 // se podía pulsar con la Nevera vacía: el modal abría, el usuario elegía un
 // motivo, se gastaba un crédito y el backend hacía soft-fail por strict-pantry
 // sin inventario. Su hermano "Actualizar platos" (día completo) SÍ estaba
@@ -179,7 +179,7 @@ describe('P1-SWAP-PANTRY-GATE-FULL-BUTTON · el botón entero se bloquea', () =>
     it('la Nevera baja bloquea de VERDAD, no solo en el estilo', () => {
         const block = swapButtonJsx(_dashSrc);
         // Sanity del vehículo antes de los asserts que importan.
-        expect(block).toContain('Cambiar Plato');
+        expect(block).toContain('Cambiar plato');
         expect(_dashSrc).toMatch(/const swapLockReason =[\s\S]{0,400}isPantryTooEmptyForSwap/);
         expect(block).toMatch(/aria-disabled=\{swapLockReason/);
         // El corte real: la primera línea del onClick, antes de cualquier otra cosa.

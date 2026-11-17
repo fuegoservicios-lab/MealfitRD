@@ -1,5 +1,5 @@
 // [P1-PANTRY-STRICT-CONSENT · 2026-08-02] "Nevera estricta + consentimiento" — el botón
-// Cambiar Plato / la confirmación de "No me gusta" / "Arreglar este día" abren el modal
+// Cambiar plato / la confirmación de "No me gusta" / "Arreglar este día" abren el modal
 // "Tu Nevera no alcanza" cuando el backend responde `needs_new_ingredients` en vez de
 // introducir el ingrediente en la lista de compras sin preguntar.
 //

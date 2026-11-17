@@ -303,7 +303,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
             return (after || '').trim();
         };
 
-        // Orden fijo dentro de "BUTTONS GROUP": [Ver Receta, Cambiar Plato, Me gusta].
+        // Orden fijo dentro de "BUTTONS GROUP": [Ver Receta, Cambiar plato, Me gusta].
         const desayunoCard = screen.getByText('Mangú con los tres golpes').closest('.meal-card');
         const almuerzoCard = screen.getByText('Arroz con pollo guisado').closest('.meal-card');
         const [, lockedSwapBtn] = within(desayunoCard).getAllByRole('button');
@@ -324,7 +324,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
     });
 
     // [P1-EATEN-SLOT-POLISH · 2026-07-28] La dimmed card pre-fix seguía
-    // siendo 100% interactiva — Cambiar Plato costaba un crédito real y Me
+    // siendo 100% interactiva — Cambiar plato costaba un crédito real y Me
     // gusta grababa una preferencia sobre un plato que el usuario NO comió
     // (el owner reportó "me deja interactuar y no debería"). Ahora las
     // acciones mutantes se bloquean de verdad (atributo `disabled` nativo),
@@ -333,7 +333,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
     // PDF y sus checkboxes — ya no es una página "de solo lectura"), y cada
     // control bloqueado explica por qué + cómo
     // deshacerlo (borrar la fila en "Progreso en Tiempo Real").
-    it('an eaten slot genuinely disables Cambiar Plato and Me gusta — no click, no keyboard activation reaches their handlers', async () => {
+    it('an eaten slot genuinely disables Cambiar plato and Me gusta — no click, no keyboard activation reaches their handlers', async () => {
         const toggleMealLike = vi.fn();
         render(<Dashboard />, {
             customContext: { ..._baseContext, toggleMealLike, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
@@ -353,7 +353,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         // "Me gusta" sigue con el atributo `disabled` real: no hay nada que preguntar,
         // el chip de arriba ya dice que el slot está registrado.
         //
-        // "Cambiar Plato" pasó a `aria-disabled`. Un botón `disabled` NO EMITE CLICK, y
+        // "Cambiar plato" pasó a `aria-disabled`. Un botón `disabled` NO EMITE CLICK, y
         // el dueño pidió que al pulsarlo se explique por qué está bloqueado. En un
         // teléfono el `title` no existe (no hay puntero que se pose) y el `aria-label`
         // solo lo oye un lector de pantalla: sin click, el bloqueo era mudo. Ahora se
@@ -396,7 +396,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         likeBtn.focus();
         expect(likeBtn).not.toHaveFocus();
 
-        // [P1-SWAP-LOCK-EXPLAINS] "Cambiar Plato" SÍ recibe foco, y eso es el arreglo,
+        // [P1-SWAP-LOCK-EXPLAINS] "Cambiar plato" SÍ recibe foco, y eso es el arreglo,
         // no un descuido: un control que no se puede alcanzar tampoco se puede
         // preguntar, y quien navega con teclado se quedaría sin saber por qué está
         // bloqueado. Lo que importa es que alcanzarlo NO dispare la acción.

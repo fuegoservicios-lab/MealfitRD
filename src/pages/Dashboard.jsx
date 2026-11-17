@@ -18,7 +18,9 @@ import {
     CalendarClock, Snowflake, MoonStar
 } from 'lucide-react';
 import { toast } from 'sonner';
+import iconoDeAviso from '../utils/iconoDeAviso';
 import StatusNotice from '../components/dashboard/StatusNotice';
+import Button from '../components/ui/Button';
 // [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. `useT()` dentro de componentes
 // (es lo que los suscribe al cambio de idioma); `t`/`tn` de módulo para los helpers
 // que viven FUERA de React (los `resolve*` exportados, las tablas de copy). Las
@@ -207,9 +209,9 @@ import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
 // backend/agent.py::_build_today_remaining_context).
 import { getEatenSlotIndices, sumConsumedCalories, sumPlannedRemainingCalories, todayRemainingLine, eatenChipLabel, eatenClaimForSlot } from '../utils/todayRemaining';
 // [P1-EATEN-SLOT-POLISH · 2026-07-28] La card ya-comida se atenuaba (P1-TODAY-REMAINING)
-// pero seguía siendo 100% interactiva — "Cambiar Plato" costaba un crédito real y
+// pero seguía siendo 100% interactiva — "Cambiar plato" costaba un crédito real y
 // "Me gusta" grababa una preferencia sobre un plato que el usuario NO comió (owner:
-// "me deja interactuar y no debería"). Cambiar Plato y Me gusta ahora se deshabilitan
+// "me deja interactuar y no debería"). Cambiar plato y Me gusta ahora se deshabilitan
 // de VERDAD (atributo `disabled` nativo — coincide teclado + lectores de pantalla, no
 // solo opacidad). Ver Receta se mantiene activo a propósito: responde una pregunta
 // legítima ("¿qué me tocaba comer?"); no cuesta crédito ni graba nada.
@@ -516,7 +518,7 @@ function _scaleItemRefCost(obj, finalQty, rawQty, unit) {
 // evaluaría antes de que el catálogo exista y quedaría congelado en español.
 const getQDegradedReasonMap = () => ({
     high_contextual: t('No pudimos adaptar el plan a una restricción tuya (despensa, alergia o condición). Revisa tus datos en el formulario y regenera.'),
-    max_attempts: t('El revisor de calidad no aprobó el plan tras varios intentos. Te dimos la mejor versión disponible; revísala y usa Cambiar Plato si algo no cuadra.'),
+    max_attempts: t('El revisor de calidad no aprobó el plan tras varios intentos. Te dimos la mejor versión disponible; revísala y usa Cambiar plato si algo no cuadra.'),
     invalid_pipeline_start: t('Hubo un problema técnico al iniciar la generación. Intenta regenerar el plan.'),
     budget_exhausted: t('Se alcanzó el límite de tiempo de generación. Te dimos la mejor versión disponible.'),
     // [P2-BAND-SCORE-GATE · 2026-06-15] motivo emitido por _maybe_mark_low_band_degraded
@@ -543,24 +545,24 @@ const getQDegradedReasonMap = () => ({
     // [P3-COUNTRY-COPY-CRIOLLO-CIEGO · 2026-08-23] Los dos ejemplos («ej. sancocho, mangú»)
     // salían sin condición de país: a un español el aviso le ilustraba su problema con dos
     // platos que no ha comido nunca. El aviso funciona sin ellos — lo accionable es «usa
-    // Cambiar Plato», no el nombre del guiso.
-    composite_dish_unresolved: t('Algunos platos compuestos no se pudieron desglosar en ingredientes con precisión, así que sus macros y su lista de compras son aproximados. Usa Cambiar Plato si necesitas más exactitud.'),
+    // Cambiar plato», no el nombre del guiso.
+    composite_dish_unresolved: t('Algunos platos compuestos no se pudieron desglosar en ingredientes con precisión, así que sus macros y su lista de compras son aproximados. Usa Cambiar plato si necesitas más exactitud.'),
     // [P1-MARKER-UNRESOLVED-HONESTY · 2026-06-23] (audit inteligencia P1-6) El corrector de
     // coherencia de slots (self_critique + surgical regen) no pudo resolver algún día tras los
     // reintentos → puede haber comidas repetidas (almuerzo↔cena) o un slot incoherente. Antes se
     // entregaba como plan plenamente verificado SIN aviso.
-    slot_coherence_unresolved: t('En algún día hay un plato que no encaja del todo con su momento (por ejemplo, un almuerzo puesto de desayuno). Si te choca, cámbialo con Cambiar Plato.'),
+    slot_coherence_unresolved: t('En algún día hay un plato que no encaja del todo con su momento (por ejemplo, un almuerzo puesto de desayuno). Si te choca, cámbialo con Cambiar plato.'),
     // [P3-MICRO-WORSTDAY-COPY · 2026-07-04] Los dos motivos del soft-reject del panel de micros
     // (P2-PANEL-SOFT-REJECT) caían al genérico "Calidad por debajo del óptimo" — el owner vio el
     // banner y no supo que era el SODIO del peor día (pregunta real 2026-07-04). Copy específico
     // y accionable, alineado con lo que el panel de micros muestra abajo.
     // [P1-FIX-DAY-ONLY-IF-SODIUM · 2026-08-05] El copy ya no da por hecho que el techo
-    // roto es sodio. Decía «usa Cambiar Plato en la comida más SALADA de ese día», y este
+    // roto es sodio. Decía «usa Cambiar plato en la comida más SALADA de ese día», y este
     // motivo cubre cuatro techos: con uno de azúcar añadida (caso real del owner) esa
     // instrucción manda al usuario a mirar el plato equivocado. El nutriente concreto
     // viaja en `_quality_degraded_panel_detail` y el panel de micros ya lo marca.
-    micro_worst_day_ceiling: t('Un día se pasa de uno de tus techos (sodio, azúcar añadida, grasa saturada o potasio). Mira cuál en el panel de micros de arriba y usa Cambiar Plato en la comida de ese día que más lo aporte.'),
-    micro_worst_day: t('Un día quedó por debajo del piso en algunos micronutrientes (fibra, potasio, magnesio…). Revisa el panel de micros y usa Cambiar Plato si quieres reforzar ese día.'),
+    micro_worst_day_ceiling: t('Un día se pasa de uno de tus techos (sodio, azúcar añadida, grasa saturada o potasio). Mira cuál en el panel de micros de arriba y usa Cambiar plato en la comida de ese día que más lo aporte.'),
+    micro_worst_day: t('Un día quedó por debajo del piso en algunos micronutrientes (fibra, potasio, magnesio…). Revisa el panel de micros y usa Cambiar plato si quieres reforzar ese día.'),
 });
 
 // [P3-BANNER-REASON-COPY · 2026-07-10] `low_band_macro:<macros>` (sufijo dinámico, ej.
@@ -621,13 +623,13 @@ export function resolveQualityDegradedHeadline(reason, attempts) {
             title: n
                 ? tn(n, 'La IA no logró un plan óptimo tras {n} intento', 'La IA no logró un plan óptimo tras {n} intentos', { n })
                 : t('La IA no logró un plan óptimo'),
-            body: t('Te entregamos la mejor versión. Usa Cambiar Plato para reemplazar comidas o regenera el plan completo.'),
+            body: t('Te entregamos la mejor versión. Usa Cambiar plato para reemplazar comidas o regenera el plan completo.'),
             exhausted: true,
         };
     }
     return {
         title: t('Tu plan está listo, con un detalle por revisar'),
-        body: t('Abajo te contamos qué pasó. Si un día no te convence, cámbialo con Cambiar Plato.'),
+        body: t('Abajo te contamos qué pasó. Si un día no te convence, cámbialo con Cambiar plato.'),
         exhausted: false,
     };
 }
@@ -913,7 +915,7 @@ const DashboardInner = () => {
     // mismo hook (re-render en cambio de idioma), solo se lee `.locale`.
     const { locale: _dashLocale } = useI18n();
     // [APPEARANCE-THEME · 2026-05-29] Tema activo para los botones de acción de
-    // cada comida (Ver receta / Cambiar Plato / Like): en oscuro sus fondos
+    // cada comida (Ver receta / Cambiar plato / Like): en oscuro sus fondos
     // pastel claros se ven lavados, así que usamos variantes vívidas/notorias.
     const isDark = isDarkActive();
     // [P1-PLAN-LOTE-844] ¿Se SABE que falta el permiso para la IA? Entonces la cola del plan no avanza (el backend la
@@ -1138,8 +1140,8 @@ const DashboardInner = () => {
                 severityLabel: planData?._quality_degraded_severity || null,  // [P2-LOADING-ETA-HONEST · lint] `_sev` no existía (no-undef)
                 reasonLabel: _reasonLabel,
                 guidance: _head.exhausted
-                    ? t('Te entregamos la mejor versión disponible. Usa “Cambiar Plato” para reemplazar comidas puntuales, o regenera el plan completo si quieres reintentarlo.')
-                    : t('El plan está entregado; esto es un aviso sobre un punto a revisar. Usa “Cambiar Plato” en la comida señalada si quieres ajustarlo.'),
+                    ? t('Te entregamos la mejor versión disponible. Usa “Cambiar plato” para reemplazar comidas puntuales, o regenera el plan completo si quieres reintentarlo.')
+                    : t('El plan está entregado; esto es un aviso sobre un punto a revisar. Usa “Cambiar plato” en la comida señalada si quieres ajustarlo.'),
             },
         };
     // [P1-I18N-DASHBOARD · 2026-08-15] `t` entra en las deps de todos los memos de
@@ -1475,7 +1477,7 @@ const DashboardInner = () => {
                 // propósito: `Dashboard.p1_pantry_strict_consent.test.js` ancla la
                 // cadena `toast.success('¡Menú Actualizado!'` con el paréntesis y la
                 // comilla pegados, y envolverla la rompería desde otro fichero.
-                toast.success(t('¡Menú Actualizado!'), { description: t('Cambiado por: {plato}', { plato: result }), icon: '👨‍🍳' });
+                toast.success(t('¡Menú Actualizado!'), { description: t('Cambiado por: {plato}', { plato: result }), icon: iconoDeAviso('chef') });
             }
         } catch (error) {
             console.error('Error al regenerar:', error);
@@ -1544,8 +1546,8 @@ const DashboardInner = () => {
             kind: 'warning',
             title: t('Revisa tu lista de compras'),
             message: tn(cc,
-                'Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({n} detalle). Usa “Cambiar Plato” en las comidas que te parezcan inconsistentes.',
-                'Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({n} detalles). Usa “Cambiar Plato” en las comidas que te parezcan inconsistentes.',
+                'Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({n} detalle). Usa “Cambiar plato” en las comidas que te parezcan inconsistentes.',
+                'Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({n} detalles). Usa “Cambiar plato” en las comidas que te parezcan inconsistentes.',
                 { n: cc }),
             severity: 'warning',
         };
@@ -1888,7 +1890,7 @@ const DashboardInner = () => {
     // de ser el mismo número. La navegación por semanas muestra también días
     // ARCHIVADOS (`_archived_days`), que tienen su PROPIO rango de índices; si
     // los dos rangos se mezclaran, el índice 0 dejaría de ser `days[0]` y un
-    // "Cambiar Plato" reescribiría otro día en silencio — `/swap-meal/persist`
+    // "Cambiar plato" reescribiría otro día en silencio — `/swap-meal/persist`
     // escribe con la ruta jsonb `{days,<i>,meals,<j>}`.
     //
     // `selectedDay` es la SELECCIÓN. `activeDayIndex` sigue existiendo como
@@ -2203,7 +2205,7 @@ const DashboardInner = () => {
         if (!inFlight && _prevMealRegenRef.current) setRegeneratingId(null);
         _prevMealRegenRef.current = inFlight;
     }, [mealRegenInFlight, activeDayIndex]);
-    // Candado SÍNCRONO para el modal de "Cambiar Plato" individual contra doble-tap (mismo bug de
+    // Candado SÍNCRONO para el modal de "Cambiar plato" individual contra doble-tap (mismo bug de
     // doble-cobro que el día: setSwapModal(null) es async → un 2º tap pasaría antes del re-render).
     const swapInFlightLock = useRef(false);
     // [P1-6] Candado síncrono para `handleDownloadShoppingList`. Mismo patrón
@@ -3600,7 +3602,7 @@ const DashboardInner = () => {
                     {
                         duration: 6000, id: 'plan-status',
                         position: 'top-center',
-                        icon: '⚠️',
+                        icon: iconoDeAviso('aviso'),
                         style: { fontSize: '0.95rem', maxWidth: '480px', padding: '14px 18px', borderRadius: '12px', fontWeight: 500, lineHeight: 1.45 },
                     }
                 );
@@ -3695,7 +3697,7 @@ const DashboardInner = () => {
                     isEmptyList = true;
                     emptyMessageTitle = t('¡Felicidades, Lista Vacía!');
                     emptyMessageDesc = t('La Nevera Inteligente detectó que ya tienes en casa los ingredientes necesarios. Te has ahorrado hacer compras para este ciclo.');
-                    toast.success(t('¡Ya tienes todo en tu Nevera!'), { icon: '✅' });
+                    toast.success(t('¡Ya tienes todo en tu Nevera!'), { icon: iconoDeAviso('hecho') });
                 } else {
                     // [P3-PDF-EMPTY-LIST-VISIBLE · 2026-05-27] Toast más visible
                     // cuando el plan no tiene aggregated_shopping_list. Pre-fix
@@ -3709,7 +3711,7 @@ const DashboardInner = () => {
                         {
                             duration: 6000, id: 'plan-status',
                             position: 'top-center',
-                            icon: '⚠️',
+                            icon: iconoDeAviso('aviso'),
                             style: {
                                 fontSize: '0.95rem',
                                 maxWidth: '480px',
@@ -4611,7 +4613,7 @@ const DashboardInner = () => {
 
             toast.dismiss(loadingToast);
             if (!_imagenMovil) {
-                toast.success(t('Lista PDF descargada exitosamente'), { icon: '📄', position: 'top-center' });
+                toast.success(t('Lista PDF descargada exitosamente'), { icon: iconoDeAviso('pdf'), position: 'top-center' });
             } else if (_resultadoImagen?.length) {
                 setListaImagenes(_resultadoImagen);
             }
@@ -4689,7 +4691,7 @@ const DashboardInner = () => {
 
         // Validación Unica: Si matemáticamente y en tiempo real faltan ingredientes, lo permitimos.
         if (!hasPendingShoppingItems) {
-            if (!silent) toast.info(t('Ya tienes todos estos ingredientes en tu Nevera.'), { icon: '📦' });
+            if (!silent) toast.info(t('Ya tienes todos estos ingredientes en tu Nevera.'), { icon: iconoDeAviso('nevera') });
             setShowRestockModal(false);
             restockLock.current = false;
             return;
@@ -4784,7 +4786,7 @@ const DashboardInner = () => {
                 .map(item => item.structured || item.raw);
 
             if (sourceIngredients.length === 0) {
-                toast.info(t('Ya tienes todos estos ingredientes en tu Nevera.'), { icon: '📦' });
+                toast.info(t('Ya tienes todos estos ingredientes en tu Nevera.'), { icon: iconoDeAviso('nevera') });
                 setIsRestocking(false);
                 setShowRestockModal(false);
                 restockLock.current = false;
@@ -4811,9 +4813,9 @@ const DashboardInner = () => {
                 // Nevera intacta era el «no pasa nada» que reportó el dueño.
                 if (!silent) {
                     if (data.added === 0) {
-                        toast.info(t('Ya tenías registrados estos ingredientes esta semana; no se sumaron otra vez.'), { icon: '📦' });
+                        toast.info(t('Ya tenías registrados estos ingredientes esta semana; no se sumaron otra vez.'), { icon: iconoDeAviso('nevera') });
                     } else {
-                        toast.success(t('¡Ingredientes ingresados a tu Nevera Virtual!'), { icon: '📦' });
+                        toast.success(t('¡Ingredientes ingresados a tu Nevera Virtual!'), { icon: iconoDeAviso('nevera') });
                     }
                 }
                 setSessionRestocked(true);
@@ -5959,7 +5961,7 @@ const DashboardInner = () => {
                        tiene nada que adaptar.
 
                        [P3-MENU-MOBILE-ACTIONS · 2026-05-30] Lo único que
-                       sobrevive es que "Cambiar Plato" (2º botón = acción
+                       sobrevive es que "Cambiar plato" (2º botón = acción
                        primaria) crezca para ocupar el centro entre los
                        circulares. Sigue siendo cierto y sigue siendo solo de
                        móvil: en escritorio la fila entera cabe holgada y
@@ -6571,7 +6573,7 @@ const DashboardInner = () => {
                         border-top: none;
                         padding-top: 0;
                     }
-                    /* «Cambiar Plato» ocupa el centro y los circulares quedan en los
+                    /* «Cambiar plato» ocupa el centro y los circulares quedan en los
                        extremos con el MISMO hueco. La regla de P3-MENU-MOBILE-ACTIONS
                        pedía esto con «flex: 1», pero el botón trae «flex: none» inline y
                        nunca creció: space-between repartía huecos desiguales. Bloqueado
@@ -7269,15 +7271,11 @@ const DashboardInner = () => {
                                                 ? 'var(--bg-muted)'
                                                 : planFinished
                                                     ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'
-                                                    : isPantryTooEmpty
-                                                        ? 'linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%)'
-                                                        // [2026-05-30] "Actualizar platos" (acción PRIMARIA con
-                                                        // IA, icono Wand2) usa el acento violeta/índigo de la
-                                                        // marca para diferenciarse del botón "PDF" (neutro).
-                                                        // Violeta-600→índigo-600 (no el 400→500 más claro): menos
-                                                        // brilloso y mejor contraste del texto/icono blancos
-                                                        // (~5.5:1, AA) — el violet-400 #8B5CF6 daba ~3.6:1.
-                                                        : 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)',
+                                                    // [P1-PLAN-LOTE-1064 · 2026-11-17] Decisión del dueño: el botón
+                                                    // principal es ÍNDIGO SÓLIDO (`--primary-fill`, el de
+                                                    // components/ui/Button). Antes «Actualizar platos» era un
+                                                    // degradado violeta→índigo propio e «Ir a mi Nevera» uno azul→cian.
+                                                    : 'var(--primary-fill)',
                                             color: isLimitReached ? 'var(--text-light)' : 'white',
                                             cursor: isDayUpdating ? 'wait' : (isLimitReached ? 'not-allowed' : 'pointer'),
                                             opacity: isDayUpdating ? 0.85 : 1,
@@ -7288,23 +7286,17 @@ const DashboardInner = () => {
                                                 ? 'none'
                                                 : planFinished
                                                 ? '0 20px 40px -5px rgba(239, 68, 68, 0.5), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
-                                                : isPantryTooEmpty
-                                                    ? '0 20px 40px -5px rgba(37, 99, 235, 0.45), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
-                                                    : '0 14px 30px -8px rgba(79, 70, 229, 0.4), inset 0 0 0 1.5px rgba(255,255,255,0.3)',
+                                                : 'var(--cta-shadow-hover)',
                                             '--active-shadow': isLimitReached
                                                 ? 'none'
                                                 : planFinished
                                                 ? '0 5px 15px -5px rgba(239, 68, 68, 0.2), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
-                                                : isPantryTooEmpty
-                                                    ? '0 5px 15px -5px rgba(37, 99, 235, 0.25), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
-                                                    : '0 4px 12px -6px rgba(79, 70, 229, 0.22), inset 0 0 0 1.5px rgba(255,255,255,0.3)',
+                                                : 'var(--cta-shadow-active)',
                                             boxShadow: isLimitReached
                                                 ? 'none'
                                                 : planFinished
                                                     ? '0 10px 20px -5px rgba(239, 68, 68, 0.4)'
-                                                    : isPantryTooEmpty
-                                                        ? '0 10px 20px -5px rgba(37, 99, 235, 0.35)'
-                                                        : '0 6px 16px -6px rgba(79, 70, 229, 0.28)',
+                                                    : 'var(--cta-shadow)',
                                             flex: '1 1 auto',
                                             width: 'auto',
                                             justifyContent: 'center',
@@ -8174,7 +8166,7 @@ const DashboardInner = () => {
             {/* [P1-LOW-SIGNAL-FALLBACK · 2026-05-21] Banner cuando la IA agotó los
                 3 intentos sin lograr un plan que aprobara el revisor. El plan se
                 entrega igual (mejor versión disponible) pero el usuario debe
-                saber que el sistema "se rindió" y que puede usar Cambiar Plato
+                saber que el sistema "se rindió" y que puede usar Cambiar plato
                 para iterar manualmente. Flag viene de `plan_data._quality_degraded`
                 seteado en `should_retry` cuando `attempt >= MAX_ATTEMPTS=3`. */}
             {planData?._quality_degraded && planData?._quality_degraded_severity === 'high' && !qDegradedHidden && (
@@ -8218,10 +8210,10 @@ const DashboardInner = () => {
                             {resolveQualityDegradedHeadline(
                                 planData?._quality_degraded_reason,
                                 planData?._quality_degraded_attempts,
-                            ).body.split(t('Cambiar Plato')).map((parte, i, arr) => (
+                            ).body.split(t('Cambiar plato')).map((parte, i, arr) => (
                                 <span key={i}>
                                     {parte}
-                                    {i < arr.length - 1 && <strong>{t('Cambiar Plato')}</strong>}
+                                    {i < arr.length - 1 && <strong>{t('Cambiar plato')}</strong>}
                                 </span>
                             ))}
                         </span>
@@ -8273,7 +8265,7 @@ const DashboardInner = () => {
                         )}
                         {/* [P1-FIX-SODIUM-DAY · 2026-08-02] Botón "Arreglar este día" — SOLO para la
                             clase de motivo sodio/micro-ceiling (`micro_worst_day_ceiling`). El copy de
-                            `micro_worst_day_ceiling` ya le dice al usuario "usa Cambiar Plato en la
+                            `micro_worst_day_ceiling` ya le dice al usuario "usa Cambiar plato en la
                             comida más salada de ese día" — este botón hace exactamente eso por él, sin
                             que tenga que adivinar cuál día ni cuál plato (caso real: adivinó mal y
                             cambió el de otro día). */}
@@ -8371,7 +8363,7 @@ const DashboardInner = () => {
                             {tn(planData._swap_coherence_warnings.critical_count,
                                 'Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({n} detalle). Usa',
                                 'Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({n} detalles). Usa',
-                                { n: planData._swap_coherence_warnings.critical_count })} <strong>{t('Cambiar Plato')}</strong> {t('en las comidas que te parezcan inconsistentes.')}
+                                { n: planData._swap_coherence_warnings.critical_count })} <strong>{t('Cambiar plato')}</strong> {t('en las comidas que te parezcan inconsistentes.')}
                         </span>
                     </div>
                     {/* [P1-COHERENCE-BANNER-NOTIF · 2026-06-16] Cerrar → archiva el
@@ -9084,7 +9076,7 @@ const DashboardInner = () => {
                                     : null;
 
                                 // [P1-SWAP-LOCK-EXPLAINS · 2026-08-11] El motivo del bloqueo de
-                                // "Cambiar Plato", en UNA expresión. Antes cada consumidor
+                                // "Cambiar plato", en UNA expresión. Antes cada consumidor
                                 // (`disabled`, `title`, `aria-label`, los early-return del
                                 // onClick) volvía a preguntar por su cuenta qué condiciones
                                 // bloqueaban, y ya se habían desincronizado: `isReadOnlyDay`
@@ -9336,7 +9328,7 @@ const DashboardInner = () => {
                                             la cabecera y aquí queda solo lo que es una acción.
 
                                             El orden de los 4 botones NO cambia — sigue siendo
-                                            [Ver Receta, Cambiar Plato, Me gusta, Me lo comí] y sigue
+                                            [Ver Receta, Cambiar plato, Me gusta, Me lo comí] y sigue
                                             estando DESPUÉS del texto en el DOM, así que el contrato
                                             posicional que destructuran `Dashboard.today_remaining` y
                                             `Dashboard.eaten_slot_unlock` (ver la nota del botón «Me lo
@@ -9400,7 +9392,13 @@ const DashboardInner = () => {
                                                     De paso cierra un agujero real: `isReadOnlyDay` (día archivado)
                                                     estaba en el early-return pero NO en el `disabled`, así que el botón
                                                     se veía vivo y al tocarlo no pasaba nada, sin decir por qué. */}
-                                                <button
+                                                <Button
+                                                    // [P1-PLAN-LOTE-1064 · 2026-11-17] Decisión del dueño: secundario
+                                                    // neutro en los dos temas (antes naranja sólido en oscuro y tinte en
+                                                    // claro: el control más fuerte de la pantalla, ×4 por día).
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    iconOnly={!!swapLockReason}
                                                     className="meal-act-btn"
                                                     onClick={() => {
                                                         if (swapLockReason) { toast(swapLockReason); return; }
@@ -9435,40 +9433,11 @@ const DashboardInner = () => {
                                                     // del motivo. El estado no se escribe aquí: lo anuncia solo
                                                     // `aria-disabled`, y repetirlo lo haría sonar dos veces.
                                                     aria-label={swapLockReason ? t('Cambiar plato. {motivo}', { motivo: swapLockReason }) : undefined}
-                                                    style={{
-                                                        // Bloqueado: pierde el relleno naranja. Un candado sobre el
-                                                        // color de la acción principal seguiría pareciendo el botón
-                                                        // que grita; en gris neutro se lee como lo que es.
-                                                        background: swapLockReason
-                                                            ? (isDark ? 'rgba(148, 163, 184, 0.12)' : '#F1F5F9')
-                                                            : (isDark ? 'linear-gradient(135deg, #C2410C 0%, #9A3412 100%)' : '#FFF7ED'),
-                                                        border: swapLockReason
-                                                            ? `1px solid ${isDark ? 'rgba(148, 163, 184, 0.22)' : '#E2E8F0'}`
-                                                            : (isDark ? '1px solid transparent' : '1px solid #FED7AA'),
-                                                        borderRadius: '1rem',
-                                                        // Sin rótulo el ancho lo marca el icono: cuadrado de 38,
-                                                        // el mismo alto que ya tenía, para que la fila no se mueva.
-                                                        padding: swapLockReason ? 0 : '0 0.8rem',
-                                                        width: swapLockReason ? 38 : undefined,
-                                                        height: 38,
-                                                        flex: 'none',
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                                                        // `pointer`, no `not-allowed`: ahora tocarlo SÍ hace algo
-                                                        // (contesta). `not-allowed` prometería que no responde.
-                                                        cursor: swapLockReason ? 'pointer' : ((regeneratingId === index || isDayUpdating) ? 'wait' : 'pointer'),
-                                                        transition: 'all 0.2s',
-                                                        // [P1-SWAP-PANTRY-GATE] El atenuado servía para que un botón
-                                                        // bloqueado no se leyera como uno vivo que no responde. Con el
-                                                        // candado eso ya lo dice la FORMA, y bajar la opacidad solo
-                                                        // restaría contraste al único elemento que queda.
-                                                        opacity: 1,
-                                                        fontWeight: isDark ? 750 : 650,
-                                                        fontSize: '0.8rem',
-                                                        color: swapLockReason
-                                                            ? (isDark ? '#94A3B8' : '#64748B')
-                                                            : (isDark ? '#FFFFFF' : '#C2410C'),
-                                                        boxShadow: (!swapLockReason && isDark) ? '0 2px 8px -3px rgba(234, 88, 12, 0.3)' : 'none'
-                                                    }}
+                                                    // Sin rótulo (bloqueado) el ancho lo marca el icono: cuadrado de
+                                                    // 38, el mismo alto, para que la fila no se mueva. Bloqueado sale en
+                                                    // gris (aria-disabled en Button.module.css) y SIN atenuar: el
+                                                    // candado ya lo dice la forma [P1-SWAP-PANTRY-GATE].
+                                                    style={{ flex: 'none' }}
                                                     title={swapLockReason || t('Cambiar con IA')}
                                                 >
                                                     {swapLockReason ? (
@@ -9477,7 +9446,6 @@ const DashboardInner = () => {
                                                         <>
                                                             <RefreshCw
                                                                 size={18}
-                                                                color={isDark ? '#FFFFFF' : '#EA580C'}
                                                                 // [P2-DAYREGEN-OVERLAY-SCOPE v2] el giro del ícono también se escopa
                                                                 // al tab del día en regen (quedaba girando en los otros tabs como
                                                                 // residual visual); el disabled sí queda global (protege créditos).
@@ -9491,16 +9459,16 @@ const DashboardInner = () => {
                                                                 comida salga en español en los cinco idiomas — sobre todo
                                                                 cuando siete avisos de esta misma pantalla nombran el botón
                                                                 YA traducido («usa Changer de plat en esa comida»). */}
-                                                            <span data-testid="swap-label" style={{ whiteSpace: 'nowrap' }}>{t('Cambiar Plato')}</span>
+                                                            <span data-testid="swap-label" style={{ whiteSpace: 'nowrap' }}>{t('Cambiar plato')}</span>
                                                         </>
                                                     )}
-                                                </button>
+                                                </Button>
 
                                                 {/* LIKE BUTTON */}
                                                 {/* [P1-EATEN-SLOT-POLISH · 2026-07-28] "Me gusta" en un plato ya
                                                     comido grabaría una preferencia sobre algo que el usuario NO
                                                     comió realmente (registró otra cosa en su diario) — bloqueado de
-                                                    verdad, mismo patrón que Cambiar Plato arriba. */}
+                                                    verdad, mismo patrón que Cambiar plato arriba. */}
                                                 <button
                                                     className="meal-act-btn"
                                                     onClick={() => {
@@ -9514,7 +9482,7 @@ const DashboardInner = () => {
                                                             // de «registrado» (l. ~1115): la tarjeta pinta el plato TRADUCIDO; el toast y el
                                                             // nombre accesible del botón decían el canónico español. `meal.name` sigue siendo lo
                                                             // que el motor resuelve (`likedMeals[meal.name]`); sólo cambia lo que se PINTA.
-                                                            toast.success(t('¡Anotado!'), { description: t('Aprenderemos que te gusta: {plato}', { plato: mealDisplayName(meal, _dashLocale) || meal.name }), icon: '❤️' });
+                                                            toast.success(t('¡Anotado!'), { description: t('Aprenderemos que te gusta: {plato}', { plato: mealDisplayName(meal, _dashLocale) || meal.name }), icon: iconoDeAviso('gusta') });
                                                         } else {
                                                             toast(t('Like removido'));
                                                         }
@@ -9554,7 +9522,7 @@ const DashboardInner = () => {
                                                     aserciones de `Dashboard.today_remaining` y
                                                     `Dashboard.eaten_slot_unlock` destructuran
                                                     `getAllByRole('button')` POSICIONALMENTE asumiendo
-                                                    `[Ver Receta, Cambiar Plato, Me gusta]`; ponerlo antes
+                                                    `[Ver Receta, Cambiar plato, Me gusta]`; ponerlo antes
                                                     corre esos índices y hace que un test de swap acabe
                                                     clickeando "Ver Receta". Si reordenas el row, migra
                                                     primero esas aserciones a `getByLabelText`.
@@ -9611,7 +9579,7 @@ const DashboardInner = () => {
                             @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                             /* [2026-05-29] Mismo hover que el botón PDF/Actualizar:
                                anillo interno nítido + brillo, en los 3 botones de
-                               acción de cada comida (receta / Cambiar Plato / like). */
+                               acción de cada comida (receta / Cambiar plato / like). */
                             /* Anillo OSCURO en modo claro (sobre botones
                                claros el blanco no se veía / quedaba raro). */
                             /* [P2-SWAP-BTN-TOUCH · 2026-09-03] Hover SOLO con puntero fino: en
@@ -10323,7 +10291,7 @@ const DashboardInner = () => {
 
             {/* ═══════════ MODAL: "Tu Nevera no alcanza" (Nevera estricta + consentimiento) ═══════════ */}
             {/* [P1-PANTRY-STRICT-CONSENT · 2026-08-02] Se abre cuando el backend responde
-                needs_new_ingredients — Cambiar Plato (ambos pickers arriba) o "Arreglar este día"
+                needs_new_ingredients — Cambiar plato (ambos pickers arriba) o "Arreglar este día"
                 (handleFixSodiumDay). Nada entra a la lista de compras sin que el usuario elija
                 "Añadir a la lista y continuar" aquí. */}
             <PantryConsentModal

@@ -30,7 +30,7 @@
 export const PANTRY_MIN_ITEMS_FOR_UPDATE = 10;
 
 /**
- * Mínimo para "Cambiar Plato" (swap INDIVIDUAL).
+ * Mínimo para "Cambiar plato" (swap INDIVIDUAL).
  *
  * Un plato necesita proteína + carbohidrato + 1-2 vegetales + grasa (≈4-5
  * ítems), más holgura para que el plato nuevo salga DISTINTO del que se rechaza.

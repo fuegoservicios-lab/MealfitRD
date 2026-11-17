@@ -1,6 +1,13 @@
 import { useState, useCallback } from "react";
 import { PayPalScriptProvider, PayPalButtons, FUNDING } from "@paypal/react-paypal-js";
-import { X, CreditCard, Lock, Tag, Check, AlertCircle, Loader2, ChevronRight, Zap, User, Calendar, ShieldCheck } from "lucide-react";
+import { X, CreditCard, Lock, Tag, Check, AlertCircle, Loader2, ChevronRight, Zap, User, Calendar, ShieldCheck, TrendingUp, CircleCheck, Rocket, Crown } from "lucide-react";
+
+// [P1-PLAN-LOTE-1064 · 2026-11-17] Decisión del dueño: los emojis de las ventajas (⚡ 📈 ✅ 🔮 👑) pasan a lucide.
+const ICONOS_DEL_PLAN = { creditos: Zap, mas: TrendingUp, incluye: CircleCheck, anticipado: Rocket, prioritario: Crown };
+const IconoDelPlan = ({ nombre }) => {
+    const Icono = ICONOS_DEL_PLAN[nombre];
+    return Icono ? <Icono size={16} strokeWidth={2.25} aria-hidden="true" /> : null;
+};
 import { motion, AnimatePresence } from "framer-motion";
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
@@ -63,21 +70,21 @@ const MENSAJES_CUPON = [
 
 const getPlanFeatures = (t) => ({
     basic: [
-        { icon: "⚡", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.basic }) },
-        { icon: "📈", text: creditsVsPredecessor('basic', t) },
-        { icon: "✅", text: includesPredecessor('basic', t) },
+        { icon: "creditos", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.basic }) },
+        { icon: "mas", text: creditsVsPredecessor('basic', t) },
+        { icon: "incluye", text: includesPredecessor('basic', t) },
     ],
     plus: [
-        { icon: "⚡", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.plus }) },
-        { icon: "📈", text: creditsVsPredecessor('plus', t) },
-        { icon: "✅", text: includesPredecessor('plus', t) },
+        { icon: "creditos", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.plus }) },
+        { icon: "mas", text: creditsVsPredecessor('plus', t) },
+        { icon: "incluye", text: includesPredecessor('plus', t) },
     ],
     ultra: [
-        { icon: "⚡", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.ultra }) },
-        { icon: "📈", text: creditsVsPredecessor('ultra', t) },
-        { icon: "🔮", text: t("Acceso Anticipado a Funciones") },
-        { icon: "👑", text: t("Soporte Prioritario VIP") },
-        { icon: "✅", text: includesPredecessor('ultra', t) },
+        { icon: "creditos", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.ultra }) },
+        { icon: "mas", text: creditsVsPredecessor('ultra', t) },
+        { icon: "anticipado", text: t("Acceso Anticipado a Funciones") },
+        { icon: "prioritario", text: t("Soporte Prioritario VIP") },
+        { icon: "incluye", text: includesPredecessor('ultra', t) },
     ]
 });
 
@@ -622,7 +629,7 @@ const PaymentModal = ({
                                         display: 'flex', alignItems: 'center', gap: '0.65rem',
                                         fontSize: '0.9rem', color: '#d1d1d1',
                                     }}>
-                                        <span style={{ fontSize: '1rem', width: '20px', textAlign: 'center' }}>{feat.icon}</span>
+                                        <span style={{ width: '20px', display: 'inline-flex', justifyContent: 'center', color: 'var(--primary-light)' }}><IconoDelPlan nombre={feat.icon} /></span>
                                         <span>{feat.text}</span>
                                     </div>
                                 ))}

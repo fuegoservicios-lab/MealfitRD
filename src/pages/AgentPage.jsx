@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 // muerto. El uso real vive en MessageBubble + ChatWidget vía LazyMarkdown
 // wrapper que mueve la lib a un chunk async separado.
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
+import IconoDelChat from '../components/agent/IconoDelChat';
 import { ChatStopButton } from '../components/agent/ChatStopButton';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener).
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -263,37 +264,37 @@ const _emitChatPerfTelemetry = ({ corr, firstChunkMs, firstPaintMs, ttfbMs, stre
 // lo nota). Se llama en cada `_buildAgentErrorMessage`.
 const _agentErrorCopy = () => ({
     413: {
-        icon: '📦',
+        icon: 'paquete',
         text: t('El mensaje o sus imágenes superan el límite. Acórtalo o quita una foto antes de enviarlo.'),
         retryable: false,
     },
     415: {
-        icon: '🖼️',
+        icon: 'imagen_rota',
         text: t('Una imagen no tiene un formato compatible. Quítala y elige otra foto.'),
         retryable: false,
     },
     422: {
-        icon: '🖼️',
+        icon: 'imagen_rota',
         text: t('No pudimos leer una de las fotos. Vuelve a elegirla antes de enviar.'),
         retryable: false,
     },
     504: {
-        icon: '⏱',
+        icon: 'reloj',
         text: t('El asistente tardó más de la cuenta en responder. Puedes reintentar ahora.'),
         retryable: true,
     },
     503: {
-        icon: '🚦',
+        icon: 'espera',
         text: t('El asistente está temporalmente saturado. Espera unos segundos y reintenta.'),
         retryable: true,
     },
     429: {
-        icon: '🚦',
+        icon: 'espera',
         text: t('Demasiadas solicitudes seguidas. Espera un momento y reintenta.'),
         retryable: true,
     },
     402: {
-        icon: '🔒',
+        icon: 'candado',
         // [P1-PLAN-LOTE-155 · 2026-09-22] Dentro de la app nativa, el mismo aviso SIN la invitación
         // a mejorar de plan. Es el copy de RESPALDO —el bueno («llegaste a tus 60 mensajes, se
         // renueva el 1 de octubre») se arma más abajo con las cabeceras del 402, que ya respetaban
@@ -310,7 +311,7 @@ const _agentErrorCopy = () => ({
     // cambió en el servidor. Caía al copy genérico «reintentar», y reintentar repetía el 409.
     // Lo que sirve es RECARGAR la conversación: el botón de la burbuja hace eso.
     409: {
-        icon: '🔄',
+        icon: 'recargar',
         text: t('Esa respuesta cambió mientras tanto. Recarga la conversación para ver la versión actual.'),
         retryable: false,
         reloadHistory: true,
@@ -318,22 +319,22 @@ const _agentErrorCopy = () => ({
     // [P1-PLAN-LOTE-844 · 2026-09-29] 428 = sin permiso para la IA de terceros. `fetchWithAuth` ya abrió la hoja; si
     // llega aquí es que se dijo «Ahora no». Reintentable: reintentar vuelve a pasar por el permiso (la hoja).
     428: {
-        icon: '🔒',
+        icon: 'candado',
         text: t('Activa la IA para usar esto'),
         retryable: true,
     },
     401: {
-        icon: '🔐',
+        icon: 'sesion',
         text: t('Tu sesión expiró. Vuelve a iniciar sesión para continuar.'),
         retryable: false,
     },
     403: {
-        icon: '🔐',
+        icon: 'sesion',
         text: t('Tu sesión expiró. Vuelve a iniciar sesión para continuar.'),
         retryable: false,
     },
     0: {
-        icon: '📡',
+        icon: 'sin_red',
         text: t('Sin conexión al servidor. Verifica tu internet y reintenta.'),
         retryable: true,
     },
@@ -371,7 +372,7 @@ const _buildAgentErrorMessage = ({
     if (!entry) {
         // 500/502/otros — copy genérico retryable. Server problem.
         entry = {
-            icon: '⚠',
+            icon: 'aviso',
             text: isAgentError
                 ? t('El asistente tuvo un problema procesando tu mensaje. Puedes reintentar.')
                 : t('El servidor tuvo un problema inesperado. Puedes reintentar en un momento.'),
@@ -390,7 +391,9 @@ const _buildAgentErrorMessage = ({
     const reloadHistory = Boolean(entry.reloadHistory);
     return {
         role: 'model',
-        content: `${entry.icon} ${entry.text}`,
+        // [P1-PLAN-LOTE-1064] El icono ya no va pegado al texto como emoji: la burbuja pinta el lucide de `errorIcon`.
+        content: entry.text,
+        errorIcon: entry.icon,
         errorType: status === 0 ? 'network' : `http_${status}`,
         errorStatus: status,
         retryable: canRetry || reloadHistory,
@@ -6131,7 +6134,7 @@ const AgentPage = () => {
                     transition: color 0.15s ease, background 0.15s ease, transform 0.12s ease;
                 }
                 .chat-mic-btn:hover { color: var(--primary); background: var(--bg-muted); }
-                .chat-mic-btn:active { transform: scale(0.9); }
+                .chat-mic-btn:active { transform: scale(0.97); }
                 .chat-mic-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
                 /* [BB-046 · 2026-11-09] Dictando = estilo ChatGPT/Gemini: botón de parada oscuro con halo azul compacto y cuadrado blanco (el modo voz se oculta mientras se dicta). */
                 .chat-mic-btn.escuchando {
@@ -6187,7 +6190,7 @@ const AgentPage = () => {
                     animation: chat-voz-brillo 2.8s ease-in-out infinite;
                     pointer-events: none;
                 }
-                .chat-voz-btn:active { transform: scale(0.9); }
+                .chat-voz-btn:active { transform: scale(0.97); }
                 .chat-voz-btn:disabled { opacity: 0.5; cursor: default; }
                 .chat-voz-btn:disabled::after { animation: none; opacity: 0; }
                 .chat-voz-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
@@ -6224,7 +6227,7 @@ const AgentPage = () => {
                     }
                 }
                 .attachment-btn:not(.disabled):active {
-                    transform: scale(0.85);
+                    transform: scale(0.97);
                     color: var(--primary);
                 }
                 .attachment-btn.disabled {
@@ -6723,14 +6726,14 @@ const AgentPage = () => {
                                     marginTop: '0.5rem'
                                 }}>
                                     {[
-                                        { icon: '🖼️', text: t('Analizar mi comida') },
+                                        { icon: 'imagen', text: t('Analizar mi comida') },
                                         // [P1-PLAN-LOTE-137] en contador no se ofrece «un plan»: se ofrece cuadrar el día
                                         ...(enModoContador
-                                            ? [{ icon: '💪', text: t('¿Cuánta proteína me falta hoy?') },
-                                               { icon: '✨', text: t('Proponme una comida para cerrar mis macros') }]
-                                            : [{ icon: '💪', text: t('Dieta para ganar volumen') },
-                                               { icon: '✨', text: t('Plan de pérdida de peso') }]),
-                                        { icon: '🍳', text: t('Receta alta en proteína') }
+                                            ? [{ icon: 'proteina', text: t('¿Cuánta proteína me falta hoy?') },
+                                               { icon: 'idea', text: t('Proponme una comida para cerrar mis macros') }]
+                                            : [{ icon: 'proteina', text: t('Dieta para ganar volumen') },
+                                               { icon: 'idea', text: t('Plan de pérdida de peso') }]),
+                                        { icon: 'receta', text: t('Receta alta en proteína') }
                                     ].map((suggestion, idx) => (
                                         <button
                                             key={idx}
@@ -6755,7 +6758,7 @@ const AgentPage = () => {
                                             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-muted)'}
                                             onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}
                                         >
-                                            <span className="suggestion-pill-icon" style={{ fontSize: '1.2rem', lineHeight: 1 }}>{suggestion.icon}</span>
+                                            <span className="suggestion-pill-icon" style={{ display: 'inline-flex', color: 'var(--primary)' }}><IconoDelChat nombre={suggestion.icon} size={18} /></span>
                                             {suggestion.text}
                                         </button>
                                     ))}
