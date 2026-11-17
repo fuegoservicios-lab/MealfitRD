@@ -291,7 +291,8 @@ describe('P1-PLAN-LOTE-794 · la Política de Privacidad dice lo que hace el có
     it('la fecha de la política se movió con el cambio', () => {
         // [P1-PLAN-LOTE-995 · 2026-11-13] Movida del 4 de Octubre al 13 de Noviembre (proveedores occidentales; ver legal_verdad_publica.test.js).
         // [P1-PLAN-LOTE-1041 · 2026-11-16] Y al 16 de Noviembre: las fotos del chat se borran a los 90 días (§2 y §9).
-        expect(privacidad).toContain('lastUpdated="16 de Noviembre, 2026"');
+        // [P1-PLAN-LOTE-1059 · 2026-11-17] Y al 17: informe para el médico y progreso por semanas.
+        expect(privacidad).toContain('lastUpdated="17 de Noviembre, 2026"');
     });
 
     // [P1-PLAN-LOTE-794 · ronda 1] (revisión, defecto 7) La copia React y la del landing (rama

@@ -360,8 +360,17 @@ describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
     });
     // [P1-PLAN-LOTE-1041 · 2026-11-16] Privacidad cambia sola: las fotos del chat se borran a los 90 días (§2 y §9);
     // misma fecha que el apex (bioboros-cinematic b21da72).
-    it('«Política de Privacidad» lleva la fecha del cambio (16 de Noviembre, 2026)', () => {
-        expect(texto).toContain('title="Política de Privacidad" lastUpdated="16 de Noviembre, 2026"');
+    // [P1-PLAN-LOTE-1059 · 2026-11-17] Y al 17: informe para el médico y progreso por semanas (§2, §4, §9; plan 1036.3).
+    it('«Política de Privacidad» lleva la fecha del cambio (17 de Noviembre, 2026)', () => {
+        expect(texto).toContain('title="Política de Privacidad" lastUpdated="17 de Noviembre, 2026"');
+    });
+    it('cuenta el informe para el médico y el progreso por semanas con sus tablas, su IA y su plazo', () => {
+        expect(texto).toContain('<strong>Informe para su médico (opcional):</strong>');
+        expect(texto).toContain('<code>user_health_reports</code>');
+        expect(texto).toContain('<code>user_journey</code>');
+        expect(texto).toContain('<code>user_week_summaries</code>');
+        expect(texto).toContain('El resumen redactado del informe para su médico lo escribe OpenAI');
+        expect(texto).toContain('Los informes para su médico se conservan 365 días');
     });
 
     // Sin esta comprobación, borrar la sección entera dejaría el test en verde: el
