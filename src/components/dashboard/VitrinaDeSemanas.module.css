@@ -1,0 +1,47 @@
+/* [P1-PLAN-LOTE-1059 · plan 1030] Vitrina de semanas cerradas. Texto con tokens; estrellas por trazo/relleno. ≥ 12 px. */
+
+.vitrina { margin-top: 0.55rem; min-width: 0; }
+
+.titulo {
+    margin: 0 0 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.fila {
+    display: flex;
+    gap: 0.35rem;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.fila::-webkit-scrollbar { display: none; }
+
+.semana {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    min-width: 48px;
+    padding: 0.35rem 0.45rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    cursor: pointer;
+}
+
+.perfecta { border-color: color-mix(in srgb, #F59E0B 50%, var(--border)); }
+
+.numero {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.estrellas { display: inline-flex; gap: 1px; }
+.ganada { stroke: #D97706; fill: #FBBF24; }
+.vacia { stroke: color-mix(in srgb, var(--text-muted) 50%, transparent); fill: none; }

@@ -90,9 +90,10 @@ describe('modo menú: con el teclado abierto, adjuntar NO lo cierra', () => {
 
 describe('el chat', () => {
     const src = leer('pages/AgentPage.jsx');
-    it('en nativo no suelta el foco para adjuntar; con teclado, el panel va DENTRO del cuadro (lote 1050), sin él la hoja', () => {
+    it('en nativo no suelta el foco para adjuntar; con o sin teclado, el mismo panel DENTRO del cuadro (lotes 1050/1060)', () => {
         expect(src).toContain('if (abierto && !isNativeApp()) chatInputRef.current?.blur();');
-        expect(src).toContain('setAttachmentAnchorRect(teniaTeclado ? (attachmentTriggerRef.current?.getBoundingClientRect?.() || null) : null);');
+        expect(src).toContain('setAttachmentAnchorRect(attachmentTriggerRef.current?.getBoundingClientRect?.() || null);');
+        expect(src).toContain('setAttachmentSheetOwnsFocus(false);');
         // [P1-PLAN-LOTE-1050] el menú flotante anclado por medidas se descolocaba (captura de pantalla, teclado)
         expect(src).toContain('open={showAttachmentSource && Boolean(attachmentAnchorRect)}');
         expect(src).toContain('open={showAttachmentSource && !attachmentAnchorRect}');

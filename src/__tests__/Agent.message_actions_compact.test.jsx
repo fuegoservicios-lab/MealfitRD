@@ -1,6 +1,6 @@
-// [P2-MSG-ACTIONS-COMPACT · 2026-09-03] La fila de acciones bajo cada respuesta del coach iba en
-// botones de 44×44 con 0,6rem de hueco (~54px de paso para iconos de 18px). Ahora: 32px y 2px de
-// hueco con puntero fino; 42px donde el puntero es el dedo. Tamaño y hover viven en CSS, no inline.
+// [P2-MSG-ACTIONS-COMPACT · 2026-09-03] → [P1-PLAN-LOTE-1061 · 2026-11-17] La fila de acciones bajo cada respuesta
+// (👍 👎 🔄 copiar) se QUITÓ: el dueño, «quitar todo, para mejor experiencia» (1 👍 y 0 👎 en 1.154 respuestas en 60
+// días). Copiar sigue con mantener pulsado: `.messages-container` permite seleccionar el texto.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -8,21 +8,16 @@ import { resolve } from 'node:path';
 const read = (p) => readFileSync(resolve(process.cwd(), p), 'utf8').split(String.fromCharCode(13)).join('');
 const JSX = read('src/components/agent/MessageBubble.jsx');
 const CSS = read('src/components/agent/MessageBubble.css');
+const INDEX = read('src/index.css');
 
-describe('acciones del mensaje', () => {
-    it('los cuatro botones comparten clase y el estado activo es una clase, no un estilo inline', () => {
-        expect(JSX).toContain('<div className="msg-actions">');
-        expect((JSX.match(/className=\{actionBtnClass\(/g) || []).length).toBe(4);
-        expect(JSX).not.toContain('actionBtnStyle');
-        expect(JSX).not.toContain('onMouseEnter={handleMouseEnter}');
-        expect(JSX).not.toContain('minWidth: 44');
+describe('sin acciones bajo el mensaje', () => {
+    it('no hay fila de acciones ni sus estilos', () => {
+        expect(JSX).not.toContain('msg-actions');
+        expect(JSX).not.toContain('MessageActions');
+        expect(JSX).not.toContain('/api/chat/feedback');
+        expect(CSS).not.toContain('.msg-action-btn');
     });
-    it('compacta con puntero fino, táctil con el dedo', () => {
-        expect(CSS).toContain('.msg-actions {');
-        expect(CSS).toMatch(/\.msg-actions \{[^}]*gap: 2px;/);
-        expect(CSS).toMatch(/\.msg-action-btn \{[^}]*width: 32px;[^}]*height: 32px;/);
-        expect(CSS).toContain('@media (pointer: coarse) {');
-        expect(CSS).toMatch(/pointer: coarse\) \{[\s\S]*?\.msg-action-btn \{ width: 42px; height: 42px; \}/);
-        expect(CSS).toContain('.msg-action-btn.is-active { color: var(--primary);');
+    it('el texto del chat se puede seleccionar (copiar con mantener pulsado)', () => {
+        expect(INDEX).toMatch(/\.messages-container, input, textarea \{[^}]*user-select: text;/);
     });
 });

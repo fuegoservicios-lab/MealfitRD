@@ -9,101 +9,16 @@ import BotAvatar from './BotAvatar';
 // el primer render de markdown.
 import LazyMarkdown from '../common/LazyMarkdown';
 import HealthSources from '../common/HealthSources';
-import { ThumbsUp, ThumbsDown, RefreshCw, Copy, Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { ejeDelGesto, decidirGestoVisor, arrastreDelVisor } from '../../utils/imageViewerGesture';
-import { fetchWithAuth } from '../../config/api';
 import { useT, formatDate } from '../../i18n';
 import { timeLabel } from '../../utils/chatTimeline';
-import { toast } from 'sonner';
-import { triggerMobileHaptic } from '../../utils/mobileHaptics';
 import { ChatImage } from './ChatImage';
 import './MessageBubble.css';
 
-const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = true }) => {
-    const t = useT();
-    const [copied, setCopied] = useState(false);
-    const [feedback, setFeedback] = useState(null);
-
-    const handleFeedback = async (type) => {
-        triggerMobileHaptic('light');
-        const newFeedback = feedback === type ? null : type;
-        const previousFeedback = feedback;
-        setFeedback(newFeedback); // Optimistic UI update
-        try {
-            const response = await fetchWithAuth('/api/chat/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ session_id: sessionId, content, feedback: newFeedback })
-            });
-            if (!response.ok) throw new Error(`feedback_${response.status}`);
-        } catch (error) {
-            setFeedback(previousFeedback);
-            console.error('Error saving feedback:', error);
-            triggerMobileHaptic('error');
-            toast.error(t('No pudimos guardar tu valoración. Inténtalo de nuevo.'));
-        }
-    };
-
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(content);
-            triggerMobileHaptic('success');
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        } catch (error) {
-            console.error('Error copying chat response:', error);
-            triggerMobileHaptic('error');
-            toast.error(t('No pudimos copiar la respuesta.'));
-        }
-    };
-
-    // [P2-MSG-ACTIONS-COMPACT · 2026-09-03] Los cuatro iconos iban en botones de 44×44 con
-    // 0,6rem de hueco: ~54px de paso entre iconos de 18px, un aire enorme en escritorio y
-    // la fila lejos del texto. Tamaño y hueco pasan a CSS (MessageBubble.css): 32px con 2px
-    // de hueco donde hay puntero fino, 42px donde el puntero es el dedo (`pointer: coarse`).
-    const actionBtnClass = (active = false) => `msg-action-btn${active ? ' is-active' : ''}`;
-
-    return (
-        <div className="msg-actions">
-            <button 
-                onClick={() => handleFeedback('up')} 
-                className={actionBtnClass(feedback === 'up')}
-                title={t('Buena respuesta')}
-                aria-label={t('Buena respuesta')}
-                aria-pressed={feedback === 'up'}
-            >
-                <ThumbsUp size={18} strokeWidth={2} fill={feedback === 'up' ? 'currentColor' : 'none'} />
-            </button>
-            <button 
-                onClick={() => handleFeedback('down')} 
-                className={actionBtnClass(feedback === 'down')}
-                title={t('Mala respuesta')}
-                aria-label={t('Mala respuesta')}
-                aria-pressed={feedback === 'down'}
-            >
-                <ThumbsDown size={18} strokeWidth={2} fill={feedback === 'down' ? 'currentColor' : 'none'} />
-            </button>
-            {showRegenerate && (
-                <button
-                    onClick={onRegenerate}
-                    className={actionBtnClass()}
-                    title={t('Regenerar respuesta')}
-                    aria-label={t('Regenerar respuesta')}
-                >
-                    <RefreshCw size={18} strokeWidth={2} />
-                </button>
-            )}
-            <button 
-                onClick={handleCopy} 
-                className={actionBtnClass(copied)}
-                title={t('Copiar')}
-                aria-label={t('Copiar')}
-            >
-                {copied ? <Check size={18} strokeWidth={2.5} /> : <Copy size={18} strokeWidth={2} />}
-            </button>
-        </div>
-    );
-};
+// [P1-PLAN-LOTE-1061 · 2026-11-17] Sin fila de acciones (👍 👎 🔄 copiar) bajo cada respuesta. El dueño: «quitar todo,
+// para mejor experiencia». Medido: 1 👍 y 0 👎 en 1.154 respuestas en 60 días; copiar sigue con mantener pulsado
+// (`.messages-container` permite seleccionar) y la calidad la miden las señales automáticas (lote 1027).
 
 // [P1-CHAT-ERROR-DIFF · 2026-05-19] Botón inline "Reintentar" para los
 // bubbles de error generados por _buildAgentErrorMessage. Solo se renderiza
@@ -147,7 +62,7 @@ const ErrorRetryButton = ({ onClick, reload = false }) => {
     );
 };
 
-export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId, onRegenerate, onErrorRetry, daySeparator = null, puedeRegenerar = true }) => {
+export const MemoizedMessageBubble = React.memo(({ msg, onErrorRetry, daySeparator = null }) => {
     const t = useT();
     const [viewerIndex, setViewerIndex] = useState(null);
     const [brokenImages, setBrokenImages] = useState(() => new Set());
@@ -268,7 +183,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     // [P1-CHAT-ERROR-DIFF · 2026-05-19] Variante visual para errores:
     // role="alert" (anuncio a screen readers — defensa-en-profundidad
     // mientras el aria-live container-level sigue pendiente), borde rojo
-    // sutil, NO MessageActions (thumbs/regenerate no aplican).
+    // sutil (sin acciones: ya no existen en ninguna burbuja, lote 1061).
     const isErrorBubble = msg.role === 'model' && msg._isErrorBubble === true;
     // [P2-CHAT-TIMELINE · 2026-09-03] Si el día cambió respecto al mensaje anterior, un
     // separador encima de la fila. La hora NO se pinta: el dueño la vio innecesaria en el
@@ -411,15 +326,6 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                 )}
 
                 {msg.role === 'model' && !msg.isStreaming && !isErrorBubble && !msg.isWelcome && <HealthSources context="chat" text={msg.content} />}
-                {/* Action bar for model messages — oculto en errores y en el saludo de bienvenida */}
-                {msg.role === 'model' && !msg.isStreaming && !isErrorBubble && !msg.isWelcome && (
-                    <MessageActions
-                        content={msg.content}
-                        sessionId={currentSessionId}
-                        onRegenerate={() => onRegenerate(index)}
-                        showRegenerate={puedeRegenerar}
-                    />
-                )}
             </div>
             {viewerUrl && typeof document !== 'undefined' && createPortal(
                 <div

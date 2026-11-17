@@ -25,19 +25,12 @@ describe('[364] «Regenerar» solo en respuestas a un mensaje tuyo', () => {
         expect(respondeAlUsuario(msgs, 0)).toBe(false);
     });
 
-    it('el aviso automático no muestra «Regenerar»; copiar y valorar siguen', () => {
-        render(React.createElement(MemoizedMessageBubble, {
-            msg: msgs[2], index: 2, currentSessionId: 's', onRegenerate: () => {}, onErrorRetry: () => {}, puedeRegenerar: false,
-        }));
-        expect(screen.queryByRole('button', { name: 'Regenerar respuesta' })).toBeNull();
-        expect(screen.getByRole('button', { name: /Copiar/ })).toBeTruthy();
-    });
-
-    it('una respuesta normal sí lo muestra', () => {
+    it('[1061] ninguna burbuja lleva «Regenerar» ni «Copiar» (la fila de acciones se quitó)', () => {
         render(React.createElement(MemoizedMessageBubble, {
             msg: msgs[1], index: 1, currentSessionId: 's', onRegenerate: () => {}, onErrorRetry: () => {}, puedeRegenerar: true,
         }));
-        expect(screen.getByRole('button', { name: 'Regenerar respuesta' })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Regenerar respuesta' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Copiar/ })).toBeNull();
     });
 
     it('las dos listas lo calculan y el handler lo defiende', () => {

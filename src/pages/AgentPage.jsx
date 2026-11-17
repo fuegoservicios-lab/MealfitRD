@@ -2323,9 +2323,11 @@ const AgentPage = () => {
                 || medirTecladoDeVentana(window).abierto;
             attachmentPickerHadKeyboardRef.current = false;
             reopenKeyboardAfterAttachmentRef.current = teniaTeclado;
-            // Con teclado: menú anclado al «+» que no toca el foco (el teclado se queda). Sin teclado: hoja inferior.
-            setAttachmentSheetOwnsFocus(!teniaTeclado);
-            setAttachmentAnchorRect(teniaTeclado ? (attachmentTriggerRef.current?.getBoundingClientRect?.() || null) : null);
+            // [P1-PLAN-LOTE-1060] El dueño (17-nov): sin teclado «debe ser igual al diseño de cuando lo abro con el teclado
+            // abierto». Con y sin teclado, el MISMO panel encima del cuadro, que no toca el foco. La hoja inferior queda
+            // solo de respaldo si no se encuentra el «+».
+            setAttachmentSheetOwnsFocus(false);
+            setAttachmentAnchorRect(attachmentTriggerRef.current?.getBoundingClientRect?.() || null);
             setShowAttachmentSource(true);
             return;
         }
@@ -6585,7 +6587,8 @@ const AgentPage = () => {
                                 title={t('El coach es una IA: puede equivocarse y no sustituye el consejo médico.')}
                                 aria-label={t('El coach es una IA y puede equivocarse.')}
                             >
-                                {t('IA · Puede equivocarse')}
+                                {/* [P1-PLAN-LOTE-1062] el dueño: «IA · Puede equivocarse» era poco informativo y asustaba */}
+                                {t('La IA puede equivocarse; revisa lo importante')}
                             </span>
                         </div>
 
@@ -6891,7 +6894,7 @@ const AgentPage = () => {
 
 
             <AttachmentSourceSheet
-                // [P1-PLAN-LOTE-1050] la hoja inferior solo SIN teclado; con teclado, el panel integrado de arriba
+                // [P1-PLAN-LOTE-1060] respaldo: solo si no se pudo medir el «+» (lo normal es el panel integrado de arriba)
                 open={showAttachmentSource && !attachmentAnchorRect}
                 onClose={() => {
                     // Cancelar no toca el foco: con el menú el teclado nunca se fue.
@@ -7023,8 +7026,11 @@ const AgentPage = () => {
                 .chat-aviso-ia-cabecera {
                     color: var(--text-muted);
                     font-size: 0.75rem;
-                    line-height: 1.4;
-                    white-space: nowrap;
+                    line-height: 1.35;
+                    /* [P1-PLAN-LOTE-1062] frase completa: cabe entre los dos botones redondos en hasta 2 líneas */
+                    max-width: min(16.5rem, 62vw);
+                    text-align: center;
+                    text-wrap: balance;
                 }
 
                 /* ====== MOBILE REDESIGN ====== */

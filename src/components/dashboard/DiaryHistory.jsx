@@ -57,7 +57,9 @@ import { useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/use
 import MiniaturaDeComida from './MiniaturaDeComida';
 import { getBiologicalDate, getBiologicalDateStr, getCalendarDateStr } from '../../utils/diaBiologico';
 import { getCalorieGoalBand, getCalorieGoalState, isStrongDeficit, resolveMainGoal } from '../../utils/calorieGoalStatus';
-import { ESTRELLAS_MAX, estrellasDeLaSemana, inicioDeLaSemana1, numeroDeSemana } from '../../utils/progresoDeLosDias';
+import { ESTRELLAS_MAX, domingoDe, estrellasDeLaSemana, inicioDeLaSemana1, numeroDeSemana } from '../../utils/progresoDeLosDias';
+import { diaUnoDelServidor } from '../../utils/progresoServidor';
+import VitrinaDeSemanas from './VitrinaDeSemanas';
 import { safeLocalStorageGet } from '../../utils/safeLocalStorage';
 import styles from './DiaryHistory.module.css';
 import BotonInformeMedico from '../common/BotonInformeMedico';   // [P1-PLAN-LOTE-1034]
@@ -293,6 +295,15 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         });
     }, [maxDias]);
 
+    const irASemana = useCallback((iso) => {
+        const d = desdeISO(iso);
+        const hoy = getBiologicalDate(new Date());
+        const diasAtrasMes = Math.ceil((hoy - new Date(d.getFullYear(), d.getMonth(), 1, 12)) / 86400000) + 35;
+        if (diasAtrasMes > maxDias) setMaxDias(Math.min(365, Math.max(90, diasAtrasMes)));
+        setCalDate(new Date(d.getFullYear(), d.getMonth(), 1, 12, 0, 0, 0));
+        setFiltro(null);
+    }, [maxDias]);
+
     const esMesActual = useMemo(() => {
         const hoy = getBiologicalDate(new Date());
         return calDate.getFullYear() === hoy.getFullYear() && calDate.getMonth() === hoy.getMonth();
@@ -397,8 +408,10 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     // [SEMANAS-ALINEADAS · 2026-11-15] cada fila del mes ES una semana numerada (domingo a sábado): «S9» y sus estrellas.
     // El primer día lo guarda la tarjeta de Progreso; sin él, sale de lo que haya cargado.
     const semanasDelMes = useMemo(() => {
+        // [P1-PLAN-LOTE-1059] el día 1 del SERVIDOR manda (mismo «S9» en cualquier teléfono); sin él, lo deducido aquí
+        const delServidor = userId ? diaUnoDelServidor(userId) : null;
         const guardado = userId ? safeLocalStorageGet(`mealfit_semana_inicio_${userId}`, null) : null;
-        const inicio = inicioDeLaSemana1(resumen, hoyISO, guardado);
+        const inicio = delServidor && delServidor <= hoyISO ? domingoDe(delServidor) : inicioDeLaSemana1(resumen, hoyISO, guardado);
         const out = [];
         for (let i = 0; i < calDias.length; i += 7) {
             const fila = calDias.slice(i, i + 7);
@@ -651,6 +664,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         { kcal: formatNumber(mes.media), n: mes.n })}
                 </div>
             )}
+            {/* [P1-PLAN-LOTE-1059 · plan 1030] las semanas cerradas; tocar una lleva el mes a esa semana */}
+            <VitrinaDeSemanas userId={userId} onElegir={irASemana} />
             {/* [P1-PLAN-LOTE-1034] el resumen para el médico, desde el calendario */}
             <BotonInformeMedico onAbrir={onClose} />
         </div>

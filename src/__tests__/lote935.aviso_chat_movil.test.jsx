@@ -7,7 +7,7 @@ describe('aviso del coach en la cabecera', () => {
     it('conserva el aviso completo como explicación del texto breve', () => {
         const i = src.indexOf('className="chat-aviso-ia-cabecera"');
         const nota = src.slice(i, i + 700);
-        expect(nota).toContain("t('IA · Puede equivocarse')");
+        expect(nota).toContain("t('La IA puede equivocarse; revisa lo importante')");   // [P1-PLAN-LOTE-1062] más completa, menos alarmante
         expect(nota).toContain("t('El coach es una IA: puede equivocarse y no sustituye el consejo médico.')");
         expect(nota).toContain("t('El coach es una IA y puede equivocarse.')");
     });

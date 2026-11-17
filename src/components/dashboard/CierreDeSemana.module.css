@@ -1,0 +1,81 @@
+/* [P1-PLAN-LOTE-1059 · plan 1035] Cierre de semana e hitos. Texto con tokens del tema; los tonos vivos solo en
+   trazos y rellenos (P1-LIGHT-INK-CONTRACT). Letra ≥ 12 px. Sin movimiento al pasar ni al pulsar. */
+
+.cierre {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+}
+
+.cierre:empty { display: none; }
+
+.tarjeta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 0.6rem 0.65rem 0.75rem;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, #F59E0B 40%, var(--border));
+    background: color-mix(in srgb, #FBBF24 12%, var(--bg-card));
+}
+
+.estrellas {
+    flex: none;
+    display: inline-flex;
+    gap: 0.1rem;
+}
+
+.ganada { stroke: #D97706; fill: #FBBF24; }
+.vacia { stroke: color-mix(in srgb, var(--text-muted) 55%, transparent); fill: none; }
+
+.cuerpo { flex: 1; min-width: 0; }
+
+.titulo {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.texto {
+    margin: 0.1rem 0 0;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.hito {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.5rem 0.45rem 0.65rem;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+    background: color-mix(in srgb, var(--primary) 7%, var(--bg-card));
+}
+
+.hitoIcono { flex: none; stroke: #F59E0B; }
+
+.hitoTexto {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.hitoTexto strong { color: var(--text-main); font-weight: 800; }
+
+.cerrar {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}

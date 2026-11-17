@@ -751,12 +751,13 @@ function RotatingGreeting({ firstName }) {
         return () => clearInterval(id);
     }, []);
 
-    const name = <span style={_GREETING_NAME_STYLE}>{firstName}</span>;
+    // [P1-PLAN-LOTE-1063] sin nombre (invitado o cuenta sin nombre) va solo el saludo; antes salía «Nutrifit»
+    const name = firstName ? <>, <span style={_GREETING_NAME_STYLE}>{firstName}</span></> : null;
 
     if (prefersReducedMotion) {
         return (
             <>
-                <h1 className="dashboard-title">{g.salutation}, {name}</h1>
+                <h1 className="dashboard-title">{g.salutation}{name}</h1>
                 <p className="dashboard-subtitle">{g.subtitle}</p>
             </>
         );
@@ -778,7 +779,7 @@ function RotatingGreeting({ firstName }) {
                         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
                         style={{ display: 'inline-block' }}
                     >
-                        {g.salutation}, {name}
+                        {g.salutation}{name}
                     </motion.span>
                 </AnimatePresence>
             </h1>
@@ -6711,7 +6712,7 @@ const DashboardInner = () => {
                     {/* [P3-GREETING-ROTATE · 2026-06-19] Saludo time-aware que rota cada ~9s
                         con transición animada. El nombre conserva su gradient (estilo en
                         `_GREETING_NAME_STYLE`, con los fixes de clip P3-GRADIENT-NAME-CLIP-FIX). */}
-                    <RotatingGreeting firstName={userProfile?.full_name?.split(' ')[0] || formData?.name || 'Nutrifit'} />
+                    <RotatingGreeting firstName={userProfile?.full_name?.split(' ')[0] || formData?.name || ''} />
 
                     {/* VISUALIZADOR DE CRÉDITOS — [P2-CREDITS-METER · 2026-06-15] gauge circular
                         animado (ver components/dashboard/CreditsMeter).
@@ -9714,7 +9715,7 @@ const DashboardInner = () => {
                                 <EmptyState
                                     icon={Brain}
                                     title={t('Aún no hay razonamiento')}
-                                    description={t('Cuando tu plan esté listo, encontrarás aquí el diagnóstico, el plan de acción y los tips del chef.')}
+                                    description={t('Cuando tu plan esté listo, encontrarás aquí el porqué de tu plan, los pasos a seguir y los tips del chef.')}
                                     compact
                                 />
                             ) : planInsightsDisplay(planData, _dashLocale).map((insight, i) => {

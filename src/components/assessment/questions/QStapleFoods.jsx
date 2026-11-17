@@ -250,7 +250,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                             }}
                             style={{ width: '5.5rem', padding: '0.4rem 0.55rem', borderRadius: '0.5rem',
                                      border: '1px solid var(--border)', background: 'transparent',
-                                     color: 'var(--text)' }}
+                                     color: 'var(--text-main)' }}
                         />
                         <select
                             aria-label={t('Unidad')}
@@ -260,7 +260,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                                 : {})}
                             style={{ padding: '0.4rem 0.55rem', borderRadius: '0.5rem',
                                      border: '1px solid var(--border)', background: 'transparent',
-                                     color: 'var(--text)' }}
+                                     color: 'var(--text-main)' }}
                         >
                             <option value="unidad">{t('unidades')}</option>
                             <option value="g">{t('gramos')}</option>

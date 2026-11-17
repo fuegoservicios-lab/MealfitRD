@@ -138,16 +138,23 @@ export default function InformeMedico() {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- `periodoTexto` y `aviso` derivan de `informe` y `t`
     }, [informe, bloques]);
 
+    // [P1-PLAN-LOTE-1059 · plan 1036.5] solo se CUENTA que se compartió (nada del contenido sale del teléfono)
+    const anotarCompartido = () => {
+        if (!uid || !informe?.id) return;
+        fetchWithAuth(`/api/reports/health/${uid}/${informe.id}/shared`, { method: 'POST' }).catch(() => {});
+    };
     const compartir = async () => {
         if (!pdf) return;
         try {
             if (navigator.canShare?.({ files: [pdf] })) {
                 await navigator.share({ files: [pdf], title: t('Informe para tu médico') });
+                anotarCompartido();
                 return;
             }
         } catch (e) {
             if (e?.name === 'AbortError') return;
         }
+        anotarCompartido();
         const url = URL.createObjectURL(pdf);
         const a = document.createElement('a');
         a.href = url;

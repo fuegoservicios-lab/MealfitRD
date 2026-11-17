@@ -26,6 +26,9 @@ import {
     domingoDe, faltanParaLaSiguienteEstrella, fechasDeLaSemana, inicioDelViaje, mediodiaDe, numeroDeSemana, rachaEnMeta,
     ultimosDias,
 } from '../../utils/progresoDeLosDias';
+import { useResumenDeProgreso } from '../../hooks/useResumenDeProgreso';
+import { pedirSemanas } from '../../utils/progresoServidor';
+import CierreDeSemana from './CierreDeSemana';
 import styles from './SemanaEnProgreso.module.css';
 
 const RADIO = 17;
@@ -53,6 +56,9 @@ const SemanaEnProgreso = ({
     const [vista, setVista] = useState({ semana: null, sentido: 0 });   // semana null = la semana en curso
     const hoyISO = getBiologicalDateStr(new Date());
     const calendarioISO = getCalendarDateStr(new Date());
+    // [P1-PLAN-LOTE-1059 · plan 1030] el juego según el SERVIDOR: su día 1 manda sobre lo deducido en este teléfono
+    const servidor = useResumenDeProgreso(userId);
+    const [semanasViejas, setSemanasViejas] = useState(null);
 
     useEffect(() => {
         if (!userId) return undefined;
@@ -94,9 +100,11 @@ const SemanaEnProgreso = ({
     }, []);
 
     // Se guarda el PRIMER DÍA con registros; las semanas se cuentan desde el domingo de esa semana (como el calendario).
+    const diaUnoServidor = servidor?.dia_1 && servidor.dia_1 <= hoyISO ? servidor.dia_1 : null;
     const primerDia = useMemo(
-        () => inicioDelViaje(filas, hoyISO, userId ? safeLocalStorageGet(_claveInicio(userId), null) : null),
-        [filas, hoyISO, userId],
+        () => diaUnoServidor
+            || inicioDelViaje(filas, hoyISO, userId ? safeLocalStorageGet(_claveInicio(userId), null) : null),
+        [diaUnoServidor, filas, hoyISO, userId],
     );
     useEffect(() => { if (userId) safeLocalStorageSet(_claveInicio(userId), primerDia); }, [userId, primerDia]);
     const inicio = domingoDe(primerDia);
@@ -117,7 +125,17 @@ const SemanaEnProgreso = ({
         })),
         [hoyISO, filas, hoy, targetCalories, targetMacros, mainGoal, semanaActual],
     );
-    const enMeta = dias.filter((d) => d.estado === 'meta').length;
+    // Más atrás del tope de 365 días del endpoint no hay detalle por día: el resumen de la semana lo da el servidor.
+    const fueraDeHistoria = Math.round((mediodiaDe(hoyISO) - mediodiaDe(dias[DIAS_DE_LA_SEMANA - 1].iso)) / 86400000)
+        >= DIAS_MAX_HISTORIA;
+    useEffect(() => {
+        if (!fueraDeHistoria || semanasViejas || !userId) return undefined;
+        let vivo = true;
+        pedirSemanas(userId).then((l) => { if (vivo) setSemanasViejas(l); }).catch(() => {});
+        return () => { vivo = false; };
+    }, [fueraDeHistoria, semanasViejas, userId]);
+    const deServidor = fueraDeHistoria ? (semanasViejas || []).find((x) => x.numero === semana) : null;
+    const enMeta = deServidor ? deServidor.dias_en_meta : dias.filter((d) => d.estado === 'meta').length;
     const estrellas = estrellasDeLaSemana(enMeta);
     const faltan = faltanParaLaSiguienteEstrella(enMeta);
     const diaDeLaSemana = dias.findIndex((d) => d.esHoy) + 1;
@@ -150,6 +168,10 @@ const SemanaEnProgreso = ({
     ] : [];
 
     const titulo = t('Semana {n}', { n: semana });
+    const rango = servidor?.rango || null;
+    const nombreDelRango = (clave) => ({
+        bronce: t('Bronce'), plata: t('Plata'), oro: t('Oro'), platino: t('Platino'), diamante: t('Diamante'),
+    })[clave] || '';
     const textoRacha = tn(racha, '{n} día seguido', '{n} días seguidos', { n: racha });
     return (
         <section
@@ -159,7 +181,7 @@ const SemanaEnProgreso = ({
             <div className={styles.cabecera}>
                 <div className={styles.nivel}>
                     {/* el número ya lo dice el título: la insignia lleva el trofeo (dorada con las 3 estrellas) */}
-                    <span className={styles.insignia} aria-hidden="true"><Trophy key={semana} size={22} strokeWidth={2.25} /></span>
+                    <span className={`${styles.insignia} ${rango ? styles[`rango_${rango.clave}`] || '' : ''}`} aria-hidden="true"><Trophy key={semana} size={22} strokeWidth={2.25} /></span>
                     <div className={styles.nivelTexto}>
                         <h3 className={styles.titulo}>{titulo}</h3>
                         <p className={styles.sub}>
@@ -167,10 +189,27 @@ const SemanaEnProgreso = ({
                                 ? t('Día {n} de {total}', { n: diaDeLaSemana, total: DIAS_DE_LA_SEMANA })
                                 : `${fechaCorta(dias[0].iso)} – ${fechaCorta(dias[DIAS_DE_LA_SEMANA - 1].iso)}`}
                         </p>
+                        {rango && (
+                            <p className={styles.rango}>
+                                {t('Rango {rango}', { rango: nombreDelRango(rango.clave) })}
+                                {rango.siguiente && rango.estrellas_para_el_siguiente > 0 && (
+                                    <span className={styles.rangoFalta}>
+                                        {' · '}
+                                        {tn(rango.estrellas_para_el_siguiente,
+                                            'Te falta {n} estrella para {rango}',
+                                            'Te faltan {n} estrellas para {rango}',
+                                            { n: rango.estrellas_para_el_siguiente, rango: nombreDelRango(rango.siguiente) })}
+                                    </span>
+                                )}
+                            </p>
+                        )}
                     </div>
                 </div>
                 {calendario}
             </div>
+
+            {/* [P1-PLAN-LOTE-1059 · plan 1035] cierre de semana e hitos: una vez, y se marcan vistos en el servidor */}
+            <CierreDeSemana userId={userId} eventos={servidor?.eventos} />
 
             <div className={styles.resumen}>
                 <span

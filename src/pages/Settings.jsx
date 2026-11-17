@@ -342,11 +342,15 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const _prefAvisos = (clave) => (userProfile?.health_profile || {})[clave] !== false;
     const [avisosComida, setAvisosComida] = useState(() => _prefAvisos('avisos_comida'));
     const [avisosAgua, setAvisosAgua] = useState(() => _prefAvisos('avisos_agua'));
+    // [P1-PLAN-LOTE-1059 · plan 1035] el resumen del domingo: APAGADO salvo que la persona lo encienda (plan §7.1)
+    const _avisoSemanal = () => (userProfile?.health_profile || {}).aviso_semanal === true;
+    const [avisoSemanal, setAvisoSemanal] = useState(_avisoSemanal);
     useEffect(() => {
         setAvisosComida(_prefAvisos('avisos_comida'));
         setAvisosAgua(_prefAvisos('avisos_agua'));
+        setAvisoSemanal(_avisoSemanal());
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userProfile?.health_profile?.avisos_comida, userProfile?.health_profile?.avisos_agua]);
+    }, [userProfile?.health_profile?.avisos_comida, userProfile?.health_profile?.avisos_agua, userProfile?.health_profile?.aviso_semanal]);
 
     // [P1-PLAN-LOTE-162 · 2026-09-22] Solo SU clave, esperando la respuesta. Iba por `safeUpdateHealthProfile`, que
     // manda el FORMULARIO ENTERO del teléfono: la copia local de `avisos_agua` se quedaba con el valor de la primera
@@ -356,7 +360,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const [guardandoPrefAviso, setGuardandoPrefAviso] = useState(false);
     const cambiarPrefDeAviso = async (clave, valor) => {
         if (guardandoPrefAviso) return;
-        const poner = clave === 'avisos_comida' ? setAvisosComida : setAvisosAgua;
+        const poner = { avisos_comida: setAvisosComida, aviso_semanal: setAvisoSemanal }[clave] || setAvisosAgua;
         poner(valor);
         setGuardandoPrefAviso(true);
         try {
@@ -3806,6 +3810,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     {[
                                         { clave: 'avisos_comida', valor: avisosComida, titulo: t('Recordatorios de comida'), sub: t('Un aviso por comida, a la hora que elijas.') },
                                         { clave: 'avisos_agua', valor: avisosAgua, titulo: t('Recordatorios de agua'), sub: t('Avisos para que no se te olvide beber durante el día.') },
+                                        { clave: 'aviso_semanal', valor: avisoSemanal, titulo: t('Resumen de tu semana'), sub: t('El domingo por la mañana: cómo cerró tu semana y que empieza la siguiente.') },
                                     ].map(({ clave, valor, titulo, sub }) => (
                                         <Fragment key={clave}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

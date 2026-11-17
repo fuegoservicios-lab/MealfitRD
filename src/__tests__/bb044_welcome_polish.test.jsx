@@ -44,7 +44,7 @@ describe('Pulido del Saludo y Bienvenida del Coach (BB-044)', () => {
         expect(container.querySelector('.msg-actions')).toBeNull();
     });
 
-    it('MemoizedMessageBubble SÍ renderiza fuentes de salud y acciones en respuestas reales del modelo', () => {
+    it('MemoizedMessageBubble SÍ renderiza fuentes de salud en respuestas reales del modelo (sin acciones: lote 1061)', () => {
         const realMsg = {
             role: 'model',
             content: 'Anoté tu comida con 30g de proteína y 500 kcal.',
@@ -62,6 +62,6 @@ describe('Pulido del Saludo y Bienvenida del Coach (BB-044)', () => {
         );
 
         expect(screen.getByText(/Fuentes de salud/i)).toBeInTheDocument();
-        expect(container.querySelector('.msg-actions')).not.toBeNull();
+        expect(container.querySelector('.msg-actions')).toBeNull();
     });
 });

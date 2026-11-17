@@ -560,3 +560,24 @@
     .diaHoy .anillo::after, .insignia::after, .insignia svg, .estrellaGanada, .enlaceMeta { animation: none; }
     .dia, .flecha { transition: none; }
 }
+
+/* [P1-PLAN-LOTE-1059 · plan 1030] El rango (por estrellas totales, del servidor) pinta la insignia; la línea de texto
+   va con tokens. La semana perfecta sigue mandando: dorada. */
+.rango {
+    margin: 0.1rem 0 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.rangoFalta { font-weight: 500; }
+
+.rango_bronce { background: linear-gradient(155deg, #D9A066 0%, #B87333 50%, #8C5523 100%); }
+.rango_plata { background: linear-gradient(155deg, #E5E7EB 0%, #9CA3AF 50%, #6B7280 100%); }
+.rango_oro { background: linear-gradient(155deg, #FBBF24 0%, #F59E0B 50%, #B45309 100%); }
+.rango_platino { background: linear-gradient(155deg, #A5F3FC 0%, #22D3EE 45%, #0E7490 100%); }
+.rango_diamante { background: linear-gradient(155deg, #C4B5FD 0%, #818CF8 45%, #4338CA 100%); }
+.semanaPerfecta .insignia.rango_bronce,
+.semanaPerfecta .insignia.rango_plata,
+.semanaPerfecta .insignia.rango_platino,
+.semanaPerfecta .insignia.rango_diamante { background: linear-gradient(155deg, #FBBF24 0%, #F59E0B 50%, #D97706 100%); }
