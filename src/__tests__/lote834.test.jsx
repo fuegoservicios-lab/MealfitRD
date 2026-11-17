@@ -544,7 +544,9 @@ describe('[834] el detalle de prueba: contenido de cada pestaña', () => {
         expect(m1.querySelector('[data-texto]').textContent).toBe('Hola, ¿qué ceno hoy?\nTengo pollo');
         expect(m2).toHaveAttribute('data-rol', 'coach');
         expect(within(m2).getByText('El coach')).toBeInTheDocument();
-        expect(m2.querySelector('[data-texto]').textContent).toBe('**Pollo al horno** <b>con</b> ensalada');
+        // [P1-PLAN-LOTE-1056] las negritas del coach se ven como negritas; el HTML sigue siendo texto
+        expect(m2.querySelector('[data-texto]').textContent).toBe('Pollo al horno <b>con</b> ensalada');
+        expect(m2.querySelector('[data-texto] strong').textContent).toBe('Pollo al horno');
         expect(m2.querySelector('b')).toBeNull();
         expect(m2).toHaveTextContent('Marcada como no útil');
         expect(m3).toHaveTextContent('Marcada como útil');

@@ -700,6 +700,13 @@ function FotoAdjunta({ url, alt }) {
     return <img className={styles.foto} src={foto.src} alt={alt} />;
 }
 
+// [P1-PLAN-LOTE-1056 · 2026-11-17] El coach escribe en markdown y aquí se veía crudo («**desayuno**», captura del dueño).
+// Solo las negritas, que es lo que usa: sin HTML ni librería de markdown en el panel.
+function conNegritas(s) {
+    const partes = String(s || '').split(/\*\*([^*\n]+?)\*\*/g);
+    return partes.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : p));
+}
+
 function Mensaje({ raiz, m }) {
     const rol = texto(m.rol);
     const persona = rol === 'persona';
@@ -719,7 +726,7 @@ function Mensaje({ raiz, m }) {
                     <span className={styles.rol}>{quien}</span>
                     {m.at && <time className={styles.hora} dateTime={m.at}>{fechaHora(m.at)}</time>}
                 </p>
-                {texto(m.texto) && <p className={styles.texto} data-texto="">{texto(m.texto)}</p>}
+                {texto(m.texto) && <p className={styles.texto} data-texto="">{conNegritas(texto(m.texto))}</p>}
                 {fotos.length > 0 && (
                     <div className={styles.fotos}>
                         {fotos.map((f, i) => <FotoAdjunta key={texto(f.id)} url={`${raiz}/adjuntos/${encodeURIComponent(texto(f.id))}`} alt={altDe(i)} />)}
