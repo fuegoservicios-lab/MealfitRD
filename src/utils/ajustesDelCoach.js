@@ -19,6 +19,7 @@ export function rutaDePantalla(pantalla, { modoContador = false } = {}) {
         case 'recetas': return modoContador ? '/dashboard' : '/dashboard/recipes';
         case 'historial': return '/history';
         case 'configuracion': return '/dashboard/settings';
+        case 'informe': return '/dashboard/informe';   // [P1-PLAN-LOTE-1034]
         default: return null;
     }
 }
@@ -94,6 +95,8 @@ export function aplicarAjustesDelCoach(ajustes, deps = {}) {
             // Como ventana sobre la pantalla actual (igual que el engranaje), en su sección si la pidió.
             const destino = a.seccion ? `${ruta}#${a.seccion}` : ruta;
             intentar(() => deps.navigate?.(destino, deps.ubicacion ? { state: { backgroundLocation: deps.ubicacion } } : undefined));
+        } else if (ruta === '/dashboard/informe' && typeof a.informe_id === 'string' && /^[0-9a-f-]{36}$/i.test(a.informe_id)) {
+            intentar(() => deps.navigate?.(`${ruta}?id=${a.informe_id}`));   // el informe que el coach acaba de preparar
         } else if (ruta) {
             intentar(() => deps.navigate?.(ruta));
         }

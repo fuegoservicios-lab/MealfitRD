@@ -73,6 +73,7 @@ import StapleFoodsPanel from '../components/settings/StapleFoodsPanel';
 // [P1-CLINICAL-PANEL · 2026-07-03] Panel opt-in de perfil clínico avanzado
 // (labs, historia ponderal, digestión, entrenamiento) → health_profile.clinical_profile.
 import ClinicalProfilePanel from '../components/settings/ClinicalProfilePanel';
+import BotonInformeMedico from '../components/common/BotonInformeMedico';   // [P1-PLAN-LOTE-1034]
 // [P1-PLAN-LOTE-223 · 2026-09-24] Interruptor y hora de cada recordatorio de comida (health_profile.avisos_por_comida).
 import RecordatoriosPorComida from '../components/settings/RecordatoriosPorComida';
 import { acusePrioritario } from '../hooks/useAutoguardado';
@@ -4409,6 +4410,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 {t('Los datos que un nutriólogo pediría en consulta. Opcionales — cada uno que completes afina tu plan.')}
                             </p>
                             <ClinicalProfilePanel onEstado={reportarEstado('clinico')} />
+                            <BotonInformeMedico />{/* [P1-PLAN-LOTE-1034] */}
                         </section>
                     )}
 
