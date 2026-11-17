@@ -51,7 +51,8 @@ function contar() {
 // Medido el 2026-11-17 (lote 1063). SOLO PUEDE BAJAR.
 // [1064] Botón común, «Cambiar plato» secundario y emojis→lucide: hex 2632→2619, letra 1212→1210, radios 1119→1118,
 // emojis-icono 48→1 (queda el «✓» tipográfico del presupuesto, pareja de «≈» y «▲»: no es un emoji).
-const TECHO = { hex: 2619, fontFueraDeEscala: 1210, radioLiteral: 1118, zLiteral: 60, estiloEnLinea: 1440, emojiIcono: 1 };
+// [1065] Saludo, PDF y login a la escala, Planes índigo sólido: hex 2619→2609, letra 1210→1188.
+const TECHO = { hex: 2609, fontFueraDeEscala: 1188, radioLiteral: 1118, zLiteral: 60, estiloEnLinea: 1440, emojiIcono: 1 };
 
 describe('[1063] sistema de diseño', () => {
     it('toda var(--x) sin respaldo es un token definido', () => {

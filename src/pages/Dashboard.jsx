@@ -700,11 +700,10 @@ function _greetingSubtitles() {
     ];
 }
 
+// [P1-PLAN-LOTE-1065 · 2026-11-17] Auditoría nº 4: el nombre va en el índigo de la marca, no en un degradado
+// azul→violeta propio (`--primary` ya cambia de tono en oscuro y mantiene el contraste).
 const _GREETING_NAME_STYLE = {
-    background: 'linear-gradient(to right, #3B82F6, #8B5CF6)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    backgroundClip: 'text',
+    color: 'var(--primary)',
     display: 'inline-block',
     paddingRight: '0.08em',
     paddingBottom: '0.06em',
@@ -3993,16 +3992,16 @@ const DashboardInner = () => {
 
 
             let htmlContent = `
-            <div style="font-family: 'Inter', system-ui, sans-serif; padding: ${rootPadding}; color: #1f2937; background-color: #ffffff;">
+            <div style="font-family: 'Outfit', system-ui, sans-serif; padding: ${rootPadding}; color: #1f2937; background-color: #ffffff;">
                 <!-- Header Box -->
                 <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; padding: ${headerPadding}; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); display: flex; align-items: center; justify-content: space-between; margin-bottom: ${headerMargin}; border-top: 5px solid #10b981;">
                     <div>
                         <h1 style="margin: 0 0 8px 0; color: #111827; font-size: 20px; font-weight: 800; letter-spacing: -0.025em;">${escapeHtml(t('Lista de Compras'))}</h1>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #10b98140;">${escapeHtml(t('Ciclo: {duracion}', { duracion: durationText }))}</span>
-                            <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">${escapeHtml(t('Generado: {fecha}', { fecha: formatDate(new Date(), { day: 'numeric', month: 'short', year: 'numeric' }) }))}</span>
+                            <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 700; border: 1px solid #10b98140;">${escapeHtml(t('Ciclo: {duracion}', { duracion: durationText }))}</span>
+                            <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600;">${escapeHtml(t('Generado: {fecha}', { fecha: formatDate(new Date(), { day: 'numeric', month: 'short', year: 'numeric' }) }))}</span>
                             <!-- [P2-SHOPPING-TOTALS · 2026-05-16] Total chip. -->
-                            <span style="background-color: #eff6ff; color: #1e40af; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #3b82f640;">${escapeHtml(t('Total: {items}', { items: _fmtItems(totalItems) }))}</span>
+                            <span style="background-color: #eff6ff; color: #1e40af; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 700; border: 1px solid #3b82f640;">${escapeHtml(t('Total: {items}', { items: _fmtItems(totalItems) }))}</span>
                         </div>
                     </div>
                     <img src="/favicon.png" alt="${escapeHtml(t('Logo de {marca}', { marca: WORDMARK_TEXT }))}" style="height: 40px;" />
@@ -4358,7 +4357,7 @@ const DashboardInner = () => {
             // (XSS, la nota puede incluir nombres de condición/ingrediente influenciados por el form).
             const _rpr = planData?.requires_professional_review;
             const clinicalNoteHTML = (_rpr && _rpr.flag && _rpr.note)
-                ? `<div style="margin-top: 15px; padding: 10px 12px; border: 1.5px solid ${_rpr.renal_gate ? '#fca5a5' : '#93c5fd'}; background: ${_rpr.renal_gate ? '#fef2f2' : '#eff6ff'}; border-radius: 8px; color: ${_rpr.renal_gate ? '#991b1b' : '#1e40af'}; font-size: 10px; line-height: 1.45;"><strong>${escapeHtml(_rpr.renal_gate ? t('🫘 Condición renal — requiere supervisión de tu nefrólogo') : t('⚕️ Consulta a tu profesional de salud'))}</strong><br/>${escapeHtml(glossClinicalNote(String(_rpr.note), t))}</div>`
+                ? `<div style="margin-top: 15px; padding: 10px 12px; border: 1.5px solid ${_rpr.renal_gate ? '#fca5a5' : '#93c5fd'}; background: ${_rpr.renal_gate ? '#fef2f2' : '#eff6ff'}; border-radius: 8px; color: ${_rpr.renal_gate ? '#991b1b' : '#1e40af'}; font-size: 12px; line-height: 1.45;"><strong>${escapeHtml(_rpr.renal_gate ? t('🫘 Condición renal — requiere supervisión de tu nefrólogo') : t('⚕️ Consulta a tu profesional de salud'))}</strong><br/>${escapeHtml(glossClinicalNote(String(_rpr.note), t))}</div>`
                 : '';
 
             htmlContent += `
@@ -4368,7 +4367,7 @@ const DashboardInner = () => {
                         <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${formatNumber(Math.round(_shopTotalCostFinal))}</span>
                     </div>
                     ${_showCycleCost ? `<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155;">
-                        <div style="font-size: 11px; font-weight: 600; color: #047857;">${escapeHtml(t('Estimado del ciclo de {duracion}', { duracion: durationText }))} <span style="font-weight: 500; color: #047857;">· ${escapeHtml(_deltaAware ? t('Incluye ≈{monto} de recompras de frescos', { monto: `RD$${formatNumber(Math.round(_futureFreshRdPdf))}` }) : t('Despensa 1× + frescos cada 7 días'))}</span></div>
+                        <div style="font-size: 12px; font-weight: 600; color: #047857;">${escapeHtml(t('Estimado del ciclo de {duracion}', { duracion: durationText }))} <span style="font-weight: 500; color: #047857;">· ${escapeHtml(_deltaAware ? t('Incluye ≈{monto} de recompras de frescos', { monto: `RD$${formatNumber(Math.round(_futureFreshRdPdf))}` }) : t('Despensa 1× + frescos cada 7 días'))}</span></div>
                         <span style="font-size: 13px; font-weight: 700; color: #065f46; white-space: nowrap;">RD$${formatNumber(Math.round(_fullCycleCostFinal))}</span>
                     </div>` : ''}
                     ${!_showCycleCost ? '' : (() => {
@@ -4401,13 +4400,13 @@ const DashboardInner = () => {
                         const _estRD = `RD$${_est}`;
                         const _refRD = `RD$${_ref}`;
                         if (_brStatusEff === 'dentro') {
-                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155; font-size: 11px; font-weight: 700; color: #047857;">✓ ${t('Dentro de tu presupuesto — {gasto} de {referencia}', { gasto: _estRD, referencia: _refRD })}${_pp}</div>`;
+                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155; font-size: 12px; font-weight: 700; color: #047857;">✓ ${t('Dentro de tu presupuesto — {gasto} de {referencia}', { gasto: _estRD, referencia: _refRD })}${_pp}</div>`;
                         }
                         if (_brStatusEff === 'cerca') {
-                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f59e0b55; font-size: 11px; font-weight: 700; color: #92400e;">≈ ${t('Al límite de tu presupuesto — {gasto} de {referencia}', { gasto: _estRD, referencia: _refRD })}${_pp}</div>`;
+                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f59e0b55; font-size: 12px; font-weight: 700; color: #92400e;">≈ ${t('Al límite de tu presupuesto — {gasto} de {referencia}', { gasto: _estRD, referencia: _refRD })}${_pp}</div>`;
                         }
                         const _delta = formatNumber(Math.round(Math.max(0, _estCycleRdPdf - _br.reference_rd)));
-                        return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f8717155; font-size: 11px; font-weight: 700; color: #b91c1c;">▲ ${t('Supera tu presupuesto por {exceso} — {gasto} de {referencia}', { exceso: `RD$${_delta}`, gasto: _estRD, referencia: _refRD })}${_br.adjusted ? `<span style="font-weight:600; color:#92400e;">${t(' · ya ajustamos ingredientes premium a equivalentes económicos')}</span>` : ''}${_pp}</div>`;
+                        return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f8717155; font-size: 12px; font-weight: 700; color: #b91c1c;">▲ ${t('Supera tu presupuesto por {exceso} — {gasto} de {referencia}', { exceso: `RD$${_delta}`, gasto: _estRD, referencia: _refRD })}${_br.adjusted ? `<span style="font-weight:600; color:#92400e;">${t(' · ya ajustamos ingredientes premium a equivalentes económicos')}</span>` : ''}${_pp}</div>`;
                     })()}
                 </div>` : ''}
                 ${clinicalNoteHTML}
@@ -4436,7 +4435,7 @@ const DashboardInner = () => {
                 <!-- [PDF-FOOTER-CONTRAST · 2026-06-22] El footer se veía casi invisible
                      (grises muy claros #6b7280/#9ca3af sobre papel blanco). Se oscurecen
                      a gray-700/gray-600 + subtítulo 9px→11px para que se lea bien. -->
-                <div style="margin-top: 15px; text-align: center; color: #4b5563; font-size: 10px; border-top: 2px dashed #cbd5e1; padding-top: 10px;">
+                <div style="margin-top: 15px; text-align: center; color: #4b5563; font-size: 12px; border-top: 2px dashed #cbd5e1; padding-top: 10px;">
                     <p style="margin: 0; font-weight: 800; color: #374151; letter-spacing: 1px;">${escapeHtml(t('PROCESADO POR {marca} - NUTRICIÓN INTELIGENTE', { marca: WORDMARK_TEXT }))}</p>
                     <!-- [P2-PDF-PRICE-SOURCE-COPY · 2026-06-22] (audit fresco P2-22) Copy suavizado: el precio
                          por-ítem puede ser verificado O estimado (price_confidence/price_source por fila) → afirmar
@@ -4444,7 +4443,7 @@ const DashboardInner = () => {
                          [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] País beta ⇒ el pie NUNCA menciona
                          supermercados dominicanos (esta lista no tiene esos precios) — mismo aviso
                          que la cabecera. DO mantiene el texto EXACTO de siempre. -->
-                    <p style="margin: 6px 0 0; font-size: 11px; color: #4b5563;">${escapeHtml(_isBetaPricing ? t('Precios nativos de tu país: próximamente (beta).') : t('Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.'))}</p>
+                    <p style="margin: 6px 0 0; font-size: 12px; color: #4b5563;">${escapeHtml(_isBetaPricing ? t('Precios nativos de tu país: próximamente (beta).') : t('Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.'))}</p>
                 </div>
             </div>
             `;

@@ -618,17 +618,18 @@
 }
 
 .planButtonPrimary {
-    background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
+    /* [P1-PLAN-LOTE-1065] Principal = índigo sólido (decisión del dueño 17-nov). */
+    background: var(--primary-fill);
     color: white;
     border-color: transparent;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    box-shadow: var(--cta-shadow);
 }
 
 /* [P3-PRICING-CARDS-STATIC · 2026-05-30] Botón primario estático: sin lift
    (transform) ni aumento de glow (box-shadow) en hover — conserva su sombra
    base de .planButtonPrimary. Solo cambia el gradiente como feedback de clic. */
 .planButtonPrimary:hover:not(:disabled) {
-    background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%);
+    background: var(--primary-dark);
     color: white;
     border-color: transparent;
 }
@@ -1579,13 +1580,13 @@
    El :hover repite por la misma razón (empata en especificidad y gana por
    orden, así que va DESPUÉS del hover genérico). */
 :global(html[data-theme="dark"]) .planButtonPrimary {
-    background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
+    background: var(--primary-fill);
     border-color: transparent;
     color: #FFFFFF;
 }
 
 :global(html[data-theme="dark"]) .planButtonPrimary:hover:not(:disabled) {
-    background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%);
+    background: var(--primary-dark);
     border-color: transparent;
     color: #FFFFFF;
 }

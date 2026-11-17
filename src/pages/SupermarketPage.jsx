@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { confirmToast } from '../utils/confirmToast';
 import {
     ArrowLeft, ArrowUpDown, BadgeCheck, ChevronDown, KeyRound, LockKeyhole, Pencil, Plus,
     RefreshCw, Search, ShoppingBasket, Store, Tags, Trash2, X,
@@ -583,7 +584,8 @@ const SupermarketPage = () => {
     const deleteProduct = async (p, fromFood) => {
         const label = [p.food_name, p.brand, p.presentation].filter(Boolean).join(' · ');
          
-        if (!window.confirm(`¿Eliminar "${label}" del supermercado? Esta acción no se puede deshacer.`)) return;
+        // [P1-PLAN-LOTE-1065] Sin window.confirm (rompía el tema oscuro): la confirmación de la app.
+        if (!(await confirmToast(`¿Eliminar "${label}" del supermercado?`, { description: 'Esta acción no se puede deshacer.', confirmLabel: 'Eliminar', danger: true }))) return;
         try {
             await requestJson(`/api/supermarket/products/${p.id}`, { method: 'DELETE', token: adminToken });
             toast.success('Producto eliminado.');

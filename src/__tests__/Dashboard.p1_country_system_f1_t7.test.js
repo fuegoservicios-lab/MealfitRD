@@ -130,7 +130,7 @@ describe('P1-COUNTRY-SYSTEM-F1 (T7) — aviso beta en el PDF (cabecera + pie)', 
     });
 
     it('el pie del PDF alterna entre el aviso beta y el texto DOP histórico — DOP EXACTO, sin tocar', () => {
-        const i = _src.indexOf('<p style="margin: 6px 0 0; font-size: 11px; color: #4b5563;">');
+        const i = _src.indexOf('<p style="margin: 6px 0 0; font-size: 12px; color: #4b5563;">');
         const line = _src.slice(i, _src.indexOf('</p>', i) + 4);
         expect(line).toContain("_isBetaPricing ? t('Precios nativos de tu país: próximamente (beta).')");
         expect(line).toContain(
