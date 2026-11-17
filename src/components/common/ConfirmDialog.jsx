@@ -3,6 +3,7 @@
 // estática desde el host (que vive en App.jsx), entraba en la carga inicial de TODAS las rutas.
 import { AlertTriangle, HelpCircle } from 'lucide-react';
 import Modal from './Modal';
+import Button from '../ui/Button';
 
 const ConfirmDialog = ({ req, onCancel, onConfirm }) => {
     const Icon = req?.danger ? AlertTriangle : HelpCircle;
@@ -40,32 +41,19 @@ const ConfirmDialog = ({ req, onCancel, onConfirm }) => {
                         {/* [P1-PLAN-LOTE-151] Los dos botones del diálogo no contestaban al ratón: su estilo es EN
                             LÍNEA, que no admite `:hover`. Cada uno con su variante — fantasma el de cancelar, lleno
                             el de confirmar. */}
-                        <button
-                            type="button"
+                        <Button variant="secondary" block
                             data-hover="fantasma"
                             onClick={onCancel}
-                            style={{
-                                flex: 1, padding: '0.8rem 1rem', borderRadius: '0.8rem', cursor: 'pointer',
-                                background: 'transparent', border: '1px solid var(--border)',
-                                color: 'var(--text-main)', fontWeight: 600, fontSize: '0.95rem', fontFamily: 'inherit',
-                            }}
                         >
                             {req.cancelLabel}
-                        </button>
-                        <button
-                            type="button"
+                        </Button>
+                        <Button variant={req.danger ? 'danger' : 'primary'} block
                             data-hover="boton"
                             onClick={onConfirm}
-                            className={req.danger ? 'ui-btn-danger' : undefined}
                             autoFocus
-                            style={{
-                                flex: 1, padding: '0.8rem 1rem', borderRadius: '0.8rem', cursor: 'pointer',
-                                fontWeight: 700, fontSize: '0.95rem', fontFamily: 'inherit',
-                                ...(req.danger ? {} : { background: 'var(--primary-fill, #4F46E5)', color: '#fff', border: '1px solid transparent' }),
-                            }}
                         >
                             {req.confirmLabel}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

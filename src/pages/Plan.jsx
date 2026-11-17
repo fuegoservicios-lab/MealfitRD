@@ -2393,9 +2393,9 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                     <button data-hover="boton" 
                         onClick={onAccept}
                         style={{
-                            padding: '1rem', background: '#047857', color: 'white', borderRadius: '0.75rem',
+                            padding: '1rem', background: 'var(--primary-fill)', color: 'white', borderRadius: '0.75rem',
                             border: 'none', fontWeight: 600, fontSize: '1rem', cursor: 'pointer',
-                            boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)'
+                            boxShadow: 'var(--cta-shadow)'
                         }}
                     >
                         {t('Aceptar y Aplicar Nuevo Plan')}
@@ -2461,7 +2461,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                         <button data-hover="boton"
                             onClick={onRegenerate}
                             style={{
-                                width: '100%', padding: '0.75rem 1rem', background: '#F59E0B', color: '#1F1300', borderRadius: '0.5rem',
+                                width: '100%', padding: '0.75rem 1rem', background: 'var(--primary-fill)', color: '#FFFFFF', borderRadius: '0.5rem',
                                 border: 'none', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                             }}
@@ -2510,7 +2510,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                             <button data-hover="boton"
                                 onClick={onRegenerate}
                                 style={{
-                                    flex: '1 1 140px', padding: '0.75rem 1rem', background: '#F59E0B', color: '#1F1300', borderRadius: '0.5rem',
+                                    flex: '1 1 140px', padding: '0.75rem 1rem', background: 'var(--primary-fill)', color: '#FFFFFF', borderRadius: '0.5rem',
                                     border: 'none', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
                                 }}
@@ -2545,8 +2545,8 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                         disabled={simplifyingChunkId === cid}
                                         style={{
                                             padding: '0.5rem 1rem',
-                                            background: '#F59E0B',
-                                            color: '#1F1300',
+                                            background: 'var(--primary-fill)',
+                                            color: '#FFFFFF',
                                             borderRadius: '0.5rem',
                                             border: 'none',
                                             fontWeight: 600,

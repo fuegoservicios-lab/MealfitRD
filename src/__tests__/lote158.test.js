@@ -85,7 +85,8 @@ describe('[P1-PLAN-LOTE-158] quién la usa', () => {
         // Es el mismo guard del 151, aplicado a los controles que cambian de variante aquí.
         expect(leer('src/components/dashboard/DashboardTracking.module.css'))
             .toMatch(/\.turnOnGhost\s*\{[^}]*border-radius:/);
-        expect(leer('src/components/common/ConfirmDialog.jsx'))
-            .toMatch(/borderRadius: '0\.8rem'/);
+        // [P1-PLAN-LOTE-1067] El diálogo usa el botón común: el radio viene de Button.module.css.
+        expect(leer('src/components/common/ConfirmDialog.jsx')).toContain('<Button');
+        expect(leer('src/components/ui/Button.module.css')).toMatch(/\.btn\s*\{[^}]*border-radius:/);
     });
 });

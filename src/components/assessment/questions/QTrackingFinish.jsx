@@ -19,6 +19,7 @@ import { TRACKING_REQUIRED_FIELDS, esMenorDeEdad } from '../../../config/formVal
 import { useT } from '../../../i18n';
 import { safeLocalStorageSet } from '../../../utils/safeLocalStorage';
 import { confirmToast } from '../../../utils/confirmToast';
+import Button from '../../ui/Button';
 
 // [P1-PLAN-LOTE-846 · 2026-09-29] `onMenorDeEdad`: el cierre del contador también corta si la edad es de un menor (antes
 // de guardar nada), y si el servidor responde 422 `underage` se pinta el mismo corte.
@@ -186,22 +187,15 @@ export const QTrackingFinish = ({ onMenorDeEdad } = {}) => {
             <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: 1.55 }}>
                 {t('Con tus respuestas calculamos cuántas calorías y proteínas te tocan cada día. En tu panel anotas lo que comes, ves tu progreso y le preguntas al coach. Si algún día quieres un plan de comidas con recetas y lista de compras, lo activas desde tu panel o en Configuración, y solo te preguntamos lo que falte.')}
             </p>
-            <button
-                type="button"
+            <Button variant="primary"
                 data-hover="boton"
                 onClick={terminar}
                 disabled={saving}
-                style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-                    background: 'var(--primary-fill, #4F46E5)', color: '#fff', border: 0,
-                    borderRadius: '0.8rem', padding: '0.8rem 1.6rem', fontSize: '1rem',
-                    fontWeight: 700, cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit',
-                }}
             >
                 {saving
                     ? (<><Loader2 size={18} className="animate-spin" /> {t('Preparando tu contador…')}</>)
                     : (<><Gauge size={18} /> {t('Empezar a contar')}</>)}
-            </button>
+            </Button>
         </div>
     );
 };

@@ -62,6 +62,7 @@ import { mensajeDeError } from '../../utils/errorCopy';
 import { isNativeApp } from '../../config/platform';
 import { chooseNativeGalleryImage, isNativePickerCancellation } from '../../utils/nativeChatImagePicker';
 import { captureException } from '../../utils/observability';
+import Button from '../ui/Button';
 
 const _apiJson = async (path, options = {}) => {
     const resp = await fetchWithAuth(path, options);
@@ -330,14 +331,9 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                 </label>
             ))}
             <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.25rem' }}>
-                <button type="button" onClick={confirmScanItems}
-                    style={{
-                        flex: 1, padding: '0.6rem 1rem', borderRadius: '99px', border: 'none',
-                        background: 'var(--primary-fill)', color: '#fff', fontWeight: 700, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                    }}>
+                <Button variant="primary" size="sm" style={{ flex: 1 }} onClick={confirmScanItems}>
                     <Plus size={15} /> {t('Agregar {n} a mi Nevera', { n: scanResults.filter(i => i.selected).length })}
-                </button>
+                </Button>
                 <button type="button" onClick={() => setScanResults(null)}
                     style={{
                         padding: '0.6rem 1rem', borderRadius: '99px',

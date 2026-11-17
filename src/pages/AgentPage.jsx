@@ -5627,7 +5627,7 @@ const AgentPage = () => {
                                         onClick={handleSendClick}
                                         disabled={isTurnActive || attachmentsHaveErrors}
                                         style={{
-                                            background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+                                            background: 'var(--primary-fill)', // [P1-PLAN-LOTE-1067] relleno del sistema, sin degradado ni color de estado propio
                                             color: 'white',
                                             border: 'none',
                                             borderRadius: '50%',

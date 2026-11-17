@@ -7269,7 +7269,7 @@ const DashboardInner = () => {
                                             background: isLimitReached
                                                 ? 'var(--bg-muted)'
                                                 : planFinished
-                                                    ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'
+                                                    ? 'var(--danger-fill)'
                                                     // [P1-PLAN-LOTE-1064 · 2026-11-17] Decisión del dueño: el botón
                                                     // principal es ÍNDIGO SÓLIDO (`--primary-fill`, el de
                                                     // components/ui/Button). Antes «Actualizar platos» era un
@@ -7847,7 +7847,7 @@ const DashboardInner = () => {
                         // + brillo). El gradiente rojo sigue inline.
                         className="mf-danger-cta"
                         style={{
-                            background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                            background: 'var(--danger-fill)', // [P1-PLAN-LOTE-1067] relleno del sistema, sin degradado ni color de estado propio
                             color: 'white',
                             border: 'none',
                             padding: '0.6rem 1.2rem',
@@ -8012,7 +8012,7 @@ const DashboardInner = () => {
                         // + brillo). El gradiente rojo sigue inline.
                         className="mf-danger-cta"
                         style={{
-                            background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                            background: 'var(--danger-fill)', // [P1-PLAN-LOTE-1067] relleno del sistema, sin degradado ni color de estado propio
                             color: 'white',
                             border: 'none',
                             padding: '0.6rem 1.2rem',
@@ -10428,16 +10428,11 @@ const Dashboard = () => {
                 <p style={{ fontSize: '0.85rem', maxWidth: 340, margin: 0, lineHeight: 1.45 }}>
                     {t('Puede ser una conexión inestable o que la sesión aún se esté activando. Tu plan sigue guardado — vuelve a intentarlo.')}
                 </p>
-                <button data-hover="boton"
+                <Button variant="primary" size="sm" style={{ marginTop: '0.25rem' }} data-hover="boton"
                     onClick={() => retryPlanSync?.()}
-                    style={{
-                        marginTop: '0.25rem', padding: '0.6rem 1.4rem', borderRadius: '10px',
-                        border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
-                        background: 'var(--primary-fill)', color: '#fff'
-                    }}
                 >
                     {t('Reintentar')}
-                </button>
+                </Button>
             </div>
         );
     }

@@ -48,7 +48,7 @@ describe('ConfirmDialogHost', () => {
         expect(dialog.textContent).toContain('¿Eliminar "Moro con pollo" del diario?');
         expect(dialog.textContent).toContain('Esta acción no se puede deshacer.');
         const confirmBtn = screen.getByText('Eliminar');
-        expect(confirmBtn.className).toContain('ui-btn-danger');
+        expect(confirmBtn.getAttribute('data-variant')).toBe('danger'); // [1067] botón común
         fireEvent.click(confirmBtn);
         await expect(p).resolves.toBe(true);
         await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
@@ -61,7 +61,7 @@ describe('ConfirmDialogHost', () => {
         let p1;
         act(() => { p1 = confirmToast('¿Pausar la generación de planes?', { confirmLabel: 'Pausar planes', cancelLabel: 'Volver' }); });
         await screen.findByRole('alertdialog');
-        expect(screen.getByText('Pausar planes').className).not.toContain('ui-btn-danger');
+        expect(screen.getByText('Pausar planes').getAttribute('data-variant')).toBe('primary');
         fireEvent.click(screen.getByText('Volver'));
         await expect(p1).resolves.toBe(false);
 

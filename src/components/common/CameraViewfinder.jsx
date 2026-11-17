@@ -39,6 +39,7 @@ import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useT } from '../../i18n';
 import { nativePlatform } from '../../config/platform';
 import { startCameraCanvasPreview } from '../../utils/cameraCanvasPreview';
+import Button from '../ui/Button';
 
 // Captura el frame actual del <video> a un <canvas> en sus dimensiones REALES
 // (video.videoWidth/videoHeight — nunca el tamaño CSS del elemento). Produce el
@@ -398,15 +399,10 @@ export default function CameraViewfinder({
                                 {onFallbackToFile ? ` ${t('Puedes subir una foto en su lugar.')}` : ''}
                             </span>
                             {onFallbackToFile && (
-                                <button type="button" onClick={onFallbackToFile}
-                                    className="mfvf-focusable"
-                                    style={{
-                                        padding: '0.6rem 1.1rem', borderRadius: '99px', border: 'none',
-                                        background: 'var(--primary-fill)', color: '#fff', fontWeight: 700,
-                                        cursor: 'pointer',
-                                    }}>
+                                <Button variant="primary" size="sm" onClick={onFallbackToFile}
+                                    className="mfvf-focusable">
                                     {t('Subir una foto en su lugar')}
-                                </button>
+                                </Button>
                             )}
                         </div>
                     )}

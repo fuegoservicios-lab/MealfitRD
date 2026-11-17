@@ -18,6 +18,7 @@ import { shouldAutoReloadForChunkError } from '../utils/chunkReloadGuard';
 // y no puede llamar hooks. Las llamadas viven dentro de `render()`, así que se
 // evalúan con el catálogo ya cargado — nunca al importar.
 import { t } from '../i18n';
+import Button from './ui/Button';
 
 const _isChunkLoadError = (error) => {
   const m = error?.message?.toLowerCase() || '';
@@ -112,22 +113,11 @@ export class RouteErrorBoundary extends React.Component {
           <p style={{ fontSize: '.85rem', opacity: 0.7, margin: '0 0 1rem' }}>
             {t('El resto de la app sigue funcionando. Puedes reintentar sin recargar todo.')}
           </p>
-          <button
-            type="button"
+          <Button variant="primary" size="sm"
             onClick={this.handleRetry}
-            style={{
-              padding: '.55rem 1.25rem',
-              fontSize: '.85rem',
-              fontWeight: 600,
-              color: '#fff',
-              background: 'var(--primary-fill, #4f46e5)',
-              border: 'none',
-              borderRadius: '.65rem',
-              cursor: 'pointer',
-            }}
           >
             {t('Reintentar')}
-          </button>
+          </Button>
         </div>
       );
     }

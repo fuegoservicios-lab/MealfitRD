@@ -53,7 +53,8 @@ function contar() {
 // emojis-icono 48→1 (queda el «✓» tipográfico del presupuesto, pareja de «≈» y «▲»: no es un emoji).
 // [1065] Saludo, PDF y login a la escala, Planes índigo sólido: hex 2619→2609, letra 1210→1188.
 // [1066] Botones de acción de Ajustes y Nevera al botón común: hex 2596, letra 1183, radios 1108, en línea 1430.
-const TECHO = { hex: 2596, fontFueraDeEscala: 1183, radioLiteral: 1108, zLiteral: 60, estiloEnLinea: 1430, emojiIcono: 1 };
+// [1067] Resto de la app sin rellenos propios y 6 botones más al común: hex 2573, letra 1179, radios 1101, en línea 1425.
+const TECHO = { hex: 2573, fontFueraDeEscala: 1179, radioLiteral: 1101, zLiteral: 60, estiloEnLinea: 1425, emojiIcono: 1 };
 
 describe('[1063] sistema de diseño', () => {
     it('toda var(--x) sin respaldo es un token definido', () => {

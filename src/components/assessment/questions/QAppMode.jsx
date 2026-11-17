@@ -180,7 +180,7 @@ export const QAppMode = ({ onAutoAdvance }) => {
                                 padding: '0.85rem 1.1rem',
                                 borderRadius: '0.85rem',
                                 border: 'none',
-                                background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                                background: 'var(--primary-fill)', // [P1-PLAN-LOTE-1067] relleno del sistema, sin degradado ni color de estado propio
                                 color: '#FFFFFF',
                                 fontWeight: 700,
                                 fontSize: '0.95rem',
@@ -189,7 +189,7 @@ export const QAppMode = ({ onAutoAdvance }) => {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '0.5rem',
-                                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+                                boxShadow: 'var(--cta-shadow)',
                             }}
                         >
                             <span>{t('Usar solo el contador (Recomendado)')}</span>
