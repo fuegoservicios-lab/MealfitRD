@@ -1,0 +1,77 @@
+/* [P1-PLAN-LOTE-1034] Informe para tu médico: sobrio, «clínico», imprimible. Sin insignias ni colores vivos de texto. */
+.pagina {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 1rem 1rem 6rem;
+    color: var(--text-main);
+}
+.barra { display: flex; align-items: center; gap: 0.5rem; }
+.volver {
+    display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); cursor: pointer;
+}
+.titulo { font-size: 1.35rem; font-weight: 800; margin: 0; }
+.intro { color: var(--text-muted); font-size: 0.92rem; margin: 0.5rem 0 1rem; line-height: 1.45; }
+
+.generar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;
+    padding: 0.9rem; border: 1px solid var(--border); border-radius: 16px; background: var(--bg-card);
+}
+.periodos { display: flex; gap: 0.4rem; }
+.periodo {
+    min-height: 40px; padding: 0 0.85rem; border-radius: 999px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-main); font: inherit; font-size: 0.9rem; cursor: pointer;
+}
+.periodoActivo { border-color: var(--text-main); font-weight: 700; }
+.primario, .secundario {
+    display: inline-flex; align-items: center; gap: 0.45rem; min-height: 42px; padding: 0 1rem;
+    border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer;
+}
+.primario { border: none; background: var(--text-main); color: var(--bg-card); }
+.secundario { border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); font-size: 0.88rem; }
+.primario:disabled, .secundario:disabled { opacity: 0.55; cursor: default; }
+.error { flex-basis: 100%; margin: 0; font-size: 0.88rem; color: var(--text-main); }
+.nota { display: flex; align-items: center; gap: 0.4rem; font-size: 0.88rem; color: var(--text-muted); margin: 0.75rem 0; }
+
+.informe {
+    margin-top: 1rem; padding: 1.1rem; border: 1px solid var(--border); border-radius: 16px; background: var(--bg-card);
+}
+.cabecera { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.periodoTexto { margin: 0; font-weight: 700; font-size: 0.95rem; }
+.aviso {
+    margin: 0.75rem 0; padding: 0.65rem 0.75rem; border-left: 3px solid var(--text-muted);
+    font-size: 0.82rem; line-height: 1.45; color: var(--text-muted);
+}
+.bloque { margin-top: 1rem; }
+.bloqueTitulo { font-size: 1rem; font-weight: 800; margin: 0 0 0.35rem; }
+.lineas { margin: 0; padding-left: 1.1rem; font-size: 0.92rem; line-height: 1.5; }
+.lineas li { margin: 0.15rem 0; }
+
+.grafica { margin: 1rem 0 0; font-size: 0.82rem; }
+.grafica figcaption { font-weight: 700; margin-bottom: 0.4rem; font-size: 0.88rem; }
+.fila { display: grid; grid-template-columns: 2.6rem 1fr 4.8rem; align-items: center; gap: 0.5rem; margin: 0.2rem 0; }
+.etiqueta { color: var(--text-muted); }
+.pista { position: relative; height: 10px; border-radius: 6px; background: var(--bg-muted); overflow: visible; }
+.barraValor { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: var(--text-muted); }
+.meta { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text-main); }
+.valor { text-align: right; font-variant-numeric: tabular-nums; }
+
+.anteriores { margin-top: 1.5rem; }
+.listaInformes { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+.itemInforme { display: flex; gap: 0.4rem; }
+.abrirInforme {
+    flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; min-height: 46px;
+    padding: 0 0.85rem; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card);
+    color: var(--text-main); font: inherit; font-size: 0.9rem; text-align: left; cursor: pointer;
+}
+.abrirInforme small { color: var(--text-muted); font-size: 0.78rem; }
+.borrar {
+    display: grid; place-items: center; width: 46px; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--bg-card); color: var(--text-muted); cursor: pointer;
+}
+
+@media print {
+    .barra button, .generar, .anteriores, .secundario { display: none !important; }
+    .pagina { padding: 0; color: #000; }
+    .informe { border: none; padding: 0; background: #fff; }
+}

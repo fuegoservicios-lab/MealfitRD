@@ -112,6 +112,7 @@ const SettingsDialog = lazy(() => import('./components/dashboard/SettingsDialog'
 // del dashboard, y `ProtectedRoute` exime esa ruta del gate de assessment para
 // que una cuenta sin plan siga llegando a su cuenta (y a borrarla).
 const History = lazy(cargarPagina.historial);
+const InformeMedico = lazy(() => import('./pages/InformeMedico'));   // [P1-PLAN-LOTE-1034] trozo perezoso
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const AgentPage = lazy(cargarPagina.agente);
 // [P3-UPGRADE-PAGE · 2026-05-26] Página de comparación de planes accesible
@@ -636,6 +637,7 @@ function App() {
               <Route path="/dashboard/agent" element={<></>} />
               <Route path="/dashboard/settings" element={<Settings />} />
               <Route path="/history" element={<History />} />
+              <Route path="/dashboard/informe" element={<InformeMedico />} />
             </Route>
 
             {/* [P3-UPGRADE-PAGE · 2026-05-26 · revisada 2026-05-26 fullscreen]

@@ -60,6 +60,7 @@ import { getCalorieGoalBand, getCalorieGoalState, isStrongDeficit, resolveMainGo
 import { ESTRELLAS_MAX, estrellasDeLaSemana, inicioDeLaSemana1, numeroDeSemana } from '../../utils/progresoDeLosDias';
 import { safeLocalStorageGet } from '../../utils/safeLocalStorage';
 import styles from './DiaryHistory.module.css';
+import BotonInformeMedico from '../common/BotonInformeMedico';   // [P1-PLAN-LOTE-1034]
 
 // [P1-PLAN-LOTE-224 · 2026-09-24] El escáner, igual: perezoso y montado al abrirlo (ver TrackingProgress). Este cajón
 // vive en el mismo trozo del panel, y el escáner reconstruido lo pasaba del techo de precache-guard.
@@ -650,6 +651,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         { kcal: formatNumber(mes.media), n: mes.n })}
                 </div>
             )}
+            {/* [P1-PLAN-LOTE-1034] el resumen para el médico, desde el calendario */}
+            <BotonInformeMedico onAbrir={onClose} />
         </div>
     );
 
