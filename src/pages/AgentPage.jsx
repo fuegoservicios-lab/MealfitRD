@@ -139,6 +139,7 @@ import {
     takeNativeChatPhoto,
 } from '../utils/nativeChatImagePicker';
 import { AttachmentSourceSheet } from '../components/agent/AttachmentSourceSheet';
+import { AttachmentInlinePanel } from '../components/agent/AttachmentInlinePanel';   // [P1-PLAN-LOTE-1050]
 import { deleteChatDraft, loadChatDraft, saveChatDraft } from '../utils/chatDraftStore';
 // [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Hoja de confirmación antes de borrar un chat.
 import Modal from '../components/common/Modal';
@@ -2305,6 +2306,12 @@ const AgentPage = () => {
     };
 
     const openAttachmentPicker = async () => {
+        // [P1-PLAN-LOTE-1050] Con el panel integrado abierto, el «+» (ahora «×») lo cierra.
+        if (showAttachmentSource && attachmentAnchorRect) {
+            reopenKeyboardAfterAttachmentRef.current = false;
+            setShowAttachmentSource(false);
+            return;
+        }
         if (isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) return;
         if (attachmentPickerOpeningRef.current) return;
         if (isNativeApp()) {
@@ -5347,6 +5354,16 @@ const AgentPage = () => {
                     minWidth: 0,
                     maxWidth: '100%'
                 }}>
+                    {/* [P1-PLAN-LOTE-1050] Con el teclado abierto, «Añadir imagen» es parte del cuadro de escribir (pegado
+                        al teclado): no se mide ni se coloca nada, así que no se descoloca al bajar el teclado ni al hacer
+                        una captura. Sin teclado sigue la hoja inferior de siempre. */}
+                    <AttachmentInlinePanel
+                        open={showAttachmentSource && Boolean(attachmentAnchorRect)}
+                        onClose={() => { reopenKeyboardAfterAttachmentRef.current = false; setShowAttachmentSource(false); }}
+                        onGallery={() => runNativeImagePicker('gallery')}
+                        onCamera={() => runNativeImagePicker('camera')}
+                        triggerRef={attachmentTriggerRef}
+                    />
                     {attachments.length > 0 && (
                         <div
                             className="attachment-rail"
@@ -5439,7 +5456,8 @@ const AgentPage = () => {
                                 ref={attachmentTriggerRef}
                                 type="button"
                                 aria-label={t('Adjuntar imagen')}
-                                className={`attachment-btn ${(isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) ? 'disabled' : ''}`}
+                                className={`attachment-btn ${(isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) ? 'disabled' : ''}${showAttachmentSource && attachmentAnchorRect ? ' abierto' : ''}`}
+                                aria-expanded={showAttachmentSource && Boolean(attachmentAnchorRect)}
                                 disabled={isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT}
                                 onPointerDown={handleAttachmentPointerDown}
                                 onMouseDown={keepComposerFocus}
@@ -5452,7 +5470,7 @@ const AgentPage = () => {
                                     y lo que abre es cámara/fototeca. El `+` es el gesto que
                                     ya usan ChatGPT y Gemini para lo mismo y no promete un
                                     tipo concreto de contenido. */}
-                                <Plus size={22} strokeWidth={2.2} />
+                                <Plus size={22} strokeWidth={2.2} className="attachment-plus" />
                             </button>
                         </span>
 
@@ -6847,7 +6865,8 @@ const AgentPage = () => {
 
 
             <AttachmentSourceSheet
-                open={showAttachmentSource}
+                // [P1-PLAN-LOTE-1050] la hoja inferior solo SIN teclado; con teclado, el panel integrado de arriba
+                open={showAttachmentSource && !attachmentAnchorRect}
                 onClose={() => {
                     // Cancelar no toca el foco: con el menú el teclado nunca se fue.
                     reopenKeyboardAfterAttachmentRef.current = false;
@@ -6857,7 +6876,6 @@ const AgentPage = () => {
                 onCamera={() => runNativeImagePicker('camera')}
                 triggerRef={attachmentTriggerRef}
                 restoreFocus={attachmentSheetOwnsFocus}
-                anchorRect={attachmentAnchorRect}
             />
 
             <style>{`

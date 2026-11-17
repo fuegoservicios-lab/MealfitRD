@@ -1,0 +1,69 @@
+/* [P1-PLAN-LOTE-1050] El panel de «Añadir imagen» vive DENTRO del cuadro de escribir: dos opciones lado a lado arriba,
+   separadas de la fila de texto por una línea fina. El cuadro ya va pegado al teclado, así que el panel también. */
+.attach-inline {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.15rem 0.1rem 0.6rem;
+    margin-bottom: 0.45rem;
+    border-bottom: 1px solid var(--border);
+    animation: attach-inline-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transform-origin: bottom center;
+}
+
+@keyframes attach-inline-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .attach-inline { animation: none; }
+}
+
+.attach-inline-op {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+    min-height: 58px;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--bg-card);
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.attach-inline-op:hover { background: color-mix(in srgb, var(--primary) 8%, var(--bg-card)); }
+.attach-inline-op:active { background: color-mix(in srgb, var(--primary) 14%, var(--bg-card)); }
+.attach-inline-op:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 55%, transparent); outline-offset: 2px; }
+
+.attach-inline-ico {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    color: #fff;
+}
+
+.attach-inline-ico--galeria { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+.attach-inline-ico--camara { background: linear-gradient(135deg, #EC4899, #F59E0B); }
+
+.attach-inline-txt { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; line-height: 1.2; }
+.attach-inline-txt strong { font-size: 0.92rem; font-weight: 800; }
+.attach-inline-txt small { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* El «+» se vuelve «×» mientras el panel está abierto (es estado, no hover: no lo toca la regla de «hover sin movimiento»). */
+.attachment-btn .attachment-plus { transition: transform 0.18s ease; }
+.attachment-btn.abierto .attachment-plus { transform: rotate(45deg); }
+
+@media (prefers-reduced-motion: reduce) {
+    .attachment-btn .attachment-plus { transition: none; }
+}

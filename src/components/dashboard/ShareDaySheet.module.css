@@ -452,3 +452,58 @@
 /* [P1-PLAN-LOTE-1049] el formato dice qué es: «4:5 · chats y feed» bajo «Publicación» */
 .formato { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.15; }
 .formatoSub { font-size: 0.75rem; font-weight: 500; opacity: 0.8; }
+
+/* [P1-PLAN-LOTE-1050] «¿De dónde sale tu foto?»: nuestro selector (Galería / Cámara) en el sitio de la invitación, con
+   los mismos dos degradados que el panel de adjuntar del chat. */
+.fuentes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    animation: sdFuentes 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes sdFuentes {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) { .fuentes { animation: none; } }
+
+.fuente {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+    min-height: 60px;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border, #E2E8F0);
+    border-radius: 16px;
+    background: var(--bg-muted, #F1F5F9);
+    color: var(--text-main, #0F172A);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.fuente:hover { background: color-mix(in srgb, var(--primary, #6366F1) 8%, var(--bg-muted, #F1F5F9)); }
+.fuente:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.5); outline-offset: 2px; }
+
+.fuenteIco {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    color: #fff;
+}
+
+.fuenteGaleria { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+.fuenteCamara { background: linear-gradient(135deg, #EC4899, #F59E0B); }
+
+.fuenteTxt { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; line-height: 1.2; }
+.fuenteTxt strong { font-size: 0.95rem; font-weight: 800; }
+.fuenteTxt small { font-size: 0.78rem; color: var(--text-muted, #64748B); }
+
+.fuentesCancelar { grid-column: 1 / -1; justify-self: center; }

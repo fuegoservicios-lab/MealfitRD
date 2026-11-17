@@ -14,7 +14,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera } from 'lucide-react';
+import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images } from 'lucide-react';
+import { chooseNativeGalleryImage, takeNativeChatPhoto, isNativePickerCancellation } from '../../utils/nativeChatImagePicker';
 import BroteChispa from '../common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
 import { toast } from 'sonner';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -45,16 +46,42 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const [foto, setFoto] = useState(null);
     const [estilo, setEstilo] = useState('titular');
     const inputFotoRef = useRef(null);
-    const pedirFoto = useCallback(() => inputFotoRef.current?.click(), []);
-    const onElegirFoto = useCallback(async (e) => {
-        const fichero = e.target.files?.[0];
-        e.target.value = '';                       // elegir la MISMA foto otra vez también dispara `change`
+    const inputCamaraRef = useRef(null);
+    // [P1-PLAN-LOTE-1050] «Galería» o «Cámara» con NUESTRO selector (el dueño no quería el menú de tres opciones de iOS:
+    // Fototeca / Hacer foto / Seleccionar archivo). En la app nativa, la fototeca del binario (PHPicker directo, sin
+    // permiso) y la cámara del plugin; en la web, un <input> por opción (el de la cámara con `capture`).
+    const [eligiendo, setEligiendo] = useState(false);
+    const pedirFoto = useCallback(() => setEligiendo(true), []);
+    const usarFichero = useCallback(async (fichero) => {
         if (!fichero) return;
         const lista = await cargarFoto(fichero);
         if (!lista) { toast.error(t('No se pudo abrir esa foto. Prueba con otra.'), { id: 'share-day-foto' }); return; }
         setEncuadre(ENCUADRE_INICIAL);
         setFoto(lista);
     }, [t]);
+    const onElegirFoto = useCallback(async (e) => {
+        const fichero = e.target.files?.[0];
+        e.target.value = '';                       // elegir la MISMA foto otra vez también dispara `change`
+        await usarFichero(fichero);
+    }, [usarFichero]);
+    const desdeNativo = useCallback(async (abrir) => {
+        try {
+            await usarFichero(await abrir());
+        } catch (err) {
+            if (!isNativePickerCancellation(err)) toast.error(t('No pudimos abrir tus fotos. Revisa los permisos e inténtalo de nuevo.'), { id: 'share-day-foto' });
+        }
+    }, [usarFichero, t]);
+    // El <input> se abre SIN esperar nada antes: el navegador solo abre el selector dentro del toque.
+    const elegirDeGaleria = useCallback(() => {
+        setEligiendo(false);
+        if (isNativeApp()) { void desdeNativo(() => chooseNativeGalleryImage()); return; }
+        inputFotoRef.current?.click();
+    }, [desdeNativo]);
+    const hacerFoto = useCallback(() => {
+        setEligiendo(false);
+        if (isNativeApp()) { void desdeNativo(async () => (await takeNativeChatPhoto({ lado: 2400 }))?.[0]); return; }
+        inputCamaraRef.current?.click();
+    }, [desdeNativo]);
     // [P1-PLAN-LOTE-1048 · encuadre] La selfie se mueve con el dedo y se acerca pellizcando (o con el deslizador): la
     // vista previa es un lienzo que se repinta en vivo; el JPEG que se comparte se rehace cuando el dedo se para.
     const [encuadre, setEncuadre] = useState(ENCUADRE_INICIAL);
@@ -253,7 +280,24 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                         ref={inputFotoRef} type="file" accept="image/*" className={styles.inputOculto}
                         onChange={onElegirFoto} tabIndex={-1} aria-hidden="true" data-testid="share-day-foto"
                     />
-                    {foto ? (
+                    <input
+                        ref={inputCamaraRef} type="file" accept="image/*" capture="environment" className={styles.inputOculto}
+                        onChange={onElegirFoto} tabIndex={-1} aria-hidden="true" data-testid="share-day-camara"
+                    />
+                    {eligiendo && (
+                        <div className={styles.fuentes} role="group" aria-label={t('Ponle tu foto')}>
+                            <button type="button" className={styles.fuente} onClick={elegirDeGaleria}>
+                                <span className={`${styles.fuenteIco} ${styles.fuenteGaleria}`} aria-hidden="true"><Images size={20} /></span>
+                                <span className={styles.fuenteTxt}><strong>{t('Galería')}</strong><small>{t('Tu selfie del espejo')}</small></span>
+                            </button>
+                            <button type="button" className={styles.fuente} onClick={hacerFoto}>
+                                <span className={`${styles.fuenteIco} ${styles.fuenteCamara}`} aria-hidden="true"><Camera size={20} /></span>
+                                <span className={styles.fuenteTxt}><strong>{t('Cámara')}</strong><small>{t('Hazla ahora')}</small></span>
+                            </button>
+                            <button type="button" className={`${styles.enlace} ${styles.fuentesCancelar}`} onClick={() => setEligiendo(false)}>{t('Cancelar')}</button>
+                        </div>
+                    )}
+                    {eligiendo ? null : foto ? (
                         <div className={styles.conFoto}>
                             <div className={styles.formatos} role="radiogroup" aria-label={t('Estilo de la historia')}>
                                 {[['titular', t('Titular')], ['minimal', t('Minimal')], ['cristal', t('Cristal')]].map(([clave, rotulo]) => (

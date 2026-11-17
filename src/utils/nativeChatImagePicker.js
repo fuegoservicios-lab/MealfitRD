@@ -191,14 +191,15 @@ export async function chooseNativeChatImages(limit = 4) {
     return files;
 }
 
-export async function takeNativeChatPhoto() {
+// [P1-PLAN-LOTE-1050] `lado`: la historia compartida (1080×1920) pide más que los 1600 px del chat.
+export async function takeNativeChatPhoto({ lado = 1600 } = {}) {
     if (!isNativeApp()) return null;
     const { Camera } = await import('@capacitor/camera');
     marcarSondaTeclado('fSel');
     const result = await Camera.takePhoto({
         quality: 85,
-        targetWidth: 1600,
-        targetHeight: 1600,
+        targetWidth: lado,
+        targetHeight: lado,
         correctOrientation: true,
         includeMetadata: true,
         saveToGallery: false,
