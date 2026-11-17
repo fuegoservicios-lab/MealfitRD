@@ -8,9 +8,15 @@
     max-height: min(88dvh, 780px);
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 1.5rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+    padding: 1.5rem 1.25rem calc(2.25rem + env(safe-area-inset-bottom, 0px));
     color: var(--text-main);
+    /* Sin barra de desplazamiento (el dueño la vio fea en iOS): el contenido se funde arriba y abajo, así el
+       corte del borde se lee como «hay más» y no como una tarjeta partida. */
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1rem, black calc(100% - 2.5rem), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, black 1rem, black calc(100% - 2.5rem), transparent 100%);
 }
+.hoja::-webkit-scrollbar { display: none; }
 
 /* ── Cabecera: tu gema, tu rango y la barra hacia el siguiente ── */
 .cabecera { display: flex; flex-direction: column; align-items: center; text-align: center; }
