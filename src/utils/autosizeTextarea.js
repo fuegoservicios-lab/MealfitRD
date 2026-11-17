@@ -65,7 +65,7 @@ function bastaConMirar(el, previo) {
     const valor = el.value;
     if (valor.length < previo.valor.length || !valor.startsWith(previo.valor)) return false;
     if (el.clientWidth !== previo.ancho) return false;
-    return el.scrollHeight <= el.clientHeight;
+    return el.scrollHeight <= el.clientHeight + 1;
 }
 
 export function useAutosizeTextarea(ref, signature, maxHeightPx = CHAT_TEXTAREA_MAX_HEIGHT_PX) {

@@ -2255,15 +2255,18 @@ const AgentPage = () => {
     // coach decía «Procesando tu solicitud detalladamente…» en cada turno. Ahora el evento trae `phase` y se pinta la
     // frase de esa fase en el idioma del usuario. Sin `phase` (backend anterior al lote) se conserva la frase del
     // servidor solo en español; en los demás idiomas no hay estado propio y caen las frases rotativas de abajo.
-    const frasesDeFase = {
-        analizando: t('Analizando tu mensaje…'),
-        generando_plan: t('Armando tu plan…'),
-        modificando_comida: t('Ajustando tu comida…'),
-        actualizando_bd: t('Guardando tus preferencias…'),
-        registrando_progreso: t('Anotando lo que comiste…'),
-        calculando_compras: t('Calculando tu lista de compras…'),
-        buscando_memoria: t('Buscando en tu memoria…'),
-    };
+    const frasesDeFase = useMemo(() => {
+        void localeActivo; void catalogVersion;
+        return {
+            analizando: t('Analizando tu mensaje…'),
+            generando_plan: t('Armando tu plan…'),
+            modificando_comida: t('Ajustando tu comida…'),
+            actualizando_bd: t('Guardando tus preferencias…'),
+            registrando_progreso: t('Anotando lo que comiste…'),
+            calculando_compras: t('Calculando tu lista de compras…'),
+            buscando_memoria: t('Buscando en tu memoria…'),
+        };
+    }, [t, localeActivo, catalogVersion]);
     const handleFileSelect = (e) => {
         addFiles(e.target.files);
     };
@@ -2600,7 +2603,7 @@ const AgentPage = () => {
         scrollRafRef.current = requestAnimationFrame(() => {
             scrollRafRef.current = null;
             const msgs = messagesRef.current;
-            const behavior = behaviorOverride || 'instant';
+            const behavior = behaviorOverride === 'smooth' ? 'smooth' : 'instant';
             if (force) {
                 sentAnchorRef.current = null;
                 _setSpacer(0);
@@ -3564,7 +3567,7 @@ const AgentPage = () => {
     // [P1-PLAN-LOTE-226 · 2026-09-25] Desde un chat de otro día, de vuelta al de hoy: el que el servidor ya tiene de
     // hoy si existe; si no, uno en blanco a nombre de la regla del día (automático: la adopción puede cambiarlo por el
     // de otro dispositivo). Nunca con un turno en marcha. tooltip-anchor: P1-PLAN-LOTE-226-VOLVER-A-HOY
-    const chatDeOtroDia = !isLoadingHistory && esChatDeOtroDia(messages);
+    const chatDeOtroDia = useMemo(() => !isLoadingHistory && esChatDeOtroDia(messages), [isLoadingHistory, messages]);
     const handleVolverAHoy = () => {
         if (isTurnActiveRef.current) return;
         chatViejoElegidoRef.current = null;
@@ -5857,26 +5860,31 @@ const AgentPage = () => {
             hayFotoPendiente: Boolean(fotoPendienteRef.current),
         }));
     }, [welcomeClockKey, userProfile, formData, planData, resumenHoy, currentSessionId, chatDeOtroDia]);
-    const atajos = atajosDelChat({
-        hora: new Date().getHours(),
-        modoContador: enModoContador,
-        metas: metasEnNumeros(!enModoContador && planData?.calories ? planData : resumenHoy.metas),
-        totales: resumenHoy.totales,
-        comidas: resumenHoy.comidas,
-        soloAcciones: messages.length > 4,   // [P1-PLAN-LOTE-691]
-        t,
-    });
-    const _sigActual = _orphanSig(messages);
-    const _descartadoActual = _recoveryRef.current.doneSig === _sigActual
-        || safeLocalStorageGet(_orphanDismissKey(currentSessionId), null) === _sigActual;
-    const _ocultarCorteEnCurso = debeOcultarBurbujaDeCorte({
-        mensajes: messages,
-        recuperando: recoveringTurn,
-        ocupado: isLoading,
-        cargandoHistorial: isLoadingHistory,
-        enLinea: isOnline,
-        firmaDescartada: _descartadoActual,
-    });
+    const atajos = useMemo(() => {
+        void localeActivo; void catalogVersion; void welcomeClockKey;
+        return atajosDelChat({
+            hora: new Date().getHours(),
+            modoContador: enModoContador,
+            metas: metasEnNumeros(!enModoContador && planData?.calories ? planData : resumenHoy.metas),
+            totales: resumenHoy.totales,
+            comidas: resumenHoy.comidas,
+            soloAcciones: messages.length > 4,   // [P1-PLAN-LOTE-691]
+            t,
+        });
+    }, [enModoContador, planData, resumenHoy, messages.length, t, localeActivo, catalogVersion, welcomeClockKey]);
+    const _sigActual = useMemo(() => _orphanSig(messages), [_orphanSig, messages]);
+    const _ocultarCorteEnCurso = useMemo(() => {
+        const _descartadoActual = _recoveryRef.current.doneSig === _sigActual
+            || safeLocalStorageGet(_orphanDismissKey(currentSessionId), null) === _sigActual;
+        return debeOcultarBurbujaDeCorte({
+            mensajes: messages,
+            recuperando: recoveringTurn,
+            ocupado: isLoading,
+            cargandoHistorial: isLoadingHistory,
+            enLinea: isOnline,
+            firmaDescartada: _descartadoActual,
+        });
+    }, [_sigActual, _orphanDismissKey, currentSessionId, messages, recoveringTurn, isLoading, isLoadingHistory, isOnline]);
     const visibleMessages = useMemo(() => (_ocultarCorteEnCurso
         ? mensajesVisiblesParaElUsuario(messages, true)
         : messages), [_ocultarCorteEnCurso, messages]);   // [P1-PLAN-LOTE-1055] identidad estable para `burbujasDelHilo`

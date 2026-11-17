@@ -7,7 +7,16 @@ import { fetchWithAuth } from '../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
 import { getBiologicalDateStr } from '../utils/diaBiologico';
 
-const _hoy = () => getBiologicalDateStr(new Date());
+let _hoySeg = 0;
+let _hoyVal = '';
+const _hoy = () => {
+    const s = Math.floor(Date.now() / 1000);
+    if (s !== _hoySeg) {
+        _hoySeg = s;
+        _hoyVal = getBiologicalDateStr(new Date());
+    }
+    return _hoyVal;
+};
 const _RESUMEN_VACIO = { totales: null, comidas: null, metas: null };
 
 // [P1-PLAN-LOTE-412] el último resumen del día, para que el saludo del coach lo use al instante (sin esperar la red).

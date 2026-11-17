@@ -124,4 +124,11 @@ describe('[1055] el chat no repinta lo que no cambió al escribir', () => {
         for (const d of ['visibleMessages', 'currentSessionId', 'localeActivo', 'welcomeClockKey']) expect(deps).toContain(d);
         expect(src).toMatch(/const visibleMessages = useMemo\(/);
     });
+
+    it('frasesDeFase, chatDeOtroDia, atajos, _sigActual y _ocultarCorteEnCurso van memorizados con useMemo', () => {
+        const src = leer('pages/AgentPage.jsx');
+        for (const nombre of ['frasesDeFase', 'chatDeOtroDia', 'atajos', '_sigActual', '_ocultarCorteEnCurso']) {
+            expect(src).toMatch(new RegExp(`const ${nombre} = useMemo\\(`));
+        }
+    });
 });
