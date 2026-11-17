@@ -125,7 +125,6 @@ import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency, precalentarWorkerDeImagen, workerDeImagenDisponible } from '../utils/chatImageProcessing';
 import { vistaPreviaDelAdjunto, esIOS } from '../utils/vistaPreviaDelAdjunto';
-import { programarRefrescoDelCursor } from '../utils/cursorIOS';   // [P1-PLAN-LOTE-1052]
 import { dudasDeLasFotos, etiquetasFotosDesde, indicesFotosDeDudas, mensajeDeRespuestas } from '../utils/dudasDeLaFoto';
 // [P1-PLAN-LOTE-690] las dudas de la foto se contestan ANTES de que hable el coach
 import {
@@ -872,8 +871,6 @@ const AgentPage = () => {
                 wrapper.style.transform = posicion.composerLift > 0
                     ? `translateY(-${posicion.composerLift}px)`
                     : '';
-                // [P1-PLAN-LOTE-1052] La caja se movió con el campo enfocado: iOS dejaría el cursor donde estaba.
-                if (abierto) programarRefrescoDelCursor(() => chatInputRef.current);
             }
             // [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23] Con teclado abierto la barra de pestañas
             // (fixed) la recoloca iOS justo encima del teclado y tapa la caja de escribir,
@@ -1874,9 +1871,6 @@ const AgentPage = () => {
     // post-send (solo cuando tenía focus pre-send — preserva mobile UX
     // donde tap del botón send NO debe abrir keyboard).
     const chatInputRef = useRef(null);
-    // [P1-PLAN-LOTE-1052] Abrir y cerrar el panel de adjuntar reordena la caja con el campo enfocado: que iOS recoloque
-    // el cursor cuando todo se asiente (abrir/cerrar varias veces lo dejaba ~55 px por encima de la línea).
-    useEffect(() => { programarRefrescoDelCursor(() => chatInputRef.current, 260); }, [showAttachmentSource]);
 
     // [P1-CHAT-PICKER-DESPUES-DEL-TECLADO · 2026-08-24] En iOS no basta con mover
     // el DOM antes de abrir el input: el menú nativo usa el visual viewport REAL del

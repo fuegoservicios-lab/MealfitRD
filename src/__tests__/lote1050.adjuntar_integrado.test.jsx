@@ -158,3 +158,14 @@ describe('[1053] arrastrar sobre el panel no panea la página', () => {
         expect(codigo).not.toMatch(/addEventListener\('scroll'/);
     });
 });
+
+describe('[1054] el chat no retoca la selección del cuadro por su cuenta', () => {
+    it('sin `programarRefrescoDelCursor` ni `setSelectionRange` en el chat (deshecho el lote 1052)', () => {
+        // El 1052 volvía a fijar la selección 260 ms después de cerrar el panel; con «Galería» eso caía con el selector de
+        // fotos ya abierto y el teclado escondido, iOS «llevaba el campo a la vista» y, al volver con la X, la app entera
+        // quedaba desplazada hacia arriba (captura del dueño, 16-nov 9:49). El cursor desplazado lo arregló el 1053.
+        const src = leer('pages/AgentPage.jsx');
+        expect(src).not.toMatch(/programarRefrescoDelCursor|cursorIOS/);
+        expect(src).not.toMatch(/chatInputRef\.current\??\.setSelectionRange/);
+    });
+});
