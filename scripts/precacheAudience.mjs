@@ -108,6 +108,14 @@ export const FAMILIAS_NO_PRECACHEABLES = [
         rutas: ['src/i18n/locales/'],
         gate: 'loadLocale() — preferencia guardada ≠ es-DO O autodetección del navegador en la primera visita (P1-AUTO-LOCALE)',
     },
+    {
+        // [P1-PLAN-LOTE-1058 · 2026-11-17] El PDF del informe para el médico (y el del plan en el Dashboard): ~215 kB gz
+        // entre jspdf y sus dependencias. Solo se cargan con `import()` dentro de pantallas con sesión; la portada no
+        // los ejecuta nunca. `dompurify` NO va aquí: también lo usa el resto de la app.
+        id: 'pdf',
+        marcadores: ['jspdf', 'html2canvas', 'canvg'],
+        gate: 'import() en pages/InformeMedico.jsx y Dashboard — rutas /dashboard/* (con sesión)',
+    },
 ];
 
 const _norm = (id) => String(id || '').split('\\').join('/');
