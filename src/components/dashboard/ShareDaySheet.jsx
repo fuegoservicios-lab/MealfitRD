@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images } from 'lucide-react';
+import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images, Image as ImageIcon, Type, RotateCcw } from 'lucide-react';
 import { chooseNativeGalleryImage, takeNativeChatPhoto, isNativePickerCancellation } from '../../utils/nativeChatImagePicker';
 import BroteChispa from '../common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
 import { toast } from 'sonner';
@@ -24,7 +24,8 @@ import { isNativeApp } from '../../config/platform';
 import { useT } from '../../i18n';
 import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, sabeCompartirImagenes, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
-import { cargarFoto, cargarFuentes, dibujarHistoriaConFoto, pintarHistoria, moverEncuadre, ENCUADRE_INICIAL, ZOOM_MAX, ANCHO as ANCHO_HISTORIA } from '../../utils/historiaConFoto';
+import { cargarFoto, cargarFuentes, dibujarHistoriaConFoto, pintarHistoria, moverEncuadre, cajaDeCifras, ENCUADRE_INICIAL, ZOOM_MAX, LIMITES_CIFRAS, ANCHO as ANCHO_HISTORIA, ALTO as ALTO_HISTORIA } from '../../utils/historiaConFoto';
+import { BLOQUE_INICIAL, ESCALA_MIN, acotarBloque, moverBloque, imantar, escalaMax, tocaLasCifras, esInicial } from '../../utils/bloqueDeCifras';
 import { useAssessment } from '../../context/AssessmentContext';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import { getBiologicalDate } from '../../utils/diaBiologico';
@@ -57,6 +58,8 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
         const lista = await cargarFoto(fichero);
         if (!lista) { toast.error(t('No se pudo abrir esa foto. Prueba con otra.'), { id: 'share-day-foto' }); return; }
         setEncuadre(ENCUADRE_INICIAL);
+        setBloque(BLOQUE_INICIAL);
+        setCapa('foto');
         setFoto(lista);
     }, [t]);
     const onElegirFoto = useCallback(async (e) => {
@@ -85,6 +88,13 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     // [P1-PLAN-LOTE-1048 · encuadre] La selfie se mueve con el dedo y se acerca pellizcando (o con el deslizador): la
     // vista previa es un lienzo que se repinta en vivo; el JPEG que se comparte se rehace cuando el dedo se para.
     const [encuadre, setEncuadre] = useState(ENCUADRE_INICIAL);
+    // [P1-PLAN-LOTE-1078] Las cifras son un sticker: se arrastran y se pellizcan como la foto. El gesto mueve lo que
+    // TOCASTE (las cifras o la foto); el deslizador, la capa elegida en «Foto · Tus cifras».
+    const [bloque, setBloque] = useState(BLOQUE_INICIAL);
+    const [capa, setCapa] = useState('foto');
+    const [guiaVisible, setGuiaVisible] = useState(false);
+    const gesto = useRef({ capa: 'foto', crudo: BLOQUE_INICIAL });
+    const guiaTope = useRef(null);
     const [fuentesListas, setFuentesListas] = useState(false);
     const lienzoRef = useRef(null);
     const punteros = useRef(new Map());
@@ -115,11 +125,14 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
         [delDia, metasDelDia, microMetas, incluirComidas, fechaDelDia, nombrar],
     );
     const texto = useMemo(() => textoDelDia(resumen), [resumen]);
+    const caja = useMemo(() => cajaDeCifras(resumen, estilo), [resumen, estilo]);
+    const escalaTope = useMemo(() => escalaMax(caja, LIMITES_CIFRAS), [caja]);
+    const bloqueVisto = useMemo(() => acotarBloque(bloque, caja, LIMITES_CIFRAS), [bloque, caja]);
 
     useEffect(() => {
         let vivo = true;
         const fijar = (blob) => {
-            if (vivo) setImagen({ blob, url: blob ? URL.createObjectURL(blob) : null, para: resumen, formato, foto, estilo, encuadre });
+            if (vivo) setImagen({ blob, url: blob ? URL.createObjectURL(blob) : null, para: resumen, formato, foto, estilo, encuadre, bloque });
         };
         // Con foto, el JPEG espera a que el dedo se pare (arrastrar pide decenas de encuadres por segundo). Sin foto, la
         // tarjeta se dibuja en el acto, como siempre.
@@ -128,42 +141,80 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
             return () => { vivo = false; };
         }
         const tope = setTimeout(() => {
-            dibujarHistoriaConFoto(resumen, { foto, estilo, encuadre }).then(fijar).catch(() => fijar(null));
+            dibujarHistoriaConFoto(resumen, { foto, estilo, encuadre, bloque }).then(fijar).catch(() => fijar(null));
         }, 280);
         return () => { vivo = false; clearTimeout(tope); };
-    }, [resumen, formato, foto, estilo, encuadre]);
+    }, [resumen, formato, foto, estilo, encuadre, bloque]);
 
     // La vista previa en vivo: un fotograma por cambio.
     useEffect(() => {
         if (!foto) return undefined;
-        const id = requestAnimationFrame(() => pintarHistoria(lienzoRef.current, resumen, { foto, estilo, encuadre }));
+        const guia = guiaVisible ? { centrado: true } : null;
+        const id = requestAnimationFrame(() => pintarHistoria(lienzoRef.current, resumen, { foto, estilo, encuadre, bloque, guia }));
         return () => cancelAnimationFrame(id);
-    }, [foto, resumen, estilo, encuadre, fuentesListas]);
+    }, [foto, resumen, estilo, encuadre, bloque, guiaVisible, fuentesListas]);
+    useEffect(() => () => clearTimeout(guiaTope.current), []);
+    // El contorno de las cifras se ve mientras las mueves (y un momento después de soltar el deslizador); nunca en el JPEG.
+    const verGuia = useCallback((ms = 0) => {
+        clearTimeout(guiaTope.current);
+        setGuiaVisible(true);
+        if (ms > 0) guiaTope.current = setTimeout(() => setGuiaVisible(false), ms);
+    }, []);
+
+    // Las cifras se mueven sobre una posición «cruda» (la del dedo) y lo que se ve es esa posición imantada al centro:
+    // imantar lo ya imantado no dejaría salir del centro con un arrastre lento.
+    const moverCifras = useCallback((cambio) => {
+        const g = gesto.current;
+        g.crudo = moverBloque(g.crudo, caja, LIMITES_CIFRAS, cambio);
+        setBloque(imantar(g.crudo));
+    }, [caja]);
 
     const onPunteroAbajo = useCallback((e) => {
         e.currentTarget.setPointerCapture?.(e.pointerId);
-        punteros.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }, []);
+        const p = punteros.current;
+        if (p.size === 0) {
+            const r = e.currentTarget.getBoundingClientRect();
+            const x = r.width > 0 ? (e.clientX - r.left) * (ANCHO_HISTORIA / r.width) : -1;
+            const y = r.height > 0 ? (e.clientY - r.top) * (ALTO_HISTORIA / r.height) : -1;
+            const sobreCifras = tocaLasCifras(caja, bloqueVisto, x, y);
+            gesto.current = { capa: sobreCifras ? 'cifras' : 'foto', crudo: bloqueVisto };
+            setCapa(sobreCifras ? 'cifras' : 'foto');
+            if (sobreCifras) verGuia();
+        }
+        p.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }, [caja, bloqueVisto, verGuia]);
     const onPunteroMovido = useCallback((e) => {
         const p = punteros.current;
         const previo = p.get(e.pointerId);
         if (!previo || !foto) return;
-        const caja = e.currentTarget.getBoundingClientRect();
-        const k = caja.width > 0 ? ANCHO_HISTORIA / caja.width : 1;     // px de pantalla → px del lienzo
+        const r = e.currentTarget.getBoundingClientRect();
+        const k = r.width > 0 ? ANCHO_HISTORIA / r.width : 1;     // px de pantalla → px del lienzo
+        const deCifras = gesto.current.capa === 'cifras';
         if (p.size >= 2) {
             const [a, b] = [...p.entries()].map(([id, v]) => (id === e.pointerId ? { x: e.clientX, y: e.clientY } : v));
             const [a0, b0] = [...p.values()];
             const antes = Math.hypot(a0.x - b0.x, a0.y - b0.y);
             const ahora = Math.hypot(a.x - b.x, a.y - b.y);
-            if (antes > 0) setEncuadre((en) => moverEncuadre(en, foto, { factor: ahora / antes }));
+            if (antes > 0) {
+                if (deCifras) moverCifras({ factor: ahora / antes });
+                else setEncuadre((en) => moverEncuadre(en, foto, { factor: ahora / antes }));
+            }
         } else {
             const dx = (e.clientX - previo.x) * k;
             const dy = (e.clientY - previo.y) * k;
-            setEncuadre((en) => moverEncuadre(en, foto, { dx, dy }));
+            if (deCifras) moverCifras({ dx, dy });
+            else setEncuadre((en) => moverEncuadre(en, foto, { dx, dy }));
         }
         p.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }, [foto]);
-    const onPunteroArriba = useCallback((e) => { punteros.current.delete(e.pointerId); }, []);
+    }, [foto, moverCifras]);
+    const onPunteroArriba = useCallback((e) => {
+        punteros.current.delete(e.pointerId);
+        if (punteros.current.size === 0 && gesto.current.capa === 'cifras') verGuia(700);
+    }, [verGuia]);
+    const restablecer = useCallback(() => {
+        if (capa === 'cifras') { setBloque(BLOQUE_INICIAL); verGuia(700); } else setEncuadre(ENCUADRE_INICIAL);
+    }, [capa, verGuia]);
+    const sinCambios = capa === 'cifras' ? esInicial(bloqueVisto) : (encuadre.zoom === 1 && encuadre.x === 0 && encuadre.y === 0);
     // El arrastre de la foto no es el gesto de cerrar la hoja (useBottomSheet escucha el toque en el diálogo).
     const pararToque = useCallback((e) => e.stopPropagation(), []);
 
@@ -185,7 +236,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const puedeDescargar = !isNativeApp() && !conImagen && !!imagen.blob;
     // Mientras se redibuja (al cambiar «Incluir lo que comí») se sigue viendo la imagen anterior, pero no se comparte
     // ni se descarga: saldría la versión vieja.
-    const dibujando = imagen.para !== resumen || imagen.formato !== formato || imagen.foto !== foto || imagen.estilo !== estilo || imagen.encuadre !== encuadre;
+    const dibujando = imagen.para !== resumen || imagen.formato !== formato || imagen.foto !== foto || imagen.estilo !== estilo || imagen.encuadre !== encuadre || (!!foto && imagen.bloque !== bloque);
 
     // Un segundo toque mientras la hoja del sistema se abre hace que `navigator.share` rechace (InvalidStateError) y
     // saldría un «no dejó compartir» falso: se ignora. La marca se pone DESPUÉS de llamar a `compartir`, que invoca
@@ -232,7 +283,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
             <button type="button" className={styles.backdrop} aria-hidden="true" tabIndex={-1} onClick={onClose} />
             <div
                 ref={containerRef}
-                className={styles.sheet}
+                className={foto ? `${styles.sheet} ${styles.sheetFoto}` : styles.sheet}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="share-day-title"
@@ -294,6 +345,8 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                                 <span className={`${styles.fuenteIco} ${styles.fuenteCamara}`} aria-hidden="true"><Camera size={20} /></span>
                                 <span className={styles.fuenteTxt}><strong>{t('Cámara')}</strong><small>{t('Hazla ahora')}</small></span>
                             </button>
+                            {/* [1078] la tranquilidad va donde se decide: al elegir la foto (con ella puesta, el sitio es de la historia) */}
+                            <p className={`${styles.nota} ${styles.fuentesNota}`}>{t('Tu foto no sale de tu teléfono: la imagen se arma aquí.')}</p>
                             <button type="button" className={`${styles.enlace} ${styles.fuentesCancelar}`} onClick={() => setEligiendo(false)}>{t('Cancelar')}</button>
                         </div>
                     )}
@@ -310,17 +363,48 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                                     </button>
                                 ))}
                             </div>
-                            <p className={styles.pista}>{t('Arrastra para encuadrar · pellizca para acercar')}</p>
-                            <input
-                                type="range" className={styles.zoom} min={1} max={ZOOM_MAX} step={0.01}
-                                value={encuadre.zoom} aria-label={t('Acercar la foto')}
-                                onChange={(e) => { const v = Number(e.target.value); setEncuadre((en) => moverEncuadre(en, foto, { factor: v / en.zoom })); }}
-                            />
+                            <div className={styles.capas} role="radiogroup" aria-label={t('Qué ajustas')}>
+                                {[['foto', t('Foto'), ImageIcon], ['cifras', t('Tus cifras'), Type]].map(([clave, rotulo, Icono]) => (
+                                    <button
+                                        key={clave} type="button" role="radio" aria-checked={capa === clave}
+                                        className={capa === clave ? `${styles.capa} ${styles.capaActiva}` : styles.capa}
+                                        onClick={() => { setCapa(clave); if (clave === 'cifras') verGuia(900); }}
+                                    >
+                                        <Icono size={16} aria-hidden="true" />{rotulo}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className={styles.pista}>
+                                {capa === 'cifras'
+                                    ? t('Arrástralas · pellizca para cambiar su tamaño')
+                                    : t('Arrastra para encuadrar · pellizca para acercar')}
+                            </p>
+                            <div className={styles.zoomFila}>
+                            {capa === 'cifras' ? (
+                                <input
+                                    key="cifras" type="range" className={styles.zoom} min={ESCALA_MIN} max={escalaTope} step={0.01}
+                                    value={bloqueVisto.escala} aria-label={t('Tamaño de tus cifras')}
+                                    onChange={(e) => {
+                                        const v = Number(e.target.value);
+                                        setBloque((b) => acotarBloque({ ...acotarBloque(b, caja, LIMITES_CIFRAS), escala: v }, caja, LIMITES_CIFRAS));
+                                        verGuia(900);
+                                    }}
+                                />
+                            ) : (
+                                <input
+                                    key="foto" type="range" className={styles.zoom} min={1} max={ZOOM_MAX} step={0.01}
+                                    value={encuadre.zoom} aria-label={t('Acercar la foto')}
+                                    onChange={(e) => { const v = Number(e.target.value); setEncuadre((en) => moverEncuadre(en, foto, { factor: v / en.zoom })); }}
+                                />
+                            )}
+                                <button type="button" className={styles.restablecer} onClick={restablecer} disabled={sinCambios} aria-label={t('Restablecer')} title={t('Restablecer')}>
+                                    <RotateCcw size={18} aria-hidden="true" />
+                                </button>
+                            </div>
                             <div className={styles.fotoAcciones}>
                                 <button type="button" className={styles.enlace} onClick={pedirFoto}>{t('Cambiar foto')}</button>
                                 <button type="button" className={styles.enlace} onClick={() => setFoto(null)}>{t('Quitar foto')}</button>
                             </div>
-                            <p className={styles.nota}>{t('Tu foto no sale de tu teléfono: la imagen se arma aquí.')}</p>
                         </div>
                     ) : (
                         <button type="button" className={styles.fotoCta} onClick={pedirFoto}>

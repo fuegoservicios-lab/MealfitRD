@@ -8,6 +8,7 @@
 import { t, formatNumber, formatPercent } from '../i18n';
 import { fechaLarga, SITIO } from './compartirDia';
 import { BRAND } from '../data/routeMeta';
+import { BLOQUE_INICIAL, acotarBloque, aplicarBloque, cajaTransformada } from './bloqueDeCifras';
 
 export const ANCHO = 1080;
 export const ALTO = 1920;
@@ -235,12 +236,14 @@ const _cabecera = (ctx, r) => {
 const _valorMacro = (mc) => `${formatNumber(mc.valor)} g`;
 
 // ── «titular»: la cifra de portada ──────────────────────────────────────────────────────────────────────
-const _titular = (ctx, r) => {
-    _velo(ctx, ALTO * 0.42, ALTO, 0, 0.82);
-    const cal = r.calorias;
-    const conMeta = cal.meta > 0;
+const _titularPie = (ctx) => {
+    _velo(ctx, BASE - 120, ALTO, 0, 0.6);
     _texto(ctx, SITIO, M, BASE, { tam: 30, peso: 700, color: TENUE });
     _texto(ctx, t('¿Y tú, cómo vas hoy?'), ANCHO - M, BASE, { tam: 30, peso: 600, color: TENUE, alinear: 'right', max: ANCHO / 2 });
+};
+const _titular = (ctx, r) => {
+    const cal = r.calorias;
+    const conMeta = cal.meta > 0;
 
     const col = (ANCHO - 2 * M) / 3;
     r.macros.forEach((mc, i) => {
@@ -261,8 +264,8 @@ const _titular = (ctx, r) => {
         _texto(ctx, formatPercent(cal.pct), ANCHO - M, BASE - 336, { tam: 38, peso: 800, color: COLOR.calories[0], alinear: 'right' });
         yNumero = BASE - 410;
     }
+    const tam = _tamTitular(r);
     const cifra = formatNumber(cal.valor);
-    const tam = cifra.length > 5 ? 200 : 250;
     const ancho = _texto(ctx, cifra, M - 6, yNumero, { tam, peso: 800 });
     _texto(ctx, 'kcal', M + ancho + 14, yNumero, { tam: 64, peso: 700, color: COLOR.calories[0] });
     _rotulo(ctx, t('Mi día'), M, yNumero - tam * 0.86, { tam: 32, color: COLOR.calories[0], aire: 0.3 });
@@ -270,13 +273,16 @@ const _titular = (ctx, r) => {
 };
 
 // ── «minimal»: solo las cifras, centradas (tipo sticker) ────────────────────────────────────────────────
-const _minimal = (ctx, r) => {
-    _velo(ctx, ALTO * 0.48, ALTO, 0, 0.72);
+const _minimalPie = (ctx) => {
+    _velo(ctx, BASE - 120, ALTO, 0, 0.55);
     const cx = ANCHO / 2;
     const marca = BRAND.toUpperCase();
     ctx.save(); ctx.font = `800 30px ${FUENTE}`; const anchoMarca = ctx.measureText(marca).width; ctx.restore();
     _brote(ctx, cx - (anchoMarca + 52) / 2, BASE - 36, 42, BLANCO);
     _texto(ctx, marca, cx - (anchoMarca + 52) / 2 + 52, BASE, { tam: 30, peso: 800 });
+};
+const _minimal = (ctx, r) => {
+    const cx = ANCHO / 2;
 
     const col = (ANCHO - 2 * M) / 3;
     r.macros.forEach((mc, i) => {
@@ -293,9 +299,11 @@ const _minimal = (ctx, r) => {
 };
 
 // ── «cristal»: tarjeta esmerilada con el anillo ─────────────────────────────────────────────────────────
-const _cristal = (ctx, r, canvas) => {
-    const alto = 500;
-    const x = M - 12, w = ANCHO - 2 * (M - 12), y = BASE - 70 - alto;
+const _CRISTAL = { alto: 500, x: M - 12, w: ANCHO - 2 * (M - 12), y: BASE - 70 - 500, radio: 56 };
+// [1078] El esmerilado va SIN la transformación del bloque (es la escena de detrás, que no se mueve), en la tarjeta ya
+// movida y escalada: `k` = { x, y, w, alto, radio } en px del lienzo.
+const _cristalFondo = (ctx, canvas, k) => {
+    const { x, y, w, alto, radio } = k;
     // El esmerilado sin `ctx.filter` (Safari no lo trae): la escena reducida a 1/20 y estirada de vuelta, dentro de la tarjeta.
     try {
         const mini = document.createElement('canvas');
@@ -303,7 +311,7 @@ const _cristal = (ctx, r, canvas) => {
         const mc = mini.getContext('2d');
         mc.drawImage(canvas, 0, 0, mini.width, mini.height);
         ctx.save();
-        _rect(ctx, x, y, w, alto, 56); ctx.clip();
+        _rect(ctx, x, y, w, alto, radio); ctx.clip();
         ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(mini, 0, 0, mini.width, mini.height, 0, 0, ANCHO, ALTO);
         ctx.fillStyle = 'rgba(15, 23, 42, 0.5)'; ctx.fillRect(x, y, w, alto);
@@ -312,8 +320,15 @@ const _cristal = (ctx, r, canvas) => {
         ctx.fillStyle = brillo; ctx.fillRect(x, y, w, alto);
         ctx.restore();
     } catch {
-        ctx.save(); ctx.fillStyle = 'rgba(15, 23, 42, 0.72)'; _rect(ctx, x, y, w, alto, 56); ctx.fill(); ctx.restore();
+        ctx.save(); ctx.fillStyle = 'rgba(15, 23, 42, 0.72)'; _rect(ctx, x, y, w, alto, radio); ctx.fill(); ctx.restore();
     }
+};
+const _cristalPie = (ctx) => {
+    _velo(ctx, BASE - 60, ALTO, 0, 0.5);
+    _texto(ctx, SITIO, ANCHO / 2, BASE, { tam: 30, peso: 700, color: CLARO, alinear: 'center' });
+};
+const _cristal = (ctx, r) => {
+    const { alto, x, w, y } = _CRISTAL;
     ctx.save(); ctx.strokeStyle = 'rgba(255, 255, 255, 0.34)'; ctx.lineWidth = 2; _rect(ctx, x + 1, y + 1, w - 2, alto - 2, 55); ctx.stroke(); ctx.restore();
 
     const cal = r.calorias;
@@ -332,11 +347,68 @@ const _cristal = (ctx, r, canvas) => {
         _barra(ctx, x0, yy + 24, ancho, 14, mc.meta > 0 ? mc.pct : 100, COLOR[mc.clave]);
     });
     if (metaCumplida(r)) _insignia(ctx, ANCHO / 2, y - 52, 'center');
-    _velo(ctx, BASE - 60, ALTO, 0, 0.5);
-    _texto(ctx, SITIO, ANCHO / 2, BASE, { tam: 30, peso: 700, color: CLARO, alinear: 'center' });
 };
 
 const _PINTAR = { titular: _titular, minimal: _minimal, cristal: _cristal };
+const _PIE = { titular: _titularPie, minimal: _minimalPie, cristal: _cristalPie };
+// La oscuridad detrás de las cifras (se leen sobre cualquier foto): sigue al bloque. Cristal trae su propia tarjeta.
+const _OSCURO = { titular: 0.82, minimal: 0.72, cristal: 0 };
+
+function _tamTitular(r) { return formatNumber(r?.calorias?.valor ?? 0).length > 5 ? 200 : 250; }
+
+/** [1078] Dónde pueden ir las cifras: bajo la cabecera y por encima del pie (lo que tapan las historias). */
+export const LIMITES_CIFRAS = Object.freeze({ x0: 16, x1: ANCHO - 16, y0: SEGURO.arriba + 40, y1: BASE - 56 });
+
+/** [1078] La caja de las cifras de cada estilo en su sitio de siempre, en px del lienzo: lo que se arrastra y escala. */
+export function cajaDeCifras(r, estilo = 'titular') {
+    const cumplida = metaCumplida(r);
+    if (estilo === 'minimal') {
+        const y0 = cumplida ? BASE - 590 - 30 : BASE - 510 - 30;
+        return { x: M, y: y0, w: ANCHO - 2 * M, h: BASE - 108 - y0 };
+    }
+    if (estilo === 'cristal') {
+        const y0 = cumplida ? _CRISTAL.y - 52 - 30 : _CRISTAL.y;
+        return { x: _CRISTAL.x, y: y0, w: _CRISTAL.w, h: _CRISTAL.y + _CRISTAL.alto - y0 };
+    }
+    const yNumero = r?.calorias?.meta > 0 ? BASE - 410 : BASE - 300;
+    const y0 = yNumero - _tamTitular(r) * 0.86 - 44;
+    return { x: M - 12, y: y0, w: ANCHO - 2 * M + 16, h: BASE - 92 - y0 };
+}
+
+/** Un punto del sitio de siempre, tal como queda con el bloque (escala alrededor del centro de la caja). */
+const _punto = (caja, b, x, y) => {
+    const cx = caja.x + caja.w / 2;
+    const cy = caja.y + caja.h / 2;
+    return { x: cx + b.dx + (x - cx) * b.escala, y: cy + b.dy + (y - cy) * b.escala };
+};
+
+const _veloDelBloque = (ctx, c, a) => {
+    if (!(a > 0)) return;
+    const ini = c.y - 0.6 * c.h;
+    const lleno = c.y + c.h;
+    const fin = lleno + 0.9 * c.h;
+    const g = ctx.createLinearGradient(0, ini, 0, fin);
+    g.addColorStop(0, 'rgba(2, 6, 23, 0)');
+    g.addColorStop(Math.max(0, Math.min(1, (lleno - ini) / (fin - ini))), `rgba(2, 6, 23, ${a})`);
+    g.addColorStop(1, fin >= ALTO ? `rgba(2, 6, 23, ${a})` : 'rgba(2, 6, 23, 0)');
+    const desde = Math.max(0, ini);
+    ctx.fillStyle = g; ctx.fillRect(0, desde, ANCHO, Math.min(fin, ALTO) - desde);
+};
+
+/** Solo en la vista previa, mientras se mueven las cifras: su contorno y, centradas, la línea del centro. */
+const _guia = (ctx, c, centrado) => {
+    ctx.save();
+    ctx.setLineDash?.([18, 12]);
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'; ctx.shadowBlur = 8;
+    _rect(ctx, c.x - 14, c.y - 14, c.w + 28, c.h + 28, 28); ctx.stroke();
+    if (centrado) {
+        ctx.setLineDash?.([]);
+        ctx.strokeStyle = 'rgba(165, 180, 252, 0.95)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(ANCHO / 2, SEGURO.arriba + 20); ctx.lineTo(ANCHO / 2, BASE - 40); ctx.stroke();
+    }
+    ctx.restore();
+};
 
 const _aBlob = (canvas) => new Promise((resolve) => {
     let listo = false;
@@ -358,7 +430,7 @@ export async function cargarFuentes() {
 
 /** Pinta la historia en `canvas` (lo pone a 1080×1920), SIN esperar nada: la vista previa en vivo repinta al arrastrar.
  *  Devuelve false si no hay canvas 2D o el dibujo falló. */
-export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', encuadre = ENCUADRE_INICIAL } = {}) {
+export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', encuadre = ENCUADRE_INICIAL, bloque = BLOQUE_INICIAL, guia = null } = {}) {
     if (!canvas) return false;
     if (canvas.width !== ANCHO) canvas.width = ANCHO;
     if (canvas.height !== ALTO) canvas.height = ALTO;
@@ -369,16 +441,31 @@ export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', enc
         ctx.clearRect(0, 0, ANCHO, ALTO);
         _fondo(ctx, foto, encuadre);
         _cabecera(ctx, r);
-        (_PINTAR[estilo] || _titular)(ctx, r, canvas);
+        const cual = _PINTAR[estilo] ? estilo : 'titular';
+        // [1078] las cifras son un sticker: su caja de siempre, movida y escalada por `bloque` (acotado a sus límites)
+        const caja = cajaDeCifras(r, cual);
+        const b = acotarBloque(bloque, caja, LIMITES_CIFRAS);
+        const movida = cajaTransformada(caja, b);
+        _veloDelBloque(ctx, movida, _OSCURO[cual]);
+        _PIE[cual](ctx);
+        if (cual === 'cristal') {
+            const p = _punto(caja, b, _CRISTAL.x, _CRISTAL.y);
+            _cristalFondo(ctx, canvas, { x: p.x, y: p.y, w: _CRISTAL.w * b.escala, alto: _CRISTAL.alto * b.escala, radio: _CRISTAL.radio * b.escala });
+        }
+        ctx.save();
+        aplicarBloque(ctx, caja, b);
+        _PINTAR[cual](ctx, r);
+        ctx.restore();
+        if (guia) _guia(ctx, movida, !!guia.centrado && Math.abs(b.dx) < 0.5);
         return true;
     } catch { return false; }
 }
 
 /** El JPEG de la historia (o null sin canvas 2D: jsdom, WebView rara). `foto`: lo que devuelve `cargarFoto`, o null. */
-export async function dibujarHistoriaConFoto(r, { foto = null, estilo = 'titular', encuadre = ENCUADRE_INICIAL } = {}) {
+export async function dibujarHistoriaConFoto(r, { foto = null, estilo = 'titular', encuadre = ENCUADRE_INICIAL, bloque = BLOQUE_INICIAL } = {}) {
     if (typeof document === 'undefined') return null;
     const canvas = document.createElement('canvas');
     await cargarFuentes();
-    if (!pintarHistoria(canvas, r, { foto, estilo, encuadre })) return null;
+    if (!pintarHistoria(canvas, r, { foto, estilo, encuadre, bloque })) return null;
     return _aBlob(canvas);
 }

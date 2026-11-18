@@ -106,7 +106,7 @@ describe('[1048] la hoja con foto', () => {
         const estilos = await screen.findByRole('radiogroup', { name: /estilo de la historia/i });
         expect(estilos.querySelectorAll('[role="radio"]')).toHaveLength(ESTILOS.length);
         expect(screen.queryByRole('radiogroup', { name: /formato de la imagen/i })).toBeNull();
-        expect(screen.getByText(/tu foto no sale de tu teléfono/i)).toBeInTheDocument();
+        expect(screen.queryByText(/tu foto no sale de tu teléfono/i)).toBeNull();   // [1078] va en el selector de la foto
 
         fireEvent.click(screen.getByRole('radio', { name: 'Cristal' }));
         await waitFor(() => expect(dibujarHistoriaConFoto.mock.calls.at(-1)[1].estilo).toBe('cristal'));

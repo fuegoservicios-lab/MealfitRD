@@ -57,7 +57,8 @@ function contar() {
 // [1071] Panel de adjuntos del chat (Galería/Cámara) sin degradados propios, radios con token: hex 2568, radios 1099.
 // [1072] Informe para el médico en hoja, a tokens y escala: hex 2566, letra 1164, radios 1089, en línea 1422.
 // [1073] Hoja «Añade a tu Nevera»: cabecera, buscador y chips a su módulo: letra 1160, radios 1086, en línea 1408.
-const TECHO = { hex: 2566, fontFueraDeEscala: 1160, radioLiteral: 1086, zLiteral: 60, estiloEnLinea: 1408, emojiIcono: 1 };
+// [1078] Cifras de la historia como sticker; el deslizador de la foto al índigo de la app: hex 2565.
+const TECHO = { hex: 2565, fontFueraDeEscala: 1160, radioLiteral: 1086, zLiteral: 60, estiloEnLinea: 1408, emojiIcono: 1 };
 
 describe('[1063] sistema de diseño', () => {
     it('toda var(--x) sin respaldo es un token definido', () => {

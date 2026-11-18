@@ -414,9 +414,46 @@
 .conFoto { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
 .conFoto .formatos { margin-bottom: 0; }
 
-.fotoAcciones { display: flex; gap: 0.5rem; }
+.fotoAcciones { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem; }
+
+/* [P1-PLAN-LOTE-1078] «Foto · Tus cifras»: qué mueve el deslizador (el gesto mueve lo que toques). Dos mitades iguales,
+   con icono: es una herramienta, no un estilo más (los estilos van en píldoras). */
+.capas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25rem;
+    width: min(100%, 320px);
+    margin-top: 0.35rem;
+    padding: 0.2rem;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--text-main) 6%, var(--bg-card));
+}
+.capa {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 40px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.capaActiva {
+    background: var(--bg-card);
+    color: var(--primary);
+    box-shadow: 0 1px 3px rgba(2, 6, 23, 0.18);
+}
+.capa:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 1px; }
 
 .enlace {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     min-height: 44px;
     padding: 0 0.8rem;
     border: 0;
@@ -431,6 +468,7 @@
 
 .enlace:hover { background: color-mix(in srgb, var(--primary, #6366F1) 10%, transparent); }
 .enlace:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.5); outline-offset: 2px; }
+.enlace:disabled { color: var(--text-muted); opacity: 0.55; cursor: default; background: transparent; }
 
 .nota { margin: 0; font-size: 0.8rem; color: var(--text-muted, #64748B); text-align: center; }
 
@@ -442,12 +480,38 @@
 .pista { margin: 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted, #64748B); text-align: center; }
 
 .zoom {
-    width: min(100%, 280px);
+    flex: 1 1 auto;
+    min-width: 0;
     min-height: 44px;
     margin: 0;
-    accent-color: #EC4899;
+    accent-color: var(--primary);
     cursor: pointer;
 }
+
+/* [P1-PLAN-LOTE-1078] El deslizador y, a su lado, volver la capa elegida a como estaba. */
+.zoomFila { display: flex; align-items: center; gap: 0.5rem; width: min(100%, 320px); }
+.restablecer {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    background: var(--bg-card);
+    color: var(--primary);
+    cursor: pointer;
+}
+.restablecer:disabled { color: var(--text-muted); opacity: 0.5; cursor: default; }
+.restablecer:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 2px; }
+/* Con foto el pie es más alto: la historia entera (9:16) tiene que verse sin desplazar en un teléfono normal. */
+/* Con foto el pie es más alto y la historia (9:16) tiene que verse ENTERA, sin desplazar: la hoja toma su alto máximo
+   y el lienzo mide el hueco que queda (unidades de contenedor; sin ellas, 46dvh). */
+.sheetFoto { height: 92vh; height: 92dvh; }
+.sheetFoto .body { container-type: size; padding-top: 0.75rem; padding-bottom: 0.75rem; }
+.sheetFoto .preview { min-height: 0; height: 100%; padding: 0.5rem; }
+.lienzo { height: 46vh; height: 46dvh; height: calc(100cqh - 1rem); width: auto; max-width: 100%; aspect-ratio: 9 / 16; }
 
 /* [P1-PLAN-LOTE-1049] el formato dice qué es: «4:5 · chats y feed» bajo «Publicación» */
 .formato { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.15; }
@@ -507,3 +571,4 @@
 .fuenteTxt small { font-size: 0.78rem; color: var(--text-muted, #64748B); }
 
 .fuentesCancelar { grid-column: 1 / -1; justify-self: center; }
+.fuentesNota { grid-column: 1 / -1; }
