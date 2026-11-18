@@ -564,6 +564,9 @@
 }
 
 .mealOpen:active:not(:disabled) { background: rgba(99, 102, 241, 0.08); }
+/* [P1-PLAN-LOTE-1094] «esa animación tan extraña» (el dueño): el 0,97 común (1064) encogía el CONTENIDO de la fila dentro
+   de una tarjeta que no se movía. Una fila de lista no se encoge: se ilumina (como las listas de iOS). */
+.mealOpen:active:not(:disabled) { transform: none; }
 
 .mealThumb,
 .mealThumbEmpty {
