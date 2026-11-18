@@ -43,7 +43,7 @@
     min-height: 58px;
     padding: 0.5rem 0.65rem;
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     background: var(--bg-card);
     color: var(--text-main);
     font: inherit;
@@ -63,12 +63,13 @@
     place-items: center;
     width: 38px;
     height: 38px;
-    border-radius: 12px;
-    color: #fff;
+    border-radius: var(--radius-md);
+    /* [P1-PLAN-LOTE-1071 · 2026-11-17] Como el icono de un botón secundario: tinte índigo + icono índigo, igual en las
+       dos opciones. Antes, degradados propios (índigo→violeta y rosa→ámbar): el dueño vio el rosa-naranja como lo
+       único cálido de la pantalla, y la guía dice «índigo, único color de marca; nada de degradados propios». */
+    background: color-mix(in srgb, var(--primary) 14%, var(--bg-card));
+    color: var(--primary);
 }
-
-.attach-inline-ico--galeria { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
-.attach-inline-ico--camara { background: linear-gradient(135deg, #EC4899, #F59E0B); }
 
 .attach-inline-txt { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; line-height: 1.2; }
 .attach-inline-txt strong { font-size: 0.92rem; font-weight: 800; }
