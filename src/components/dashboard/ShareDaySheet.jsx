@@ -19,7 +19,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images, Image as ImageIcon, Type, RotateCcw } from 'lucide-react';
+import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images, Image as ImageIcon, Type, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import { chooseNativeGalleryImage, takeNativeChatPhoto, isNativePickerCancellation } from '../../utils/nativeChatImagePicker';
 import BroteChispa from '../common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
 import { toast } from 'sonner';
@@ -28,9 +28,11 @@ import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { isNativeApp } from '../../config/platform';
 import { useT } from '../../i18n';
 import { resumenDeSemana, textoDeSemana } from '../../utils/compartirSemana';
-import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, sabeCompartirImagenes, compartir } from '../../utils/compartirDia';
+import { SITIO, resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, sabeCompartirImagenes, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
-import { cargarFoto, cargarFuentes, dibujarHistoriaConFoto, pintarHistoria, moverEncuadre, cajaDeCifras, ENCUADRE_INICIAL, ZOOM_MAX, LIMITES_CIFRAS, ANCHO as ANCHO_HISTORIA, ALTO as ALTO_HISTORIA } from '../../utils/historiaConFoto';
+import { piezaEn, moverPieza, alternarPieza, piezasEnSuSitio, piezasMovidas, estadoDePieza } from '../../utils/piezasDeHistoria';
+import { BRAND } from '../../data/routeMeta';
+import { piezasDeLaHistoria, cargarFoto, cargarFuentes, dibujarHistoriaConFoto, pintarHistoria, moverEncuadre, cajaDeCifras, ENCUADRE_INICIAL, ZOOM_MAX, LIMITES_CIFRAS, ANCHO as ANCHO_HISTORIA, ALTO as ALTO_HISTORIA } from '../../utils/historiaConFoto';
 import { BLOQUE_INICIAL, ESCALA_MIN, acotarBloque, moverBloque, imantar, escalaMax, tocaLasCifras, esInicial } from '../../utils/bloqueDeCifras';
 import { useAssessment } from '../../context/AssessmentContext';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
@@ -99,7 +101,10 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     // TOCASTE (las cifras o la foto); el deslizador, la capa elegida en «Foto · Tus cifras».
     const [bloque, setBloque] = useState(BLOQUE_INICIAL);
     const [capa, setCapa] = useState('foto');
-    const [guiaVisible, setGuiaVisible] = useState(false);
+    // El contorno que se ve mientras mueves algo: null, { centrado } (las cifras) o { pieza } (un texto suelto).
+    const [guia, setGuia] = useState(null);
+    // [P1-PLAN-LOTE-1084] Los textos sueltos (marca, fecha, sitio, pregunta) se arrastran y se quitan: `piezasDeHistoria.js`.
+    const [piezas, setPiezas] = useState({});
     const gesto = useRef({ capa: 'foto', crudo: BLOQUE_INICIAL });
     const guiaTope = useRef(null);
     const [fuentesListas, setFuentesListas] = useState(false);
@@ -141,11 +146,12 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     const caja = useMemo(() => cajaDeCifras(resumen, estilo), [resumen, estilo]);
     const escalaTope = useMemo(() => escalaMax(caja, LIMITES_CIFRAS), [caja]);
     const bloqueVisto = useMemo(() => acotarBloque(bloque, caja, LIMITES_CIFRAS), [bloque, caja]);
+    const defsPiezas = useMemo(() => (enLienzo ? piezasDeLaHistoria(resumen, estilo) : []), [enLienzo, resumen, estilo]);
 
     useEffect(() => {
         let vivo = true;
         const fijar = (blob) => {
-            if (vivo) setImagen({ blob, url: blob ? URL.createObjectURL(blob) : null, para: resumen, formato, foto, estilo, encuadre, bloque });
+            if (vivo) setImagen({ blob, url: blob ? URL.createObjectURL(blob) : null, para: resumen, formato, foto, estilo, encuadre, bloque, piezas });
         };
         // Con foto, el JPEG espera a que el dedo se pare (arrastrar pide decenas de encuadres por segundo). Sin foto, la
         // tarjeta se dibuja en el acto, como siempre.
@@ -154,24 +160,23 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
             return () => { vivo = false; };
         }
         const tope = setTimeout(() => {
-            dibujarHistoriaConFoto(resumen, { foto, estilo, encuadre, bloque }).then(fijar).catch(() => fijar(null));
+            dibujarHistoriaConFoto(resumen, { foto, estilo, encuadre, bloque, piezas }).then(fijar).catch(() => fijar(null));
         }, 280);
         return () => { vivo = false; clearTimeout(tope); };
-    }, [resumen, formato, foto, estilo, encuadre, bloque, enLienzo]);
+    }, [resumen, formato, foto, estilo, encuadre, bloque, enLienzo, piezas]);
 
     // La vista previa en vivo: un fotograma por cambio.
     useEffect(() => {
         if (!enLienzo) return undefined;
-        const guia = guiaVisible ? { centrado: true } : null;
-        const id = requestAnimationFrame(() => pintarHistoria(lienzoRef.current, resumen, { foto, estilo, encuadre, bloque, guia }));
+        const id = requestAnimationFrame(() => pintarHistoria(lienzoRef.current, resumen, { foto, estilo, encuadre, bloque, guia, piezas }));
         return () => cancelAnimationFrame(id);
-    }, [enLienzo, foto, resumen, estilo, encuadre, bloque, guiaVisible, fuentesListas]);
+    }, [enLienzo, foto, resumen, estilo, encuadre, bloque, guia, piezas, fuentesListas]);
     useEffect(() => () => clearTimeout(guiaTope.current), []);
     // El contorno de las cifras se ve mientras las mueves (y un momento después de soltar el deslizador); nunca en el JPEG.
-    const verGuia = useCallback((ms = 0) => {
+    const verGuia = useCallback((ms = 0, que = { centrado: true }) => {
         clearTimeout(guiaTope.current);
-        setGuiaVisible(true);
-        if (ms > 0) guiaTope.current = setTimeout(() => setGuiaVisible(false), ms);
+        setGuia(que);
+        if (ms > 0) guiaTope.current = setTimeout(() => setGuia(null), ms);
     }, []);
 
     // Las cifras se mueven sobre una posición «cruda» (la del dedo) y lo que se ve es esa posición imantada al centro:
@@ -182,52 +187,91 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
         setBloque(imantar(g.crudo));
     }, [caja]);
 
+    // [P1-PLAN-LOTE-1083 · 2026-11-18] El pellizco (el dueño: «tengo que pellizcar muy lejos para que funcione»). Tres
+    // causas: (1) solo contaba si los DOS dedos caían sobre el lienzo, que en la hoja mide ~260 px de ancho: el segundo
+    // dedo solía caer fuera; ahora escucha TODA la vista previa; (2) la capa la decidía solo el primer dedo con un
+    // margen de ~10 px de pantalla: un pellizco que no empezaba justo encima de las cifras agrandaba la FOTO; ahora el
+    // pellizco es de las cifras si cualquiera de los dos dedos (o su punto medio) las toca, o si están elegidas, y el
+    // margen es de 28 px de PANTALLA; (3) el factor se aplicaba paso a paso sobre lo ya acotado; ahora es absoluto
+    // desde que se apoyan los dos dedos (distancia actual / inicial), sin deriva.
+    const aLienzo = useCallback((cx, cy) => {
+        const r = lienzoRef.current?.getBoundingClientRect?.();
+        if (!r || !(r.width > 0) || !(r.height > 0)) return { x: -1, y: -1, k: 1 };
+        return { x: (cx - r.left) * (ANCHO_HISTORIA / r.width), y: (cy - r.top) * (ALTO_HISTORIA / r.height), k: ANCHO_HISTORIA / r.width };
+    }, []);
+    const sobreLasCifras = useCallback((cx, cy) => {
+        const { x, y, k } = aLienzo(cx, cy);
+        return tocaLasCifras(caja, bloqueVisto, x, y, 28 * k);
+    }, [aLienzo, caja, bloqueVisto]);
+
     const onPunteroAbajo = useCallback((e) => {
         e.currentTarget.setPointerCapture?.(e.pointerId);
         const p = punteros.current;
-        if (p.size === 0) {
-            const r = e.currentTarget.getBoundingClientRect();
-            const x = r.width > 0 ? (e.clientX - r.left) * (ANCHO_HISTORIA / r.width) : -1;
-            const y = r.height > 0 ? (e.clientY - r.top) * (ALTO_HISTORIA / r.height) : -1;
-            const sobreCifras = tocaLasCifras(caja, bloqueVisto, x, y) || !foto;
-            gesto.current = { capa: sobreCifras ? 'cifras' : 'foto', crudo: bloqueVisto };
-            setCapa(sobreCifras ? 'cifras' : 'foto');
-            if (sobreCifras) verGuia();
-        }
         p.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }, [caja, bloqueVisto, verGuia, foto]);
+        if (p.size === 1) {
+            // [1084] primero los textos sueltos (encima de todo), luego las cifras, luego la foto
+            const { x, y, k } = aLienzo(e.clientX, e.clientY);
+            const pieza = piezaEn(defsPiezas, piezas, x, y, 22 * k);
+            if (pieza) {
+                gesto.current = { capa: 'pieza', pieza, crudo: bloqueVisto, pellizco: null, elegida: capaVista };
+                verGuia(0, { pieza });
+                return;
+            }
+            const enCifras = !foto || sobreLasCifras(e.clientX, e.clientY);
+            gesto.current = { capa: enCifras ? 'cifras' : 'foto', crudo: bloqueVisto, pellizco: null, elegida: capaVista };
+            setCapa(enCifras ? 'cifras' : 'foto');
+            if (enCifras) verGuia();
+        } else if (p.size === 2) {
+            const [a, b] = [...p.values()];
+            const g = gesto.current;
+            const cifras = !foto || g.elegida === 'cifras' || g.capa === 'cifras'
+                || sobreLasCifras(a.x, a.y) || sobreLasCifras(b.x, b.y) || sobreLasCifras((a.x + b.x) / 2, (a.y + b.y) / 2);
+            g.capa = cifras ? 'cifras' : 'foto';
+            g.pellizco = { d0: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), escala0: g.crudo.escala, zoom0: encuadre.zoom };
+            setCapa(g.capa);
+            if (cifras) verGuia();
+        }
+    }, [foto, sobreLasCifras, bloqueVisto, capaVista, verGuia, encuadre.zoom, aLienzo, defsPiezas, piezas]);
     const onPunteroMovido = useCallback((e) => {
         const p = punteros.current;
         const previo = p.get(e.pointerId);
         if (!previo || !enLienzo) return;
-        const r = e.currentTarget.getBoundingClientRect();
-        const k = r.width > 0 ? ANCHO_HISTORIA / r.width : 1;     // px de pantalla → px del lienzo
-        const deCifras = gesto.current.capa === 'cifras';
-        if (p.size >= 2) {
-            const [a, b] = [...p.entries()].map(([id, v]) => (id === e.pointerId ? { x: e.clientX, y: e.clientY } : v));
-            const [a0, b0] = [...p.values()];
-            const antes = Math.hypot(a0.x - b0.x, a0.y - b0.y);
-            const ahora = Math.hypot(a.x - b.x, a.y - b.y);
-            if (antes > 0) {
-                if (deCifras) moverCifras({ factor: ahora / antes });
-                else setEncuadre((en) => moverEncuadre(en, foto, { factor: ahora / antes }));
-            }
-        } else {
-            const dx = (e.clientX - previo.x) * k;
-            const dy = (e.clientY - previo.y) * k;
-            if (deCifras) moverCifras({ dx, dy });
-            else setEncuadre((en) => moverEncuadre(en, foto, { dx, dy }));
-        }
         p.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }, [foto, enLienzo, moverCifras]);
+        const g = gesto.current;
+        if (p.size >= 2 && g.pellizco) {
+            const [a, b] = [...p.values()];
+            const f = Math.hypot(a.x - b.x, a.y - b.y) / g.pellizco.d0;
+            if (g.capa === 'cifras') {
+                g.crudo = acotarBloque({ ...g.crudo, escala: g.pellizco.escala0 * f }, caja, LIMITES_CIFRAS);
+                setBloque(imantar(g.crudo));
+            } else {
+                const zoom = g.pellizco.zoom0 * f;
+                setEncuadre((en) => moverEncuadre(en, foto, { factor: zoom / (en.zoom || 1) }));
+            }
+            return;
+        }
+        const { k } = aLienzo(e.clientX, e.clientY);     // px de pantalla → px del lienzo
+        const dx = (e.clientX - previo.x) * k;
+        const dy = (e.clientY - previo.y) * k;
+        if (g.capa === 'pieza') {
+            const def = defsPiezas.find((d) => d.id === g.pieza);
+            if (def) setPiezas((ps) => moverPieza(ps, def, { dx, dy }, ANCHO_HISTORIA, ALTO_HISTORIA));
+        } else if (g.capa === 'cifras') moverCifras({ dx, dy });
+        else setEncuadre((en) => moverEncuadre(en, foto, { dx, dy }));
+    }, [foto, enLienzo, moverCifras, aLienzo, caja, defsPiezas]);
     const onPunteroArriba = useCallback((e) => {
-        punteros.current.delete(e.pointerId);
-        if (punteros.current.size === 0 && gesto.current.capa === 'cifras') verGuia(700);
+        const p = punteros.current;
+        p.delete(e.pointerId);
+        // al levantar un dedo del pellizco, el otro sigue arrastrando desde donde está
+        if (p.size < 2) gesto.current.pellizco = null;
+        if (p.size === 0 && gesto.current.capa === 'cifras') verGuia(700);
+        if (p.size === 0 && gesto.current.capa === 'pieza') verGuia(600, { pieza: gesto.current.pieza });
     }, [verGuia]);
     const restablecer = useCallback(() => {
-        if (capaVista === 'cifras') { setBloque(BLOQUE_INICIAL); verGuia(700); } else setEncuadre(ENCUADRE_INICIAL);
+        // [1084] «Restablecer» de las cifras también devuelve los textos a su sitio (los quitados siguen quitados)
+        if (capaVista === 'cifras') { setBloque(BLOQUE_INICIAL); setPiezas(piezasEnSuSitio); verGuia(700); } else setEncuadre(ENCUADRE_INICIAL);
     }, [capaVista, verGuia]);
-    const sinCambios = capaVista === 'cifras' ? esInicial(bloqueVisto) : (encuadre.zoom === 1 && encuadre.x === 0 && encuadre.y === 0);
+    const sinCambios = capaVista === 'cifras' ? (esInicial(bloqueVisto) && !piezasMovidas(piezas)) : (encuadre.zoom === 1 && encuadre.x === 0 && encuadre.y === 0);
     // El arrastre de la foto no es el gesto de cerrar la hoja (useBottomSheet escucha el toque en el diálogo).
     const pararToque = useCallback((e) => e.stopPropagation(), []);
 
@@ -249,7 +293,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     const puedeDescargar = !isNativeApp() && !conImagen && !!imagen.blob;
     // Mientras se redibuja (al cambiar «Incluir lo que comí») se sigue viendo la imagen anterior, pero no se comparte
     // ni se descarga: saldría la versión vieja.
-    const dibujando = imagen.para !== resumen || imagen.formato !== formato || imagen.foto !== foto || imagen.estilo !== estilo || imagen.encuadre !== encuadre || (enLienzo && imagen.bloque !== bloque);
+    const dibujando = imagen.para !== resumen || imagen.formato !== formato || imagen.foto !== foto || imagen.estilo !== estilo || imagen.encuadre !== encuadre || (enLienzo && (imagen.bloque !== bloque || imagen.piezas !== piezas));
 
     // Un segundo toque mientras la hoja del sistema se abre hace que `navigator.share` rechace (InvalidStateError) y
     // saldría un «no dejó compartir» falso: se ignora. La marca se pone DESPUÉS de llamar a `compartir`, que invoca
@@ -317,6 +361,32 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
             }}
         />
     );
+    // [1084] Qué textos se ven: cada uno se quita o se vuelve a poner (y se mueve arrastrándolo en la imagen).
+    const rotuloDePieza = (id) => ({
+        marca: BRAND, fecha: esSemana ? t('Fechas') : t('Fecha'), sitio: SITIO,
+        pregunta: esSemana ? t('¿Y tú, cómo va tu semana?') : t('¿Y tú, cómo vas hoy?'), sello: t('{app} abajo', { app: BRAND }),
+    })[id] || id;
+    const selectorDePiezas = defsPiezas.length > 0 && (
+        <div className={styles.piezas} role="group" aria-labelledby="share-day-piezas">
+            <p id="share-day-piezas" className={styles.piezasTitulo}>{t('Textos: tócalos para quitarlos o arrástralos en la imagen')}</p>
+            <div className={styles.piezasLista}>
+                {defsPiezas.map((d) => {
+                    const visible = !estadoDePieza(piezas, d.id).oculta;
+                    const Icono = visible ? Eye : EyeOff;
+                    return (
+                        <button
+                            key={d.id} type="button" aria-pressed={visible}
+                            className={visible ? `${styles.pieza} ${styles.piezaVisible}` : styles.pieza}
+                            onClick={() => setPiezas((ps) => alternarPieza(ps, d.id))}
+                        >
+                            <Icono size={14} aria-hidden="true" />
+                            <span className={styles.piezaTexto}>{rotuloDePieza(d.id)}</span>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
     const botonRestablecer = (
         <button type="button" className={styles.restablecer} onClick={restablecer} disabled={sinCambios} aria-label={t('Restablecer')} title={t('Restablecer')}>
             <RotateCcw size={18} aria-hidden="true" />
@@ -357,15 +427,22 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                 </div>
 
                 <div ref={bodyRef} className={styles.body}>
-                    <div className={styles.preview} aria-busy={dibujando}>
+                    {/* [1083] con lienzo, TODA la vista previa recibe el gesto: el segundo dedo del pellizco puede caer fuera
+                        de la imagen. Lo que no es la imagen no es el gesto de cerrar la hoja (`pararToque`). */}
+                    <div
+                        className={enLienzo ? `${styles.preview} ${styles.previewGesto}` : styles.preview}
+                        aria-busy={dibujando}
+                        {...(enLienzo ? {
+                            onPointerDown: onPunteroAbajo, onPointerMove: onPunteroMovido,
+                            onPointerUp: onPunteroArriba, onPointerCancel: onPunteroArriba,
+                            onTouchStart: pararToque, onTouchMove: pararToque, onTouchEnd: pararToque,
+                        } : {})}
+                    >
                         {enLienzo ? (
                             <canvas
                                 ref={lienzoRef} width={ANCHO_HISTORIA} height={1920}
                                 role="img" aria-label={esSemana ? t('Mi semana: tu historia') : t('Mi día: tu historia con tu foto')}
                                 className={`${styles.img} ${styles.lienzo}`}
-                                onPointerDown={onPunteroAbajo} onPointerMove={onPunteroMovido}
-                                onPointerUp={onPunteroArriba} onPointerCancel={onPunteroArriba}
-                                onTouchStart={pararToque} onTouchMove={pararToque} onTouchEnd={pararToque}
                             />
                         ) : imagen.url
                             ? <img src={imagen.url} alt={t('Mi día: calorías, macros y micros')} className={styles.img} />
@@ -428,6 +505,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                             )}
                                 {botonRestablecer}
                             </div>
+                            {selectorDePiezas}
                             <div className={styles.fotoAcciones}>
                                 <button type="button" className={styles.enlace} onClick={pedirFoto}>{t('Cambiar foto')}</button>
                                 <button type="button" className={styles.enlace} onClick={() => setFoto(null)}>{t('Quitar foto')}</button>
@@ -451,6 +529,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                                 {deslizadorDeCifras}
                                 {botonRestablecer}
                             </div>
+                            {selectorDePiezas}
                         </div>
                     )}
                     {!foto && !esSemana && (

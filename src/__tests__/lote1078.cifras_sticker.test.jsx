@@ -123,8 +123,9 @@ describe('[1078] la hoja', () => {
         await _conFoto();
         const lienzo = screen.getByRole('img', { name: /tu historia con tu foto/i });
         lienzo.getBoundingClientRect = () => ({ left: 0, top: 0, width: ANCHO / 4, height: ALTO / 4, right: ANCHO / 4, bottom: ALTO / 4 });
-        fireEvent.pointerDown(lienzo, { pointerId: 1, clientX: 135, clientY: 80 });
-        fireEvent.pointerMove(lienzo, { pointerId: 1, clientX: 165, clientY: 80 });
+        // [1084] a media altura de la foto: arriba (y=80 → 320 px del lienzo) está ahora la fecha, que también se arrastra
+        fireEvent.pointerDown(lienzo, { pointerId: 1, clientX: 135, clientY: 150 });
+        fireEvent.pointerMove(lienzo, { pointerId: 1, clientX: 165, clientY: 150 });
         await waitFor(() => expect(dibujarHistoriaConFoto.mock.calls.at(-1)?.[1].encuadre.x).toBeLessThan(0));
         expect(dibujarHistoriaConFoto.mock.calls.at(-1)[1].bloque).toEqual(BLOQUE_INICIAL);
     });

@@ -9,6 +9,7 @@ import { t, formatNumber, formatPercent } from '../i18n';
 import { fechaLarga, SITIO } from './compartirDia';
 import { BRAND } from '../data/routeMeta';
 import { BLOQUE_INICIAL, acotarBloque, aplicarBloque, cajaTransformada } from './bloqueDeCifras';
+import { definirPiezas, pintarPiezas, estadoDePieza, cajaDePieza } from './piezasDeHistoria';
 
 export const ANCHO = 1080;
 export const ALTO = 1920;
@@ -225,22 +226,14 @@ const _fondo = (ctx, foto, encuadre) => {
         });
 };
 
-const _cabecera = (ctx, r) => {
-    _velo(ctx, 0, 460, 0.6, 0);
-    const y = SEGURO.arriba;
-    _brote(ctx, M, y - 42, 50, BLANCO);
-    _texto(ctx, BRAND.toUpperCase(), M + 62, y, { tam: 32, peso: 800 });
-    _texto(ctx, r.periodo || fechaLarga(r.fecha), ANCHO - M, y, { tam: 28, peso: 600, color: CLARO, alinear: 'right', max: ANCHO / 2 });
-};
+// [P1-PLAN-LOTE-1084] La cabecera (marca y fecha) y los pies (sitio, pregunta, sello) son PIEZAS que se mueven y se
+// quitan (`piezasDeHistoria.js`); aquí queda la oscuridad que las hace legibles, fija, y solo si alguna se ve.
+const _veloCabecera = (ctx) => _velo(ctx, 0, 460, 0.6, 0);
 
 const _valorMacro = (mc) => `${formatNumber(mc.valor)} g`;
 
 // ── «titular»: la cifra de portada ──────────────────────────────────────────────────────────────────────
-const _titularPie = (ctx, r) => {
-    _velo(ctx, BASE - 120, ALTO, 0, 0.6);
-    _texto(ctx, SITIO, M, BASE, { tam: 30, peso: 700, color: TENUE });
-    _texto(ctx, r?.pregunta || t('¿Y tú, cómo vas hoy?'), ANCHO - M, BASE, { tam: 30, peso: 600, color: TENUE, alinear: 'right', max: ANCHO / 2 });
-};
+const _titularPie = (ctx) => _velo(ctx, BASE - 120, ALTO, 0, 0.6);
 const _titular = (ctx, r) => {
     const cal = r.calorias;
     const conMeta = cal.meta > 0;
@@ -273,14 +266,7 @@ const _titular = (ctx, r) => {
 };
 
 // ── «minimal»: solo las cifras, centradas (tipo sticker) ────────────────────────────────────────────────
-const _minimalPie = (ctx) => {
-    _velo(ctx, BASE - 120, ALTO, 0, 0.55);
-    const cx = ANCHO / 2;
-    const marca = BRAND.toUpperCase();
-    ctx.save(); ctx.font = `800 30px ${FUENTE}`; const anchoMarca = ctx.measureText(marca).width; ctx.restore();
-    _brote(ctx, cx - (anchoMarca + 52) / 2, BASE - 36, 42, BLANCO);
-    _texto(ctx, marca, cx - (anchoMarca + 52) / 2 + 52, BASE, { tam: 30, peso: 800 });
-};
+const _minimalPie = (ctx) => _velo(ctx, BASE - 120, ALTO, 0, 0.55);
 const _minimal = (ctx, r) => {
     const cx = ANCHO / 2;
 
@@ -323,10 +309,7 @@ const _cristalFondo = (ctx, canvas, k) => {
         ctx.save(); ctx.fillStyle = 'rgba(15, 23, 42, 0.72)'; _rect(ctx, x, y, w, alto, radio); ctx.fill(); ctx.restore();
     }
 };
-const _cristalPie = (ctx) => {
-    _velo(ctx, BASE - 60, ALTO, 0, 0.5);
-    _texto(ctx, SITIO, ANCHO / 2, BASE, { tam: 30, peso: 700, color: CLARO, alinear: 'center' });
-};
+const _cristalPie = (ctx) => _velo(ctx, BASE - 60, ALTO, 0, 0.5);
 const _cristal = (ctx, r) => {
     const { alto, x, w, y } = _CRISTAL;
     ctx.save(); ctx.strokeStyle = 'rgba(255, 255, 255, 0.34)'; ctx.lineWidth = 2; _rect(ctx, x + 1, y + 1, w - 2, alto - 2, 55); ctx.stroke(); ctx.restore();
@@ -361,9 +344,27 @@ const _pintorDe = (r) => (r?.pintor && typeof r.pintor.pintar === 'function' ? r
 /** Lo que otro contenido necesita para dibujar con la MISMA tinta que el día (la semana: `historiaDeSemana.js`). */
 export const PINCEL = Object.freeze({
     texto: (...a) => _texto(...a), rotulo: (...a) => _rotulo(...a), rect: (...a) => _rect(...a), barra: (...a) => _barra(...a),
-    anillo: (...a) => _anillo(...a), insignia: (...a) => _insignia(...a),
-    M, BASE, SEGURO, FUENTE, BLANCO, CLARO, TENUE, COLOR, CRISTAL: _CRISTAL,
+    anillo: (...a) => _anillo(...a), insignia: (...a) => _insignia(...a), brote: (...a) => _brote(...a),
+    fechaLarga: (f) => fechaLarga(f), preguntaDelDia: () => t('¿Y tú, cómo vas hoy?'),
+    M, BASE, SEGURO, FUENTE, BLANCO, CLARO, TENUE, COLOR, CRISTAL: _CRISTAL, ANCHO, ALTO, MARCA: BRAND, SITIO,
 });
+
+// Medir sin el lienzo de la historia (la hoja necesita las cajas de las piezas para saber qué tocó el dedo).
+let _ctxMedida = null;
+const _medir = (s, tam, peso) => {
+    try {
+        if (!_ctxMedida && typeof document !== 'undefined') _ctxMedida = document.createElement('canvas').getContext('2d');
+    } catch { _ctxMedida = null; }
+    if (_ctxMedida && typeof _ctxMedida.measureText === 'function') {
+        _ctxMedida.font = `${peso} ${tam}px ${FUENTE}`;
+        const w = _ctxMedida.measureText(String(s)).width;
+        if (w > 0) return w;
+    }
+    return String(s).length * tam * 0.56;
+};
+
+/** [1084] Las piezas (textos sueltos) de la historia en ese estilo: `{ id, pie, caja, pintar }`. */
+export const piezasDeLaHistoria = (r, estilo = 'titular') => definirPiezas(r, ESTILOS.includes(estilo) ? estilo : 'titular', PINCEL, _medir);
 
 function _tamTitular(r) { return formatNumber(r?.calorias?.valor ?? 0).length > 5 ? 200 : 250; }
 
@@ -409,12 +410,12 @@ const _veloDelBloque = (ctx, c, a) => {
 };
 
 /** Solo en la vista previa, mientras se mueven las cifras: su contorno y, centradas, la línea del centro. */
-const _guia = (ctx, c, centrado) => {
+const _guia = (ctx, c, centrado, radio = 28) => {
     ctx.save();
     ctx.setLineDash?.([18, 12]);
     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'; ctx.shadowBlur = 8;
-    _rect(ctx, c.x - 14, c.y - 14, c.w + 28, c.h + 28, 28); ctx.stroke();
+    _rect(ctx, c.x - 14, c.y - 14, c.w + 28, c.h + 28, radio); ctx.stroke();
     if (centrado) {
         ctx.setLineDash?.([]);
         ctx.strokeStyle = 'rgba(165, 180, 252, 0.95)'; ctx.lineWidth = 3;
@@ -443,7 +444,7 @@ export async function cargarFuentes() {
 
 /** Pinta la historia en `canvas` (lo pone a 1080×1920), SIN esperar nada: la vista previa en vivo repinta al arrastrar.
  *  Devuelve false si no hay canvas 2D o el dibujo falló. */
-export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', encuadre = ENCUADRE_INICIAL, bloque = BLOQUE_INICIAL, guia = null } = {}) {
+export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', encuadre = ENCUADRE_INICIAL, bloque = BLOQUE_INICIAL, guia = null, piezas = null } = {}) {
     if (!canvas) return false;
     if (canvas.width !== ANCHO) canvas.width = ANCHO;
     if (canvas.height !== ALTO) canvas.height = ALTO;
@@ -453,14 +454,17 @@ export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', enc
     try {
         ctx.clearRect(0, 0, ANCHO, ALTO);
         _fondo(ctx, foto, encuadre);
-        _cabecera(ctx, r);
         const cual = _PINTAR[estilo] ? estilo : 'titular';
+        // [1084] los textos sueltos: sus velos (fijos) si alguna se ve; las piezas se pintan al final, encima de todo
+        const defs = piezasDeLaHistoria(r, cual);
+        const seVe = (d) => !estadoDePieza(piezas, d.id).oculta;
+        if (defs.some((d) => !d.pie && seVe(d))) _veloCabecera(ctx);
         // [1078] las cifras son un sticker: su caja de siempre, movida y escalada por `bloque` (acotado a sus límites)
         const caja = cajaDeCifras(r, cual);
         const b = acotarBloque(bloque, caja, LIMITES_CIFRAS);
         const movida = cajaTransformada(caja, b);
         _veloDelBloque(ctx, movida, _OSCURO[cual]);
-        _PIE[cual](ctx, r);
+        if (defs.some((d) => d.pie && seVe(d))) _PIE[cual](ctx);
         if (cual === 'cristal') {
             const p = _punto(caja, b, _CRISTAL.x, _CRISTAL.y);
             _cristalFondo(ctx, canvas, { x: p.x, y: p.y, w: _CRISTAL.w * b.escala, alto: _CRISTAL.alto * b.escala, radio: _CRISTAL.radio * b.escala });
@@ -470,16 +474,19 @@ export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', enc
         const pintor = _pintorDe(r);
         if (pintor) pintor.pintar(ctx, r, cual); else _PINTAR[cual](ctx, r);
         ctx.restore();
-        if (guia) _guia(ctx, movida, !!guia.centrado && Math.abs(b.dx) < 0.5);
+        pintarPiezas(ctx, defs, piezas);
+        const guiada = guia?.pieza ? defs.find((d) => d.id === guia.pieza) : null;
+        if (guiada) _guia(ctx, cajaDePieza(guiada, piezas), false, 18);
+        else if (guia) _guia(ctx, movida, !!guia.centrado && Math.abs(b.dx) < 0.5);
         return true;
     } catch { return false; }
 }
 
 /** El JPEG de la historia (o null sin canvas 2D: jsdom, WebView rara). `foto`: lo que devuelve `cargarFoto`, o null. */
-export async function dibujarHistoriaConFoto(r, { foto = null, estilo = 'titular', encuadre = ENCUADRE_INICIAL, bloque = BLOQUE_INICIAL } = {}) {
+export async function dibujarHistoriaConFoto(r, { foto = null, estilo = 'titular', encuadre = ENCUADRE_INICIAL, bloque = BLOQUE_INICIAL, piezas = null } = {}) {
     if (typeof document === 'undefined') return null;
     const canvas = document.createElement('canvas');
     await cargarFuentes();
-    if (!pintarHistoria(canvas, r, { foto, estilo, encuadre, bloque })) return null;
+    if (!pintarHistoria(canvas, r, { foto, estilo, encuadre, bloque, piezas })) return null;
     return _aBlob(canvas);
 }
