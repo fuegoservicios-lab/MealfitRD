@@ -4123,11 +4123,9 @@
   "Este informe resume lo que la persona registró en {app} (comidas, agua, peso). Son datos autorreportados y estimaciones. No es un diagnóstico ni sustituye la valoración de un profesional de la salud.": "Este relatório resume o que a pessoa registrou no {app} (refeições, água, peso). São dados autorrelatados e estimativas. Não é um diagnóstico nem substitui a avaliação de um profissional de saúde.",
   "Informe para tu médico": "Relatório para o seu médico",
   "Generado el {f}": "Gerado em {f}",
-  "Un resumen de lo que registraste para llevárselo a tu médico o nutricionista. No es un diagnóstico.": "Um resumo do que você registrou para levar ao seu médico ou nutricionista. Não é um diagnóstico.",
   "Generar un informe": "Gerar um relatório",
   "Periodo del informe": "Período do relatório",
   "Preparando tu informe…": "Preparando seu relatório…",
-  "Generar": "Gerar",
   "Abriendo el informe…": "Abrindo o relatório…",
   "Compartir PDF": "Compartilhar PDF",
   "Energía media por semana frente a la meta": "Energia média por semana em relação à meta",
@@ -4213,5 +4211,15 @@
   "Faltan {n} ★ para {rango}": {
     "one": "Falta {n} ★ para {rango}",
     "other": "Faltam {n} ★ para {rango}"
-  }
+  },
+  "Generar informe": "Gerar relatório",
+  "Qué incluye": "O que inclui",
+  "Calorías y macros frente a tu meta": "Calorias e macros frente à sua meta",
+  "Vitaminas y minerales": "Vitaminas e minerais",
+  "Agua y peso": "Água e peso",
+  "Horarios de tus comidas": "Horários das suas refeições",
+  "Periodo": "Período",
+  "Para tu médico o nutricionista. No es un diagnóstico.": "Para o seu médico ou nutricionista. Não é um diagnóstico.",
+  "Listo en segundos para compartir en PDF.": "Pronto em segundos para compartilhar em PDF.",
+  "Nuevo informe": "Novo relatório"
 }

@@ -1,0 +1,14 @@
+/* [P1-PLAN-LOTE-1072 · 2026-11-17] La hoja del informe. El Modal no limita la altura de su contenido: se desplaza dentro
+   de sí misma, sin barra (como la escalera de rangos, lote 1068) y con los bordes fundidos. */
+.capa { display: contents; }
+.hoja {
+    max-height: min(86dvh, 760px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.5rem 0.25rem calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 0.75rem, black calc(100% - 2rem), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, black 0.75rem, black calc(100% - 2rem), transparent 100%);
+}
+.hoja::-webkit-scrollbar { display: none; }
+.cargando { display: grid; place-items: center; min-height: 200px; color: var(--text-muted); }

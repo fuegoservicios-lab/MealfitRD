@@ -133,7 +133,9 @@ describe('[1034] jspdf no entra en el arranque', () => {
         const estaticos = fuentes(join(__dirname, '..')).filter((p) => /from\s+['"]jspdf['"]/.test(readFileSync(p, 'utf8')));
         expect(estaticos).toEqual([]);
         expect(leer('utils/informeMedicoPdf.js')).toContain("await import('jspdf')");
-        expect(leer('pages/InformeMedico.jsx')).toContain("import('../utils/informeMedicoPdf')");
+        // [P1-PLAN-LOTE-1072] el contenido vive en el panel (hoja y ruta); la hoja lo carga perezoso
+        expect(leer('components/informe/InformeMedicoPanel.jsx')).toContain("import('../../utils/informeMedicoPdf')");
+        expect(leer('components/informe/HojaInformeMedico.jsx')).toContain("lazy(() => import('./InformeMedicoPanel'))");
         expect(leer('App.jsx')).toContain("const InformeMedico = lazy(() => import('./pages/InformeMedico'))");
     });
 });

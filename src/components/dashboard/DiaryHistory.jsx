@@ -667,7 +667,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             {/* [P1-PLAN-LOTE-1059 · plan 1030] las semanas cerradas; tocar una lleva el mes a esa semana */}
             <VitrinaDeSemanas userId={userId} onElegir={irASemana} />
             {/* [P1-PLAN-LOTE-1034] el resumen para el médico, desde el calendario */}
-            <BotonInformeMedico onAbrir={onClose} />
+            <BotonInformeMedico />{/* [P1-PLAN-LOTE-1072] abre una hoja encima del cajón: el cajón no se cierra */}
         </div>
     );
 

@@ -4123,11 +4123,9 @@
   "Este informe resume lo que la persona registró en {app} (comidas, agua, peso). Son datos autorreportados y estimaciones. No es un diagnóstico ni sustituye la valoración de un profesional de la salud.": "This report summarizes what the person logged in {app} (meals, water, weight). The data are self-reported and estimated. It is not a diagnosis and does not replace an assessment by a health professional.",
   "Informe para tu médico": "Report for your doctor",
   "Generado el {f}": "Created on {f}",
-  "Un resumen de lo que registraste para llevárselo a tu médico o nutricionista. No es un diagnóstico.": "A summary of what you logged, to take to your doctor or dietitian. It is not a diagnosis.",
   "Generar un informe": "Create a report",
   "Periodo del informe": "Report period",
   "Preparando tu informe…": "Preparing your report…",
-  "Generar": "Create",
   "Abriendo el informe…": "Opening the report…",
   "Compartir PDF": "Share PDF",
   "Energía media por semana frente a la meta": "Average energy per week vs. goal",
@@ -4213,5 +4211,15 @@
   "Faltan {n} ★ para {rango}": {
     "one": "{n} ★ to {rango}",
     "other": "{n} ★ to {rango}"
-  }
+  },
+  "Generar informe": "Generate report",
+  "Qué incluye": "What it includes",
+  "Calorías y macros frente a tu meta": "Calories and macros vs. your goal",
+  "Vitaminas y minerales": "Vitamins and minerals",
+  "Agua y peso": "Water and weight",
+  "Horarios de tus comidas": "Your meal times",
+  "Periodo": "Period",
+  "Para tu médico o nutricionista. No es un diagnóstico.": "For your doctor or dietitian. It is not a diagnosis.",
+  "Listo en segundos para compartir en PDF.": "Ready in seconds to share as a PDF.",
+  "Nuevo informe": "New report"
 }
