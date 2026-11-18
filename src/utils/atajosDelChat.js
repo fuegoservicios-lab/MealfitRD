@@ -40,13 +40,15 @@ export function metasEnNumeros(m) {
  * @param {object} [p.metas]         { calories, protein, carbs, fats } en números
  * @param {object} [p.totales]       lo registrado hoy { calories, protein, carbs, fats }
  * @param {string[]} [p.comidas]     los meal_type registrados hoy
- * @param {boolean} [p.soloAcciones] [P1-PLAN-LOTE-691] conversación ya larga: solo «Escanear» y «Anotar»
+ * @param {boolean} [p.soloAcciones] [P1-PLAN-LOTE-691] conversación ya larga: solo «Escanear» y el informe (1074)
  * @returns {{id:string, tipo:'accion'|'mensaje', accion?:string, mensaje?:string, texto:string}[]}
  */
 export function atajosDelChat({ hora, modoContador, metas = null, totales = null, comidas = null, soloAcciones = false, t }) {
     const acciones = [
         { id: 'escanear', tipo: 'accion', accion: 'escanear', texto: t('Escanear mi plato') },
-        { id: 'anotar', tipo: 'accion', accion: 'anotar', texto: t('Anotar comida') },
+        // [P1-PLAN-LOTE-1074 · 2026-11-17] El dueño: «quita el botón de anotar comida, lo veo innecesario (se anota
+        // escribiendo o con la foto) y agrega el botón para crear un informe para el médico: que se vea a primera vista».
+        { id: 'informe', tipo: 'accion', accion: 'informe', texto: t('Informe para tu médico') },
     ];
     if (soloAcciones) return acciones;
     const msg = (id, texto) => ({ id, tipo: 'mensaje', mensaje: texto, texto });

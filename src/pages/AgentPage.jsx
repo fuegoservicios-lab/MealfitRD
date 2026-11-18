@@ -171,7 +171,8 @@ const CLAVE_BURBUJA_EXPLICADA = 'mealfit_voz_burbuja_explicada';
 import { useToqueSinFoco } from '../hooks/useToqueSinFoco';
 import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAcompana, duracionDeApertura, insetDeApertura, CURVA_TECLADO, KB_PAD_ABIERTO_REM, RELEVO_MARGEN_MS } from '../utils/keyboardChoreography';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
-import { atajosDelChat, metasEnNumeros, prefijoAnotarComida } from '../utils/atajosDelChat';
+import { atajosDelChat, metasEnNumeros } from '../utils/atajosDelChat';
+import HojaInformeMedico from '../components/informe/HojaInformeMedico';   // [P1-PLAN-LOTE-1074] atajo del chat
 import { useResumenDeHoy, leerResumenDeHoy } from '../hooks/useResumenDeHoy';
 import { saludoDelCoach, franjaDeLaHora, momentoDelDia, actualizarMensajePredeterminado, soloAvisoProactivoVencido } from '../utils/saludoDelCoach';
 import { nativeHidesCommerce } from '../config/platform';
@@ -1870,6 +1871,7 @@ const AgentPage = () => {
     const [attachmentSheetOwnsFocus, setAttachmentSheetOwnsFocus] = useState(true);
     const [attachmentAnchorRect, setAttachmentAnchorRect] = useState(null);
     const [showAttachmentSource, setShowAttachmentSource] = useState(false);
+    const [informeAbierto, setInformeAbierto] = useState(false);   // [P1-PLAN-LOTE-1074] la hoja del informe, desde el atajo
     // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Ref al textarea para refocus
     // post-send (solo cuando tenía focus pre-send — preserva mobile UX
     // donde tap del botón send NO debe abrir keyboard).
@@ -5243,26 +5245,10 @@ const AgentPage = () => {
                                 if (a.tipo === 'accion') {
                                     if (a.accion === 'escanear') {
                                         void openAttachmentPicker();
-                                    } else if (a.accion === 'anotar') {
-                                        const _prefijoEs = prefijoAnotarComida();   // [P1-PLAN-LOTE-980] clave i18nKey, se traduce aquí
-                                        const prefijo = t(_prefijoEs);
-                                        setInput((prev) => {
-                                            const t = (prev || '').trim();
-                                            if (!t) return prefijo;
-                                            const lower = t.toLowerCase();
-                                            if (lower.startsWith(prefijo.trim().toLowerCase()) || lower.startsWith('desayun') || lower.startsWith('almorc') || lower.startsWith('merend') || lower.startsWith('cen') || lower.startsWith('comi')) {
-                                                return prev;
-                                            }
-                                            return prefijo + t;
-                                        });
-                                        setTimeout(() => {
-                                            const campo = chatInputRef.current;
-                                            if (campo) {
-                                                campo.focus();
-                                                const len = campo.value.length;
-                                                campo.setSelectionRange?.(len, len);
-                                            }
-                                        }, 50);
+                                    } else if (a.accion === 'informe') {
+                                        // [P1-PLAN-LOTE-1074] la misma hoja que el calendario y Ajustes: no gasta mensajes
+                                        chatInputRef.current?.blur();
+                                        setInformeAbierto(true);
                                     }
                                 } else {
                                     handleSend(a.mensaje);
@@ -5274,6 +5260,7 @@ const AgentPage = () => {
                     ))}
                 </div>
             )}
+            <HojaInformeMedico abierta={informeAbierto} onCerrar={() => setInformeAbierto(false)} />
             {/* [P1-PLAN-LOTE-322] Las dudas de la foto, respondibles con un toque, cuando el coach ya contestó.
                 [P1-PLAN-LOTE-763] En el teléfono, la que espera ocupa el sitio de la caja (oculta aquí debajo). */}
             {dudasDeLaFoto.length > 0 && !isTurnActive && !chatDeOtroDia && dudasDeLaFotoSesionRef.current === currentSessionId && (

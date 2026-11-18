@@ -20,7 +20,8 @@ describe('[411] atajos del chat', () => {
         const a = atajosDelChat({ hora: 13, modoContador: true, t });
         expect(a.slice(0, 2)).toEqual([
             { id: 'escanear', tipo: 'accion', accion: 'escanear', texto: 'Escanear mi plato' },
-            { id: 'anotar', tipo: 'accion', accion: 'anotar', texto: 'Anotar comida' },
+            // [P1-PLAN-LOTE-1074] «Anotar comida» sale; entra el informe para el médico
+            { id: 'informe', tipo: 'accion', accion: 'informe', texto: 'Informe para tu médico' },
         ]);
         expect(a.every((x) => x.tipo === 'accion' || typeof x.mensaje === 'string')).toBe(true);
     });

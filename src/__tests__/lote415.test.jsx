@@ -45,7 +45,9 @@ describe('[415] la hoja del escáner no depende de dónde la monten', () => {
         // Las acciones disparan el selector nativo y el prellenado conversacional
         expect(AGENT).toContain("a.accion === 'escanear'");
         expect(AGENT).toContain('openAttachmentPicker()');
-        expect(AGENT).toContain("a.accion === 'anotar'");
-        expect(AGENT).toContain('prefijoAnotarComida()');
+        // [P1-PLAN-LOTE-1074] «Anotar comida» salió (el dueño la veía innecesaria); el atajo nuevo abre la hoja del informe
+        expect(AGENT).not.toContain("a.accion === 'anotar'");
+        expect(AGENT).toContain("a.accion === 'informe'");
+        expect(AGENT).toContain('<HojaInformeMedico abierta={informeAbierto}');
     });
 });
