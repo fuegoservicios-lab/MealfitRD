@@ -1,0 +1,107 @@
+/* [P1-PLAN-LOTE-1073 · 2026-11-17] La hoja «Añade a tu Nevera»: cabecera que se arrastra para cerrar, buscador con
+   «limpiar» y chips con el «+» en índigo. Solo tokens y la escala de ESTILO.md; sin movimiento al pasar el ratón. */
+
+/* La cabecera y la zona de sugerencias son el ASA de la hoja en móvil: el gesto vertical es de la hoja, no del
+   scroll de la página (sin esto iOS se queda el gesto y la hoja no baja). */
+.arrastrable { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+.cabecera { flex-shrink: 0; padding-bottom: 0.75rem; }
+.asa {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 28px;
+    margin: -0.25rem 0 0.5rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: grab;
+    -webkit-tap-highlight-color: transparent;
+}
+.asa span { display: block; width: 44px; height: 5px; border-radius: var(--radius-sm); background: var(--border); }
+.asa:active span { background: var(--text-muted); }
+.asa:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 55%, transparent); outline-offset: 2px; border-radius: var(--radius-md); }
+
+.titulo { margin: 0 0 0.25rem; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; color: var(--text-main); }
+.subtitulo { margin: 0; font-size: 0.875rem; line-height: 1.4; color: var(--text-muted); }
+
+/* ── Buscador ── */
+.buscador { position: relative; flex-shrink: 0; margin-bottom: 0.75rem; }
+.lupa { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.campo {
+    width: 100%;
+    min-height: 56px;
+    padding: 0 3rem 0 3rem;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    outline: none;
+    background: var(--bg-page);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 1rem;   /* ≥16 px: iOS no hace zoom al enfocar */
+    font-weight: 500;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.campo::placeholder { color: var(--text-muted); }
+.campo:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent); }
+.limpiar {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.limpiar:active { background: var(--bg-muted); }
+
+/* ── Sin búsqueda: recientes y sugerencias ── */
+.vacio { padding: 0.5rem 0.125rem 0.5rem; color: var(--text-muted); }
+.vacio > div + .rotulo { margin-top: 0.25rem; }
+.rotulo {
+    margin-bottom: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 44px;
+    padding: 0 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    background: var(--bg-page);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.chip svg { color: var(--primary); flex-shrink: 0; }
+.chip:active:not(:disabled) {
+    background: color-mix(in srgb, var(--primary) 12%, var(--bg-page));
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+}
+.chip:disabled { opacity: 0.55; cursor: default; }
+.chip:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 55%, transparent); outline-offset: 2px; }
+.pista { margin: 0; font-size: 0.8125rem; line-height: 1.45; color: var(--text-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+    .campo, .chip { transition: none; }
+}

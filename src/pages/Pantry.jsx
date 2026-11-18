@@ -11,7 +11,7 @@ import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 // [P2-15 · 2026-07-09] Store single-source de la Nevera Virtual (compartido con Dashboard).
 import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
 import { isTrackingMode, neveraActiva } from '../config/dashboardNav';
 import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
@@ -53,6 +53,7 @@ import { BrandSelect } from '../components/pantry/BrandSelect';
 // (los tokens var(--*) ya existen en index.css). Sustituye la metáfora de
 // "electrodoméstico físico" anterior; misma lógica/handlers/datos reales.
 import fstyles from './Pantry.fridge.module.css';
+import hstyles from './Pantry.hojaAnadir.module.css';   // [P1-PLAN-LOTE-1073] la hoja «Añade a tu Nevera»
 import Button from '../components/ui/Button';
 // [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] Layout móvil dedicado (tarjeta por
 // alimento) — se elige por breakpoint JS, no por container query.
@@ -364,13 +365,7 @@ const QUICK_ADD_SUGGESTIONS = [i18nKey('Pollo'), i18nKey('Arroz'), i18nKey('Huev
 
 // [P3-PANTRY-RECENT-ADDS · 2026-07-07] Estilo compartido de los chips (recientes +
 // sugerencias). Módulo-scope: valores estáticos, evita re-alocar por keystroke.
-const ADD_CHIP_STYLE = {
-    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-    padding: '0.5rem 0.95rem', borderRadius: '99px',
-    border: '1px solid var(--border)', background: 'var(--bg-page)',
-    color: 'var(--text-main)', fontWeight: 600, fontSize: '0.9rem',
-    cursor: 'pointer', touchAction: 'manipulation', transition: 'all 0.15s',
-};
+// [P1-PLAN-LOTE-1073] el estilo de los chips de añadir vive en `Pantry.hojaAnadir.module.css` (.chip)
 
 // [P2-NEVERA-BRANDS-MANUAL · 2026-07-07] Normalización simétrica a `_norm_food`
 // del backend (minúsculas + sin acentos + espacios colapsados) para cachear el
@@ -838,6 +833,17 @@ const PantryPage = () => {
         setShowAddMenu(false);
         setAddItemSearch('');
     }, []);
+    // [P1-PLAN-LOTE-1073 · 2026-11-17] El dueño: «quiero que sea fácil cerrarlo sin darle a la X». Con el teclado
+    // abierto la hoja tapaba casi toda la pantalla y el velo de atrás quedaba en una franja. Ahora se cierra
+    // deslizándola hacia abajo desde la cabecera (o desde las sugerencias), tocando la barrita, con el velo o con Esc.
+    const addSheetDrag = useDragControls();
+    const _empezarArrastreHoja = useCallback((e) => {
+        if (e.button != null && e.button !== 0) return;
+        addSheetDrag.start(e);
+    }, [addSheetDrag]);
+    const _soltarHoja = useCallback((_e, info) => {
+        if (info.offset.y > 80 || info.velocity.y > 450) _closeAddMenu();
+    }, [_closeAddMenu]);
     const _closeQtyEdit = useCallback(() => setQtyEditItem(null), []);
     const _closeDeleteConfirm = useCallback(() => setShowDeleteConfirm(false), []);
     const { containerRef: addMenuModalRef } = useModalAccessibility({
@@ -3247,6 +3253,15 @@ const PantryPage = () => {
                             transition={isMobileLayout
                                 ? { type: 'spring', damping: 25, stiffness: 200 }
                                 : { type: 'spring', damping: 24, stiffness: 240 }}
+                            {...(isMobileLayout ? {
+                                drag: 'y',
+                                dragControls: addSheetDrag,
+                                dragListener: false,
+                                dragConstraints: { top: 0, bottom: 0 },
+                                dragElastic: { top: 0, bottom: 0.7 },
+                                onDragStart: () => addMenuSearchRef.current?.blur(),
+                                onDragEnd: _soltarHoja,
+                            } : {})}
                             style={isMobileLayout ? {
                                 position: 'fixed', bottom: kbInset, left: 0, right: 0, background: 'var(--bg-card)',
                                 // [P3-PANTRY-ADD-MOBILE · 2026-06-19] padding responsive (menos en móvil =
@@ -3277,17 +3292,25 @@ const PantryPage = () => {
                                 display: 'flex', flexDirection: 'column',
                             }}
                         >
-                            {isMobileLayout && (
-                                <div style={{ width: '40px', height: '5px', background: 'var(--border)', borderRadius: '10px', margin: '0 auto clamp(0.7rem, 2.5vw, 1.4rem)', opacity: 0.8 }} />
-                            )}
+                            {/* [P1-PLAN-LOTE-1073] La cabecera es el ASA: arrastrarla hacia abajo cierra la hoja; tocar la
+                                barrita también. «touch-action: none» para que el gesto no lo robe el scroll. */}
+                            <div
+                                className={isMobileLayout ? `${hstyles.cabecera} ${hstyles.arrastrable}` : hstyles.cabecera}
+                                onPointerDown={isMobileLayout ? _empezarArrastreHoja : undefined}
+                            >
+                                {isMobileLayout && (
+                                    <button type="button" className={hstyles.asa} onClick={_closeAddMenu} aria-label={t('Cerrar')}>
+                                        <span aria-hidden="true" />
+                                    </button>
+                                )}
+                                <h2 id="pantry-add-title" className={hstyles.titulo}>{t('Añade a tu Nevera')}</h2>
+                                <p className={hstyles.subtitulo}>
+                                    {t('Busca el alimento, ajusta la cantidad y elige cómo viene (botella, libra, paquete…).')}
+                                </p>
+                            </div>
 
-                            <h2 id="pantry-add-title" style={{ fontSize: isMobileLayout ? 'clamp(1.3rem, 5vw, 1.5rem)' : '1.4rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: 'var(--text-main)', letterSpacing: '-0.01em' }}>{t('Añade a tu Nevera')}</h2>
-                            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '0 0 0.85rem 0', lineHeight: 1.4 }}>
-                                {t('Busca el alimento, ajusta la cantidad y elige cómo viene (botella, libra, paquete…).')}
-                            </p>
-
-                            <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
-                                <SearchIcon color="var(--text-light)" size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
+                            <div className={hstyles.buscador}>
+                                <SearchIcon size={20} className={hstyles.lupa} aria-hidden="true" />
                                 <input
                                     ref={addMenuSearchRef}
                                     autoFocus
@@ -3305,11 +3328,15 @@ const PantryPage = () => {
                                     value={addItemSearch}
                                     onChange={e => setAddItemSearch(e.target.value)}
                                     onKeyDown={handleKeyDown}
-                                    style={{
-                                        width: '100%', padding: '1.05rem 1rem 1.05rem 3rem', borderRadius: '1rem', border: '2px solid var(--border)',
-                                        outline: 'none', fontSize: '1.05rem', fontWeight: 500, background: 'var(--bg-page)', color: 'var(--text-main)'
-                                    }}
+                                    className={hstyles.campo}
                                 />
+                                {addItemSearch && (
+                                    <button type="button" className={hstyles.limpiar}
+                                        onClick={() => { setAddItemSearch(''); addMenuSearchRef.current?.focus(); }}
+                                        aria-label={t('Limpiar búsqueda')}>
+                                        <X size={16} strokeWidth={2.5} aria-hidden="true" />
+                                    </button>
+                                )}
                             </div>
 
                             {/* Resultados de búsqueda (Scrollable). [P3-PANTRY-ADD-MOBILE · 2026-06-19]
@@ -3577,46 +3604,48 @@ const PantryPage = () => {
                                     "Sugerencias rápidas" (1-toque añade si resuelve único, si no
                                     siembra la búsqueda). Rellena el vacío y acelera el caso común. */}
                                 {!addItemSearch.trim() && (
-                                    <div style={{ padding: '0.6rem 0.15rem 0.5rem', color: 'var(--text-muted)' }}>
+                                    // [P1-PLAN-LOTE-1073] sin búsqueda esta zona no se desplaza: también es asa (deslizar = cerrar)
+                                    <div className={isMobileLayout ? `${hstyles.vacio} ${hstyles.arrastrable}` : hstyles.vacio}
+                                        onPointerDown={isMobileLayout ? _empezarArrastreHoja : undefined}>
                                         {recentAdds.length > 0 && (
                                             <div style={{ marginBottom: '1.25rem' }}>
-                                                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                                                <div className={hstyles.rotulo}>
                                                     {t('Recientes')}
                                                 </div>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                <div className={hstyles.chips}>
                                                     {recentAdds.map(r => (
                                                         <button
                                                             key={r.id || r.name}
                                                             type="button"
                                                             disabled={isAdding}
                                                             onClick={() => handleRecentAdd(r)}
-                                                            style={ADD_CHIP_STYLE}
+                                                            className={hstyles.chip}
                                                             title={t('Añadir 1 {unidad} de {alimento}', { unidad: glossUnitWord(r.unit || '', t), alimento: nombreDelAlimento(r.name) }).trim()}
                                                         >
-                                                            <RotateCcw size={13} style={{ opacity: 0.5 }} /> {nombreDelAlimento(r.name)}
+                                                            <RotateCcw size={14} strokeWidth={2.5} aria-hidden="true" /> {nombreDelAlimento(r.name)}
                                                         </button>
                                                     ))}
                                                 </div>
                                             </div>
                                         )}
 
-                                        <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                                        <div className={hstyles.rotulo}>
                                             {t('Sugerencias rápidas')}
                                         </div>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                        <div className={hstyles.chips}>
                                             {QUICK_ADD_SUGGESTIONS.map(word => (
                                                 <button
                                                     key={word}
                                                     type="button"
                                                     disabled={isAdding}
                                                     onClick={() => handleChipAdd(word)}
-                                                    style={ADD_CHIP_STYLE}
+                                                    className={hstyles.chip}
                                                 >
-                                                    <Plus size={13} style={{ opacity: 0.5 }} /> {t(word)}
+                                                    <Plus size={14} strokeWidth={2.5} aria-hidden="true" /> {t(word)}
                                                 </button>
                                             ))}
                                         </div>
-                                        <p style={{ fontSize: '0.83rem', color: 'var(--text-muted)', margin: '1.15rem 0 0', lineHeight: 1.45 }}>
+                                        <p className={hstyles.pista}>
                                             {t('Toca un chip para añadirlo al instante, o escribe cualquier alimento arriba.')}
                                         </p>
                                     </div>
