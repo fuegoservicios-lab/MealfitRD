@@ -4040,7 +4040,6 @@
     "other": "Ce mois-ci : moyenne de {kcal} kcal sur {n} jours enregistrés"
   },
   "Ponle tu foto": "Ajoutez votre photo",
-  "Tu selfie de fondo y tus cifras encima: lista para tu historia": "Votre selfie en fond et vos chiffres par-dessus : prêt pour votre story",
   "Estilo de la historia": "Style de la story",
   "Titular": "Grand titre",
   "Minimal": "Minimal",
@@ -4054,7 +4053,6 @@
   "Qué ajustas": "Ce que vous ajustez",
   "Tu foto": "Votre photo",
   "Tus cifras": "Vos chiffres",
-  "Arrástralas · pellizca para cambiar su tamaño": "Faites-les glisser · pincez pour changer leur taille",
   "Tamaño de tus cifras": "Taille de vos chiffres",
   "Restablecer": "Réinitialiser",
   "Acercar la foto": "Zoomer sur la photo",
@@ -4253,5 +4251,12 @@
   "Fecha": "Date",
   "Fechas": "Dates",
   "{app} abajo": "{app} en bas",
-  "Textos: tócalos para quitarlos o arrástralos en la imagen": "Textes : touchez-les pour les retirer ou faites-les glisser sur l’image"
+  "Textos: tócalos para quitarlos o arrástralos en la imagen": "Textes : touchez-les pour les retirer ou faites-les glisser sur l’image",
+  "Estilo": "Style",
+  "Tamaño": "Taille",
+  "Zoom": "Zoom",
+  "Textos": "Textes",
+  "Tu selfie detrás de tus cifras": "Votre selfie derrière vos chiffres",
+  "Arrastra para mover · pellizca para el tamaño": "Faites glisser pour déplacer · pincez pour la taille",
+  "Mover": "Déplacer"
 }

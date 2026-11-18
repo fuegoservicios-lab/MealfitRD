@@ -96,7 +96,7 @@ describe('[1078] la hoja', () => {
         expect(screen.getByRole('button', { name: /restablecer/i })).toBeDisabled();
         fireEvent.click(screen.getByRole('radio', { name: /tus cifras/i }));
         const tam = screen.getByRole('slider', { name: /tamaño de tus cifras/i });
-        expect(screen.getByText(/arrástralas · pellizca/i)).toBeInTheDocument();
+        expect(screen.getByText(/arrastra para mover · pellizca/i)).toBeInTheDocument();   // [1090] la pista, bajo la imagen
         fireEvent.change(tam, { target: { value: '0.6' } });
         await waitFor(() => expect(dibujarHistoriaConFoto.mock.calls.at(-1)?.[1].bloque.escala).toBeCloseTo(0.6));
         const reset = screen.getByRole('button', { name: /restablecer/i });

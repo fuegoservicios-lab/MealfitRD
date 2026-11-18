@@ -34,7 +34,8 @@ describe('[1049] sin el destello tipo Gemini', () => {
     });
 
     it('los sitios que tenían el destello usan ahora el brote', () => {
-        for (const f of ['components/dashboard/ScanMealModal.jsx', 'components/dashboard/ShareDaySheet.jsx',
+        // [1090] la invitación de la foto de «Compartir» ya no lleva destello (una flecha): sale de la lista
+        for (const f of ['components/dashboard/ScanMealModal.jsx',
             'components/home/DashboardShowcase.jsx', 'pages/FeaturesPage.jsx', 'pages/History.jsx']) {
             expect(fs.readFileSync(path.join(SRC, f), 'utf8'), f).toMatch(/BroteChispa/);
         }

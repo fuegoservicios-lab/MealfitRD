@@ -19,9 +19,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images, Image as ImageIcon, Type, RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images, Image as ImageIcon, Type, RotateCcw, Eye, EyeOff, ChevronRight } from 'lucide-react';
 import { chooseNativeGalleryImage, takeNativeChatPhoto, isNativePickerCancellation } from '../../utils/nativeChatImagePicker';
-import BroteChispa from '../common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
 import { toast } from 'sonner';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
@@ -337,17 +336,22 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     }, [imagen.url, imagen.blob, esSemana]);
 
     // [1082] El estilo y el tamaño de las cifras: los mismos controles con tu foto y en la semana sin foto.
+    // [P1-PLAN-LOTE-1090] «se ve medio raro» (el dueño): cada ajuste es UNA fila del mismo ancho, con su rótulo a la
+    // izquierda (Estilo · Tamaño · Textos); antes eran bloques centrados de anchos distintos con frases encima.
     const selectorDeEstilo = (
-        <div className={styles.formatos} role="radiogroup" aria-label={t('Estilo de la historia')}>
-            {[['titular', t('Titular')], ['minimal', t('Minimal')], ['cristal', t('Cristal')]].map(([clave, rotulo]) => (
-                <button
-                    key={clave} type="button" role="radio" aria-checked={estilo === clave}
-                    className={estilo === clave ? `${styles.formato} ${styles.formatoActivo}` : styles.formato}
-                    onClick={() => setEstilo(clave)}
-                >
-                    {rotulo}
-                </button>
-            ))}
+        <div className={styles.fila}>
+            <span className={styles.filaRotulo} aria-hidden="true">{t('Estilo')}</span>
+            <div className={`${styles.capas} ${styles.estilos}`} role="radiogroup" aria-label={t('Estilo de la historia')}>
+                {[['titular', t('Titular')], ['minimal', t('Minimal')], ['cristal', t('Cristal')]].map(([clave, rotulo]) => (
+                    <button
+                        key={clave} type="button" role="radio" aria-checked={estilo === clave}
+                        className={estilo === clave ? `${styles.capa} ${styles.capaActiva}` : styles.capa}
+                        onClick={() => setEstilo(clave)}
+                    >
+                        {rotulo}
+                    </button>
+                ))}
+            </div>
         </div>
     );
     const deslizadorDeCifras = (
@@ -367,9 +371,11 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
         pregunta: esSemana ? t('¿Y tú, cómo va tu semana?') : t('¿Y tú, cómo vas hoy?'), sello: t('{app} abajo', { app: BRAND }),
     })[id] || id;
     const selectorDePiezas = defsPiezas.length > 0 && (
-        <div className={styles.piezas} role="group" aria-labelledby="share-day-piezas">
-            <p id="share-day-piezas" className={styles.piezasTitulo}>{t('Textos: tócalos para quitarlos o arrástralos en la imagen')}</p>
-            <div className={styles.piezasLista}>
+        <div className={styles.fila} role="group" aria-labelledby="share-day-piezas" aria-describedby="share-day-piezas-pista">
+            <span id="share-day-piezas" className={styles.filaRotulo}>{t('Textos')}</span>
+            <span id="share-day-piezas-pista" className={styles.inputOculto}>{t('Textos: tócalos para quitarlos o arrástralos en la imagen')}</span>
+            {/* [1090] una sola línea que se desliza de lado: `data-gesto-propio` para que la hoja no se lo coma (1089) */}
+            <div className={styles.piezasLista} data-gesto-propio="">
                 {defsPiezas.map((d) => {
                     const visible = !estadoDePieza(piezas, d.id).oculta;
                     const Icono = visible ? Eye : EyeOff;
@@ -450,6 +456,14 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                                 ? <Loader2 size={28} className="spin-animation" role="img" aria-label={t('Preparando la imagen…')} />
                                 : <pre className={styles.textoPlano}>{texto}</pre>}
                     </div>
+                    {/* [1090] cómo se usa la imagen, UNA vez y bajo la imagen (antes, una frase por cada control del pie) */}
+                    {enLienzo && (
+                        <p className={styles.pista}>
+                            {foto && capa === 'foto'
+                                ? t('Arrastra para encuadrar · pellizca para acercar')
+                                : t('Arrastra para mover · pellizca para el tamaño')}
+                        </p>
+                    )}
                 </div>
 
                 <div className={styles.footer}>
@@ -479,7 +493,9 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                     {eligiendo ? null : foto ? (
                         <div className={styles.conFoto}>
                             {selectorDeEstilo}
-                            <div className={styles.capas} role="radiogroup" aria-label={t('Qué ajustas')}>
+                            <div className={styles.fila}>
+                            <span className={styles.filaRotulo} aria-hidden="true">{t('Mover')}</span>
+                            <div className={`${styles.capas} ${styles.capasFila}`} role="radiogroup" aria-label={t('Qué ajustas')}>
                                 {[['foto', t('Tu foto'), ImageIcon], ['cifras', t('Tus cifras'), Type]].map(([clave, rotulo, Icono]) => (
                                     <button
                                         key={clave} type="button" role="radio" aria-checked={capa === clave}
@@ -490,12 +506,9 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                                     </button>
                                 ))}
                             </div>
-                            <p className={styles.pista}>
-                                {capa === 'cifras'
-                                    ? t('Arrástralas · pellizca para cambiar su tamaño')
-                                    : t('Arrastra para encuadrar · pellizca para acercar')}
-                            </p>
-                            <div className={styles.zoomFila}>
+                            </div>
+                            <div className={styles.fila}>
+                            <span className={styles.filaRotulo} aria-hidden="true">{capa === 'cifras' ? t('Tamaño') : t('Zoom')}</span>
                             {capa === 'cifras' ? deslizadorDeCifras : (
                                 <input
                                     key="foto" type="range" className={styles.zoom} min={1} max={ZOOM_MAX} step={0.01}
@@ -516,16 +529,16 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                             <span className={styles.fotoCtaIcono} aria-hidden="true"><Camera size={20} /></span>
                             <span className={styles.fotoCtaTexto}>
                                 <span>{t('Ponle tu foto')}</span>
-                                <span className={styles.fotoCtaSub}>{t('Tu selfie de fondo y tus cifras encima: lista para tu historia')}</span>
+                                <span className={styles.fotoCtaSub}>{t('Tu selfie detrás de tus cifras')}</span>
                             </span>
-                            <BroteChispa size={18} className={styles.fotoCtaBrillo} aria-hidden="true" />
+                            <ChevronRight size={18} className={styles.fotoCtaFlecha} aria-hidden="true" />
                         </button>
                     )}
                     {!foto && esSemana && !eligiendo && (
                         <div className={styles.conFoto}>
                             {selectorDeEstilo}
-                            <p className={styles.pista}>{t('Arrástralas · pellizca para cambiar su tamaño')}</p>
-                            <div className={styles.zoomFila}>
+                            <div className={styles.fila}>
+                                <span className={styles.filaRotulo} aria-hidden="true">{t('Tamaño')}</span>
                                 {deslizadorDeCifras}
                                 {botonRestablecer}
                             </div>

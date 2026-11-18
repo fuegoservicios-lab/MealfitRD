@@ -355,9 +355,9 @@
     align-items: center;
     gap: 0.75rem;
     width: 100%;
-    min-height: 60px;
-    padding: 0.6rem 0.9rem;
-    border: 2px solid transparent;
+    min-height: 56px;
+    padding: 0.5rem 0.75rem;
+    border: 1.5px solid transparent;
     border-radius: 16px;
     background:
         linear-gradient(var(--bg-card, #ffffff), var(--bg-card, #ffffff)) padding-box,
@@ -366,11 +366,10 @@
     font: inherit;
     text-align: left;
     cursor: pointer;
-    box-shadow: 0 10px 26px -14px rgba(236, 72, 153, 0.6);
-    transition: box-shadow 0.15s ease;
+    transition: filter 0.15s ease;
 }
 
-.fotoCta:hover { box-shadow: 0 14px 30px -14px rgba(236, 72, 153, 0.75); }
+.fotoCta:hover { filter: brightness(1.06); }
 .fotoCta:focus-visible { outline: 3px solid rgba(236, 72, 153, 0.5); outline-offset: 2px; }
 
 .fotoCtaIcono {
@@ -378,9 +377,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
     background: linear-gradient(135deg, #6366F1, #EC4899 60%, #F59E0B);
     color: #fff;
 }
@@ -391,27 +390,29 @@
     display: flex;
     flex-direction: column;
     gap: 0.1rem;
-    font-size: 0.98rem;
+    font-size: 0.95rem;
     font-weight: 800;
     line-height: 1.2;
 }
 
-.fotoCtaSub { font-size: 0.8rem; font-weight: 500; color: var(--text-muted, #64748B); }
+.fotoCtaSub { font-size: 0.8rem; font-weight: 500; color: var(--text-muted, #64748B); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.fotoCtaBrillo { flex-shrink: 0; color: #EC4899; animation: sdBrillo 2.4s ease-in-out infinite; }
+/* [P1-PLAN-LOTE-1090] una flecha quieta en vez del brote que latía: es una puerta, no un aviso */
+.fotoCtaFlecha { flex-shrink: 0; color: var(--text-muted, #64748B); }
 
-/* [P1-PLAN-LOTE-1049] el brote «respira» (late), no gira como una estrella */
-@keyframes sdBrillo {
-    0%, 100% { opacity: 0.6; transform: scale(0.94); }
-    50% { opacity: 1; transform: scale(1.1); }
+@media (prefers-reduced-motion: reduce) { .fotoCta { transition: none; } }
+
+/* [P1-PLAN-LOTE-1090] los ajustes, en filas del mismo ancho: rótulo a la izquierda y el control llenando el resto */
+.conFoto { display: flex; flex-direction: column; align-items: stretch; gap: 0.6rem; }
+.fila { display: flex; align-items: center; gap: 0.75rem; width: 100%; min-width: 0; }
+.filaRotulo {
+    flex: 0 0 3.75rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--text-muted);
 }
-
-@media (prefers-reduced-motion: reduce) {
-    .fotoCtaBrillo { animation: none; }
-    .fotoCta { transition: none; }
-}
-
-.conFoto { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
+.capas.capasFila { flex: 1 1 auto; width: auto; margin-top: 0; }
+.capas.estilos { flex: 1 1 auto; width: auto; margin-top: 0; grid-template-columns: repeat(3, 1fr); }
 .conFoto .formatos { margin-bottom: 0; }
 
 .fotoAcciones { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem; }
@@ -422,8 +423,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.25rem;
-    width: min(100%, 320px);
-    margin-top: 0.35rem;
+    width: 100%;
     padding: 0.2rem;
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--text-main) 6%, var(--bg-card));
@@ -433,7 +433,8 @@
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
-    min-height: 40px;
+    min-height: 38px;
+    min-width: 0;
     border: none;
     border-radius: var(--radius-sm);
     background: transparent;
@@ -479,7 +480,7 @@
 .previewGesto { touch-action: none; user-select: none; -webkit-user-select: none; }
 .lienzo:active { cursor: grabbing; }
 
-.pista { margin: 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted, #64748B); text-align: center; }
+.pista { flex: 0 0 auto; margin: 0.5rem 0 0; font-size: 0.75rem; font-weight: 600; color: var(--text-muted, #64748B); text-align: center; }
 
 .zoom {
     flex: 1 1 auto;
@@ -490,15 +491,14 @@
     cursor: pointer;
 }
 
-/* [P1-PLAN-LOTE-1078] El deslizador y, a su lado, volver la capa elegida a como estaba. */
-.zoomFila { display: flex; align-items: center; gap: 0.5rem; width: min(100%, 320px); }
+/* [P1-PLAN-LOTE-1078] El deslizador y, a su lado, volver la capa elegida a como estaba (fila de 1090). */
 .restablecer {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border: 1px solid var(--border);
     border-radius: var(--radius-full);
     background: var(--bg-card);
@@ -511,9 +511,10 @@
 /* Con foto el pie es más alto y la historia (9:16) tiene que verse ENTERA, sin desplazar: la hoja toma su alto máximo
    y el lienzo mide el hueco que queda (unidades de contenedor; sin ellas, 46dvh). */
 .sheetFoto { height: 92vh; height: 92dvh; }
-.sheetFoto .body { container-type: size; padding-top: 0.75rem; padding-bottom: 0.75rem; }
-.sheetFoto .preview { min-height: 0; height: 100%; padding: 0.5rem; }
-.lienzo { height: 46vh; height: 46dvh; height: calc(100cqh - 1rem); width: auto; max-width: 100%; aspect-ratio: 9 / 16; }
+.sheetFoto .body { container-type: size; display: flex; flex-direction: column; padding-top: 0.75rem; padding-bottom: 0.5rem; }
+/* [1090] sin la caja gris alrededor: la historia sola, más grande */
+.sheetFoto .preview { flex: 1 1 auto; min-height: 0; padding: 0; background: transparent; }
+.lienzo { height: 46vh; height: 46dvh; height: calc(100cqh - 2.6rem); width: auto; max-width: 100%; aspect-ratio: 9 / 16; }
 
 /* [P1-PLAN-LOTE-1049] el formato dice qué es: «4:5 · chats y feed» bajo «Publicación» */
 .formato { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.15; }
@@ -576,14 +577,26 @@
 .fuentesNota { grid-column: 1 / -1; }
 
 /* [P1-PLAN-LOTE-1084] Qué textos se ven: chips que se encienden y apagan (y los textos se arrastran en la imagen) */
-.piezas { display: flex; flex-direction: column; gap: 0.4rem; }
-.piezasTitulo { margin: 0; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-align: center; }
-.piezasLista { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; }
+.piezasLista {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+    scrollbar-width: none;
+    /* el borde derecho se desvanece: se ve que hay más fichas */
+    -webkit-mask-image: linear-gradient(90deg, black 85%, transparent);
+    mask-image: linear-gradient(90deg, black 85%, transparent);
+    padding-right: 1.5rem;
+}
+.piezasLista::-webkit-scrollbar { display: none; }
 .pieza {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    max-width: 100%;
+    flex: 0 0 auto;
     min-height: 36px;
     padding: 0.3rem 0.75rem;
     border: 1px dashed var(--border);
@@ -605,4 +618,4 @@
     background: color-mix(in srgb, var(--primary) 12%, transparent);
     color: var(--text-main);
 }
-.piezaTexto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.piezaTexto { white-space: nowrap; }
