@@ -13,15 +13,19 @@ const IMAN_PX = 24;           // a menos de esto del centro horizontal, se queda
 const _n = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const _acotar = (v, a, b) => (a > b ? (a + b) / 2 : Math.max(a, Math.min(b, v)));
 
-/** La escala más grande que cabe dentro de `limites` (nunca menos que 1: el tamaño de siempre siempre vale). */
+/** La escala más grande (nunca menos que 1: el tamaño de siempre siempre vale).
+ *  [P1-PLAN-LOTE-1088 · 2026-11-18] El dueño: «lo de pellizcar sigue igual». Las cifras ya ocupan casi TODO el ancho,
+ *  así que «que quepan a lo ancho» las dejaba crecer un ~10 %: el dedo se abría y no pasaba nada (y el deslizador nacía
+ *  casi al tope). Ahora crecen hasta ESCALA_TOPE aunque se salgan por los lados —como un sticker de Instagram— y se
+ *  arrastran para elegir qué parte se ve (`acotarBloque`); a lo alto siguen sin salirse de la zona segura. */
 export function escalaMax(caja, limites) {
     if (!(caja?.w > 0 && caja?.h > 0) || !limites) return 1;
-    const porAncho = (limites.x1 - limites.x0) / caja.w;
     const porAlto = (limites.y1 - limites.y0) / caja.h;
-    return Math.max(1, Math.min(ESCALA_TOPE, porAncho, porAlto));
+    return Math.max(1, Math.min(ESCALA_TOPE, porAlto));
 }
 
-/** El bloque dentro de sus límites: escala en [ESCALA_MIN, escalaMax] y la caja escalada sin salirse. */
+/** El bloque dentro de sus límites: escala en [ESCALA_MIN, escalaMax] y la caja escalada sin salirse; si es MÁS ancha
+ *  que los límites [1088], se mueve de lado mientras los cubra (nunca deja un hueco: se elige qué trozo se ve). */
 export function acotarBloque(bloque, caja, limites) {
     const b = { ...BLOQUE_INICIAL, ...(bloque || {}) };
     if (!(caja?.w > 0 && caja?.h > 0) || !limites) return { ...BLOQUE_INICIAL };
@@ -30,7 +34,9 @@ export function acotarBloque(bloque, caja, limites) {
     const cy = caja.y + caja.h / 2;
     const mw = (caja.w * escala) / 2;
     const mh = (caja.h * escala) / 2;
-    const dx = _acotar(_n(b.dx), limites.x0 + mw - cx, limites.x1 - mw - cx);
+    const ax = limites.x0 + mw - cx;
+    const bx = limites.x1 - mw - cx;
+    const dx = _acotar(_n(b.dx), Math.min(ax, bx), Math.max(ax, bx));
     const dy = _acotar(_n(b.dy), limites.y0 + mh - cy, limites.y1 - mh - cy);
     return { dx, dy, escala };
 }

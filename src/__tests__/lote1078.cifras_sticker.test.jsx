@@ -56,8 +56,9 @@ describe('[1078] la geometría del sticker', () => {
         const tope = escalaMax(caja, LIMITES_CIFRAS);
         expect(tope).toBeGreaterThanOrEqual(1);
         expect(moverBloque(BLOQUE_INICIAL, caja, LIMITES_CIFRAS, { factor: 50 }).escala).toBeCloseTo(tope);
+        // [1088] a lo alto nunca se salen de la zona segura (a lo ancho sí pueden: ver lote1088)
         const pequeno = cajaDeCifras(resumen(2308, 2050), 'minimal');
-        expect(cajaTransformada(pequeno, { dx: 0, dy: 0, escala: escalaMax(pequeno, LIMITES_CIFRAS) }).w).toBeLessThanOrEqual(LIMITES_CIFRAS.x1 - LIMITES_CIFRAS.x0 + 0.01);
+        expect(cajaTransformada(pequeno, { dx: 0, dy: 0, escala: escalaMax(pequeno, LIMITES_CIFRAS) }).h).toBeLessThanOrEqual(LIMITES_CIFRAS.y1 - LIMITES_CIFRAS.y0 + 0.01);
     });
 
     it('el imán centra cerca del centro sin atrapar un arrastre lento (actúa sobre la posición cruda)', () => {
