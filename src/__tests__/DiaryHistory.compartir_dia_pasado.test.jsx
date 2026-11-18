@@ -74,9 +74,12 @@ const enrutar = (porFecha) => vi.fn(async (url) => {
 const abrir = (onClose = () => {}) => render(
     <DiaryHistory userId="u1" open onClose={onClose} targetCalories={2050} targetMacros={{ protein: 134, carbs: 251, fats: 57 }} targetMicros={null} />
 );
+// La última celda activa es el día de CALENDARIO; de 0:00 a 4:00 el «hoy» biológico es el de antes y la penúltima
+// celda es hoy, no ayer (el gate de las 01:20 del 18-nov falló así).
+const celdaDeAyer = (tiras) => tiras[tiras.length - 2 - (aISO(new Date()) !== HOY ? 1 : 0)];
 const irAAyer = async () => {
     const tiras = (await screen.findAllByRole('gridcell')).filter((c) => !c.disabled);   // [CALENDARIO-SOLO-MES] los días son las celdas del mes
-    fireEvent.click(tiras[tiras.length - 2]);
+    fireEvent.click(celdaDeAyer(tiras));
     await screen.findByText('2 panecillos con queso, jamón de pavo y aderezo');
 };
 const textoCompartido = () => decodeURIComponent(screen.getByRole('link', { name: /whatsapp/i }).getAttribute('href'));
@@ -125,7 +128,7 @@ describe('[P1-COMPARTIR-DIA-PASADO] compartir desde el Diario', () => {
 
         // ayer, sin registro: el botón desaparece
         const tiras = screen.getAllByRole('gridcell').filter((c) => !c.disabled);
-        fireEvent.click(tiras[tiras.length - 2]);
+        fireEvent.click(celdaDeAyer(tiras));
         await waitFor(() => expect(screen.queryByRole('button', { name: /^Compartir (mi|este) día$/ })).toBeNull());
     });
 
@@ -141,7 +144,7 @@ describe('[P1-COMPARTIR-DIA-PASADO] compartir desde el Diario', () => {
 
         const tiras = screen.getAllByRole('gridcell').filter((c) => !c.disabled);
         fireEvent.keyDown(document, { key: 'ArrowLeft' });
-        expect(tiras[tiras.length - 2].getAttribute('aria-selected')).toBe('true');
+        expect(celdaDeAyer(tiras).getAttribute('aria-selected')).toBe('true');
 
         fireEvent.keyDown(document, { key: 'Escape' });
         await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Compartir tu día' })).toBeNull());
@@ -169,7 +172,7 @@ describe('[P1-COMPARTIR-DIA-PASADO] compartir desde el Diario', () => {
         await waitFor(() => expect(hoy).not.toBeDisabled());
 
         const tiras = screen.getAllByRole('gridcell').filter((c) => !c.disabled);
-        fireEvent.click(tiras[tiras.length - 2]);
+        fireEvent.click(celdaDeAyer(tiras));
         const boton = await screen.findByRole('button', { name: 'Compartir este día' });
         expect(boton).toBeDisabled();
         fireEvent.click(boton);
