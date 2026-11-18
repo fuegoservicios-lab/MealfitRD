@@ -2,14 +2,10 @@
  * [P1-PLAN-LOTE-1068 · 2026-11-17] La escalera de rangos (petición del dueño): tocar la insignia abre los cinco rangos,
  * cuántas estrellas pide cada uno y cómo llegar al siguiente, contado en semanas.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-
-vi.mock('../components/common/Modal', () => ({
-    default: ({ isOpen, children }) => (isOpen ? <div role="dialog">{children}</div> : null),
-}));
 
 import { ESCALERA, EscaleraDeRangos, posicionEnLaEscalera, semanasHasta } from '../components/dashboard/EscaleraDeRangos';
 
@@ -45,7 +41,9 @@ describe('[1068] la hoja', () => {
         expect(actual.textContent).toContain('Bronce');
         expect(actual.textContent).toContain('Estás aquí');
         expect(screen.getByText('Faltan 10 ★')).toBeTruthy();
-        expect(screen.getByText('Faltan 100 ★')).toBeTruthy();
+        // [P1-PLAN-LOTE-1081] «Faltan N ★» solo en el siguiente rango; los lejanos dicen desde cuántas estrellas
+        expect(screen.queryByText('Faltan 100 ★')).toBeNull();
+        expect(screen.getByText('Desde 100 estrellas')).toBeTruthy();
         expect(screen.getByText('cierra tu primera semana para ver tu ritmo')).toBeTruthy();
         expect(screen.getByRole('progressbar').getAttribute('aria-valuemax')).toBe('10');
         expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(5);

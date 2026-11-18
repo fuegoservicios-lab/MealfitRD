@@ -1,24 +1,95 @@
 /* [P1-PLAN-LOTE-1068 · 2026-11-17] La escalera de rangos. Solo tokens; los metales son los MISMOS degradados de la
    insignia de la semana (composes), para que el rango se vea igual en la tarjeta y aquí. Nada se mueve al pasar el
-   ratón; las dos animaciones (raíl y barra) se apagan con movimiento reducido. */
-.hoja {
+   ratón; las animaciones (raíl, barra, destello y entrada) se apagan con movimiento reducido.
+   [P1-PLAN-LOTE-1081 · 2026-11-18] Hoja propia (como la ficha de comida): asa arriba que se arrastra para cerrar,
+   cuerpo desplazable sin fundido que corte el último peldaño, pie fijo con «Entendido». Escritorio: centrada. */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(2, 6, 23, 0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: aparecer 0.2s ease;
+}
+.fondo {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: default;
+}
+
+.sheet {
     position: relative;
-    /* El Modal no limita la altura de su contenido: la hoja es más alta que un teléfono de 844 px y su cabecera
-       quedaba FUERA de la pantalla. Se desplaza dentro de sí misma. */
-    max-height: min(88dvh, 780px);
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: 92dvh;
+    min-height: 0;
+    background:
+        radial-gradient(120% 38% at 50% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 65%),
+        var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid color-mix(in srgb, var(--text-muted) 22%, var(--border));
+    border-bottom: 0;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    box-shadow: 0 -20px 60px -20px rgba(2, 6, 23, 0.5);
+    outline: none;
+    animation: subirHoja 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (min-width: 641px) {
+    .overlay { align-items: center; padding: 1rem; }
+    .sheet {
+        max-width: 440px;
+        max-height: min(88dvh, 820px);
+        border-bottom: 1px solid color-mix(in srgb, var(--text-muted) 22%, var(--border));
+        border-radius: var(--radius-xl);
+    }
+}
+
+/* ── El asa: zona grande para arrastrar; la X a la derecha ── */
+.asa {
+    position: relative;
+    flex: none;
+    display: flex;
+    justify-content: center;
+    padding: 0.6rem 0 0.4rem;
+    min-height: 44px;
+}
+.grip {
+    width: 40px;
+    height: 5px;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--text-muted) 40%, transparent);
+}
+.cerrar { position: absolute; top: 0.5rem; right: 0.75rem; }
+@media (min-width: 641px) { .grip { visibility: hidden; } }
+
+.body {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 1.5rem 1.25rem calc(2.25rem + env(safe-area-inset-bottom, 0px));
-    color: var(--text-main);
-    /* Sin barra de desplazamiento (el dueño la vio fea en iOS): el contenido se funde arriba y abajo, así el
-       corte del borde se lee como «hay más» y no como una tarjeta partida. */
+    -webkit-overflow-scrolling: touch;
+    padding: 0 1.25rem 1.25rem;
     scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1rem, black calc(100% - 2.5rem), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, black 1rem, black calc(100% - 2.5rem), transparent 100%);
 }
-.hoja::-webkit-scrollbar { display: none; }
+.body::-webkit-scrollbar { display: none; }
 
-/* ── Cabecera: tu gema, tu rango y la barra hacia el siguiente ── */
+.pie {
+    flex: none;
+    padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border);
+    background: var(--bg-card);
+}
+
+/* ── Cabecera: tu gema, tu rango, tus estrellas ── */
 .cabecera { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .antetitulo {
     margin: 0.75rem 0 0;
@@ -33,10 +104,13 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    margin: 0.4rem 0 0;
+    margin: 0.5rem 0 0;
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--radius-full);
+    background: var(--surface-sunken);
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--text-main);
 }
 
 .gema {
@@ -57,7 +131,7 @@
     background: linear-gradient(155deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 55%);
 }
 .gema svg { position: relative; }
-.gemaGrande { width: 76px; height: 84px; }
+.gemaGrande { width: 76px; height: 84px; filter: drop-shadow(0 8px 18px rgba(2, 6, 23, 0.35)); }
 .gemaGrande::after {
     content: '';
     position: absolute;
@@ -66,6 +140,8 @@
     transform: translateX(-120%);
     animation: destello 4.5s ease-in-out 0.6s infinite;
 }
+.gemaMini { width: 16px; height: 18px; }
+.gemaMini::before { inset: 2px; }
 
 .metal_bronce { composes: rango_bronce from './SemanaEnProgreso.module.css'; }
 .metal_plata { composes: rango_plata from './SemanaEnProgreso.module.css'; }
@@ -73,21 +149,30 @@
 .metal_platino { composes: rango_platino from './SemanaEnProgreso.module.css'; }
 .metal_diamante { composes: rango_diamante from './SemanaEnProgreso.module.css'; }
 
-.progreso { width: 100%; margin-top: 1.1rem; }
-.progresoTexto {
+/* ── Camino al siguiente: frase, barra con sus extremos y las dos cuentas en semanas ── */
+.tarjeta {
+    margin-top: 1.25rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-card);
+}
+.tarjetaTitulo {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     gap: 0.5rem;
+    margin: 0;
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     color: var(--text-muted);
 }
-.progresoFalta { color: var(--text-main); font-weight: 700; font-size: 0.8125rem; }
+.progresoFalta { margin: 0.4rem 0 0; font-size: 1.125rem; font-weight: 800; line-height: 1.25; }
 .barra {
     position: relative;
     height: 10px;
-    margin-top: 0.4rem;
+    margin-top: 0.65rem;
     border-radius: var(--radius-full);
     background: var(--surface-sunken);
     overflow: hidden;
@@ -101,30 +186,53 @@
     animation: crecer 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
     transform-origin: left center;
 }
-.cima { margin: 1rem 0 0; font-size: 0.9375rem; color: var(--text-muted); }
-
-/* ── El camino en semanas ── */
-.camino {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.6rem;
-    margin-top: 1.1rem;
+.extremos {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
 }
-.caminoDato {
+
+.camino {
+    list-style: none;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.1rem;
-    padding: 0.75rem 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: var(--surface-card);
-    text-align: center;
+    gap: 0.75rem;
+    margin: 0.9rem 0 0;
+    padding: 0.9rem 0 0;
+    border-top: 1px solid var(--border);
 }
-.caminoNumero { font-size: 1.5rem; font-weight: 800; line-height: 1.1; color: var(--primary); font-variant-numeric: tabular-nums; }
-.caminoTexto { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); line-height: 1.3; }
+.caminoDato { display: flex; align-items: center; gap: 0.75rem; }
+.caminoNumero {
+    flex: none;
+    display: grid;
+    place-items: center;
+    min-width: 44px;
+    height: 44px;
+    padding: 0 0.4rem;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary);
+    font-size: 1.25rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+.caminoIcono { width: 44px; }
+.caminoTexto {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    color: var(--text-muted);
+}
+.caminoTexto strong { font-size: 0.9375rem; font-weight: 700; color: var(--text-main); }
+.cima { margin: 1rem 0 0; font-size: 0.9375rem; text-align: center; color: var(--text-muted); }
 
-/* ── La escalera: de Diamante (arriba) a Bronce (abajo), con un raíl que se llena desde abajo ── */
+/* ── La escalera: de Bronce (arriba, donde empiezas) a Diamante, con un raíl que se llena hacia abajo ── */
 .escalera {
     position: relative;
     list-style: none;
@@ -132,23 +240,23 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 .escalera::before,
 .escalera::after {
     content: '';
     position: absolute;
-    left: 31px;
+    left: 32px;
     width: 3px;
     border-radius: var(--radius-full);
-    bottom: 28px;
+    top: 30px;
 }
-.escalera::before { top: 28px; background: var(--border); }
+.escalera::before { bottom: 30px; background: var(--border); }
 .escalera::after {
-    height: calc((100% - 56px) * var(--relleno));
+    height: calc((100% - 60px) * var(--relleno));
     background: var(--primary);
-    animation: subir 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
-    transform-origin: bottom center;
+    animation: bajar 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: top center;
 }
 
 .peldano {
@@ -157,7 +265,8 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.55rem 0.75rem 0.55rem 0.7rem;
+    min-height: 60px;
+    padding: 0.5rem 0.75rem;
     border: 1px solid transparent;
     border-radius: var(--radius-lg);
 }
@@ -174,20 +283,22 @@
     color: var(--text-muted);
     white-space: nowrap;
 }
+.peldanoEstado:empty { display: none; }
 
 .actual {
-    border-color: var(--primary-light);
-    background: color-mix(in srgb, var(--primary) 9%, var(--surface-card));
-    box-shadow: var(--cta-shadow);
+    border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+    background: color-mix(in srgb, var(--primary) 10%, var(--surface-card));
 }
 .actual .peldanoEstado {
-    padding: 0.2rem 0.55rem;
+    padding: 0.25rem 0.6rem;
     border-radius: var(--radius-full);
     background: var(--primary-fill);
     color: white;
 }
 .logrado .peldanoEstado { color: var(--primary); }
-.bloqueado .gema { filter: grayscale(0.85) brightness(0.9); opacity: 0.55; }
+.siguiente .peldanoEstado { color: var(--text-main); }
+.bloqueado .gema { filter: grayscale(0.75) brightness(0.85); opacity: 0.6; }
+.siguiente .gema { opacity: 0.85; filter: grayscale(0.4); }
 .bloqueado .peldanoNombre { color: var(--text-muted); }
 
 /* ── Cómo se ganan ── */
@@ -207,10 +318,12 @@
 .estrellaLlena { composes: estrellaGanada from './SemanaEnProgreso.module.css'; }
 .estrellaVacia { color: color-mix(in srgb, var(--text-muted) 45%, transparent); }
 
+@keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
+@keyframes subirHoja { from { transform: translateY(32px); } to { transform: translateY(0); } }
 @keyframes crecer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@keyframes subir { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes bajar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes destello { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
 
 @media (prefers-reduced-motion: reduce) {
-    .barraRelleno, .escalera::after, .gemaGrande::after { animation: none; }
+    .overlay, .sheet, .barraRelleno, .escalera::after, .gemaGrande::after { animation: none; }
 }
