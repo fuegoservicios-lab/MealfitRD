@@ -404,7 +404,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
             <button type="button" className={styles.backdrop} aria-hidden="true" tabIndex={-1} onClick={onClose} />
             <div
                 ref={containerRef}
-                className={enLienzo ? `${styles.sheet} ${styles.sheetFoto}` : styles.sheet}
+                className={enLienzo || imagen.url || dibujando ? `${styles.sheet} ${styles.sheetFoto}` : styles.sheet}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="share-day-title"
@@ -546,12 +546,14 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                         </div>
                     )}
                     {!foto && !esSemana && (
-                        <>
-                            <div className={styles.formatos} role="radiogroup" aria-label={t('Formato de la imagen')}>
+                        // [P1-PLAN-LOTE-1092] «mejora el diseño de este también»: el mismo segmentado que la semana y un
+                        // interruptor de verdad en vez de la casilla en su caja
+                        <div className={styles.conFoto}>
+                            <div className={`${styles.capas} ${styles.formatosDia}`} role="radiogroup" aria-label={t('Formato de la imagen')}>
                                 {[['publicacion', t('Publicación')], ['historia', t('Historia')]].map(([clave, rotulo]) => (
                                     <button
                                         key={clave} type="button" role="radio" aria-checked={formato === clave}
-                                        className={formato === clave ? `${styles.formato} ${styles.formatoActivo}` : styles.formato}
+                                        className={formato === clave ? `${styles.capa} ${styles.formatoDia} ${styles.capaActiva}` : `${styles.capa} ${styles.formatoDia}`}
                                         onClick={() => setFormato(clave)}
                                     >
                                         <span>{rotulo}</span>
@@ -561,10 +563,10 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                                 ))}
                             </div>
                             <label className={styles.toggle}>
-                                <input type="checkbox" checked={incluirComidas} onChange={(e) => setIncluirComidas(e.target.checked)} />
                                 <span>{t('Incluir lo que comí')}</span>
+                                <input type="checkbox" role="switch" className={styles.interruptor} checked={incluirComidas} onChange={(e) => setIncluirComidas(e.target.checked)} />
                             </label>
-                        </>
+                        </div>
                     )}
                     <div className={styles.actions}>
                         {compartirImagen && (

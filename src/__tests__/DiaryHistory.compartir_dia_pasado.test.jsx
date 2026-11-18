@@ -111,7 +111,7 @@ describe('[P1-COMPARTIR-DIA-PASADO] compartir desde el Diario', () => {
         expect(texto).toMatch(/78 \/ 57 g/);
         // privacidad por defecto, como en la tarjeta: los nombres solo si se pide
         expect(texto).not.toContain('panecillos');
-        fireEvent.click(within(hoja).getByRole('checkbox', { name: /incluir lo que comí/i }));
+        fireEvent.click(within(hoja).getByRole('switch', { name: /incluir lo que comí/i }));
         await waitFor(() => expect(textoCompartido()).toContain('2 panecillos con queso, jamón de pavo y aderezo'));
     });
 

@@ -219,13 +219,37 @@
     color: var(--text-main, #0F172A);
 }
 
-.toggle input {
-    width: 20px;
-    height: 20px;
-    margin: 0;
-    accent-color: var(--primary-fill, #4F46E5);
+/* [P1-PLAN-LOTE-1092] la casilla es un interruptor: texto a la izquierda, el botón a la derecha, sin caja */
+.toggle { justify-content: space-between; border: 0; padding: 0.25rem 0.1rem; min-height: 44px; }
+.interruptor {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
     flex-shrink: 0;
+    width: 46px;
+    height: 28px;
+    margin: 0;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--text-muted) 35%, transparent);
+    cursor: pointer;
+    transition: background 0.18s ease;
 }
+.interruptor::before {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 3px rgba(2, 6, 23, 0.3);
+    transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.interruptor:checked { background: var(--primary-fill, var(--primary)); }
+.interruptor:checked::before { transform: translateX(18px); }
+.interruptor:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .interruptor, .interruptor::before { transition: none; } }
 
 /* Dos por fila; la que queda sola en la última fila crece al ancho entero (flex-grow), y «Compartir» va entera. */
 .actions {
@@ -518,6 +542,10 @@
 .sheetFoto .pista { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* [1090] sin la caja gris alrededor: la historia sola, más grande */
 .sheetFoto .preview { flex: 1 1 auto; min-height: 0; padding: 0; background: transparent; }
+/* [1092] el día (imagen ya dibujada) también cabe ENTERO, sin desplazar: antes la publicación 4:5 se cortaba abajo */
+.sheetFoto .img:not(.lienzo) { max-height: calc(100cqh - 0.5rem); }
+.capas.formatosDia { margin-top: 0; }
+.formatoDia { flex-direction: column; gap: 0; min-height: 48px; line-height: 1.15; }
 .lienzo { height: 46vh; height: 46dvh; height: calc(100cqh - 3rem); width: auto; max-width: 100%; aspect-ratio: 9 / 16; }
 
 /* [P1-PLAN-LOTE-1049] el formato dice qué es: «4:5 · chats y feed» bajo «Publicación» */

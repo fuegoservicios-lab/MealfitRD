@@ -51,7 +51,7 @@ describe('ShareDaySheet', () => {
         const wa = await screen.findByRole('link', { name: /whatsapp/i });
         expect(wa.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/\?text=/);
         expect(decodeURIComponent(wa.getAttribute('href'))).not.toContain('Mangú');
-        fireEvent.click(screen.getByRole('checkbox', { name: /incluir lo que comí/i }));
+        fireEvent.click(screen.getByRole('switch', { name: /incluir lo que comí/i }));
         await waitFor(() => expect(decodeURIComponent(screen.getByRole('link', { name: /whatsapp/i }).getAttribute('href'))).toContain('Mangú'));
     });
 
@@ -128,7 +128,7 @@ describe('ShareDaySheet', () => {
         const { unmount } = render(<ShareDaySheet {...props} />);
         expect((await screen.findByRole('img', { name: /mi día/i })).getAttribute('src')).toBe('blob:1');
 
-        fireEvent.click(screen.getByRole('checkbox', { name: /incluir lo que comí/i }));   // redibujo en curso
+        fireEvent.click(screen.getByRole('switch', { name: /incluir lo que comí/i }));   // redibujo en curso
         expect(screen.getByRole('img', { name: /mi día/i }).getAttribute('src')).toBe('blob:1');
         expect(URL.revokeObjectURL).not.toHaveBeenCalled();
 
