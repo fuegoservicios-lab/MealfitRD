@@ -364,7 +364,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                                 ))}
                             </div>
                             <div className={styles.capas} role="radiogroup" aria-label={t('Qué ajustas')}>
-                                {[['foto', t('Foto'), ImageIcon], ['cifras', t('Tus cifras'), Type]].map(([clave, rotulo, Icono]) => (
+                                {[['foto', t('Tu foto'), ImageIcon], ['cifras', t('Tus cifras'), Type]].map(([clave, rotulo, Icono]) => (
                                     <button
                                         key={clave} type="button" role="radio" aria-checked={capa === clave}
                                         className={capa === clave ? `${styles.capa} ${styles.capaActiva}` : styles.capa}

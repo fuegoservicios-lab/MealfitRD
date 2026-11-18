@@ -91,7 +91,7 @@ describe('[1078] la hoja', () => {
 
     it('«Tus cifras» cambia el deslizador a su tamaño y el JPEG sale con ese tamaño; «Restablecer» lo devuelve', async () => {
         await _conFoto();
-        expect(screen.getByRole('radio', { name: /foto/i })).toHaveAttribute('aria-checked', 'true');
+        expect(screen.getByRole('radio', { name: /tu foto/i })).toHaveAttribute('aria-checked', 'true');
         expect(screen.getByRole('button', { name: /restablecer/i })).toBeDisabled();
         fireEvent.click(screen.getByRole('radio', { name: /tus cifras/i }));
         const tam = screen.getByRole('slider', { name: /tamaño de tus cifras/i });
