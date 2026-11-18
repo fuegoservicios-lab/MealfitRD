@@ -148,7 +148,8 @@ describe('el diario de días anteriores', () => {
         expect(oido.mock.calls[0][0].detail).toEqual({ source: 'diary-history', date: hoyISO(), userId:'u1', deletedMeal:{id:'m2',name:'Galletas'} });
         await waitFor(() => {
             const urls = fetchWithAuth.mock.calls.slice(antes).map((c) => String(c[0]));
-            expect(urls.filter((u) => u.startsWith('/api/diary/consumed/u1?date='))).toHaveLength(1);
+            // [P1-PLAN-LOTE-1085] el día que se mira, una vez (los vecinos se precargan aparte)
+            expect(urls.filter((u) => u.startsWith(`/api/diary/consumed/u1?date=${hoyISO()}`))).toHaveLength(1);
             expect(urls.filter((u) => u.startsWith('/api/diary/consumed-range/'))).toHaveLength(1);
         });
         // El borrado es optimista: la comida desaparece antes de depender del refetch y un segundo clic no repite DELETE

@@ -452,31 +452,62 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         return () => { vivo = false; };
     }, [open, userId, tzOffset, maxDias, version]);
 
+    // [P1-PLAN-LOTE-1085 · 2026-11-18] El dueño: «hay un poco de delay al cambiar los días y el compartir tarda en salir».
+    // Cada toque pedía el día al servidor (que además tardaba 0,4-3,4 s calculando micros: arreglado allí con
+    // `micros_memo.py`) y «Compartir» esperaba a esa respuesta. Ahora los días ya vistos se guardan aquí (por `version`:
+    // cualquier cambio del diario los olvida todos) y, al llegar uno, se piden en segundo plano el anterior y el
+    // siguiente: pasar de un día a otro y compartir es inmediato.
+    const diasVistosRef = useRef({ version: -1, dias: new Map(), pidiendo: new Set() });
+    // Cerrado no escucha los cambios del diario (`refrescar` vive con el cajón abierto): al cerrar se olvida todo.
+    useEffect(() => {
+        if (!open) diasVistosRef.current = { version: -1, dias: new Map(), pidiendo: new Set() };
+    }, [open]);
+    const pedirDia = useCallback(async (iso) => {
+        const res = await fetchWithAuth(`/api/diary/consumed/${userId}?date=${iso}&tzOffset=${tzOffset}`);
+        if (!res.ok) throw new Error('respuesta no OK');
+        const data = await res.json();
+        // [P1-COMPARTIR-DIA-PASADO] `iso`: la fecha viaja CON sus datos. Mientras carga otro día, `dia` sigue
+        // siendo el anterior, y compartir no puede juntar las cifras de uno con la fecha del otro.
+        const filtradas = Array.isArray(data?.meals)
+            ? data.meals.filter((m) => !eliminadasRef.current.has(m?.id))
+            : [];
+        return filtradas.length !== (data?.meals || []).length
+            ? _recalcularDia(iso, filtradas, data?.targets || null)
+            : { iso, meals: filtradas, totals: data?.totals || {}, targets: data?.targets || null };
+    }, [userId, tzOffset]);
+
     useEffect(() => {
         if (!open || !userId) return undefined;
+        const memo = diasVistosRef.current;
+        if (memo.version !== version) { memo.version = version; memo.dias = new Map(); memo.pidiendo = new Set(); }
         let vivo = true;
+        // Los vecinos (sin pasar de hoy), en segundo plano y una sola vez cada uno.
+        const precargar = () => {
+            [-1, 1].forEach((paso) => {
+                const iso = aISO(new Date(mediodiaDe(selected).getTime() + paso * 86400000));
+                if (iso > hoyISO || memo.dias.has(iso) || memo.pidiendo.has(iso)) return;
+                memo.pidiendo.add(iso);
+                pedirDia(iso)
+                    .then((d) => { if (diasVistosRef.current === memo && memo.version === version) memo.dias.set(iso, d); })
+                    .catch(() => {})
+                    .finally(() => memo.pidiendo.delete(iso));
+            });
+        };
+        const visto = memo.dias.get(selected);
+        if (visto) {
+            setDia(visto);
+            setError('');
+            setCargando(false);
+            precargar();
+            return () => { vivo = false; };
+        }
         setCargando(true);
         setError('');
         (async () => {
             try {
-                const res = await fetchWithAuth(
-                    `/api/diary/consumed/${userId}?date=${selected}&tzOffset=${tzOffset}`
-                );
-                if (!res.ok) throw new Error('respuesta no OK');
-                const data = await res.json();
-                // [P1-COMPARTIR-DIA-PASADO] `iso`: la fecha viaja CON sus datos. Mientras carga otro día, `dia` sigue
-                // siendo el anterior, y compartir no puede juntar las cifras de uno con la fecha del otro.
-                if (vivo) {
-                    const filtradas = Array.isArray(data?.meals)
-                        ? data.meals.filter((m) => !eliminadasRef.current.has(m?.id))
-                        : [];
-                    const baseDia = { iso: selected, meals: filtradas, totals: data?.totals || {}, targets: data?.targets || null };
-                    setDia(
-                        filtradas.length !== (data?.meals || []).length
-                            ? _recalcularDia(selected, filtradas, data?.targets || null)
-                            : baseDia
-                    );
-                }
+                const d = await pedirDia(selected);
+                if (memo.version === version) memo.dias.set(selected, d);
+                if (vivo) { setDia(d); precargar(); }
             } catch {
                 if (vivo) {
                     setDia(null);
@@ -487,7 +518,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             }
         })();
         return () => { vivo = false; };
-    }, [open, userId, selected, tzOffset, t, version]);
+    }, [open, userId, selected, t, version, pedirDia, hoyISO]);
 
     // [P1-PLAN-LOTE-105] Mientras está abierto, lo que cambie el diario desde fuera (registrar desde el
     // componedor —que dispara `mealfit:refresh-inventory`—, borrar en la tarjeta, el coach) se refleja aquí sin
