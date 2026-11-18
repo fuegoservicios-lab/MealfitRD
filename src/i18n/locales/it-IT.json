@@ -4229,5 +4229,25 @@
   "Nuevo informe": "Nuovo report",
   "Camino a {rango}": "Verso {rango}",
   "con los 7 días en meta": "con tutti i 7 giorni nell’obiettivo",
-  "según tus semanas cerradas": "in base alle tue settimane chiuse"
+  "según tus semanas cerradas": "in base alle tue settimane chiuse",
+  "¿Y tú, cómo va tu semana?": "E tu, come va la tua settimana?",
+  "🏆 Mi semana en {app} · Semana {n}": "🏆 La mia settimana su {app} · Settimana {n}",
+  "✅ {n} de {total} días en meta": "✅ {n} giorni su {total} nell’obiettivo",
+  "⭐ {n} de {total} estrellas": "⭐ {n} stelle su {total}",
+  "🔥 Racha de {n} días": {
+    "one": "🔥 Serie di {n} giorno",
+    "other": "🔥 Serie di {n} giorni"
+  },
+  "🏅 Rango {rango}": "🏅 Livello {rango}",
+  "¿Y tú, cómo va tu semana? 💪": "E tu, come va la tua settimana? 💪",
+  "Estrellas": "Stelle",
+  "Racha": "Serie",
+  "Rango": "Livello",
+  "días en meta": {
+    "one": "giorno nell’obiettivo",
+    "other": "giorni nell’obiettivo"
+  },
+  "Compartir tu semana": "Condividi la tua settimana",
+  "Mi semana": "La mia settimana",
+  "Mi semana: tu historia": "La mia settimana: la tua storia"
 }

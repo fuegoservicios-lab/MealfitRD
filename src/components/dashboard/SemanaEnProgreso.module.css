@@ -599,3 +599,6 @@
 .semanaPerfecta .insignia.rango_plata,
 .semanaPerfecta .insignia.rango_platino,
 .semanaPerfecta .insignia.rango_diamante { background: linear-gradient(155deg, #FBBF24 0%, #F59E0B 50%, #D97706 100%); }
+
+/* [P1-PLAN-LOTE-1082] «Compartir tu semana», junto a las flechas y un poco aparte de ellas */
+.compartir { margin-right: 0.35rem; }

@@ -13,10 +13,13 @@
 //
 // Hoy se pinta con lo que la tarjeta ya tiene en memoria (sube en vivo al registrar); los días pasados salen de
 // `/api/diary/consumed-range` (el mismo endpoint del calendario) y se guardan para pintar al instante la próxima vez.
-import { useEffect, useMemo, useState } from 'react';
+//
+// [P1-PLAN-LOTE-1082 · 2026-11-18] «Compartir tu semana»: el botón junto a las flechas (y el del cierre del domingo)
+// abre la hoja de compartir con ESTA semana tal como se ve aquí (anillos, días en meta, estrellas, racha, rango).
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, ChevronLeft, ChevronRight, Flame, Lock, Plus, Star, Trophy } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Flame, Lock, Plus, Share2, Star, Trophy } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 import { formatDate, formatNumber, useT, useTn } from '../../i18n';
 import { getBiologicalDateStr, getCalendarDateStr } from '../../utils/diaBiologico';
@@ -31,6 +34,9 @@ import { pedirSemanas } from '../../utils/progresoServidor';
 import EscaleraDeRangos from './EscaleraDeRangos';
 import CierreDeSemana from './CierreDeSemana';
 import styles from './SemanaEnProgreso.module.css';
+
+// La hoja (y el dibujo de la semana) solo se descargan al tocar «Compartir»: no pesan en el panel.
+const ShareDaySheet = lazy(() => import('./ShareDaySheet'));
 
 const RADIO = 17;
 const CIRCUNFERENCIA = 2 * Math.PI * RADIO;
@@ -61,6 +67,7 @@ const SemanaEnProgreso = ({
     const servidor = useResumenDeProgreso(userId);
     const [semanasViejas, setSemanasViejas] = useState(null);
     const [escaleraAbierta, setEscaleraAbierta] = useState(false);
+    const [compartiendo, setCompartiendo] = useState(false);
 
     useEffect(() => {
         if (!userId) return undefined;
@@ -175,6 +182,24 @@ const SemanaEnProgreso = ({
         bronce: t('Bronce'), plata: t('Plata'), oro: t('Oro'), platino: t('Platino'), diamante: t('Diamante'),
     })[clave] || '';
     const textoRacha = tn(racha, '{n} día seguido', '{n} días seguidos', { n: racha });
+    // [1082] Se comparte una semana con algo anotado y con su detalle por día (más atrás de 365 días solo hay el total).
+    const sePuedeCompartir = !fueraDeHistoria && dias.some((d) => d.estado !== 'vacio' && d.estado !== 'futuro');
+    const semanaParaCompartir = compartiendo ? {
+        numero: semana,
+        enCurso,
+        periodo: `${fechaCorta(dias[0].iso)} – ${fechaCorta(dias[DIAS_DE_LA_SEMANA - 1].iso)}`,
+        dias: dias.map((d) => ({ iso: d.iso, estado: d.estado, ratio: d.ratio, letra: formatDate(mediodiaDe(d.iso), { weekday: 'narrow' }) })),
+        enMeta,
+        estrellas,
+        // la racha es la de HOY: solo cuenta en la semana en curso
+        racha: enCurso ? racha : 0,
+        rango: rango?.clave || null,
+    } : null;
+    // Desde el cierre del domingo: se va a esa semana y se abre la hoja con ella.
+    const compartirSemana = (n) => {
+        if (Number.isFinite(Number(n)) && Number(n) !== semana) irA(Number(n));
+        setCompartiendo(true);
+    };
     return (
         <section
             className={`${styles.semana} ${estrellas === ESTRELLAS_MAX ? styles.semanaPerfecta : ''}`}
@@ -227,7 +252,12 @@ const SemanaEnProgreso = ({
             </div>
 
             {/* [P1-PLAN-LOTE-1059 · plan 1035] cierre de semana e hitos: una vez, y se marcan vistos en el servidor */}
-            <CierreDeSemana userId={userId} eventos={servidor?.eventos} />
+            <CierreDeSemana userId={userId} eventos={servidor?.eventos} onCompartir={compartirSemana} />
+            {semanaParaCompartir && (
+                <Suspense fallback={null}>
+                    <ShareDaySheet onClose={() => setCompartiendo(false)} semana={semanaParaCompartir} />
+                </Suspense>
+            )}
             {rango && (
                 <EscaleraDeRangos
                     abierta={escaleraAbierta}
@@ -264,6 +294,18 @@ const SemanaEnProgreso = ({
                     </span>
                 )}
                 <span className={styles.flechas}>
+                    {sePuedeCompartir && (
+                        <button
+                            type="button"
+                            className={`${styles.flecha} ${styles.compartir}`}
+                            onClick={() => setCompartiendo(true)}
+                            aria-label={t('Compartir tu semana')}
+                            aria-haspopup="dialog"
+                            title={t('Compartir tu semana')}
+                        >
+                            <Share2 size={16} strokeWidth={2.5} aria-hidden="true" />
+                        </button>
+                    )}
                     <button
                         type="button"
                         className={styles.flecha}

@@ -4229,5 +4229,25 @@
   "Nuevo informe": "New report",
   "Camino a {rango}": "Road to {rango}",
   "con los 7 días en meta": "with all 7 days on goal",
-  "según tus semanas cerradas": "based on your completed weeks"
+  "según tus semanas cerradas": "based on your completed weeks",
+  "¿Y tú, cómo va tu semana?": "How’s your week going?",
+  "🏆 Mi semana en {app} · Semana {n}": "🏆 My week on {app} · Week {n}",
+  "✅ {n} de {total} días en meta": "✅ {n} of {total} days on goal",
+  "⭐ {n} de {total} estrellas": "⭐ {n} of {total} stars",
+  "🔥 Racha de {n} días": {
+    "one": "🔥 {n}-day streak",
+    "other": "🔥 {n}-day streak"
+  },
+  "🏅 Rango {rango}": "🏅 {rango} rank",
+  "¿Y tú, cómo va tu semana? 💪": "How’s your week going? 💪",
+  "Estrellas": "Stars",
+  "Racha": "Streak",
+  "Rango": "Rank",
+  "días en meta": {
+    "one": "day on goal",
+    "other": "days on goal"
+  },
+  "Compartir tu semana": "Share your week",
+  "Mi semana": "My week",
+  "Mi semana: tu historia": "My week: your story"
 }

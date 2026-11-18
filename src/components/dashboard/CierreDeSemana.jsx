@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Award, Flame, Star, X } from 'lucide-react';
+import { Award, Flame, Share2, Star, X } from 'lucide-react';
 import { useT, useTn } from '../../i18n';
 import { marcarEventosVistos } from '../../utils/progresoServidor';
 import styles from './CierreDeSemana.module.css';
@@ -46,7 +46,7 @@ function textosDelEvento(ev, { t, tn }) {
 
 const ICONO = { semana_cerrada: Star, primera_estrella: Star, primera_semana_perfecta: Star, racha: Flame };
 
-const CierreDeSemana = ({ userId, eventos }) => {
+const CierreDeSemana = ({ userId, eventos, onCompartir = null }) => {
     const t = useT();
     const tn = useTn();
     const [quieto] = useState(_sinMovimiento);
@@ -102,6 +102,13 @@ const CierreDeSemana = ({ userId, eventos }) => {
                             <div className={styles.cuerpo}>
                                 <p className={styles.titulo}>{x.titulo}</p>
                                 <p className={styles.texto}>{x.texto}</p>
+                                {/* [P1-PLAN-LOTE-1082] el domingo es el momento de compartirla */}
+                                {onCompartir && Number(cierre.datos?.numero) > 0 && (
+                                    <button type="button" className={styles.compartir} onClick={() => onCompartir(Number(cierre.datos.numero))}>
+                                        <Share2 size={15} strokeWidth={2.5} aria-hidden="true" />
+                                        {t('Compartir tu semana')}
+                                    </button>
+                                )}
                             </div>
                             <button type="button" className={styles.cerrar} onClick={() => cerrar([cierre.clave])} aria-label={t('Cerrar')}>
                                 <X size={16} strokeWidth={2.5} aria-hidden="true" />
@@ -139,6 +146,7 @@ CierreDeSemana.propTypes = {
     eventos: PropTypes.arrayOf(PropTypes.shape({
         clave: PropTypes.string, codigo: PropTypes.string, datos: PropTypes.object,
     })),
+    onCompartir: PropTypes.func,
 };
 
 export default CierreDeSemana;

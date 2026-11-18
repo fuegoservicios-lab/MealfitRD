@@ -187,8 +187,8 @@ const _velo = (ctx, y0, y1, a0, a1) => {
 };
 
 /** La píldora dorada «✓ META CUMPLIDA» con su brillo; `x` según `alinear`, `yCentro` su centro. */
-const _insignia = (ctx, x, yCentro, alinear = 'left') => {
-    const s = `✓  ${t('Meta cumplida')}`.toUpperCase();
+const _insignia = (ctx, x, yCentro, alinear = 'left', texto = null) => {
+    const s = `✓  ${texto || t('Meta cumplida')}`.toUpperCase();
     ctx.save();
     ctx.font = `800 24px ${FUENTE}`;
     const letras = [...s];
@@ -196,7 +196,7 @@ const _insignia = (ctx, x, yCentro, alinear = 'left') => {
     const ancho = letras.reduce((a, c) => a + ctx.measureText(c).width, 0) + hueco * (letras.length - 1) + 2 * 22;
     const x0 = alinear === 'center' ? x - ancho / 2 : alinear === 'right' ? x - ancho : x;
     const g = ctx.createLinearGradient(x0, 0, x0 + ancho, 0);
-    g.addColorStop(0, '#FDE68A'); g.addColorStop(1, '#F59E0B');
+    g.addColorStop(0, COLOR.calories[0]); g.addColorStop(1, COLOR.calories[1]);   // el oro de la paleta (mismos tonos)
     ctx.fillStyle = g; ctx.shadowColor = 'rgba(245, 158, 11, 0.7)'; ctx.shadowBlur = 26;
     _rect(ctx, x0, yCentro - 25, ancho, 50, 25); ctx.fill();
     ctx.shadowBlur = 0;
@@ -230,16 +230,16 @@ const _cabecera = (ctx, r) => {
     const y = SEGURO.arriba;
     _brote(ctx, M, y - 42, 50, BLANCO);
     _texto(ctx, BRAND.toUpperCase(), M + 62, y, { tam: 32, peso: 800 });
-    _texto(ctx, fechaLarga(r.fecha), ANCHO - M, y, { tam: 28, peso: 600, color: CLARO, alinear: 'right', max: ANCHO / 2 });
+    _texto(ctx, r.periodo || fechaLarga(r.fecha), ANCHO - M, y, { tam: 28, peso: 600, color: CLARO, alinear: 'right', max: ANCHO / 2 });
 };
 
 const _valorMacro = (mc) => `${formatNumber(mc.valor)} g`;
 
 // ── «titular»: la cifra de portada ──────────────────────────────────────────────────────────────────────
-const _titularPie = (ctx) => {
+const _titularPie = (ctx, r) => {
     _velo(ctx, BASE - 120, ALTO, 0, 0.6);
     _texto(ctx, SITIO, M, BASE, { tam: 30, peso: 700, color: TENUE });
-    _texto(ctx, t('¿Y tú, cómo vas hoy?'), ANCHO - M, BASE, { tam: 30, peso: 600, color: TENUE, alinear: 'right', max: ANCHO / 2 });
+    _texto(ctx, r?.pregunta || t('¿Y tú, cómo vas hoy?'), ANCHO - M, BASE, { tam: 30, peso: 600, color: TENUE, alinear: 'right', max: ANCHO / 2 });
 };
 const _titular = (ctx, r) => {
     const cal = r.calorias;
@@ -354,6 +354,17 @@ const _PIE = { titular: _titularPie, minimal: _minimalPie, cristal: _cristalPie 
 // La oscuridad detrás de las cifras (se leen sobre cualquier foto): sigue al bloque. Cristal trae su propia tarjeta.
 const _OSCURO = { titular: 0.82, minimal: 0.72, cristal: 0 };
 
+// [P1-PLAN-LOTE-1082 · 2026-11-18] «Compartir mi semana»: la MISMA historia (foto, estilos, sticker, cabecera y pie) con
+// otro contenido. Un resumen con `pintor` ({ pintar, caja }) dibuja lo suyo; sin él, el día de siempre.
+const _pintorDe = (r) => (r?.pintor && typeof r.pintor.pintar === 'function' ? r.pintor : null);
+
+/** Lo que otro contenido necesita para dibujar con la MISMA tinta que el día (la semana: `historiaDeSemana.js`). */
+export const PINCEL = Object.freeze({
+    texto: (...a) => _texto(...a), rotulo: (...a) => _rotulo(...a), rect: (...a) => _rect(...a), barra: (...a) => _barra(...a),
+    anillo: (...a) => _anillo(...a), insignia: (...a) => _insignia(...a),
+    M, BASE, SEGURO, FUENTE, BLANCO, CLARO, TENUE, COLOR, CRISTAL: _CRISTAL,
+});
+
 function _tamTitular(r) { return formatNumber(r?.calorias?.valor ?? 0).length > 5 ? 200 : 250; }
 
 /** [1078] Dónde pueden ir las cifras: bajo la cabecera y por encima del pie (lo que tapan las historias). */
@@ -361,6 +372,8 @@ export const LIMITES_CIFRAS = Object.freeze({ x0: 16, x1: ANCHO - 16, y0: SEGURO
 
 /** [1078] La caja de las cifras de cada estilo en su sitio de siempre, en px del lienzo: lo que se arrastra y escala. */
 export function cajaDeCifras(r, estilo = 'titular') {
+    const pintor = _pintorDe(r);
+    if (pintor) return pintor.caja(r, ESTILOS.includes(estilo) ? estilo : 'titular');
     const cumplida = metaCumplida(r);
     if (estilo === 'minimal') {
         const y0 = cumplida ? BASE - 590 - 30 : BASE - 510 - 30;
@@ -447,14 +460,15 @@ export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', enc
         const b = acotarBloque(bloque, caja, LIMITES_CIFRAS);
         const movida = cajaTransformada(caja, b);
         _veloDelBloque(ctx, movida, _OSCURO[cual]);
-        _PIE[cual](ctx);
+        _PIE[cual](ctx, r);
         if (cual === 'cristal') {
             const p = _punto(caja, b, _CRISTAL.x, _CRISTAL.y);
             _cristalFondo(ctx, canvas, { x: p.x, y: p.y, w: _CRISTAL.w * b.escala, alto: _CRISTAL.alto * b.escala, radio: _CRISTAL.radio * b.escala });
         }
         ctx.save();
         aplicarBloque(ctx, caja, b);
-        _PINTAR[cual](ctx, r);
+        const pintor = _pintorDe(r);
+        if (pintor) pintor.pintar(ctx, r, cual); else _PINTAR[cual](ctx, r);
         ctx.restore();
         if (guia) _guia(ctx, movida, !!guia.centrado && Math.abs(b.dx) < 0.5);
         return true;

@@ -11,6 +11,11 @@
 // entonces la cabecera la dice bajo el título, porque en el teléfono la hoja tapa la del cajón y la imagen la lleva en
 // letra pequeña. `diario` se adapta aquí (`consumidoDelDiario`) y no en el cajón: así `compartirDia.js` sigue en este
 // trozo perezoso y no en el del panel, que el precache del apex descarga siempre.
+//
+// [P1-PLAN-LOTE-1082 · 2026-11-18] Tercera puerta: «Compartir mi semana» (`semana`, lo que pinta «Tu semana»). Es
+// siempre la historia 9:16 en lienzo (con tu foto o con el fondo de la app), con los tres estilos y las cifras como
+// sticker; sin formatos ni «Incluir lo que comí» (la semana no lleva kcal ni comidas). Resumen y dibujo:
+// `utils/compartirSemana.js`, en este mismo trozo perezoso.
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
@@ -22,6 +27,7 @@ import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { isNativeApp } from '../../config/platform';
 import { useT } from '../../i18n';
+import { resumenDeSemana, textoDeSemana } from '../../utils/compartirSemana';
 import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, sabeCompartirImagenes, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
 import { cargarFoto, cargarFuentes, dibujarHistoriaConFoto, pintarHistoria, moverEncuadre, cajaDeCifras, ENCUADRE_INICIAL, ZOOM_MAX, LIMITES_CIFRAS, ANCHO as ANCHO_HISTORIA, ALTO as ALTO_HISTORIA } from '../../utils/historiaConFoto';
@@ -31,8 +37,9 @@ import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import { getBiologicalDate } from '../../utils/diaBiologico';
 import styles from './ShareDaySheet.module.css';
 
-const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMetas = null, fecha = null }) => {
+const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, microMetas = null, fecha = null, semana = null }) => {
     const t = useT();
+    const esSemana = !!semana;
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
     const bodyRef = useRef(null);
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose });
@@ -121,10 +128,16 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const { planData } = useAssessment() || {};
     const nombrar = useCallback((n) => nombreDeRegistro(n, planData, t), [planData, t]);
     const resumen = useMemo(
-        () => resumenDelDia({ consumed: delDia, metas: metasDelDia, microMetas, incluirComidas, fecha: fechaDelDia, nombrar }),
-        [delDia, metasDelDia, microMetas, incluirComidas, fechaDelDia, nombrar],
+        () => (semana
+            ? resumenDeSemana(semana)
+            : resumenDelDia({ consumed: delDia, metas: metasDelDia, microMetas, incluirComidas, fecha: fechaDelDia, nombrar })),
+        [semana, delDia, metasDelDia, microMetas, incluirComidas, fechaDelDia, nombrar],
     );
-    const texto = useMemo(() => textoDelDia(resumen), [resumen]);
+    const texto = useMemo(() => (resumen.tipo === 'semana' ? textoDeSemana(resumen) : textoDelDia(resumen)), [resumen]);
+    // [1082] La historia en lienzo (vista previa en vivo + JPEG): con tu foto, o siempre en la semana.
+    const enLienzo = !!foto || esSemana;
+    // Sin foto no hay foto que mover: lo que se ajusta son las cifras.
+    const capaVista = foto ? capa : 'cifras';
     const caja = useMemo(() => cajaDeCifras(resumen, estilo), [resumen, estilo]);
     const escalaTope = useMemo(() => escalaMax(caja, LIMITES_CIFRAS), [caja]);
     const bloqueVisto = useMemo(() => acotarBloque(bloque, caja, LIMITES_CIFRAS), [bloque, caja]);
@@ -136,7 +149,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
         };
         // Con foto, el JPEG espera a que el dedo se pare (arrastrar pide decenas de encuadres por segundo). Sin foto, la
         // tarjeta se dibuja en el acto, como siempre.
-        if (!foto) {
+        if (!enLienzo) {
             dibujarTarjetaDelDia(resumen, { formato }).then(fijar).catch(() => fijar(null));
             return () => { vivo = false; };
         }
@@ -144,15 +157,15 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
             dibujarHistoriaConFoto(resumen, { foto, estilo, encuadre, bloque }).then(fijar).catch(() => fijar(null));
         }, 280);
         return () => { vivo = false; clearTimeout(tope); };
-    }, [resumen, formato, foto, estilo, encuadre, bloque]);
+    }, [resumen, formato, foto, estilo, encuadre, bloque, enLienzo]);
 
     // La vista previa en vivo: un fotograma por cambio.
     useEffect(() => {
-        if (!foto) return undefined;
+        if (!enLienzo) return undefined;
         const guia = guiaVisible ? { centrado: true } : null;
         const id = requestAnimationFrame(() => pintarHistoria(lienzoRef.current, resumen, { foto, estilo, encuadre, bloque, guia }));
         return () => cancelAnimationFrame(id);
-    }, [foto, resumen, estilo, encuadre, bloque, guiaVisible, fuentesListas]);
+    }, [enLienzo, foto, resumen, estilo, encuadre, bloque, guiaVisible, fuentesListas]);
     useEffect(() => () => clearTimeout(guiaTope.current), []);
     // El contorno de las cifras se ve mientras las mueves (y un momento después de soltar el deslizador); nunca en el JPEG.
     const verGuia = useCallback((ms = 0) => {
@@ -176,17 +189,17 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
             const r = e.currentTarget.getBoundingClientRect();
             const x = r.width > 0 ? (e.clientX - r.left) * (ANCHO_HISTORIA / r.width) : -1;
             const y = r.height > 0 ? (e.clientY - r.top) * (ALTO_HISTORIA / r.height) : -1;
-            const sobreCifras = tocaLasCifras(caja, bloqueVisto, x, y);
+            const sobreCifras = tocaLasCifras(caja, bloqueVisto, x, y) || !foto;
             gesto.current = { capa: sobreCifras ? 'cifras' : 'foto', crudo: bloqueVisto };
             setCapa(sobreCifras ? 'cifras' : 'foto');
             if (sobreCifras) verGuia();
         }
         p.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }, [caja, bloqueVisto, verGuia]);
+    }, [caja, bloqueVisto, verGuia, foto]);
     const onPunteroMovido = useCallback((e) => {
         const p = punteros.current;
         const previo = p.get(e.pointerId);
-        if (!previo || !foto) return;
+        if (!previo || !enLienzo) return;
         const r = e.currentTarget.getBoundingClientRect();
         const k = r.width > 0 ? ANCHO_HISTORIA / r.width : 1;     // px de pantalla → px del lienzo
         const deCifras = gesto.current.capa === 'cifras';
@@ -206,15 +219,15 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
             else setEncuadre((en) => moverEncuadre(en, foto, { dx, dy }));
         }
         p.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }, [foto, moverCifras]);
+    }, [foto, enLienzo, moverCifras]);
     const onPunteroArriba = useCallback((e) => {
         punteros.current.delete(e.pointerId);
         if (punteros.current.size === 0 && gesto.current.capa === 'cifras') verGuia(700);
     }, [verGuia]);
     const restablecer = useCallback(() => {
-        if (capa === 'cifras') { setBloque(BLOQUE_INICIAL); verGuia(700); } else setEncuadre(ENCUADRE_INICIAL);
-    }, [capa, verGuia]);
-    const sinCambios = capa === 'cifras' ? esInicial(bloqueVisto) : (encuadre.zoom === 1 && encuadre.x === 0 && encuadre.y === 0);
+        if (capaVista === 'cifras') { setBloque(BLOQUE_INICIAL); verGuia(700); } else setEncuadre(ENCUADRE_INICIAL);
+    }, [capaVista, verGuia]);
+    const sinCambios = capaVista === 'cifras' ? esInicial(bloqueVisto) : (encuadre.zoom === 1 && encuadre.x === 0 && encuadre.y === 0);
     // El arrastre de la foto no es el gesto de cerrar la hoja (useBottomSheet escucha el toque en el diálogo).
     const pararToque = useCallback((e) => e.stopPropagation(), []);
 
@@ -225,7 +238,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
         return () => { if (url) URL.revokeObjectURL(url); };
     }, [imagen.url]);
 
-    const archivo = useMemo(() => archivoDeImagen(imagen.blob), [imagen.blob]);
+    const archivo = useMemo(() => archivoDeImagen(imagen.blob, esSemana ? 'mi-semana-bioboros.png' : undefined), [imagen.blob, esSemana]);
     const conImagen = puedeCompartirImagen(archivo);
     // [P1-PLAN-LOTE-300] en la app nativa, la hoja del sistema con la IMAGEN (plugins Share + Filesystem)
     // [P1-PLAN-LOTE-386] la imagen es LA forma de compartir: una acción clara y la imagen sola. El texto (WhatsApp por
@@ -236,7 +249,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const puedeDescargar = !isNativeApp() && !conImagen && !!imagen.blob;
     // Mientras se redibuja (al cambiar «Incluir lo que comí») se sigue viendo la imagen anterior, pero no se comparte
     // ni se descarga: saldría la versión vieja.
-    const dibujando = imagen.para !== resumen || imagen.formato !== formato || imagen.foto !== foto || imagen.estilo !== estilo || imagen.encuadre !== encuadre || (!!foto && imagen.bloque !== bloque);
+    const dibujando = imagen.para !== resumen || imagen.formato !== formato || imagen.foto !== foto || imagen.estilo !== estilo || imagen.encuadre !== encuadre || (enLienzo && imagen.bloque !== bloque);
 
     // Un segundo toque mientras la hoja del sistema se abre hace que `navigator.share` rechace (InvalidStateError) y
     // saldría un «no dejó compartir» falso: se ignora. La marca se pone DESPUÉS de llamar a `compartir`, que invoca
@@ -245,7 +258,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const [compartiendo, setCompartiendo] = useState(false);
     const onCompartir = useCallback(async () => {
         if (compartiendoRef.current) return;
-        const enCurso = compartir({ archivo, texto });
+        const enCurso = compartir(esSemana ? { archivo, texto, titulo: t('Mi semana'), tituloHoja: t('Compartir tu semana') } : { archivo, texto });
         compartiendoRef.current = true;
         setCompartiendo(true);
         try {
@@ -258,7 +271,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
             compartiendoRef.current = false;
             setCompartiendo(false);
         }
-    }, [archivo, texto, t]);
+    }, [archivo, texto, t, esSemana]);
 
     // Con `id` (P2-TOAST-POLICY): copiar tres veces reemplaza el aviso en vez de apilar tres.
     const onCopiar = useCallback(async () => {
@@ -274,20 +287,52 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
         if (!imagen.url) return;
         const a = document.createElement('a');
         a.href = imagen.url;
-        a.download = imagen.blob?.type === 'image/jpeg' ? 'mi-dia-bioboros.jpg' : 'mi-dia-bioboros.png';
+        const base = esSemana ? 'mi-semana-bioboros' : 'mi-dia-bioboros';
+        a.download = imagen.blob?.type === 'image/jpeg' ? `${base}.jpg` : `${base}.png`;
         document.body.appendChild(a); a.click(); a.remove();
-    }, [imagen.url, imagen.blob]);
+    }, [imagen.url, imagen.blob, esSemana]);
+
+    // [1082] El estilo y el tamaño de las cifras: los mismos controles con tu foto y en la semana sin foto.
+    const selectorDeEstilo = (
+        <div className={styles.formatos} role="radiogroup" aria-label={t('Estilo de la historia')}>
+            {[['titular', t('Titular')], ['minimal', t('Minimal')], ['cristal', t('Cristal')]].map(([clave, rotulo]) => (
+                <button
+                    key={clave} type="button" role="radio" aria-checked={estilo === clave}
+                    className={estilo === clave ? `${styles.formato} ${styles.formatoActivo}` : styles.formato}
+                    onClick={() => setEstilo(clave)}
+                >
+                    {rotulo}
+                </button>
+            ))}
+        </div>
+    );
+    const deslizadorDeCifras = (
+        <input
+            key="cifras" type="range" className={styles.zoom} min={ESCALA_MIN} max={escalaTope} step={0.01}
+            value={bloqueVisto.escala} aria-label={t('Tamaño de tus cifras')}
+            onChange={(e) => {
+                const v = Number(e.target.value);
+                setBloque((b) => acotarBloque({ ...acotarBloque(b, caja, LIMITES_CIFRAS), escala: v }, caja, LIMITES_CIFRAS));
+                verGuia(900);
+            }}
+        />
+    );
+    const botonRestablecer = (
+        <button type="button" className={styles.restablecer} onClick={restablecer} disabled={sinCambios} aria-label={t('Restablecer')} title={t('Restablecer')}>
+            <RotateCcw size={18} aria-hidden="true" />
+        </button>
+    );
 
     const cuerpo = (
         <div className={styles.overlay}>
             <button type="button" className={styles.backdrop} aria-hidden="true" tabIndex={-1} onClick={onClose} />
             <div
                 ref={containerRef}
-                className={foto ? `${styles.sheet} ${styles.sheetFoto}` : styles.sheet}
+                className={enLienzo ? `${styles.sheet} ${styles.sheetFoto}` : styles.sheet}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="share-day-title"
-                aria-describedby={conFecha ? 'share-day-fecha' : undefined}
+                aria-describedby={conFecha || esSemana ? 'share-day-fecha' : undefined}
                 tabIndex={-1}
                 onTouchStart={hoja.onTouchStart}
                 onTouchMove={hoja.onTouchMove}
@@ -298,8 +343,12 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                     <span className={styles.grip} aria-hidden="true" />
                     <div className={styles.headRow}>
                         <div className={styles.headText}>
-                            <h2 id="share-day-title" className={styles.title}>{t('Compartir tu día')}</h2>
-                            {conFecha && <p id="share-day-fecha" className={styles.fecha}>{fechaLarga(fechaDelDia)}</p>}
+                            <h2 id="share-day-title" className={styles.title}>{esSemana ? t('Compartir tu semana') : t('Compartir tu día')}</h2>
+                            {esSemana ? (
+                                <p id="share-day-fecha" className={styles.fecha}>
+                                    {[t('Semana {n}', { n: resumen.numero }), resumen.periodo].filter(Boolean).join(' · ')}
+                                </p>
+                            ) : conFecha && <p id="share-day-fecha" className={styles.fecha}>{fechaLarga(fechaDelDia)}</p>}
                         </div>
                         <button type="button" className={`${styles.close} ui-close`} onClick={onClose} aria-label={t('Cerrar')}>
                             <X size={20} strokeWidth={2.25} aria-hidden="true" />
@@ -309,10 +358,10 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
 
                 <div ref={bodyRef} className={styles.body}>
                     <div className={styles.preview} aria-busy={dibujando}>
-                        {foto ? (
+                        {enLienzo ? (
                             <canvas
                                 ref={lienzoRef} width={ANCHO_HISTORIA} height={1920}
-                                role="img" aria-label={t('Mi día: tu historia con tu foto')}
+                                role="img" aria-label={esSemana ? t('Mi semana: tu historia') : t('Mi día: tu historia con tu foto')}
                                 className={`${styles.img} ${styles.lienzo}`}
                                 onPointerDown={onPunteroAbajo} onPointerMove={onPunteroMovido}
                                 onPointerUp={onPunteroArriba} onPointerCancel={onPunteroArriba}
@@ -352,17 +401,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                     )}
                     {eligiendo ? null : foto ? (
                         <div className={styles.conFoto}>
-                            <div className={styles.formatos} role="radiogroup" aria-label={t('Estilo de la historia')}>
-                                {[['titular', t('Titular')], ['minimal', t('Minimal')], ['cristal', t('Cristal')]].map(([clave, rotulo]) => (
-                                    <button
-                                        key={clave} type="button" role="radio" aria-checked={estilo === clave}
-                                        className={estilo === clave ? `${styles.formato} ${styles.formatoActivo}` : styles.formato}
-                                        onClick={() => setEstilo(clave)}
-                                    >
-                                        {rotulo}
-                                    </button>
-                                ))}
-                            </div>
+                            {selectorDeEstilo}
                             <div className={styles.capas} role="radiogroup" aria-label={t('Qué ajustas')}>
                                 {[['foto', t('Tu foto'), ImageIcon], ['cifras', t('Tus cifras'), Type]].map(([clave, rotulo, Icono]) => (
                                     <button
@@ -380,26 +419,14 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                                     : t('Arrastra para encuadrar · pellizca para acercar')}
                             </p>
                             <div className={styles.zoomFila}>
-                            {capa === 'cifras' ? (
-                                <input
-                                    key="cifras" type="range" className={styles.zoom} min={ESCALA_MIN} max={escalaTope} step={0.01}
-                                    value={bloqueVisto.escala} aria-label={t('Tamaño de tus cifras')}
-                                    onChange={(e) => {
-                                        const v = Number(e.target.value);
-                                        setBloque((b) => acotarBloque({ ...acotarBloque(b, caja, LIMITES_CIFRAS), escala: v }, caja, LIMITES_CIFRAS));
-                                        verGuia(900);
-                                    }}
-                                />
-                            ) : (
+                            {capa === 'cifras' ? deslizadorDeCifras : (
                                 <input
                                     key="foto" type="range" className={styles.zoom} min={1} max={ZOOM_MAX} step={0.01}
                                     value={encuadre.zoom} aria-label={t('Acercar la foto')}
                                     onChange={(e) => { const v = Number(e.target.value); setEncuadre((en) => moverEncuadre(en, foto, { factor: v / en.zoom })); }}
                                 />
                             )}
-                                <button type="button" className={styles.restablecer} onClick={restablecer} disabled={sinCambios} aria-label={t('Restablecer')} title={t('Restablecer')}>
-                                    <RotateCcw size={18} aria-hidden="true" />
-                                </button>
+                                {botonRestablecer}
                             </div>
                             <div className={styles.fotoAcciones}>
                                 <button type="button" className={styles.enlace} onClick={pedirFoto}>{t('Cambiar foto')}</button>
@@ -416,7 +443,17 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                             <BroteChispa size={18} className={styles.fotoCtaBrillo} aria-hidden="true" />
                         </button>
                     )}
-                    {!foto && (
+                    {!foto && esSemana && !eligiendo && (
+                        <div className={styles.conFoto}>
+                            {selectorDeEstilo}
+                            <p className={styles.pista}>{t('Arrástralas · pellizca para cambiar su tamaño')}</p>
+                            <div className={styles.zoomFila}>
+                                {deslizadorDeCifras}
+                                {botonRestablecer}
+                            </div>
+                        </div>
+                    )}
+                    {!foto && !esSemana && (
                         <>
                             <div className={styles.formatos} role="radiogroup" aria-label={t('Formato de la imagen')}>
                                 {[['publicacion', t('Publicación')], ['historia', t('Historia')]].map(([clave, rotulo]) => (
@@ -478,10 +515,15 @@ ShareDaySheet.propTypes = {
     // uno de los dos: el snapshot de la tarjeta de hoy, o el día del Diario tal cual (`{meals, totals}` del endpoint)
     consumed: PropTypes.object,
     diario: PropTypes.shape({ meals: PropTypes.array, totals: PropTypes.object }),
-    metas: PropTypes.object.isRequired,
+    metas: PropTypes.object,
     microMetas: PropTypes.object,
     // [P1-COMPARTIR-DIA-PASADO] el día que se comparte (desde el Diario); sin ella, hoy
     fecha: PropTypes.instanceOf(Date),
+    // [P1-PLAN-LOTE-1082] la semana que se comparte (lo que pinta «Tu semana»: número, días, estrellas, racha, rango)
+    semana: PropTypes.shape({
+        numero: PropTypes.number, enCurso: PropTypes.bool, periodo: PropTypes.string, dias: PropTypes.array,
+        enMeta: PropTypes.number, estrellas: PropTypes.number, racha: PropTypes.number, rango: PropTypes.string,
+    }),
 };
 
 export default ShareDaySheet;
