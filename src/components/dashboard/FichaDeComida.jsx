@@ -33,7 +33,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, RotateCcw, Trash2, Loader2, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
+import { X, RotateCcw, Trash2, Loader2, ChevronLeft, ChevronRight, Minus, Plus, ChevronDown, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -309,7 +309,6 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                                 <span className={styles.franja} style={{ '--franja': franja.color }}>{franja.texto}</span>
                                 {cuando && <span className={styles.cuando}>{` · ${cuando}`}</span>}
                             </p>
-                            <h2 id="ficha-comida-titulo" className={styles.title}>{nombre}</h2>
                         </div>
                         <button type="button" className={`${styles.close} ui-close`} onClick={onClose} aria-label={t('Cerrar')}>
                             <X size={20} strokeWidth={2.25} aria-hidden="true" />
@@ -318,6 +317,9 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                 </div>
 
                 <div ref={bodyRef} className={styles.body} inert={ampliada || undefined}>
+                    {/* [P1-PLAN-LOTE-1093] el nombre va en el cuerpo y se desplaza con él: en la cabecera fija, un nombre
+                        de cuatro líneas se comía media hoja mientras se miraban los ingredientes */}
+                    <h2 id="ficha-comida-titulo" className={styles.title}>{nombre}</h2>
                     {fotoUrl && (
                         <figure className={styles.foto}>
                             <button ref={ampliarRef} type="button" className={styles.fotoBtn} onClick={() => setAmpliada(true)} aria-label={t('Ver la foto en grande')}>
@@ -384,8 +386,11 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                             <ul className={styles.ingredientes}>
                                 {lineas.map((l, i) => (
                                     <li key={`${l.texto}-${i}`} className={styles.ingrediente}>
-                                        <span>{lineaDeIngredienteLegible(l.texto, t)}</span>
-                                        {Number.isFinite(l.ajustable_g) ? (
+                                        <span className={styles.ingredienteNombre}>{lineaDeIngredienteLegible(l.texto, t)}</span>
+                                        {/* [1093] las kcal SIEMPRE a la derecha (antes la pieza ajustable las perdía) y los
+                                            gramos ajustables en su propia línea, debajo */}
+                                        {Number.isFinite(l.kcal) && <span className={styles.ingredienteKcal}>{formatNumber(l.kcal)} kcal</span>}
+                                        {Number.isFinite(l.ajustable_g) && (
                                             <span className={styles.gramos}>
                                                 <button type="button" className={styles.gramosBtn}
                                                     onClick={() => ajustar(i, l.ajustable_g - PASO_GRAMOS)}
@@ -403,7 +408,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                                                     <Plus size={14} strokeWidth={2.5} aria-hidden="true" />
                                                 </button>
                                             </span>
-                                        ) : (Number.isFinite(l.kcal) && <span className={styles.ingredienteKcal}>{formatNumber(l.kcal)} kcal</span>)}
+                                        )}
                                     </li>
                                 ))}
                             </ul>
@@ -416,7 +421,11 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                     {microsDeLaComida && (
                         <section className={styles.seccion} aria-label={t('Micronutrientes')}>
                             <details className={styles.receta}>
-                                <summary className={styles.recetaResumen}>{t('Micronutrientes')}</summary>
+                                <summary className={styles.recetaResumen}>
+                                    <FlaskConical size={17} strokeWidth={2.2} aria-hidden="true" />
+                                    <span>{t('Micronutrientes')}</span>
+                                    <ChevronDown size={18} className={styles.recetaFlecha} aria-hidden="true" />
+                                </summary>
                                 <MicrosList micros={microsDeLaComida} coverage={{ con_datos: 1, total: 1, by_nutrient: Object.fromEntries(Object.entries(meal?.micros?.coverage || {}).map(([key, c]) => [key, { known: c.known > 0 ? 1 : 0, total: 1, status: c.status, sources: meal?.micros?.provenance?.[key] || [] }])) }} metas={microMetas} compact showNotes={false} />
                             </details>
                         </section>
@@ -430,7 +439,10 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                             )}
                             {pasos.length > 0 && (
                                 <details className={styles.receta}>
-                                    <summary className={styles.recetaResumen}>{t('Cómo se prepara')}</summary>
+                                    <summary className={styles.recetaResumen}>
+                                        <span>{t('Cómo se prepara')}</span>
+                                        <ChevronDown size={18} className={styles.recetaFlecha} aria-hidden="true" />
+                                    </summary>
                                     <ol className={styles.pasos} lang={langDeCampo(plato, 'recipe', locale) || undefined}>
                                         {numberRecipeSteps(pasos).map(({ raw, annotation, number }, i) => {
                                             const { titleKey, body } = parseRecipeStep(raw);
