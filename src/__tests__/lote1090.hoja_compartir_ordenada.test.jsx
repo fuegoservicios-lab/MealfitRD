@@ -51,5 +51,7 @@ describe('[1090] la hoja de compartir, ordenada', () => {
         const css = readFileSync(resolve(__dirname, '..', 'components', 'dashboard', 'ShareDaySheet.module.css'), 'utf8');
         expect(css).not.toMatch(/sdBrillo/);
         expect(css).toMatch(/\.sheetFoto \.preview \{[^}]*background: transparent/);
+        // [1091] con lienzo el cuerpo no se desplaza (salía una barra por unos píxeles de más)
+        expect(css).toMatch(/\.sheetFoto \.body \{ overflow: hidden; \}/);
     });
 });

@@ -512,9 +512,13 @@
    y el lienzo mide el hueco que queda (unidades de contenedor; sin ellas, 46dvh). */
 .sheetFoto { height: 92vh; height: 92dvh; }
 .sheetFoto .body { container-type: size; display: flex; flex-direction: column; padding-top: 0.75rem; padding-bottom: 0.5rem; }
+/* [P1-PLAN-LOTE-1091] «¿para qué sirve el scroll aquí adentro?» (el dueño): no sirve — la historia y la pista se
+   miden para caber, y unos píxeles de más (la letra del iPhone) sacaban una barra. Aquí nada se desplaza. */
+.sheetFoto .body { overflow: hidden; }
+.sheetFoto .pista { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* [1090] sin la caja gris alrededor: la historia sola, más grande */
 .sheetFoto .preview { flex: 1 1 auto; min-height: 0; padding: 0; background: transparent; }
-.lienzo { height: 46vh; height: 46dvh; height: calc(100cqh - 2.6rem); width: auto; max-width: 100%; aspect-ratio: 9 / 16; }
+.lienzo { height: 46vh; height: 46dvh; height: calc(100cqh - 3rem); width: auto; max-width: 100%; aspect-ratio: 9 / 16; }
 
 /* [P1-PLAN-LOTE-1049] el formato dice qué es: «4:5 · chats y feed» bajo «Publicación» */
 .formato { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.15; }
