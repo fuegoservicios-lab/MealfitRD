@@ -4265,5 +4265,8 @@
   "Resumen del día": "Résumé du jour",
   "Resumen de la semana": "Résumé de la semaine",
   "Gramos de {nombre}": "Grammes de {nombre}",
-  "Escribir los gramos de {nombre}": "Saisir les grammes de {nombre}"
+  "Escribir los gramos de {nombre}": "Saisir les grammes de {nombre}",
+  "Quitar {n} {unidad}": "Retirer {n} {unidad}",
+  "Añadir {n} {unidad}": "Ajouter {n} {unidad}",
+  "Escribir la cantidad de {nombre}": "Saisir la quantité de {nombre}"
 }

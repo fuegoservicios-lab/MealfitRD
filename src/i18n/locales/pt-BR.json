@@ -4265,5 +4265,8 @@
   "Resumen del día": "Resumo do dia",
   "Resumen de la semana": "Resumo da semana",
   "Gramos de {nombre}": "Gramas de {nombre}",
-  "Escribir los gramos de {nombre}": "Digitar os gramas de {nombre}"
+  "Escribir los gramos de {nombre}": "Digitar os gramas de {nombre}",
+  "Quitar {n} {unidad}": "Tirar {n} {unidad}",
+  "Añadir {n} {unidad}": "Adicionar {n} {unidad}",
+  "Escribir la cantidad de {nombre}": "Digitar a quantidade de {nombre}"
 }

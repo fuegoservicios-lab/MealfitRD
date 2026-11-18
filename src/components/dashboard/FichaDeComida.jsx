@@ -79,6 +79,10 @@ const PASO_GRAMOS = 10;
 // [P1-PLAN-LOTE-1096] el paso según el tamaño: 10 g de pollo es poco, 10 g de aceite son 90 kcal
 const pasoDe = (g) => (g < 20 ? 1 : g < 100 ? 5 : PASO_GRAMOS);
 const GRAMOS_MINIMOS = 5;
+// [P1-PLAN-LOTE-1098] la cantidad de un renglón sin gramos: tazas y cucharadas de media en media, lo demás de una en una
+const MEDIAS = /^(tazas?|cucharadas?|cucharaditas?|vasos?)$/;
+const pasoCantidad = (unidad) => (MEDIAS.test(unidad || '') ? 0.5 : 1);
+const CANTIDAD_MINIMA = 0.25;
 
 const num = (v) => {
     const n = Number(v);
@@ -266,6 +270,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
 
     // [P1-PLAN-LOTE-1039 · A-41] La foto no sabe cuánto pesaba la pechuga; quien se la comió, sí. Cada toque manda los
     // gramos NUEVOS de esa pieza y el servidor mueve los totales lo que la pieza aporta según el catálogo (sin IA).
+    // [1098] `gramos` (número) o `{ cantidad }` para un renglón sin gramos
     const ajustar = async (indice, gramos) => {
         if (ajustando !== null || !meal?.id) return;
         setAjustando(indice);
@@ -273,7 +278,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
             const res = await fetchWithAuth(`/api/diary/consumed/${meal.id}/gramos`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ indice, gramos }),
+                body: JSON.stringify(typeof gramos === 'object' ? { indice, ...gramos } : { indice, gramos }),
             });
             const data = await res.json().catch(() => null);
             if (!res.ok || !data?.success || !data.meal) throw new Error('ajuste');
@@ -435,6 +440,51 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                                                 </button>
                                             </span>
                                         )}
+                                        {!Number.isFinite(l.ajustable_g) && l.cantidad && Number.isFinite(l.cantidad.valor) && (() => {
+                                            const q = l.cantidad;
+                                            const paso = pasoCantidad(q.unidad);
+                                            const clave = `c${i}`;
+                                            return (
+                                                <span className={styles.gramos}>
+                                                    <button type="button" className={styles.gramosBtn}
+                                                        onClick={() => ajustar(i, { cantidad: q.valor - paso })}
+                                                        disabled={ajustando !== null || q.valor - paso < CANTIDAD_MINIMA}
+                                                        aria-label={t('Quitar {n} {unidad}', { n: formatNumber(paso), unidad: q.unidad })}>
+                                                        <Minus size={14} strokeWidth={2.5} aria-hidden="true" />
+                                                    </button>
+                                                    {escribiendo?.i === clave ? (
+                                                        <input
+                                                            type="number" inputMode="decimal" step="0.25" min={CANTIDAD_MINIMA} max={30} autoFocus
+                                                            className={styles.gramosInput} value={escribiendo.valor}
+                                                            aria-label={t('Cantidad de {nombre}', { nombre: lineaDeIngredienteLegible(l.texto, t) })}
+                                                            onChange={(e) => setEscribiendo({ i: clave, valor: e.target.value })}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') e.currentTarget.blur();
+                                                                if (e.key === 'Escape') setEscribiendo(null);
+                                                            }}
+                                                            onBlur={() => {
+                                                                const v = Math.round(Number(String(escribiendo.valor).replace(',', '.')) * 4) / 4;
+                                                                setEscribiendo(null);
+                                                                if (Number.isFinite(v) && v >= CANTIDAD_MINIMA && v !== q.valor) ajustar(i, { cantidad: Math.min(30, v) });
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <button type="button" className={styles.gramosValor} aria-live="polite"
+                                                            disabled={ajustando !== null}
+                                                            aria-label={t('Escribir la cantidad de {nombre}', { nombre: lineaDeIngredienteLegible(l.texto, t) })}
+                                                            onClick={() => setEscribiendo({ i: clave, valor: String(q.valor) })}>
+                                                            {ajustando === i ? <Loader2 size={14} className="spin-animation" aria-hidden="true" /> : `${formatNumber(q.valor)} ${q.unidad}`.trim()}
+                                                        </button>
+                                                    )}
+                                                    <button type="button" className={styles.gramosBtn}
+                                                        onClick={() => ajustar(i, { cantidad: q.valor + paso })}
+                                                        disabled={ajustando !== null || q.valor + paso > 30}
+                                                        aria-label={t('Añadir {n} {unidad}', { n: formatNumber(paso), unidad: q.unidad })}>
+                                                        <Plus size={14} strokeWidth={2.5} aria-hidden="true" />
+                                                    </button>
+                                                </span>
+                                            );
+                                        })()}
                                     </li>
                                 ))}
                             </ul>
