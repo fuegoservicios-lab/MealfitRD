@@ -24,13 +24,14 @@ describe('[1088] las cifras crecen de verdad', () => {
         expect(moverBloque(BLOQUE_INICIAL, caja, LIMITES_CIFRAS, { factor: 1.5 }).escala).toBeCloseTo(1.5);
     });
 
-    it('más anchas que la historia: se mueven de lado pero siempre la cubren (sin hueco)', () => {
+    // [P1-PLAN-LOTE-1097] antes, más anchas que la historia tenían que cubrirla; ahora son libres (su centro, dentro)
+    it('más anchas que la historia: se mueven de lado libremente, con el centro dentro de la imagen', () => {
         const caja = cajaDeCifras(R, 'titular');
         for (const dx of [-99999, 0, 99999]) {
             const b = moverBloque({ escala: 1.6 }, caja, LIMITES_CIFRAS, { dx });
             const c = cajaTransformada(caja, b);
-            expect(c.x).toBeLessThanOrEqual(LIMITES_CIFRAS.x0 + 0.01);
-            expect(c.x + c.w).toBeGreaterThanOrEqual(LIMITES_CIFRAS.x1 - 0.01);
+            expect(c.x + c.w / 2).toBeGreaterThanOrEqual(LIMITES_CIFRAS.x0 - 0.01);
+            expect(c.x + c.w / 2).toBeLessThanOrEqual(LIMITES_CIFRAS.x1 + 0.01);
         }
         const izq = moverBloque({ escala: 1.6 }, caja, LIMITES_CIFRAS, { dx: 99999 });
         const der = moverBloque({ escala: 1.6 }, caja, LIMITES_CIFRAS, { dx: -99999 });

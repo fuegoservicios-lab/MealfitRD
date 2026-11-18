@@ -20,6 +20,7 @@ const _acotar = (v, a, b) => (a > b ? (a + b) / 2 : Math.max(a, Math.min(b, v)))
  *  arrastran para elegir qué parte se ve (`acotarBloque`); a lo alto siguen sin salirse de la zona segura. */
 export function escalaMax(caja, limites) {
     if (!(caja?.w > 0 && caja?.h > 0) || !limites) return 1;
+    if (limites.libre) return ESCALA_TOPE;           // [1097] libre: hasta el tope, como un sticker
     const porAlto = (limites.y1 - limites.y0) / caja.h;
     return Math.max(1, Math.min(ESCALA_TOPE, porAlto));
 }
@@ -32,6 +33,12 @@ export function acotarBloque(bloque, caja, limites) {
     const escala = _acotar(_n(b.escala, 1), ESCALA_MIN, escalaMax(caja, limites));
     const cx = caja.x + caja.w / 2;
     const cy = caja.y + caja.h / 2;
+    // [P1-PLAN-LOTE-1097 · 2026-11-18] El dueño: «no me deja moverlo al 100 %, al estilo de Instagram». Libre: el resumen
+    // va a donde lo lleves —arriba de la cabecera, sobre lo que tapa Instagram, medio fuera del borde—; solo su CENTRO
+    // se queda dentro de la imagen (así nunca se pierde entero).
+    if (limites.libre) {
+        return { dx: _acotar(_n(b.dx), limites.x0 - cx, limites.x1 - cx), dy: _acotar(_n(b.dy), limites.y0 - cy, limites.y1 - cy), escala };
+    }
     const mw = (caja.w * escala) / 2;
     const mh = (caja.h * escala) / 2;
     const ax = limites.x0 + mw - cx;

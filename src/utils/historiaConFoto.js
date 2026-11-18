@@ -374,7 +374,8 @@ export const piezasDeLaHistoria = (r, estilo = 'titular') => definirPiezas(r, ba
 function _tamTitular(r) { return formatNumber(r?.calorias?.valor ?? 0).length > 5 ? 200 : 250; }
 
 /** [1078] Dónde pueden ir las cifras: bajo la cabecera y por encima del pie (lo que tapan las historias). */
-export const LIMITES_CIFRAS = Object.freeze({ x0: 16, x1: ANCHO - 16, y0: SEGURO.arriba + 40, y1: BASE - 56 });
+// [P1-PLAN-LOTE-1097] libre (como un sticker de Instagram): toda la imagen; solo el centro del resumen queda dentro
+export const LIMITES_CIFRAS = Object.freeze({ x0: 0, x1: ANCHO, y0: 0, y1: ALTO, libre: true });
 
 /** [1078] La caja de las cifras de cada estilo en su sitio de siempre, en px del lienzo: lo que se arrastra y escala. */
 export function cajaDeCifras(r, clave = 'titular') {
@@ -402,17 +403,25 @@ const _punto = (caja, b, x, y) => {
     return { x: cx + b.dx + (x - cx) * b.escala, y: cy + b.dy + (y - cy) * b.escala };
 };
 
+// [P1-PLAN-LOTE-1097] «El sombreado del resumen choca»: era una FRANJA oscura de lado a lado con bordes rectos. Ahora
+// una sombra redonda y suave solo alrededor del resumen (una elipse que se funde con la foto), menos densa.
 const _veloDelBloque = (ctx, c, a) => {
     if (!(a > 0)) return;
-    const ini = c.y - 0.6 * c.h;
-    const lleno = c.y + c.h;
-    const fin = lleno + 0.9 * c.h;
-    const g = ctx.createLinearGradient(0, ini, 0, fin);
-    g.addColorStop(0, 'rgba(2, 6, 23, 0)');
-    g.addColorStop(Math.max(0, Math.min(1, (lleno - ini) / (fin - ini))), `rgba(2, 6, 23, ${a})`);
-    g.addColorStop(1, fin >= ALTO ? `rgba(2, 6, 23, ${a})` : 'rgba(2, 6, 23, 0)');
-    const desde = Math.max(0, ini);
-    ctx.fillStyle = g; ctx.fillRect(0, desde, ANCHO, Math.min(fin, ALTO) - desde);
+    const cx = c.x + c.w / 2;
+    const cy = c.y + c.h / 2;
+    const rx = Math.max(1, c.w * 0.72);
+    const ry = Math.max(1, c.h * 0.95);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, ry / rx);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    const k = a * 0.7;
+    g.addColorStop(0, `rgba(2, 6, 23, ${k})`);
+    g.addColorStop(0.55, `rgba(2, 6, 23, ${k * 0.75})`);
+    g.addColorStop(1, 'rgba(2, 6, 23, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-rx, -rx, 2 * rx, 2 * rx);
+    ctx.restore();
 };
 
 /** Solo en la vista previa, mientras se mueven las cifras: su contorno y, centradas, la línea del centro. */

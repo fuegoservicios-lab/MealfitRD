@@ -41,12 +41,12 @@ describe('[1084] las piezas', () => {
         }
     });
 
-    it('se mueven sin salirse del lienzo, se quitan y vuelven a su sitio sin reaparecer', () => {
+    it('se mueven hasta el borde (su centro no sale del lienzo), se quitan y vuelven a su sitio sin reaparecer', () => {
         const sitio = piezasDeLaHistoria(R, 'titular').find((d) => d.id === 'sitio');
         const lejos = moverPieza({}, sitio, { dx: 99999, dy: 99999 }, ANCHO, ALTO);
         const c = cajaDePieza(sitio, lejos);
-        expect(c.x + c.w).toBeCloseTo(ANCHO);
-        expect(c.y + c.h).toBeCloseTo(ALTO);
+        expect(c.x + c.w / 2).toBeCloseTo(ANCHO);    // [1097] libre como el resumen
+        expect(c.y + c.h / 2).toBeCloseTo(ALTO);
         const quitada = alternarPieza(lejos, 'sitio');
         expect(quitada.sitio.oculta).toBe(true);
         expect(piezasMovidas(quitada)).toBe(true);

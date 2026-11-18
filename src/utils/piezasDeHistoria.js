@@ -74,8 +74,9 @@ export const cajaDePieza = (def, piezas) => {
 export function moverPieza(piezas, def, { dx = 0, dy = 0 } = {}, ancho = 1080, alto = 1920) {
     const p = estadoDePieza(piezas, def.id);
     const c = def.caja;
-    const nx = Math.max(-c.x, Math.min(ancho - c.x - c.w, p.dx + _n(dx)));
-    const ny = Math.max(-c.y, Math.min(alto - c.y - c.h, p.dy + _n(dy)));
+    // [P1-PLAN-LOTE-1097] libres como el resumen: solo el CENTRO del texto se queda dentro de la imagen
+    const nx = Math.max(-c.x - c.w / 2, Math.min(ancho - c.x - c.w / 2, p.dx + _n(dx)));
+    const ny = Math.max(-c.y - c.h / 2, Math.min(alto - c.y - c.h / 2, p.dy + _n(dy)));
     return { ...(piezas || {}), [def.id]: { ...p, dx: nx, dy: ny } };
 }
 

@@ -42,13 +42,13 @@ describe('[1078] la geometría del sticker', () => {
     });
 
     const caja = cajaDeCifras(resumen(2308, 2050), 'titular');
-    it('se puede subir hasta debajo de la cabecera y no sale por ningún borde', () => {
-        const arriba = cajaTransformada(caja, moverBloque(BLOQUE_INICIAL, caja, LIMITES_CIFRAS, { dy: -99999 }));
-        expect(arriba.y).toBeCloseTo(LIMITES_CIFRAS.y0);
-        const chico = moverBloque({ escala: 0.5 }, caja, LIMITES_CIFRAS, { dx: 99999, dy: 99999 });
-        const c = cajaTransformada(caja, chico);
-        expect(c.x + c.w).toBeCloseTo(LIMITES_CIFRAS.x1);
-        expect(c.y + c.h).toBeCloseTo(LIMITES_CIFRAS.y1);
+    // [P1-PLAN-LOTE-1097] libre, como Instagram: llega a cualquier borde (medio fuera), pero su centro nunca sale
+    it('va a donde lo lleves: su centro llega a cada borde de la imagen y no pasa de ahí', () => {
+        const centro = (b) => { const c = cajaTransformada(caja, b); return { x: c.x + c.w / 2, y: c.y + c.h / 2 }; };
+        expect(centro(moverBloque(BLOQUE_INICIAL, caja, LIMITES_CIFRAS, { dy: -99999 })).y).toBeCloseTo(0);
+        const abajo = centro(moverBloque({ escala: 0.5 }, caja, LIMITES_CIFRAS, { dx: 99999, dy: 99999 }));
+        expect(abajo.x).toBeCloseTo(ANCHO);
+        expect(abajo.y).toBeCloseTo(ALTO);
     });
 
     it('se achica hasta ESCALA_MIN y se agranda hasta lo que cabe (nunca menos que su tamaño de siempre)', () => {
