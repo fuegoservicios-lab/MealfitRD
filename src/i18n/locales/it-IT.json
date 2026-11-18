@@ -4263,5 +4263,7 @@
   "Eclipse": "Eclissi",
   "Foto de fondo": "Foto di sfondo",
   "Resumen del día": "Riepilogo del giorno",
-  "Resumen de la semana": "Riepilogo della settimana"
+  "Resumen de la semana": "Riepilogo della settimana",
+  "Gramos de {nombre}": "Grammi di {nombre}",
+  "Escribir los gramos de {nombre}": "Scrivi i grammi di {nombre}"
 }

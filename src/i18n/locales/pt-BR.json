@@ -4263,5 +4263,7 @@
   "Eclipse": "Eclipse",
   "Foto de fondo": "Foto de fundo",
   "Resumen del día": "Resumo do dia",
-  "Resumen de la semana": "Resumo da semana"
+  "Resumen de la semana": "Resumo da semana",
+  "Gramos de {nombre}": "Gramas de {nombre}",
+  "Escribir los gramos de {nombre}": "Digitar os gramas de {nombre}"
 }

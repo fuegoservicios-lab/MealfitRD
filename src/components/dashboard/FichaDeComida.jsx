@@ -76,6 +76,9 @@ const aFecha = (raw) => {
 
 // [P1-PLAN-LOTE-1039] lo que mueve cada toque de −/+ en los gramos de una pieza
 const PASO_GRAMOS = 10;
+// [P1-PLAN-LOTE-1096] el paso según el tamaño: 10 g de pollo es poco, 10 g de aceite son 90 kcal
+const pasoDe = (g) => (g < 20 ? 1 : g < 100 ? 5 : PASO_GRAMOS);
+const GRAMOS_MINIMOS = 5;
 
 const num = (v) => {
     const n = Number(v);
@@ -107,6 +110,8 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     // lista del día hasta que esta se vuelva a pedir. `ajustando` = índice del renglón en vuelo (uno a la vez).
     const [totales, setTotales] = useState(null);
     const [ajustando, setAjustando] = useState(null);
+    // [P1-PLAN-LOTE-1096] tocar la cifra deja escribir los gramos: { i, valor }
+    const [escribiendo, setEscribiendo] = useState(null);
     const visorRef = useRef(null);
     const ampliarRef = useRef(null);
 
@@ -393,18 +398,39 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                                         {Number.isFinite(l.ajustable_g) && (
                                             <span className={styles.gramos}>
                                                 <button type="button" className={styles.gramosBtn}
-                                                    onClick={() => ajustar(i, l.ajustable_g - PASO_GRAMOS)}
-                                                    disabled={ajustando !== null || l.ajustable_g <= PASO_GRAMOS}
-                                                    aria-label={t('Quitar {n} g', { n: PASO_GRAMOS })}>
+                                                    onClick={() => ajustar(i, l.ajustable_g - pasoDe(l.ajustable_g))}
+                                                    disabled={ajustando !== null || l.ajustable_g - pasoDe(l.ajustable_g) < GRAMOS_MINIMOS}
+                                                    aria-label={t('Quitar {n} g', { n: pasoDe(l.ajustable_g) })}>
                                                     <Minus size={14} strokeWidth={2.5} aria-hidden="true" />
                                                 </button>
-                                                <span className={styles.gramosValor} aria-live="polite">
-                                                    {ajustando === i ? <Loader2 size={14} className="spin-animation" aria-hidden="true" /> : `${formatNumber(l.ajustable_g)} g`}
-                                                </span>
+                                                {escribiendo?.i === i ? (
+                                                    <input
+                                                        type="number" inputMode="numeric" min={GRAMOS_MINIMOS} max={1500} autoFocus
+                                                        className={styles.gramosInput} value={escribiendo.valor}
+                                                        aria-label={t('Gramos de {nombre}', { nombre: lineaDeIngredienteLegible(l.texto, t) })}
+                                                        onChange={(e) => setEscribiendo({ i, valor: e.target.value })}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') e.currentTarget.blur();
+                                                            if (e.key === 'Escape') setEscribiendo(null);
+                                                        }}
+                                                        onBlur={() => {
+                                                            const g = Math.round(Number(escribiendo.valor));
+                                                            setEscribiendo(null);
+                                                            if (Number.isFinite(g) && g >= GRAMOS_MINIMOS && g !== l.ajustable_g) ajustar(i, Math.min(1500, g));
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <button type="button" className={styles.gramosValor} aria-live="polite"
+                                                        disabled={ajustando !== null}
+                                                        aria-label={t('Escribir los gramos de {nombre}', { nombre: lineaDeIngredienteLegible(l.texto, t) })}
+                                                        onClick={() => setEscribiendo({ i, valor: String(l.ajustable_g) })}>
+                                                        {ajustando === i ? <Loader2 size={14} className="spin-animation" aria-hidden="true" /> : `${formatNumber(l.ajustable_g)} g`}
+                                                    </button>
+                                                )}
                                                 <button type="button" className={styles.gramosBtn}
-                                                    onClick={() => ajustar(i, l.ajustable_g + PASO_GRAMOS)}
+                                                    onClick={() => ajustar(i, l.ajustable_g + pasoDe(l.ajustable_g))}
                                                     disabled={ajustando !== null}
-                                                    aria-label={t('Añadir {n} g', { n: PASO_GRAMOS })}>
+                                                    aria-label={t('Añadir {n} g', { n: pasoDe(l.ajustable_g) })}>
                                                     <Plus size={14} strokeWidth={2.5} aria-hidden="true" />
                                                 </button>
                                             </span>

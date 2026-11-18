@@ -4263,5 +4263,7 @@
   "Eclipse": "Eclipse",
   "Foto de fondo": "Background photo",
   "Resumen del día": "Day summary",
-  "Resumen de la semana": "Week summary"
+  "Resumen de la semana": "Week summary",
+  "Gramos de {nombre}": "Grams of {nombre}",
+  "Escribir los gramos de {nombre}": "Type the grams of {nombre}"
 }

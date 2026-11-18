@@ -466,6 +466,15 @@
 .gramosBtn:disabled { opacity: 0.4; cursor: default; }
 
 .gramosValor {
+    /* [1096] es un botón: tocarlo deja escribir los gramos */
+    min-height: 34px;
+    padding: 0 0.25rem;
+    border: 0;
+    border-bottom: 1px dashed color-mix(in srgb, var(--text-muted) 60%, transparent);
+    border-radius: 0;
+    background: transparent;
+    font-family: inherit;
+    cursor: text;
     min-width: 3.6rem;
     text-align: center;
     font-size: 0.82rem;
@@ -644,3 +653,22 @@
 .visorCerrar, .visorControles button { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border: 1px solid #475569; border-radius: 999px; color: #fff; background: #1e293b; cursor: pointer; }
 .visorCerrar { position: absolute; top: calc(1rem + env(safe-area-inset-top, 0px)); right: 1rem; }
 .visorControles { position: absolute; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 1.25rem; color: #fff; font-variant-numeric: tabular-nums; }
+
+/* [P1-PLAN-LOTE-1096] los gramos escritos a mano: 16 px para que iOS no haga zoom al enfocar */
+.gramosInput {
+    width: 4.2rem;
+    height: 30px;
+    padding: 0 0.3rem;
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+}
+.gramosInput::-webkit-outer-spin-button,
+.gramosInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
