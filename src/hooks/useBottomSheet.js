@@ -22,6 +22,15 @@ import { useEffect, useRef } from 'react';
 
 const enTelefono = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
 
+// [P1-PLAN-LOTE-1089 · 2026-11-18] El dueño, con el deslizador de «Compartir tu semana»: «no puedo arrastrarlo con el
+// dedo como si fuera un volumen». El `touchmove` no pasivo de abajo cancela TODO movimiento que empieza fuera del cuerpo
+// desplazable (el pie de la hoja), y en iOS eso mata el arrastre nativo del deslizador: tocar saltaba, arrastrar no.
+// Un toque que nace sobre un control con gesto propio (un deslizador, o lo marcado `data-gesto-propio`) no es de la hoja.
+export const SELECTOR_GESTO_PROPIO = 'input[type="range"], [data-gesto-propio]';
+const tieneGestoPropio = (objetivo) => {
+    try { return !!(objetivo && typeof objetivo.closest === 'function' && objetivo.closest(SELECTOR_GESTO_PROPIO)); } catch { return false; }
+};
+
 export function useBottomSheet({ containerRef, bodyRef, onClose, disabled = false }) {
     const gestureRef = useRef({ y0: null, active: false, ceded: false, off: 8, lastY: 0, lastT: 0, vy: 0 });
     const cerrandoRef = useRef(false);
@@ -55,6 +64,10 @@ export function useBottomSheet({ containerRef, bodyRef, onClose, disabled = fals
     };
     const onTouchStart = (e) => {
         if (!enTelefono() || disabled || cerrandoRef.current) return;
+        if (tieneGestoPropio(e.target)) {                // [1089] ni cierra la hoja ni bloquea su arrastre
+            gestureRef.current = { y0: null, active: false, ceded: false, off: 8, lastY: 0, lastT: 0, vy: 0 };
+            return;
+        }
         const t = e.touches[0];
         gestureRef.current = { y0: t.clientY, active: false, ceded: false, off: 8, lastY: t.clientY, lastT: e.timeStamp, vy: 0 };
     };
