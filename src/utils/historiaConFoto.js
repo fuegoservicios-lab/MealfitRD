@@ -10,10 +10,12 @@ import { fechaLarga, SITIO } from './compartirDia';
 import { BRAND } from '../data/routeMeta';
 import { BLOQUE_INICIAL, acotarBloque, aplicarBloque, cajaTransformada } from './bloqueDeCifras';
 import { definirPiezas, pintarPiezas, estadoDePieza, cajaDePieza } from './piezasDeHistoria';
+import { CLAVES_DE_DISENO, disenoDe, baseDe, tintarFoto } from './disenosDeHistoria';
 
 export const ANCHO = 1080;
 export const ALTO = 1920;
-export const ESTILOS = ['titular', 'minimal', 'cristal'];
+// [P1-PLAN-LOTE-1095] siete diseños (uno por día) sobre las tres composiciones: `disenosDeHistoria.js`
+export const ESTILOS = CLAVES_DE_DISENO;
 const M = 72;
 const SEGURO = { arriba: 230, abajo: 330 };
 const BASE = ALTO - SEGURO.abajo;      // la última línea de texto
@@ -208,17 +210,20 @@ const _insignia = (ctx, x, yCentro, alinear = 'left', texto = null) => {
 };
 
 /** La foto llenando el lienzo; sin foto, la noche de la app con sus dos brillos (los estilos sirven igual). */
-const _fondo = (ctx, foto, encuadre) => {
+const _fondo = (ctx, foto, encuadre, clave = 'titular') => {
     const { w, h } = _dim(foto);
     if (w && h) {
         const { sx, sy, sw, sh } = encajar(w, h, ANCHO, ALTO, encuadre);
         ctx.drawImage(foto, sx, sy, sw, sh, 0, 0, ANCHO, ALTO);
+        tintarFoto(ctx, clave, ANCHO, ALTO);      // [1095] la luz del diseño sobre TU foto
         return;
     }
+    // [1095] sin foto, la noche de cada diseño (Aurora, Pulso y Bruma: la de la app)
+    const { tonos, brillos } = disenoDe(clave).noche;
     const fondo = ctx.createLinearGradient(0, 0, ANCHO * 0.4, ALTO);
-    fondo.addColorStop(0, '#0B1120'); fondo.addColorStop(0.5, '#1E1B4B'); fondo.addColorStop(1, '#312E81');
+    fondo.addColorStop(0, tonos[0]); fondo.addColorStop(0.5, tonos[1]); fondo.addColorStop(1, tonos[2]);
     ctx.fillStyle = fondo; ctx.fillRect(0, 0, ANCHO, ALTO);
-    [[ANCHO * 0.9, 260, 820, '236, 72, 153', 0.34], [80, ALTO * 0.55, 760, '99, 102, 241', 0.42], [ANCHO * 0.7, ALTO, 800, '245, 158, 11', 0.24]]
+    [[ANCHO * 0.9, 260, 820, brillos[0], 0.34], [80, ALTO * 0.55, 760, brillos[1], 0.42], [ANCHO * 0.7, ALTO, 800, brillos[2], 0.24]]
         .forEach(([x, y, r, rgb, a]) => {
             const g = ctx.createRadialGradient(x, y, 0, x, y, r);
             g.addColorStop(0, `rgba(${rgb}, ${a})`); g.addColorStop(1, `rgba(${rgb}, 0)`);
@@ -234,7 +239,7 @@ const _valorMacro = (mc) => `${formatNumber(mc.valor)} g`;
 
 // ── «titular»: la cifra de portada ──────────────────────────────────────────────────────────────────────
 const _titularPie = (ctx) => _velo(ctx, BASE - 120, ALTO, 0, 0.6);
-const _titular = (ctx, r) => {
+const _titular = (ctx, r, ac = COLOR.calories) => {
     const cal = r.calorias;
     const conMeta = cal.meta > 0;
 
@@ -252,22 +257,22 @@ const _titular = (ctx, r) => {
 
     let yNumero = BASE - 300;
     if (conMeta) {
-        _barra(ctx, M, BASE - 306, ANCHO - 2 * M, 16, cal.pct, COLOR.calories);
+        _barra(ctx, M, BASE - 306, ANCHO - 2 * M, 16, cal.pct, ac);
         _texto(ctx, `/ ${formatNumber(cal.meta)} kcal`, M, BASE - 336, { tam: 34, peso: 600, color: CLARO });
-        _texto(ctx, formatPercent(cal.pct), ANCHO - M, BASE - 336, { tam: 38, peso: 800, color: COLOR.calories[0], alinear: 'right' });
+        _texto(ctx, formatPercent(cal.pct), ANCHO - M, BASE - 336, { tam: 38, peso: 800, color: ac[0], alinear: 'right' });
         yNumero = BASE - 410;
     }
     const tam = _tamTitular(r);
     const cifra = formatNumber(cal.valor);
     const ancho = _texto(ctx, cifra, M - 6, yNumero, { tam, peso: 800 });
-    _texto(ctx, 'kcal', M + ancho + 14, yNumero, { tam: 64, peso: 700, color: COLOR.calories[0] });
-    _rotulo(ctx, t('Mi día'), M, yNumero - tam * 0.86, { tam: 32, color: COLOR.calories[0], aire: 0.3 });
+    _texto(ctx, 'kcal', M + ancho + 14, yNumero, { tam: 64, peso: 700, color: ac[0] });
+    _rotulo(ctx, t('Mi día'), M, yNumero - tam * 0.86, { tam: 32, color: ac[0], aire: 0.3 });
     if (metaCumplida(r)) _insignia(ctx, ANCHO - M, yNumero - tam * 0.86 - 11, 'right');
 };
 
 // ── «minimal»: solo las cifras, centradas (tipo sticker) ────────────────────────────────────────────────
 const _minimalPie = (ctx) => _velo(ctx, BASE - 120, ALTO, 0, 0.55);
-const _minimal = (ctx, r) => {
+const _minimal = (ctx, r, ac = COLOR.calories) => {
     const cx = ANCHO / 2;
 
     const col = (ANCHO - 2 * M) / 3;
@@ -276,7 +281,7 @@ const _minimal = (ctx, r) => {
         _rotulo(ctx, mc.etiqueta, x, BASE - 200, { tam: 24, alinear: 'center', max: col - 24 });
         _texto(ctx, _valorMacro(mc), x, BASE - 126, { tam: 64, peso: 800, alinear: 'center' });
     });
-    _rotulo(ctx, r.calorias.etiqueta, cx, BASE - 510, { tam: 28, alinear: 'center', aire: 0.3 });
+    _rotulo(ctx, r.calorias.etiqueta, cx, BASE - 510, { tam: 28, alinear: 'center', aire: 0.3, color: ac === COLOR.calories ? CLARO : ac[0] });
     if (metaCumplida(r)) _insignia(ctx, cx, BASE - 590, 'center');
     _texto(ctx, formatNumber(r.calorias.valor), cx, BASE - 340, { tam: 190, peso: 800, alinear: 'center' });
     if (r.calorias.meta > 0) {
@@ -310,16 +315,16 @@ const _cristalFondo = (ctx, canvas, k) => {
     }
 };
 const _cristalPie = (ctx) => _velo(ctx, BASE - 60, ALTO, 0, 0.5);
-const _cristal = (ctx, r) => {
+const _cristal = (ctx, r, ac = COLOR.calories) => {
     const { alto, x, w, y } = _CRISTAL;
     ctx.save(); ctx.strokeStyle = 'rgba(255, 255, 255, 0.34)'; ctx.lineWidth = 2; _rect(ctx, x + 1, y + 1, w - 2, alto - 2, 55); ctx.stroke(); ctx.restore();
 
     const cal = r.calorias;
     const cx = x + 232, cy = y + alto / 2;
-    _anillo(ctx, cx, cy, 150, 28, cal.meta > 0 ? cal.pct : 100, COLOR.calories);
+    _anillo(ctx, cx, cy, 150, 28, cal.meta > 0 ? cal.pct : 100, ac);
     _texto(ctx, formatNumber(cal.valor), cx, cy + 20, { tam: 84, peso: 800, alinear: 'center', sombra: false });
     _texto(ctx, 'kcal', cx, cy + 64, { tam: 28, peso: 600, color: CLARO, alinear: 'center', sombra: false });
-    if (cal.meta > 0) _texto(ctx, formatPercent(cal.pct), cx, cy - 62, { tam: 30, peso: 800, color: COLOR.calories[0], alinear: 'center', sombra: false });
+    if (cal.meta > 0) _texto(ctx, formatPercent(cal.pct), cx, cy - 62, { tam: 30, peso: 800, color: ac[0], alinear: 'center', sombra: false });
 
     const x0 = x + 450, ancho = x + w - 56 - x0;
     r.macros.forEach((mc, i) => {
@@ -364,7 +369,7 @@ const _medir = (s, tam, peso) => {
 };
 
 /** [1084] Las piezas (textos sueltos) de la historia en ese estilo: `{ id, pie, caja, pintar }`. */
-export const piezasDeLaHistoria = (r, estilo = 'titular') => definirPiezas(r, ESTILOS.includes(estilo) ? estilo : 'titular', PINCEL, _medir);
+export const piezasDeLaHistoria = (r, estilo = 'titular') => definirPiezas(r, baseDe(estilo), PINCEL, _medir);
 
 function _tamTitular(r) { return formatNumber(r?.calorias?.valor ?? 0).length > 5 ? 200 : 250; }
 
@@ -372,9 +377,10 @@ function _tamTitular(r) { return formatNumber(r?.calorias?.valor ?? 0).length > 
 export const LIMITES_CIFRAS = Object.freeze({ x0: 16, x1: ANCHO - 16, y0: SEGURO.arriba + 40, y1: BASE - 56 });
 
 /** [1078] La caja de las cifras de cada estilo en su sitio de siempre, en px del lienzo: lo que se arrastra y escala. */
-export function cajaDeCifras(r, estilo = 'titular') {
+export function cajaDeCifras(r, clave = 'titular') {
+    const estilo = baseDe(clave);     // [1095] la caja es de la composición, no del diseño
     const pintor = _pintorDe(r);
-    if (pintor) return pintor.caja(r, ESTILOS.includes(estilo) ? estilo : 'titular');
+    if (pintor) return pintor.caja(r, estilo);
     const cumplida = metaCumplida(r);
     if (estilo === 'minimal') {
         const y0 = cumplida ? BASE - 590 - 30 : BASE - 510 - 30;
@@ -453,8 +459,10 @@ export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', enc
     if (!ctx) return false;
     try {
         ctx.clearRect(0, 0, ANCHO, ALTO);
-        _fondo(ctx, foto, encuadre);
-        const cual = _PINTAR[estilo] ? estilo : 'titular';
+        const clave = ESTILOS.includes(estilo) ? estilo : 'titular';
+        _fondo(ctx, foto, encuadre, clave);
+        const cual = baseDe(clave);       // [1095] la composición del diseño
+        const acento = disenoDe(clave).acento || COLOR.calories;
         // [1084] los textos sueltos: sus velos (fijos) si alguna se ve; las piezas se pintan al final, encima de todo
         const defs = piezasDeLaHistoria(r, cual);
         const seVe = (d) => !estadoDePieza(piezas, d.id).oculta;
@@ -472,7 +480,7 @@ export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', enc
         ctx.save();
         aplicarBloque(ctx, caja, b);
         const pintor = _pintorDe(r);
-        if (pintor) pintor.pintar(ctx, r, cual); else _PINTAR[cual](ctx, r);
+        if (pintor) pintor.pintar(ctx, r, cual, acento); else _PINTAR[cual](ctx, r, acento);
         ctx.restore();
         pintarPiezas(ctx, defs, piezas);
         const guiada = guia?.pieza ? defs.find((d) => d.id === guia.pieza) : null;

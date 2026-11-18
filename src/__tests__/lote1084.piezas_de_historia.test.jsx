@@ -118,7 +118,7 @@ describe('[1084] la hoja', () => {
         const ultima = dibujarHistoriaConFoto.mock.calls.at(-1)[1];
         expect(ultima.bloque).toEqual({ dx: 0, dy: 0, escala: 1 });
         expect(ultima.encuadre).toEqual({ zoom: 1, x: 0, y: 0 });
-        fireEvent.click(screen.getByRole('radio', { name: /tus cifras/i }));
+        fireEvent.click(screen.getByRole('radio', { name: /resumen del día/i }));
         fireEvent.click(screen.getByRole('button', { name: /restablecer/i }));
         await waitFor(() => expect(dibujarHistoriaConFoto.mock.calls.at(-1)?.[1].piezas?.sitio?.dy).toBe(0));
     });

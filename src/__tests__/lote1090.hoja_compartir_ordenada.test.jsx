@@ -31,10 +31,10 @@ afterEach(() => { vi.clearAllMocks(); });
 describe('[1090] la hoja de compartir, ordenada', () => {
     it('cada ajuste lleva su rótulo y la pista sale una sola vez', () => {
         render(<ShareDaySheet onClose={() => {}} semana={SEMANA} />);
-        for (const r of ['Estilo', 'Tamaño', 'Textos']) expect(screen.getByText(r)).toBeTruthy();
+        for (const r of ['Diseño', 'Tamaño', 'Textos']) expect(screen.getByText(r)).toBeTruthy();
         expect(screen.getAllByText(/pellizca/i)).toHaveLength(1);
         expect(screen.getByRole('group', { name: 'Textos' })).toBeTruthy();
-        expect(screen.getByRole('radiogroup', { name: 'Estilo de la historia' }).querySelectorAll('[role=radio]')).toHaveLength(3);
+        expect(screen.getByRole('radiogroup', { name: 'Estilo de la historia' }).querySelectorAll('[role=radio]')).toHaveLength(7);   // [1095] siete diseños
     });
 
     it('las fichas de textos se deslizan de lado: la fila se marca como gesto propio', () => {

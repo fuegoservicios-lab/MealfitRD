@@ -18,6 +18,7 @@ import { dibujarTarjetaDelDia } from '../utils/tarjetaDelDia';
 import { cargarFoto, dibujarHistoriaConFoto, encajar, moverEncuadre, metaCumplida, ENCUADRE_INICIAL, ZOOM_MAX, ESTILOS, ANCHO, ALTO } from '../utils/historiaConFoto';
 import { archivoDeImagen } from '../utils/compartirDia';
 import ShareDaySheet from '../components/dashboard/ShareDaySheet';
+import { disenoDelDia } from '../utils/disenosDeHistoria';
 
 const props = {
     onClose: vi.fn(),
@@ -102,13 +103,13 @@ describe('[1048] la hoja con foto', () => {
         expect(cargarFoto).toHaveBeenCalledTimes(1);
         const [resumen, opciones] = dibujarHistoriaConFoto.mock.calls[0];
         expect(resumen.calorias.valor).toBe(2340);
-        expect(opciones).toMatchObject({ estilo: 'titular', foto: { width: 1200, height: 1600 } });
+        expect(opciones).toMatchObject({ estilo: disenoDelDia().clave, foto: { width: 1200, height: 1600 } });
         const estilos = await screen.findByRole('radiogroup', { name: /estilo de la historia/i });
         expect(estilos.querySelectorAll('[role="radio"]')).toHaveLength(ESTILOS.length);
         expect(screen.queryByRole('radiogroup', { name: /formato de la imagen/i })).toBeNull();
         expect(screen.queryByText(/tu foto no sale de tu teléfono/i)).toBeNull();   // [1078] va en el selector de la foto
 
-        fireEvent.click(screen.getByRole('radio', { name: 'Cristal' }));
+        fireEvent.click(screen.getByRole('radio', { name: /Bruma/ }));
         await waitFor(() => expect(dibujarHistoriaConFoto.mock.calls.at(-1)[1].estilo).toBe('cristal'));
     });
 

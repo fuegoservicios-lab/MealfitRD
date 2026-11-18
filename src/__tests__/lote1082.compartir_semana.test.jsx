@@ -106,7 +106,7 @@ describe('[1082] la hoja con la semana', () => {
 
     it('cambiar de estilo redibuja la semana con ese estilo', async () => {
         render(<ShareDaySheet onClose={() => {}} semana={SEMANA} />);
-        fireEvent.click(screen.getByRole('radio', { name: 'Cristal' }));
+        fireEvent.click(screen.getByRole('radio', { name: /Bruma/ }));
         await waitFor(() => expect(dibujarHistoriaConFoto.mock.calls.at(-1)[1]).toMatchObject({ estilo: 'cristal' }));
     });
 });

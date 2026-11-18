@@ -25,7 +25,8 @@ import { toast } from 'sonner';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { isNativeApp } from '../../config/platform';
-import { useT } from '../../i18n';
+import { useT, formatDate } from '../../i18n';
+import { DISENOS, disenoDelDia } from '../../utils/disenosDeHistoria';
 import { resumenDeSemana, textoDeSemana } from '../../utils/compartirSemana';
 import { SITIO, resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, sabeCompartirImagenes, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
@@ -53,7 +54,8 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     // [P1-PLAN-LOTE-1048] La historia con TU foto (la selfie del espejo de fondo, las cifras encima). La foto se lee y
     // se dibuja en el teléfono: no viaja a ningún servidor. Con foto, el formato es siempre historia (9:16).
     const [foto, setFoto] = useState(null);
-    const [estilo, setEstilo] = useState('titular');
+    // [P1-PLAN-LOTE-1095] siete diseños, uno por día: nace con el del día que se comparte (la semana, con el de hoy)
+    const [estilo, setEstilo] = useState(() => disenoDelDia(!semana && fecha instanceof Date ? fecha : new Date()).clave);
     const inputFotoRef = useRef(null);
     const inputCamaraRef = useRef(null);
     // [P1-PLAN-LOTE-1050] «Galería» o «Cámara» con NUESTRO selector (el dueño no quería el menú de tres opciones de iOS:
@@ -338,17 +340,36 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     // [1082] El estilo y el tamaño de las cifras: los mismos controles con tu foto y en la semana sin foto.
     // [P1-PLAN-LOTE-1090] «se ve medio raro» (el dueño): cada ajuste es UNA fila del mismo ancho, con su rótulo a la
     // izquierda (Estilo · Tamaño · Textos); antes eran bloques centrados de anchos distintos con frases encima.
+    // [P1-PLAN-LOTE-1095] Los siete diseños en una fila que se desliza de lado: su muestra de color, el nombre y su día
+    // («Hoy» el de hoy). `data-gesto-propio`: la hoja no se come el deslizamiento (1089).
+    const hoyDia = new Date().getDay();
+    const diaCorto = (dia) => {
+        if (dia === hoyDia) return t('Hoy');
+        const ref = new Date(2026, 10, 15 + dia, 12);      // 15-nov-2026 fue domingo
+        return formatDate(ref, { weekday: 'short' });
+    };
+    // al aparecer, la fila se desliza hasta el diseño elegido (el de hoy puede ser el séptimo)
+    const colocarDisenos = (el) => {
+        if (!el || el.dataset.colocado) return;
+        el.dataset.colocado = '1';
+        const activo = el.querySelector('[aria-checked="true"]');
+        if (activo) el.scrollLeft = Math.max(0, activo.offsetLeft - el.offsetLeft - 8);
+    };
     const selectorDeEstilo = (
         <div className={styles.fila}>
-            <span className={styles.filaRotulo} aria-hidden="true">{t('Estilo')}</span>
-            <div className={`${styles.capas} ${styles.estilos}`} role="radiogroup" aria-label={t('Estilo de la historia')}>
-                {[['titular', t('Titular')], ['minimal', t('Minimal')], ['cristal', t('Cristal')]].map(([clave, rotulo]) => (
+            <span className={styles.filaRotulo} aria-hidden="true">{t('Diseño')}</span>
+            <div className={styles.disenos} role="radiogroup" aria-label={t('Estilo de la historia')} data-gesto-propio="" ref={colocarDisenos}>
+                {DISENOS.map((d) => (
                     <button
-                        key={clave} type="button" role="radio" aria-checked={estilo === clave}
-                        className={estilo === clave ? `${styles.capa} ${styles.capaActiva}` : styles.capa}
-                        onClick={() => setEstilo(clave)}
+                        key={d.clave} type="button" role="radio" aria-checked={estilo === d.clave}
+                        className={estilo === d.clave ? `${styles.diseno} ${styles.disenoActivo}` : styles.diseno}
+                        onClick={() => setEstilo(d.clave)}
                     >
-                        {rotulo}
+                        <span className={`${styles.muestra} ${styles[`muestra_${d.clave}`]}`} aria-hidden="true" />
+                        <span className={styles.disenoTexto}>
+                            <span className={styles.disenoNombre}>{t(d.nombre)}</span>
+                            <span className={styles.disenoDia} aria-hidden="true">{diaCorto(d.dia)}</span>
+                        </span>
                     </button>
                 ))}
             </div>
@@ -496,7 +517,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                             <div className={styles.fila}>
                             <span className={styles.filaRotulo} aria-hidden="true">{t('Mover')}</span>
                             <div className={`${styles.capas} ${styles.capasFila}`} role="radiogroup" aria-label={t('Qué ajustas')}>
-                                {[['foto', t('Tu foto'), ImageIcon], ['cifras', t('Tus cifras'), Type]].map(([clave, rotulo, Icono]) => (
+                                {[['foto', t('Foto de fondo'), ImageIcon], ['cifras', esSemana ? t('Resumen de la semana') : t('Resumen del día'), Type]].map(([clave, rotulo, Icono]) => (
                                     <button
                                         key={clave} type="button" role="radio" aria-checked={capa === clave}
                                         className={capa === clave ? `${styles.capa} ${styles.capaActiva}` : styles.capa}

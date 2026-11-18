@@ -92,9 +92,9 @@ describe('[1078] la hoja', () => {
 
     it('«Tus cifras» cambia el deslizador a su tamaño y el JPEG sale con ese tamaño; «Restablecer» lo devuelve', async () => {
         await _conFoto();
-        expect(screen.getByRole('radio', { name: /tu foto/i })).toHaveAttribute('aria-checked', 'true');
+        expect(screen.getByRole('radio', { name: /foto de fondo/i })).toHaveAttribute('aria-checked', 'true');
         expect(screen.getByRole('button', { name: /restablecer/i })).toBeDisabled();
-        fireEvent.click(screen.getByRole('radio', { name: /tus cifras/i }));
+        fireEvent.click(screen.getByRole('radio', { name: /resumen del día/i }));
         const tam = screen.getByRole('slider', { name: /tamaño de tus cifras/i });
         expect(screen.getByText(/arrastra para mover · pellizca/i)).toBeInTheDocument();   // [1090] la pista, bajo la imagen
         fireEvent.change(tam, { target: { value: '0.6' } });
@@ -115,7 +115,7 @@ describe('[1078] la hoja', () => {
         fireEvent.pointerDown(lienzo, { pointerId: 1, clientX: x, clientY: y });
         fireEvent.pointerMove(lienzo, { pointerId: 1, clientX: x, clientY: y - 60 });
         fireEvent.pointerUp(lienzo, { pointerId: 1, clientX: x, clientY: y - 60 });
-        expect(screen.getByRole('radio', { name: /tus cifras/i })).toHaveAttribute('aria-checked', 'true');
+        expect(screen.getByRole('radio', { name: /resumen del día/i })).toHaveAttribute('aria-checked', 'true');
         await waitFor(() => expect(dibujarHistoriaConFoto.mock.calls.at(-1)?.[1].bloque.dy).toBeCloseTo(-240));
         expect(dibujarHistoriaConFoto.mock.calls.at(-1)[1].encuadre).toEqual({ zoom: 1, x: 0, y: 0 });
     });

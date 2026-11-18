@@ -154,7 +154,7 @@ const _perfecta = () => t('Semana perfecta');
 
 // ── «titular»: la cifra de portada ──
 const _yTitular = BASE - 520;
-const _titular = (ctx, r) => {
+const _titular = (ctx, r, ac = ORO) => {
     const cols = [{ rotulo: t('Estrellas'), valor: `${r.estrellas}/${ESTRELLAS_MAX}` }];
     if (r.racha >= 2) cols.push({ rotulo: t('Racha'), valor: tn(r.racha, '{n} día', '{n} días', { n: r.racha }) });
     if (r.rango) cols.push({ rotulo: t('Rango'), valor: r.rango.nombre });
@@ -169,16 +169,16 @@ const _titular = (ctx, r) => {
 
     const ancho = _fraccion(ctx, r, M - 6, _yTitular, 250);
     PINCEL.texto(ctx, _diasEnMeta(r), M + ancho + 24, _yTitular, { tam: 50, peso: 700, color: TONO.meta[0], max: ANCHO - 2 * M - ancho - 24 });
-    PINCEL.rotulo(ctx, _titulo(r), M, _yTitular - 230, { tam: 32, color: ORO[0], aire: 0.3 });
+    PINCEL.rotulo(ctx, _titulo(r), M, _yTitular - 230, { tam: 32, color: ac[0], aire: 0.3 });   // [1095] el acento del diseño
     if (r.perfecta) PINCEL.insignia(ctx, ANCHO - M, _yTitular - 241, 'right', _perfecta());
     else _estrellas(ctx, r, ANCHO - M, _yTitular - 241, 22, 'right');
 };
 
 // ── «minimal»: centrado, tipo sticker ──
-const _minimal = (ctx, r) => {
+const _minimal = (ctx, r, ac = ORO) => {
     const cx = ANCHO / 2;
     if (r.perfecta) PINCEL.insignia(ctx, cx, BASE - 760, 'center', _perfecta());
-    PINCEL.rotulo(ctx, _titulo(r), cx, BASE - 680, { tam: 28, alinear: 'center', aire: 0.3 });
+    PINCEL.rotulo(ctx, _titulo(r), cx, BASE - 680, { tam: 28, alinear: 'center', aire: 0.3, ...(ac === ORO ? {} : { color: ac[0] }) });
     _fraccion(ctx, r, cx, BASE - 480, 200, 'center');
     PINCEL.texto(ctx, _diasEnMeta(r), cx, BASE - 410, { tam: 34, peso: 600, color: CLARO, alinear: 'center' });
     _estrellas(ctx, r, cx, BASE - 330, 26, 'center');
@@ -219,6 +219,6 @@ function _caja(r, estilo) {
 }
 
 export const PINTOR_SEMANA = Object.freeze({
-    pintar: (ctx, r, estilo) => (_PINTAR[estilo] || _titular)(ctx, r),
+    pintar: (ctx, r, estilo, acento) => (_PINTAR[estilo] || _titular)(ctx, r, acento || ORO),
     caja: _caja,
 });

@@ -50,7 +50,7 @@ describe('[1083] pellizcar las cifras', () => {
         fireEvent.pointerMove(vista, { pointerId: 2, clientX: centro.x, clientY: 60 + d0 * 0.6 });
         await waitFor(() => expect(ultimaEscala()).toBeCloseTo(0.6, 2));
         expect(dibujarHistoriaConFoto.mock.calls.at(-1)[1].encuadre).toEqual({ zoom: 1, x: 0, y: 0 });
-        expect(screen.getByRole('radio', { name: /tus cifras/i })).toHaveAttribute('aria-checked', 'true');
+        expect(screen.getByRole('radio', { name: /resumen del día/i })).toHaveAttribute('aria-checked', 'true');
     });
 
     it('el segundo dedo FUERA de la imagen (en la vista previa) cuenta, y el factor es absoluto: volver = tamaño de antes', async () => {
@@ -66,7 +66,7 @@ describe('[1083] pellizcar las cifras', () => {
 
     it('con «Tus cifras» elegidas, un pellizco en cualquier parte las escala', async () => {
         const { vista } = await _preparar();
-        fireEvent.click(screen.getByRole('radio', { name: /tus cifras/i }));
+        fireEvent.click(screen.getByRole('radio', { name: /resumen del día/i }));
         fireEvent.pointerDown(vista, { pointerId: 1, clientX: 40, clientY: 40 });
         fireEvent.pointerDown(vista, { pointerId: 2, clientX: 140, clientY: 40 });
         fireEvent.pointerMove(vista, { pointerId: 2, clientX: 100, clientY: 40 });
