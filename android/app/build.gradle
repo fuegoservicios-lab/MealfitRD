@@ -43,9 +43,10 @@ android {
         // [ANDROID-PLAY-TARGET-36 · 2026-11-13] 113: el primero apto para Play — targetSdk 36 con los márgenes de las
         // barras y del teclado en MainActivity, y sin READ_MEDIA_IMAGES.
         // [ANDROID-PLAY-R8-EDGE · 2026-11-19] 114: R8 + shrinkResources en release (optimización DEX / ofuscación)
-        // y borde a borde moderno con EdgeToEdge.enable sin android:navigationBarColor obsoleto.
-        versionCode 114
-        versionName "1.0.114"
+        // y borde a borde moderno con WindowInsetsControllerCompat sin android:navigationBarColor obsoleto.
+        // [ANDROID-PLAY-SYMBOLS · 2026-11-19] 115: símbolos nativos FULL incrustados en el .aab (0 advertencias en Play).
+        versionCode 115
+        versionName "1.0.115"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -87,6 +88,9 @@ android {
         release {
             minifyEnabled true
             shrinkResources true
+            ndk {
+                debugSymbolLevel = 'FULL'
+            }
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (_cmKeystore) { signingConfig signingConfigs.testers }
         }
