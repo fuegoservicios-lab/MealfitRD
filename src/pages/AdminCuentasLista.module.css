@@ -94,8 +94,9 @@
 }
 .desplazable[aria-busy="true"] { opacity: 0.55; }
 
-.tabla { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
-.tabla th, .tabla td { text-align: left; padding: 0.68rem 0.5rem; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); vertical-align: middle; }
+.tabla { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+.tabla th, .tabla td { text-align: left; padding: 0.64rem 0.45rem; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); vertical-align: middle; }
+.tabla th:last-child, .tabla td:last-child { padding-right: 1rem; }
 .tabla thead th {
     color: var(--text-muted);
     font-size: 0.75rem;
@@ -115,13 +116,13 @@
 .gastoAlto { color: var(--warning-text, var(--warning)); font-weight: 700; }
 .nota { display: block; font-size: 0.74rem; color: var(--text-muted); font-weight: 500; }
 
-.celdaSeleccion { width: 2.75rem; text-align: center !important; }
+.celdaSeleccion { width: 2.35rem; text-align: center !important; }
 .casilla { display: inline-flex; align-items: center; justify-content: center; min-width: 1.75rem; min-height: 1.75rem; cursor: pointer; }
 .casilla input { width: 1.05rem; height: 1.05rem; cursor: pointer; accent-color: var(--primary-fill); }
 .casilla input:disabled { cursor: default; }
 
 .thCuenta, .celdaCuenta {
-    min-width: 15.5rem;
+    min-width: 14rem;
     position: sticky;
     left: 0;
     z-index: 2;
@@ -166,7 +167,7 @@
     padding: 0;
     text-align: left;
     cursor: pointer;
-    max-width: 17.5rem;
+    max-width: 15.5rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -194,7 +195,7 @@
 .copiarBtn[data-copiado="true"] { opacity: 1; color: var(--success-text, var(--success)); }
 .copiarBtn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 
-.sub { display: block; margin-top: 0.12rem; font-size: 0.76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22rem; }
+.sub { display: block; margin-top: 0.12rem; font-size: 0.76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 18rem; }
 .etiquetas { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
 .chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; font-weight: 700; line-height: 1.25; padding: 0.12rem 0.52rem; border-radius: 999px; border: 1px solid var(--border); color: var(--text-main); background: var(--bg-card); white-space: nowrap; }
 .chip::before { content: ''; width: 0.38rem; height: 0.38rem; border-radius: 50%; background: currentColor; flex: none; }
