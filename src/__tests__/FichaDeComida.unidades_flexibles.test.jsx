@@ -1,6 +1,6 @@
 // [P1-UNIDADES-FLEXIBLES · 2026-11-18] Selector flexible de unidades en FichaDeComida.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn() }) }));
@@ -31,7 +31,7 @@ const ficha = (gHuevo = 100, udsHuevo = 2, gAceite = 5, gMangu = 250) => ({
             lineas: [
                 { texto: `Huevos enteros (≈${gHuevo} g; ${udsHuevo} unidades)`, ajustable_g: gHuevo, kcal: 139 },
                 { texto: `Aceite de oliva (≈${gAceite} g)`, ajustable_g: gAceite, kcal: 45 },
-                { texto: `Mangú de plátano verde (≈${gMangu} g)`, ajustable_g: gMangu, kcal: 381 },
+                { texto: `mangú de plátano verde (≈${gMangu} g)`, ajustable_g: gMangu, kcal: 381 },
             ],
         },
     },
@@ -96,5 +96,47 @@ describe('[P1-UNIDADES-FLEXIBLES] editar ingredientes en unidades naturales', ()
         fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
         await screen.findByText('1.5×');
         expect(JSON.parse(vi.mocked(fetchWithAuth).mock.calls[1][1].body)).toEqual({ indice: 2, gramos: 375 });
+    });
+
+    it('sigue el visualViewport al abrirse el teclado y capitaliza el título del editor', async () => {
+        const origViewport = window.visualViewport;
+        const origInnerHeight = window.innerHeight;
+        const viewport = Object.assign(new EventTarget(), { height: 844, offsetTop: 0 });
+        Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport });
+        Object.defineProperty(window, 'innerHeight', { configurable: true, value: 844 });
+
+        try {
+            vi.mocked(fetchWithAuth).mockResolvedValueOnce(respuesta(ficha(100, 2, 5, 250)));
+
+            render(<FichaDeComida meal={MEAL} userId={UID} onClose={vi.fn()} />);
+            await screen.findByText('250 g');
+
+            fireEvent.click(screen.getByRole('button', { name: /Escribir los gramos de Mangú/i }));
+
+            const titulo = screen.getByRole('heading', { name: 'Mangú de plátano verde' });
+            expect(titulo).toBeInTheDocument();
+
+            const editorDialog = screen.getByRole('dialog', { name: 'Mangú de plátano verde' });
+            const fichaDialog = document.querySelector('[aria-labelledby="ficha-comida-titulo"]');
+            expect(fichaDialog).not.toContainElement(editorDialog);
+
+            const capa = editorDialog.parentElement;
+            expect(capa.style.height).toBe('844px');
+            expect(capa.style.top).toBe('0px');
+            expect(editorDialog).not.toHaveAttribute('data-teclado');
+
+            act(() => {
+                Object.assign(viewport, { height: 480, offsetTop: 24 });
+                viewport.dispatchEvent(new Event('resize'));
+            });
+
+            expect(capa.style.top).toBe('24px');
+            expect(capa.style.height).toBe('480px');
+            expect(capa.style.bottom).toBe('auto');
+            expect(editorDialog).toHaveAttribute('data-teclado', '1');
+        } finally {
+            Object.defineProperty(window, 'visualViewport', { configurable: true, value: origViewport });
+            Object.defineProperty(window, 'innerHeight', { configurable: true, value: origInnerHeight });
+        }
     });
 });

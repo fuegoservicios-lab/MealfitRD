@@ -13,7 +13,7 @@ import { fetchWithAuth } from '../config/api';
 import SemanaEnProgreso from '../components/dashboard/SemanaEnProgreso';
 import CierreDeSemana from '../components/dashboard/CierreDeSemana';
 import VitrinaDeSemanas from '../components/dashboard/VitrinaDeSemanas';
-import { diaUnoDelServidor, leerResumenGuardado } from '../utils/progresoServidor';
+import { diaUnoDelServidor, invalidarCacheSemanas, leerResumenGuardado } from '../utils/progresoServidor';
 
 const fila = (date, calories) => ({ date, calories, protein: 100, carbs: 200, healthy_fats: 60, meals_count: 3, target_calories: 2000 });
 const RESUMEN = {
@@ -113,8 +113,12 @@ describe('[P1-PLAN-LOTE-1059 · plan 1035] cierre de semana e hitos', () => {
 });
 
 describe('[P1-PLAN-LOTE-1059 · plan 1030] vitrina de semanas', () => {
-    it('solo las cerradas, y tocar una lleva a su semana', async () => {
+    beforeEach(() => {
+        window.localStorage.clear();
         fetchWithAuth.mockReset();
+    });
+
+    it('solo las cerradas, y tocar una lleva a su semana', async () => {
         fetchWithAuth.mockResolvedValue({
             ok: true,
             json: async () => ({ semanas: [
@@ -130,5 +134,47 @@ describe('[P1-PLAN-LOTE-1059 · plan 1030] vitrina de semanas', () => {
         expect(screen.queryByText('S10')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('listitem', { name: /Semana 8: 3 estrellas/ }));
         expect(onElegir).toHaveBeenCalledWith('2026-11-01');
+    });
+
+    it('al salir y volver a entrar se pinta al instante sin desaparecer ni repetir llamadas dentro del TTL', async () => {
+        fetchWithAuth.mockResolvedValue({
+            ok: true,
+            json: async () => ({ semanas: [
+                { numero: 8, empieza: '2026-11-01', dias_en_meta: 7, dias_registrados: 7, estrellas: 3, cerrada: true },
+                { numero: 9, empieza: '2026-11-08', dias_en_meta: 4, dias_registrados: 6, estrellas: 1, cerrada: true },
+            ] }),
+        });
+        const { unmount } = render(<VitrinaDeSemanas userId="u-1" onElegir={vi.fn()} />);
+        expect(await screen.findByText('Tus semanas')).toBeInTheDocument();
+        expect(fetchWithAuth).toHaveBeenCalledTimes(1);
+
+        unmount();
+        render(<VitrinaDeSemanas userId="u-1" onElegir={vi.fn()} />);
+        // Presente de inmediato (sin esperar ninguna promesa) al volver a entrar
+        expect(screen.getByText('Tus semanas')).toBeInTheDocument();
+        expect(screen.getByText('S8')).toBeInTheDocument();
+        expect(screen.getByText('S9')).toBeInTheDocument();
+        await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledTimes(1));
+    });
+
+    it('un fallo pasajero de red tras invalidar conserva las semanas ya guardadas', async () => {
+        fetchWithAuth.mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ semanas: [
+                { numero: 8, empieza: '2026-11-01', dias_en_meta: 7, dias_registrados: 7, estrellas: 3, cerrada: true },
+            ] }),
+        });
+        const { unmount } = render(<VitrinaDeSemanas userId="u-1" onElegir={vi.fn()} />);
+        expect(await screen.findByText('S8')).toBeInTheDocument();
+        unmount();
+
+        invalidarCacheSemanas('u-1');
+        fetchWithAuth.mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({}) });
+        render(<VitrinaDeSemanas userId="u-1" onElegir={vi.fn()} />);
+        expect(screen.getByText('Tus semanas')).toBeInTheDocument();
+        expect(screen.getByText('S8')).toBeInTheDocument();
+        await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledTimes(2));
+        expect(screen.getByText('Tus semanas')).toBeInTheDocument();
+        expect(screen.getByText('S8')).toBeInTheDocument();
     });
 });

@@ -3236,7 +3236,8 @@ const PantryPage = () => {
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={_closeAddMenu}
-                            style={{ position: 'fixed', inset: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(6px)', zIndex: 100 }}
+                            className={hstyles.velo}
+                            style={{ zIndex: 100 }}
                         />
                         <motion.div
                             ref={addMenuModalRef}
@@ -3244,6 +3245,7 @@ const PantryPage = () => {
                             aria-modal="true"
                             aria-labelledby="pantry-add-title"
                             tabIndex={-1}
+                            className={isMobileLayout ? hstyles.hojaMovil : hstyles.hojaEscritorio}
                             initial={isMobileLayout
                                 ? { y: '100%' }
                                 : { opacity: 0, scale: 0.94, x: '-50%', y: '-50%' }}
@@ -3266,33 +3268,16 @@ const PantryPage = () => {
                                 onDragEnd: _soltarHoja,
                             } : {})}
                             style={isMobileLayout ? {
-                                position: 'fixed', bottom: kbInset, left: 0, right: 0, background: 'var(--bg-card)',
-                                // [P3-PANTRY-ADD-MOBILE · 2026-06-19] padding responsive (menos en móvil =
-                                // más espacio útil) + alto adaptado al viewport visible (sobre el teclado).
-                                borderRadius: '1.75rem 1.75rem 0 0',
-                                padding: 'clamp(1.1rem, 4.5vw, 2rem)',
-                                paddingTop: 'clamp(0.85rem, 3vw, 1.4rem)',
+                                bottom: kbInset,
                                 zIndex: 101,
-                                boxShadow: '0 -12px 44px rgba(0,0,0,0.22)',
                                 // [P1-PANTRY-SHEET-NOTCH · 2026-08-22] Con teclado, el alto era el viewport
                                 // visible ENTERO menos 10 px: la hoja subía hasta debajo del reloj (iPhone,
                                 // medido). Se descuenta la barra de estado y un respiro.
                                 maxHeight: kbAbierto
                                     ? `calc(${Math.max(300, vvHeight - 10)}px - env(safe-area-inset-top, 0px) - 12px)`
                                     : `${Math.round(vvHeight * 0.9)}px`,
-                                display: 'flex', flexDirection: 'column',
                             } : {
-                                // Desktop: diálogo centrado, ancho acotado, alto al contenido
-                                // (hasta un tope) → sin vacío muerto cuando hay pocos resultados.
-                                position: 'fixed', top: '50%', left: '50%', background: 'var(--bg-card)',
-                                width: '92%', maxWidth: '580px',
-                                borderRadius: '1.5rem',
-                                padding: '1.6rem 1.6rem 0.6rem',
                                 zIndex: 101,
-                                border: '1px solid var(--border)',
-                                boxShadow: '0 24px 60px -12px rgba(0,0,0,0.45)',
-                                maxHeight: 'min(84vh, 660px)',
-                                display: 'flex', flexDirection: 'column',
                             }}
                         >
                             {/* [P1-PLAN-LOTE-1073] La cabecera es el ASA: arrastrarla hacia abajo cierra la hoja; tocar la

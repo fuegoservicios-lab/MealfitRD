@@ -58,11 +58,12 @@ import MiniaturaDeComida from './MiniaturaDeComida';
 import { getBiologicalDate, getBiologicalDateStr, getCalendarDateStr } from '../../utils/diaBiologico';
 import { getCalorieGoalBand, getCalorieGoalState, isStrongDeficit, resolveMainGoal } from '../../utils/calorieGoalStatus';
 import { ESTRELLAS_MAX, domingoDe, estrellasDeLaSemana, inicioDeLaSemana1, numeroDeSemana } from '../../utils/progresoDeLosDias';
-import { diaUnoDelServidor } from '../../utils/progresoServidor';
+import { diaUnoDelServidor, invalidarCacheSemanas } from '../../utils/progresoServidor';
 import VitrinaDeSemanas from './VitrinaDeSemanas';
-import { safeLocalStorageGet } from '../../utils/safeLocalStorage';
+import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import styles from './DiaryHistory.module.css';
 import BotonInformeMedico from '../common/BotonInformeMedico';   // [P1-PLAN-LOTE-1034]
+import { Button } from '../ui/Button';
 
 // [P1-PLAN-LOTE-224 · 2026-09-24] El escáner, igual: perezoso y montado al abrirlo (ver TrackingProgress). Este cajón
 // vive en el mismo trozo del panel, y el escáner reconstruido lo pasaba del techo de precache-guard.
@@ -247,6 +248,20 @@ const _recalcularDia = (iso, meals, targets) => {
     };
 };
 
+const RANGO_CACHE_TTL_MS = 30_000;
+const _claveRango = (userId) => `mealfit_diario_rango_${userId}`;
+const _leerRangoGuardado = (userId) => {
+    if (!userId) return [];
+    for (const k of [_claveRango(userId), `mealfit_semana_progreso_${userId}`]) {
+        try {
+            const crudo = safeLocalStorageGet(k, null);
+            const filas = crudo ? JSON.parse(crudo) : null;
+            if (Array.isArray(filas) && filas.length > 0) return filas;
+        } catch { /* seguir al siguiente */ }
+    }
+    return [];
+};
+
 const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacros = {}, targetMicros = null, mainGoal = null, diaInicial = null }) => {
     const t = useT();
     const tn = useTn();
@@ -317,7 +332,15 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     }, []);
 
     const calDias = useMemo(() => getMesCalendario(calDate), [calDate]);
-    const [resumen, setResumen] = useState([]);
+    const [resumenEstado, setResumenEstado] = useState(() => ({
+        uid: userId,
+        items: _leerRangoGuardado(userId),
+    }));
+    const respaldoResumen = useMemo(
+        () => (resumenEstado.uid === userId ? null : _leerRangoGuardado(userId)),
+        [resumenEstado.uid, userId],
+    );
+    const resumen = resumenEstado.uid === userId ? resumenEstado.items : respaldoResumen;
     const [dia, setDia] = useState(null);
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState('');
@@ -437,8 +460,13 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const selectedTargetMacros = diaTargets?.macros || selectedRow?.target_macros || targetMacros;
     const selectedMainGoal = diaTargets?.main_goal || selectedRow?.main_goal || resolvedMainGoal;
 
+    const ultimoRangoRef = useRef({ key: '', ts: 0 });
     useEffect(() => {
         if (!open || !userId) return undefined;
+        const key = `${userId}:${tzOffset}:${maxDias}:${version}`;
+        if (ultimoRangoRef.current.key === key && Date.now() - ultimoRangoRef.current.ts < RANGO_CACHE_TTL_MS) {
+            return undefined;
+        }
         let vivo = true;
         (async () => {
             try {
@@ -446,7 +474,11 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     `/api/diary/consumed-range/${userId}?days=${maxDias}&tzOffset=${tzOffset}`
                 );
                 const data = await res.json();
-                if (vivo && Array.isArray(data?.days)) setResumen(data.days);
+                if (vivo && res.ok !== false && Array.isArray(data?.days)) {
+                    ultimoRangoRef.current = { key, ts: Date.now() };
+                    setResumenEstado({ uid: userId, items: data.days });
+                    safeLocalStorageSet(_claveRango(userId), JSON.stringify(data.days));
+                }
             } catch {
                 // La tira degrada a "sin datos": es contexto, no el contenido.
             }
@@ -533,7 +565,6 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     }, []);
 
     useEffect(() => {
-        if (!open) return undefined;
         const refrescar = (e) => {
             if (e?.detail?.source === 'diary-history') return;
             const deletedId = e?.detail?.deletedMeal?.id;
@@ -541,6 +572,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                 eliminadasRef.current.add(deletedId);
                 setDia((prev) => _quitarComidaDeDia(prev, deletedId));
             }
+            invalidarCacheSemanas(userId);
             setVersion((v) => v + 1);
         };
         window.addEventListener('mealfit:refresh-inventory', refrescar);
@@ -549,7 +581,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             window.removeEventListener('mealfit:refresh-inventory', refrescar);
             window.removeEventListener('mealfit:diary-changed', refrescar);
         };
-    }, [open, _quitarComidaDeDia]);
+    }, [userId, _quitarComidaDeDia]);
 
     const moverDia = useCallback((delta) => {
         setSelected((actual) => {
@@ -607,6 +639,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             eliminadasRef.current.add(meal.id);
             setDia((prev) => _quitarComidaDeDia(prev, meal.id));
             setFichaMeal((cur) => (cur?.id === meal.id ? null : cur));
+            invalidarCacheSemanas(userId);
             setVersion((v) => v + 1);
             try {
                 window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'diary-history', date: selected, userId, deletedMeal: { id: meal.id, name: meal.meal_name } } }));
@@ -716,13 +749,13 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             )}
             {/* [P1-PLAN-LOTE-1100] el mes como historia: un anillo por día, los días en meta y la mejor racha */}
             {mes.n > 0 && (
-                <button type="button" className={styles.compartirMes} onClick={abrirCompartirMes}>
-                    <Share size={15} strokeWidth={2.4} aria-hidden="true" />
+                <Button variant="secondary" block className={styles.compartirMes} onClick={abrirCompartirMes}>
+                    <Share size={16} strokeWidth={2.25} aria-hidden="true" />
                     {esMesActual ? t('Compartir este mes') : t('Compartir {mes}', { mes: getMeses(t)[calDate.getMonth()] })}
-                </button>
+                </Button>
             )}
             {/* [P1-PLAN-LOTE-1059 · plan 1030] las semanas cerradas; tocar una lleva el mes a esa semana */}
-            <VitrinaDeSemanas userId={userId} onElegir={irASemana} />
+            <VitrinaDeSemanas userId={userId} version={version} onElegir={irASemana} />
             {/* [P1-PLAN-LOTE-1034] el resumen para el médico, desde el calendario */}
             <BotonInformeMedico />{/* [P1-PLAN-LOTE-1072] abre una hoja encima del cajón: el cajón no se cierra */}
         </div>

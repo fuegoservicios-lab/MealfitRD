@@ -38,6 +38,7 @@ import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
+import { useVisibleViewport } from '../../hooks/useVisibleViewport';
 import { useFotosDeComida } from '../../hooks/useFotosDeComidas';
 import { useAssessment } from '../../context/AssessmentContext';
 import { safeLocalStorageGet, safeLocalStorageRemove } from '../../utils/safeLocalStorage';
@@ -126,13 +127,20 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     const [unidadPorLinea, setUnidadPorLinea] = useState({});
     const [editor, setEditor] = useState(null);
     const editorAbierto = Boolean(editor);
-    editorAbiertoRef.current = editorAbierto;
     const editorHojaRef = useRef(null);
     const baseGramosRef = useRef({});
     const visorRef = useRef(null);
     const ampliarRef = useRef(null);
+    const visibleViewport = useVisibleViewport(editorAbierto);
+    const tecladoEditorAbierto = Boolean(
+        editorAbierto &&
+        visibleViewport &&
+        typeof window !== 'undefined' &&
+        window.innerHeight - visibleViewport.height >= 120
+    );
 
     useEffect(() => {
+        editorAbiertoRef.current = editorAbierto;
         if (!editorAbierto) return undefined;
         // Enfocar la hoja (y NO el <input>) para evitar que iOS/Android abra el teclado virtual al abrir el editor.
         editorHojaRef.current?.focus({ preventScroll: true });
@@ -145,6 +153,21 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
         document.addEventListener('keydown', onKey);
         return () => document.removeEventListener('keydown', onKey);
     }, [editorAbierto]);
+
+    useEffect(() => {
+        if (!editorAbierto) return undefined;
+        const id = requestAnimationFrame(() => {
+            const panel = editorHojaRef.current;
+            const field = document.activeElement;
+            if (!panel?.contains(field) || !field.matches('input')) return;
+            const bounds = panel.getBoundingClientRect();
+            if (bounds.bottom <= bounds.top) return;
+            const input = field.getBoundingClientRect();
+            if (input.bottom > bounds.bottom - 16) panel.scrollTop += input.bottom - bounds.bottom + 16;
+            else if (input.top < bounds.top + 16) panel.scrollTop = Math.max(0, panel.scrollTop - (bounds.top + 16 - input.top));
+        });
+        return () => cancelAnimationFrame(id);
+    }, [editorAbierto, visibleViewport?.top, visibleViewport?.height]);
 
     // `undefined` mientras se mira el dispositivo, `null` si no hay foto, la URL si la hay (ver `useFotoDeComida`)
     const fotos = useFotosDeComida(userId, meal?.id);
@@ -334,6 +357,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
             <div
                 ref={containerRef}
                 className={styles.sheet}
+                inert={editorAbierto || undefined}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="ficha-comida-titulo"
@@ -344,7 +368,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                 onTouchEnd={hoja.onTouchEnd}
                 onTouchCancel={hoja.onTouchEnd}
             >
-                <div className={styles.head} inert={ampliada || Boolean(editor) || undefined}>
+                <div className={styles.head} inert={ampliada || editorAbierto || undefined}>
                     <span className={styles.grip} aria-hidden="true" />
                     <div className={styles.headRow}>
                         <div className={styles.headText}>
@@ -359,7 +383,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                     </div>
                 </div>
 
-                <div ref={bodyRef} className={styles.body} inert={ampliada || Boolean(editor) || undefined}>
+                <div ref={bodyRef} className={styles.body} inert={ampliada || editorAbierto || undefined}>
                     {/* [P1-PLAN-LOTE-1093] el nombre va en el cuerpo y se desplaza con él: en la cabecera fija, un nombre
                         de cuatro líneas se comía media hoja mientras se miraban los ingredientes */}
                     <h2 id="ficha-comida-titulo" className={styles.title}>{nombre}</h2>
@@ -580,7 +604,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                     <HealthSources context="tracking" />
                 </div>
 
-                <div className={styles.footer} inert={ampliada || Boolean(editor) || undefined}>
+                <div className={styles.footer} inert={ampliada || editorAbierto || undefined}>
                     <button type="button" className={styles.secundario} onClick={repetir} disabled={repitiendo || eliminando}>
                         {repitiendo
                             ? <Loader2 size={17} className="spin-animation" aria-hidden="true" />
@@ -597,208 +621,6 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                     )}
                 </div>
 
-                {editor && lineas[editor.i] && Number.isFinite(lineas[editor.i].ajustable_g) && (() => {
-                    const idx = editor.i;
-                    const l = lineas[idx];
-                    const nombreLegible = lineaDeIngredienteLegible(l.texto, t);
-                    const tituloLimpio = nombreLegible.replace(/\s*\([^)]*\)\s*$/, '').trim() || nombreLegible;
-                    const baseG = baseGramosRef.current[idx] ?? l.ajustable_g;
-                    const cfg = unidadesParaIngrediente(l.texto, l.ajustable_g, baseG, t);
-                    const opcion = cfg.opciones.find((o) => o.id === editor.unidadId) || cfg.opciones[0];
-                    const esGramos = opcion.id === 'g';
-                    const parsed = Number(String(editor.valor).replace(',', '.'));
-                    const valorValido = Number.isFinite(parsed) && parsed > 0;
-                    const gramosBorrador = valorValido
-                        ? (esGramos ? Math.round(parsed) : unidadAGramos(parsed, opcion))
-                        : null;
-                    const gramosEnRango = Number.isFinite(gramosBorrador) && gramosBorrador >= GRAMOS_MINIMOS && gramosBorrador <= 1500;
-                    const gPreview = gramosEnRango ? gramosBorrador : l.ajustable_g;
-                    const kcalPreview = Number.isFinite(l.kcal) && l.ajustable_g > 0
-                        ? Math.round((l.kcal * gPreview) / l.ajustable_g)
-                        : null;
-                    const paso = esGramos ? pasoDe(gPreview) : opcion.paso;
-                    const atajos = atajosParaUnidad(opcion, baseG);
-
-                    const moverBorrador = (delta) => {
-                        const actual = valorValido ? parsed : (esGramos ? l.ajustable_g : gramosAUnidad(l.ajustable_g, opcion));
-                        const nuevo = Math.round((actual + delta) * 100) / 100;
-                        const gNuevo = esGramos ? Math.round(nuevo) : unidadAGramos(nuevo, opcion);
-                        if (!Number.isFinite(gNuevo) || gNuevo < GRAMOS_MINIMOS || gNuevo > 1500) return;
-                        setEditor((prev) => (prev ? { ...prev, valor: String(esGramos ? gNuevo : nuevo) } : prev));
-                    };
-
-                    const cambiarUnidad = (opNueva) => {
-                        const gBase = gramosEnRango ? gramosBorrador : l.ajustable_g;
-                        const nuevoVal = opNueva.id === 'g' ? gBase : gramosAUnidad(gBase, opNueva);
-                        setEditor({ i: idx, unidadId: opNueva.id, valor: String(nuevoVal) });
-                    };
-
-                    const guardar = () => {
-                        if (!gramosEnRango) return;
-                        const gFinal = Math.min(1500, Math.max(GRAMOS_MINIMOS, gramosBorrador));
-                        setUnidadPorLinea((prev) => ({ ...prev, [idx]: opcion.id }));
-                        setEditor(null);
-                        if (gFinal !== l.ajustable_g) ajustar(idx, gFinal);
-                    };
-
-                    const menosDeshab = !gramosEnRango || (() => {
-                        const gM = esGramos ? Math.round(parsed - paso) : unidadAGramos(parsed - paso, opcion);
-                        return gM === null || gM < GRAMOS_MINIMOS || gM === gramosBorrador;
-                    })();
-                    const masDeshab = !gramosEnRango || (() => {
-                        const gP = esGramos ? Math.round(parsed + paso) : unidadAGramos(parsed + paso, opcion);
-                        return gP === null || gP > 1500 || gP === gramosBorrador;
-                    })();
-
-                    return (
-                        <div className={styles.editorCapa}>
-                            <button
-                                type="button"
-                                className={styles.editorBackdrop}
-                                aria-hidden="true"
-                                tabIndex={-1}
-                                onClick={() => setEditor(null)}
-                            />
-                            <div
-                                ref={editorHojaRef}
-                                tabIndex={-1}
-                                className={styles.editorHoja}
-                                role="dialog"
-                                aria-modal="true"
-                                aria-labelledby="editor-cantidad-titulo"
-                            >
-                                <div className={styles.editorCabeza}>
-                                    <div className={styles.editorTitulos}>
-                                        <h4 id="editor-cantidad-titulo" className={styles.editorTitulo}>{tituloLimpio}</h4>
-                                        <p className={styles.editorResumen} aria-live="polite">
-                                            {kcalPreview !== null && <span>{formatNumber(kcalPreview)} kcal</span>}
-                                            {kcalPreview !== null && !esGramos && <span className={styles.editorPunto} aria-hidden="true">·</span>}
-                                            {!esGramos && <span>≈ {formatNumber(gPreview)} g</span>}
-                                        </p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        className={styles.editorCerrar}
-                                        onClick={() => setEditor(null)}
-                                        aria-label={t('Cerrar')}
-                                    >
-                                        <X size={18} strokeWidth={2.25} aria-hidden="true" />
-                                    </button>
-                                </div>
-
-                                <div className={styles.editorStepper}>
-                                    <button
-                                        type="button"
-                                        className={styles.editorPasoBtn}
-                                        onClick={() => moverBorrador(-paso)}
-                                        disabled={menosDeshab}
-                                        aria-label={esGramos
-                                            ? t('Quitar {n} g', { n: paso })
-                                            : t('Quitar {n} {unidad}', { n: formatNumber(paso), unidad: opcion.etiqueta })}
-                                    >
-                                        <Minus size={18} strokeWidth={2.5} aria-hidden="true" />
-                                    </button>
-                                    <div className={styles.editorCampoWrap}>
-                                        <input
-                                            type="number"
-                                            inputMode={esGramos ? 'numeric' : 'decimal'}
-                                            step={esGramos ? '1' : '0.25'}
-                                            min={opcion.min}
-                                            max={opcion.max}
-                                            className={styles.editorInput}
-                                            value={editor.valor}
-                                            aria-label={esGramos
-                                                ? t('Gramos de {nombre}', { nombre: nombreLegible })
-                                                : t('Cantidad de {nombre}', { nombre: nombreLegible })}
-                                            onFocus={(e) => e.target.select()}
-                                            onChange={(e) => setEditor((prev) => (prev ? { ...prev, valor: e.target.value } : prev))}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    guardar();
-                                                }
-                                            }}
-                                        />
-                                        <span className={styles.editorUnidadInline}>
-                                            {opcion.sufijo || opcion.etiqueta}
-                                        </span>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        className={styles.editorPasoBtn}
-                                        onClick={() => moverBorrador(paso)}
-                                        disabled={masDeshab}
-                                        aria-label={esGramos
-                                            ? t('Añadir {n} g', { n: paso })
-                                            : t('Añadir {n} {unidad}', { n: formatNumber(paso), unidad: opcion.etiqueta })}
-                                    >
-                                        <Plus size={18} strokeWidth={2.5} aria-hidden="true" />
-                                    </button>
-                                </div>
-
-                                {atajos.length > 0 && (
-                                    <div className={styles.editorAtajos}>
-                                        {atajos.map((v) => {
-                                            const activo = valorValido && Math.abs(parsed - v) < 0.01;
-                                            const etiqueta = opcion.sufijo
-                                                ? `${formatNumber(v)}${opcion.sufijo}`
-                                                : `${formatNumber(v)} ${opcion.etiqueta}`;
-                                            return (
-                                                <button
-                                                    key={v}
-                                                    type="button"
-                                                    className={styles.editorAtajo}
-                                                    aria-pressed={activo}
-                                                    onClick={() => setEditor((prev) => (prev ? { ...prev, valor: String(v) } : prev))}
-                                                >
-                                                    {etiqueta}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-
-                                {cfg.opciones.length > 1 && (
-                                    <div className={styles.editorSeccion}>
-                                        <span className={styles.editorEtiqueta}>{t('Unidad')}</span>
-                                        <div className={styles.editorUnidades} role="group" aria-label={t('Elegir unidad')}>
-                                            {cfg.opciones.map((op) => (
-                                                <button
-                                                    key={op.id}
-                                                    type="button"
-                                                    className={styles.editorUnidadChip}
-                                                    aria-pressed={op.id === opcion.id}
-                                                    onClick={() => cambiarUnidad(op)}
-                                                >
-                                                    {op.etiqueta}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className={styles.editorAcciones}>
-                                    <button
-                                        type="button"
-                                        className={styles.editorCancelar}
-                                        onClick={() => setEditor(null)}
-                                    >
-                                        {t('Cancelar')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={styles.editorGuardar}
-                                        disabled={!gramosEnRango}
-                                        onClick={guardar}
-                                    >
-                                        {t('Guardar')}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })()}
-
                 {ampliada && fotoUrl && (
                     <div ref={visorRef} className={styles.visor} role="dialog" aria-modal="true" aria-label={t('Foto de {nombre}', { nombre })}>
                         <button type="button" className={styles.visorCerrar} onClick={() => setAmpliada(false)} aria-label={t('Cerrar')}><X aria-hidden="true" /></button>
@@ -811,6 +633,210 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                     </div>
                 )}
             </div>
+
+            {editor && lineas[editor.i] && Number.isFinite(lineas[editor.i].ajustable_g) && (() => {
+                const idx = editor.i;
+                const l = lineas[idx];
+                const nombreLegible = lineaDeIngredienteLegible(l.texto, t);
+                const tituloCrudo = nombreLegible.replace(/\s*\([^)]*\)\s*$/, '').trim() || nombreLegible;
+                const tituloLimpio = tituloCrudo ? `${tituloCrudo.charAt(0).toUpperCase()}${tituloCrudo.slice(1)}` : tituloCrudo;
+                const baseG = baseGramosRef.current[idx] ?? l.ajustable_g;
+                const cfg = unidadesParaIngrediente(l.texto, l.ajustable_g, baseG, t);
+                const opcion = cfg.opciones.find((o) => o.id === editor.unidadId) || cfg.opciones[0];
+                const esGramos = opcion.id === 'g';
+                const parsed = Number(String(editor.valor).replace(',', '.'));
+                const valorValido = Number.isFinite(parsed) && parsed > 0;
+                const gramosBorrador = valorValido
+                    ? (esGramos ? Math.round(parsed) : unidadAGramos(parsed, opcion))
+                    : null;
+                const gramosEnRango = Number.isFinite(gramosBorrador) && gramosBorrador >= GRAMOS_MINIMOS && gramosBorrador <= 1500;
+                const gPreview = gramosEnRango ? gramosBorrador : l.ajustable_g;
+                const kcalPreview = Number.isFinite(l.kcal) && l.ajustable_g > 0
+                    ? Math.round((l.kcal * gPreview) / l.ajustable_g)
+                    : null;
+                const paso = esGramos ? pasoDe(gPreview) : opcion.paso;
+                const atajos = atajosParaUnidad(opcion, baseG);
+
+                const moverBorrador = (delta) => {
+                    const actual = valorValido ? parsed : (esGramos ? l.ajustable_g : gramosAUnidad(l.ajustable_g, opcion));
+                    const nuevo = Math.round((actual + delta) * 100) / 100;
+                    const gNuevo = esGramos ? Math.round(nuevo) : unidadAGramos(nuevo, opcion);
+                    if (!Number.isFinite(gNuevo) || gNuevo < GRAMOS_MINIMOS || gNuevo > 1500) return;
+                    setEditor((prev) => (prev ? { ...prev, valor: String(esGramos ? gNuevo : nuevo) } : prev));
+                };
+
+                const cambiarUnidad = (opNueva) => {
+                    const gBase = gramosEnRango ? gramosBorrador : l.ajustable_g;
+                    const nuevoVal = opNueva.id === 'g' ? gBase : gramosAUnidad(gBase, opNueva);
+                    setEditor({ i: idx, unidadId: opNueva.id, valor: String(nuevoVal) });
+                };
+
+                const guardar = () => {
+                    if (!gramosEnRango) return;
+                    const gFinal = Math.min(1500, Math.max(GRAMOS_MINIMOS, gramosBorrador));
+                    setUnidadPorLinea((prev) => ({ ...prev, [idx]: opcion.id }));
+                    setEditor(null);
+                    if (gFinal !== l.ajustable_g) ajustar(idx, gFinal);
+                };
+
+                const menosDeshab = !gramosEnRango || (() => {
+                    const gM = esGramos ? Math.round(parsed - paso) : unidadAGramos(parsed - paso, opcion);
+                    return gM === null || gM < GRAMOS_MINIMOS || gM === gramosBorrador;
+                })();
+                const masDeshab = !gramosEnRango || (() => {
+                    const gP = esGramos ? Math.round(parsed + paso) : unidadAGramos(parsed + paso, opcion);
+                    return gP === null || gP > 1500 || gP === gramosBorrador;
+                })();
+
+                return (
+                    <div className={styles.editorCapa} style={visibleViewport}>
+                        <button
+                            type="button"
+                            className={styles.editorBackdrop}
+                            aria-hidden="true"
+                            tabIndex={-1}
+                            onClick={() => setEditor(null)}
+                        />
+                        <div
+                            ref={editorHojaRef}
+                            tabIndex={-1}
+                            className={styles.editorHoja}
+                            data-teclado={tecladoEditorAbierto ? '1' : undefined}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="editor-cantidad-titulo"
+                        >
+                            <div className={styles.editorCabeza}>
+                                <div className={styles.editorTitulos}>
+                                    <h4 id="editor-cantidad-titulo" className={styles.editorTitulo}>{tituloLimpio}</h4>
+                                    <p className={styles.editorResumen} aria-live="polite">
+                                        {kcalPreview !== null && <span>{formatNumber(kcalPreview)} kcal</span>}
+                                        {kcalPreview !== null && !esGramos && <span className={styles.editorPunto} aria-hidden="true">·</span>}
+                                        {!esGramos && <span>≈ {formatNumber(gPreview)} g</span>}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    className={styles.editorCerrar}
+                                    onClick={() => setEditor(null)}
+                                    aria-label={t('Cerrar')}
+                                >
+                                    <X size={18} strokeWidth={2.25} aria-hidden="true" />
+                                </button>
+                            </div>
+
+                            <div className={styles.editorStepper}>
+                                <button
+                                    type="button"
+                                    className={styles.editorPasoBtn}
+                                    onClick={() => moverBorrador(-paso)}
+                                    disabled={menosDeshab}
+                                    aria-label={esGramos
+                                        ? t('Quitar {n} g', { n: paso })
+                                        : t('Quitar {n} {unidad}', { n: formatNumber(paso), unidad: opcion.etiqueta })}
+                                >
+                                    <Minus size={18} strokeWidth={2.5} aria-hidden="true" />
+                                </button>
+                                <label className={styles.editorCampoWrap}>
+                                    <input
+                                        type="number"
+                                        inputMode={esGramos ? 'numeric' : 'decimal'}
+                                        step={esGramos ? '1' : '0.25'}
+                                        min={opcion.min}
+                                        max={opcion.max}
+                                        className={styles.editorInput}
+                                        value={editor.valor}
+                                        aria-label={esGramos
+                                            ? t('Gramos de {nombre}', { nombre: nombreLegible })
+                                            : t('Cantidad de {nombre}', { nombre: nombreLegible })}
+                                        onFocus={(e) => e.target.select()}
+                                        onChange={(e) => setEditor((prev) => (prev ? { ...prev, valor: e.target.value } : prev))}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                guardar();
+                                            }
+                                        }}
+                                    />
+                                    <span className={styles.editorUnidadInline}>
+                                        {opcion.sufijo || opcion.etiqueta}
+                                    </span>
+                                </label>
+                                <button
+                                    type="button"
+                                    className={styles.editorPasoBtn}
+                                    onClick={() => moverBorrador(paso)}
+                                    disabled={masDeshab}
+                                    aria-label={esGramos
+                                        ? t('Añadir {n} g', { n: paso })
+                                        : t('Añadir {n} {unidad}', { n: formatNumber(paso), unidad: opcion.etiqueta })}
+                                >
+                                    <Plus size={18} strokeWidth={2.5} aria-hidden="true" />
+                                </button>
+                            </div>
+
+                            {atajos.length > 0 && (
+                                <div className={styles.editorAtajos}>
+                                    {atajos.map((v) => {
+                                        const activo = valorValido && Math.abs(parsed - v) < 0.01;
+                                        const etiqueta = opcion.sufijo
+                                            ? `${formatNumber(v)}${opcion.sufijo}`
+                                            : `${formatNumber(v)} ${opcion.etiqueta}`;
+                                        return (
+                                            <button
+                                                key={v}
+                                                type="button"
+                                                className={styles.editorAtajo}
+                                                aria-pressed={activo}
+                                                onClick={() => setEditor((prev) => (prev ? { ...prev, valor: String(v) } : prev))}
+                                            >
+                                                {etiqueta}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {cfg.opciones.length > 1 && (
+                                <div className={styles.editorSeccion}>
+                                    <span className={styles.editorEtiqueta}>{t('Unidad')}</span>
+                                    <div className={styles.editorUnidades} role="group" aria-label={t('Elegir unidad')}>
+                                        {cfg.opciones.map((op) => (
+                                            <button
+                                                key={op.id}
+                                                type="button"
+                                                className={styles.editorUnidadChip}
+                                                aria-pressed={op.id === opcion.id}
+                                                onClick={() => cambiarUnidad(op)}
+                                            >
+                                                {op.etiqueta}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className={styles.editorAcciones}>
+                                <button
+                                    type="button"
+                                    className={styles.editorCancelar}
+                                    onClick={() => setEditor(null)}
+                                >
+                                    {t('Cancelar')}
+                                </button>
+                                <button
+                                    type="button"
+                                    className={styles.editorGuardar}
+                                    disabled={!gramosEnRango}
+                                    onClick={guardar}
+                                >
+                                    {t('Guardar')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 

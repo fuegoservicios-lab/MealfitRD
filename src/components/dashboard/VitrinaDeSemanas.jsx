@@ -1,29 +1,62 @@
 // [P1-PLAN-LOTE-1059 · plan 1030 · 2026-11-17] La vitrina de semanas, en el cajón del calendario.
 // Una fila horizontal con las semanas CERRADAS (número y estrellas, del servidor); tocar una lleva el mes a esa semana.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Star } from 'lucide-react';
 import { useT, useTn } from '../../i18n';
-import { pedirSemanas } from '../../utils/progresoServidor';
+import { leerSemanasGuardadas, pedirSemanas } from '../../utils/progresoServidor';
 import styles from './VitrinaDeSemanas.module.css';
 
-const VitrinaDeSemanas = ({ userId, onElegir }) => {
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+const _soloCerradas = (lista) => (Array.isArray(lista) ? lista.filter((s) => s.cerrada) : null);
+
+const _mismasSemanas = (a, b) => {
+    if (a === b) return true;
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) {
+        if (
+            a[i]?.numero !== b[i]?.numero ||
+            a[i]?.estrellas !== b[i]?.estrellas ||
+            a[i]?.dias_en_meta !== b[i]?.dias_en_meta ||
+            a[i]?.empieza !== b[i]?.empieza
+        ) return false;
+    }
+    return true;
+};
+
+const VitrinaDeSemanas = ({ userId, onElegir, version = 0 }) => {
     const t = useT();
     const tn = useTn();
-    const [semanas, setSemanas] = useState(null);
+    const [estado, setEstado] = useState(() => ({
+        uid: userId,
+        items: _soloCerradas(leerSemanasGuardadas(userId)),
+    }));
+    const semanas = estado.uid === userId ? estado.items : _soloCerradas(leerSemanasGuardadas(userId));
     const fila = useRef(null);
 
     useEffect(() => {
         if (!userId) return undefined;
         let vivo = true;
-        pedirSemanas(userId).then((l) => { if (vivo) setSemanas(l.filter((s) => s.cerrada)); }).catch(() => {});
+        pedirSemanas(userId, undefined, { force: version > 0 })
+            .then((l) => {
+                if (!vivo || !Array.isArray(l)) return;
+                const cerradas = l.filter((s) => s.cerrada);
+                setEstado((prev) => {
+                    const prevItems = prev.uid === userId ? prev.items : _soloCerradas(leerSemanasGuardadas(userId));
+                    if (prev.uid === userId && _mismasSemanas(prevItems, cerradas)) return prev;
+                    return { uid: userId, items: cerradas };
+                });
+            })
+            .catch(() => {});
         return () => { vivo = false; };
-    }, [userId]);
+    }, [userId, version]);
 
-    // la más reciente a la vista (al final de la fila)
-    useEffect(() => {
-        if (fila.current && semanas?.length) fila.current.scrollLeft = fila.current.scrollWidth;
-    }, [semanas]);
+    // la más reciente a la vista antes del primer pintado (sin salto visual al entrar)
+    const claveScroll = (semanas || []).map((s) => s.numero).join(',');
+    useIsomorphicLayoutEffect(() => {
+        if (fila.current && claveScroll) fila.current.scrollLeft = fila.current.scrollWidth;
+    }, [claveScroll]);
 
     if (!semanas?.length) return null;
     return (
@@ -55,6 +88,7 @@ const VitrinaDeSemanas = ({ userId, onElegir }) => {
 VitrinaDeSemanas.propTypes = {
     userId: PropTypes.string,
     onElegir: PropTypes.func,
+    version: PropTypes.number,
 };
 
 export default VitrinaDeSemanas;

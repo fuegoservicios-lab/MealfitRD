@@ -9,8 +9,45 @@ import { safeLocalStorageGet, safeLocalStorageSet } from './safeLocalStorage';
 export const claveResumen = (userId) => `mealfit_progreso_resumen_${userId}`;
 // La misma clave que ya usaban la tarjeta y el calendario para el día 1 (ahora la escribe el servidor).
 export const claveInicio = (userId) => `mealfit_semana_inicio_${userId}`;
+export const claveSemanas = (userId) => `mealfit_progreso_semanas_${userId}`;
+
+const SEMANAS_CACHE_TTL_MS = 30_000;
+const _enVueloSemanas = new Map();
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+function _leerRegistroSemanas(userId) {
+    if (!userId) return null;
+    try {
+        const crudo = safeLocalStorageGet(claveSemanas(userId), null);
+        if (!crudo) return null;
+        const parsed = JSON.parse(crudo);
+        const raw = Array.isArray(parsed)
+            ? { ts: 0, semanas: parsed }
+            : (parsed && typeof parsed === 'object' ? parsed : null);
+        if (!raw || !Array.isArray(raw.semanas)) return null;
+        const validas = raw.semanas.filter((s) => s && typeof s === 'object' && Number.isFinite(Number(s.numero)));
+        if (!validas.length && raw.semanas.length) return null;
+        return { ts: Number(raw.ts) || 0, semanas: validas };
+    } catch {
+        return null;
+    }
+}
+
+export function leerSemanasGuardadas(userId) {
+    return _leerRegistroSemanas(userId)?.semanas || null;
+}
+
+export function semanasGuardadasSonFrescas(userId, ahora = Date.now()) {
+    const reg = _leerRegistroSemanas(userId);
+    return Boolean(reg && reg.ts > 0 && ahora - reg.ts < SEMANAS_CACHE_TTL_MS);
+}
+
+export function invalidarCacheSemanas(userId) {
+    const reg = _leerRegistroSemanas(userId);
+    if (!reg) return;
+    safeLocalStorageSet(claveSemanas(userId), JSON.stringify({ ts: 0, semanas: reg.semanas }));
+}
 
 export function leerResumenGuardado(userId) {
     if (!userId) return null;
@@ -39,12 +76,25 @@ export async function pedirResumen(userId, tzOffset = new Date().getTimezoneOffs
     return data;
 }
 
-export async function pedirSemanas(userId, tzOffset = new Date().getTimezoneOffset()) {
+export async function pedirSemanas(userId, tzOffset = new Date().getTimezoneOffset(), { force = false } = {}) {
     if (!userId || userId === 'guest') return [];
-    const res = await fetchWithAuth(`/api/progress/weeks/${userId}?tzOffset=${tzOffset}`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data?.semanas) ? data.semanas : [];
+    if (!force && semanasGuardadasSonFrescas(userId)) {
+        return leerSemanasGuardadas(userId) || [];
+    }
+    const key = `${userId}:${tzOffset}`;
+    if (_enVueloSemanas.has(key)) return _enVueloSemanas.get(key);
+    const tarea = (async () => {
+        const res = await fetchWithAuth(`/api/progress/weeks/${userId}?tzOffset=${tzOffset}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!Array.isArray(data?.semanas)) return null;
+        safeLocalStorageSet(claveSemanas(userId), JSON.stringify({ ts: Date.now(), semanas: data.semanas }));
+        return data.semanas;
+    })().finally(() => {
+        _enVueloSemanas.delete(key);
+    });
+    _enVueloSemanas.set(key, tarea);
+    return tarea;
 }
 
 export async function marcarEventosVistos(userId, claves) {
