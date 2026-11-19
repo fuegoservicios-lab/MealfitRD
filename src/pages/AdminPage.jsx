@@ -370,9 +370,13 @@ function BloqueAvisos({ bloque, onCambio }) {
                             <span className={styles.avisoTitulo}>{a.titulo}</span>
                             {a.detalle && <span className={styles.avisoDetalle}>{a.detalle}</span>}
                             {a.accion && <span className={styles.avisoAccion}>{a.accion}</span>}
-                            {a.momento && <span className={styles.avisoMomento}>{a.momento}</span>}
-                            {Array.isArray(a.resolver) && a.resolver.length > 0 && a.estado !== 'resuelto' && (
-                                <BotonRevisado huellas={a.resolver} onHecho={onCambio} />
+                            {(a.momento || (Array.isArray(a.resolver) && a.resolver.length > 0 && a.estado !== 'resuelto')) && (
+                                <span className={styles.avisoPie}>
+                                    {a.momento && <span className={styles.avisoMomento}>{a.momento}</span>}
+                                    {Array.isArray(a.resolver) && a.resolver.length > 0 && a.estado !== 'resuelto' && (
+                                        <BotonRevisado huellas={a.resolver} onHecho={onCambio} />
+                                    )}
+                                </span>
                             )}
                         </span>
                         <span className={styles.avisoValor}>{a.valor}</span>
