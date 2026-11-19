@@ -24,11 +24,12 @@ const props = {
 };
 
 beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(2026, 10, 18, 12));   // el diseño nace del día: fijo
     globalThis.URL.createObjectURL = vi.fn(() => 'blob:x');
     globalThis.URL.revokeObjectURL = vi.fn();
     vi.stubGlobal('navigator', { ...navigator, share: vi.fn().mockResolvedValue(undefined), canShare: () => true, clipboard: { writeText: vi.fn() } });
 });
-afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe('[1084] las piezas', () => {
     it('cada estilo trae las suyas: arriba marca y fecha; abajo sitio y pregunta, el sello o el sitio', () => {
