@@ -46,6 +46,7 @@ import { formatDate, formatNumber, formatPercent, getLocale, useT } from '../../
 import HealthSources from '../common/HealthSources';
 import { nombreDeRegistro, platoDelPlan } from '../../utils/nombreDeRegistro';
 import { lineaDeIngredienteLegible } from '../../utils/nombresDeAlimentos';
+import { unidadesParaIngrediente, gramosAUnidad, unidadAGramos, atajosParaUnidad } from '../../utils/unidadesDeIngrediente';
 import { mealDisplay, langDeCampo } from '../../utils/displayMeal';
 import { numberRecipeSteps, parseRecipeStep, glossAnnotationLabel } from '../../utils/recipeSteps';
 import { mensajeDeError } from '../../utils/errorCopy';
@@ -100,7 +101,12 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     // Mientras la confirmación de «Eliminar» está abierta (otro diálogo, fuera de esta hoja) la ficha NO es la capa de
     // arriba: sin esto, Escape cancelaba la confirmación Y cerraba la ficha de una sola tecla.
     const eliminandoRef = useRef(false);
-    const { containerRef } = useModalAccessibility({ isOpen: true, onClose, isTopmost: () => !eliminandoRef.current });
+    const editorAbiertoRef = useRef(false);
+    const { containerRef } = useModalAccessibility({
+        isOpen: true,
+        onClose,
+        isTopmost: () => !eliminandoRef.current && !editorAbiertoRef.current,
+    });
     const bodyRef = useRef(null);
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose });
     const { planData } = useAssessment() || {};
@@ -114,10 +120,31 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     // lista del día hasta que esta se vuelva a pedir. `ajustando` = índice del renglón en vuelo (uno a la vez).
     const [totales, setTotales] = useState(null);
     const [ajustando, setAjustando] = useState(null);
-    // [P1-PLAN-LOTE-1096] tocar la cifra deja escribir los gramos: { i, valor }
+    // [P1-PLAN-LOTE-1098] tocar la cifra en renglones sin gramos deja escribir la cantidad inline: { i, valor }
     const [escribiendo, setEscribiendo] = useState(null);
+    // [P1-UNIDADES-FLEXIBLES · 2026-11-19] unidad elegida por renglón + hoja editora unificada al tocar la cifra
+    const [unidadPorLinea, setUnidadPorLinea] = useState({});
+    const [editor, setEditor] = useState(null);
+    const editorAbierto = Boolean(editor);
+    editorAbiertoRef.current = editorAbierto;
+    const editorHojaRef = useRef(null);
+    const baseGramosRef = useRef({});
     const visorRef = useRef(null);
     const ampliarRef = useRef(null);
+
+    useEffect(() => {
+        if (!editorAbierto) return undefined;
+        // Enfocar la hoja (y NO el <input>) para evitar que iOS/Android abra el teclado virtual al abrir el editor.
+        editorHojaRef.current?.focus({ preventScroll: true });
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                setEditor(null);
+            }
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [editorAbierto]);
 
     // `undefined` mientras se mira el dispositivo, `null` si no hay foto, la URL si la hay (ver `useFotoDeComida`)
     const fotos = useFotosDeComida(userId, meal?.id);
@@ -267,6 +294,12 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     };
 
     const lineas = detalle.meal?.ingredientes?.lineas || [];
+    // Capturar los gramos originales de cada renglón la primera vez que carga (ancla de «porción ×»).
+    lineas.forEach((l, i) => {
+        if (Number.isFinite(l.ajustable_g) && baseGramosRef.current[i] == null) {
+            baseGramosRef.current[i] = l.ajustable_g;
+        }
+    });
 
     // [P1-PLAN-LOTE-1039 · A-41] La foto no sabe cuánto pesaba la pechuga; quien se la comió, sí. Cada toque manda los
     // gramos NUEVOS de esa pieza y el servidor mueve los totales lo que la pieza aporta según el catálogo (sin IA).
@@ -311,7 +344,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                 onTouchEnd={hoja.onTouchEnd}
                 onTouchCancel={hoja.onTouchEnd}
             >
-                <div className={styles.head} inert={ampliada || undefined}>
+                <div className={styles.head} inert={ampliada || Boolean(editor) || undefined}>
                     <span className={styles.grip} aria-hidden="true" />
                     <div className={styles.headRow}>
                         <div className={styles.headText}>
@@ -326,7 +359,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                     </div>
                 </div>
 
-                <div ref={bodyRef} className={styles.body} inert={ampliada || undefined}>
+                <div ref={bodyRef} className={styles.body} inert={ampliada || Boolean(editor) || undefined}>
                     {/* [P1-PLAN-LOTE-1093] el nombre va en el cuerpo y se desplaza con él: en la cabecera fija, un nombre
                         de cuatro líneas se comía media hoja mientras se miraban los ingredientes */}
                     <h2 id="ficha-comida-titulo" className={styles.title}>{nombre}</h2>
@@ -400,46 +433,53 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                                         {/* [1093] las kcal SIEMPRE a la derecha (antes la pieza ajustable las perdía) y los
                                             gramos ajustables en su propia línea, debajo */}
                                         {Number.isFinite(l.kcal) && <span className={styles.ingredienteKcal}>{formatNumber(l.kcal)} kcal</span>}
-                                        {Number.isFinite(l.ajustable_g) && (
-                                            <span className={styles.gramos}>
-                                                <button type="button" className={styles.gramosBtn}
-                                                    onClick={() => ajustar(i, l.ajustable_g - pasoDe(l.ajustable_g))}
-                                                    disabled={ajustando !== null || l.ajustable_g - pasoDe(l.ajustable_g) < GRAMOS_MINIMOS}
-                                                    aria-label={t('Quitar {n} g', { n: pasoDe(l.ajustable_g) })}>
-                                                    <Minus size={14} strokeWidth={2.5} aria-hidden="true" />
-                                                </button>
-                                                {escribiendo?.i === i ? (
-                                                    <input
-                                                        type="number" inputMode="numeric" min={GRAMOS_MINIMOS} max={1500} autoFocus
-                                                        className={styles.gramosInput} value={escribiendo.valor}
-                                                        aria-label={t('Gramos de {nombre}', { nombre: lineaDeIngredienteLegible(l.texto, t) })}
-                                                        onChange={(e) => setEscribiendo({ i, valor: e.target.value })}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') e.currentTarget.blur();
-                                                            if (e.key === 'Escape') setEscribiendo(null);
-                                                        }}
-                                                        onBlur={() => {
-                                                            const g = Math.round(Number(escribiendo.valor));
-                                                            setEscribiendo(null);
-                                                            if (Number.isFinite(g) && g >= GRAMOS_MINIMOS && g !== l.ajustable_g) ajustar(i, Math.min(1500, g));
-                                                        }}
-                                                    />
-                                                ) : (
+                                        {Number.isFinite(l.ajustable_g) && (() => {
+                                            const nombreLegible = lineaDeIngredienteLegible(l.texto, t);
+                                            const baseG = baseGramosRef.current[i] ?? l.ajustable_g;
+                                            const cfg = unidadesParaIngrediente(l.texto, l.ajustable_g, baseG, t);
+                                            const unidadId = unidadPorLinea[i] || cfg.predeterminada;
+                                            const opcion = cfg.opciones.find((o) => o.id === unidadId) || cfg.opciones[0];
+                                            const esGramos = opcion.id === 'g';
+                                            const valorActual = esGramos ? l.ajustable_g : gramosAUnidad(l.ajustable_g, opcion);
+                                            const paso = esGramos ? pasoDe(l.ajustable_g) : opcion.paso;
+                                            const siguienteMenosG = esGramos
+                                                ? l.ajustable_g - paso
+                                                : unidadAGramos(valorActual - paso, opcion);
+                                            const siguienteMasG = esGramos
+                                                ? l.ajustable_g + paso
+                                                : unidadAGramos(valorActual + paso, opcion);
+                                            const textoValor = opcion.sufijo
+                                                ? `${formatNumber(valorActual)}${opcion.sufijo}`
+                                                : `${formatNumber(valorActual)} ${opcion.etiqueta}`;
+                                            return (
+                                                <span className={styles.gramos}>
+                                                    <button type="button" className={styles.gramosBtn}
+                                                        onClick={() => { if (siguienteMenosG !== null) ajustar(i, siguienteMenosG); }}
+                                                        disabled={ajustando !== null || siguienteMenosG === null || siguienteMenosG < GRAMOS_MINIMOS || siguienteMenosG === l.ajustable_g}
+                                                        aria-label={esGramos
+                                                            ? t('Quitar {n} g', { n: paso })
+                                                            : t('Quitar {n} {unidad}', { n: formatNumber(paso), unidad: opcion.etiqueta })}>
+                                                        <Minus size={14} strokeWidth={2.5} aria-hidden="true" />
+                                                    </button>
                                                     <button type="button" className={styles.gramosValor} aria-live="polite"
                                                         disabled={ajustando !== null}
-                                                        aria-label={t('Escribir los gramos de {nombre}', { nombre: lineaDeIngredienteLegible(l.texto, t) })}
-                                                        onClick={() => setEscribiendo({ i, valor: String(l.ajustable_g) })}>
-                                                        {ajustando === i ? <Loader2 size={14} className="spin-animation" aria-hidden="true" /> : `${formatNumber(l.ajustable_g)} g`}
+                                                        aria-label={esGramos
+                                                            ? t('Escribir los gramos de {nombre}', { nombre: nombreLegible })
+                                                            : t('Escribir la cantidad de {nombre}', { nombre: nombreLegible })}
+                                                        onClick={() => setEditor({ i, unidadId: opcion.id, valor: String(valorActual) })}>
+                                                        {ajustando === i ? <Loader2 size={14} className="spin-animation" aria-hidden="true" /> : textoValor}
                                                     </button>
-                                                )}
-                                                <button type="button" className={styles.gramosBtn}
-                                                    onClick={() => ajustar(i, l.ajustable_g + pasoDe(l.ajustable_g))}
-                                                    disabled={ajustando !== null}
-                                                    aria-label={t('Añadir {n} g', { n: pasoDe(l.ajustable_g) })}>
-                                                    <Plus size={14} strokeWidth={2.5} aria-hidden="true" />
-                                                </button>
-                                            </span>
-                                        )}
+                                                    <button type="button" className={styles.gramosBtn}
+                                                        onClick={() => { if (siguienteMasG !== null) ajustar(i, siguienteMasG); }}
+                                                        disabled={ajustando !== null || siguienteMasG === null || siguienteMasG > 1500 || siguienteMasG === l.ajustable_g}
+                                                        aria-label={esGramos
+                                                            ? t('Añadir {n} g', { n: paso })
+                                                            : t('Añadir {n} {unidad}', { n: formatNumber(paso), unidad: opcion.etiqueta })}>
+                                                        <Plus size={14} strokeWidth={2.5} aria-hidden="true" />
+                                                    </button>
+                                                </span>
+                                            );
+                                        })()}
                                         {!Number.isFinite(l.ajustable_g) && l.cantidad && Number.isFinite(l.cantidad.valor) && (() => {
                                             const q = l.cantidad;
                                             const paso = pasoCantidad(q.unidad);
@@ -540,7 +580,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                     <HealthSources context="tracking" />
                 </div>
 
-                <div className={styles.footer} inert={ampliada || undefined}>
+                <div className={styles.footer} inert={ampliada || Boolean(editor) || undefined}>
                     <button type="button" className={styles.secundario} onClick={repetir} disabled={repitiendo || eliminando}>
                         {repitiendo
                             ? <Loader2 size={17} className="spin-animation" aria-hidden="true" />
@@ -556,6 +596,208 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                         </button>
                     )}
                 </div>
+
+                {editor && lineas[editor.i] && Number.isFinite(lineas[editor.i].ajustable_g) && (() => {
+                    const idx = editor.i;
+                    const l = lineas[idx];
+                    const nombreLegible = lineaDeIngredienteLegible(l.texto, t);
+                    const tituloLimpio = nombreLegible.replace(/\s*\([^)]*\)\s*$/, '').trim() || nombreLegible;
+                    const baseG = baseGramosRef.current[idx] ?? l.ajustable_g;
+                    const cfg = unidadesParaIngrediente(l.texto, l.ajustable_g, baseG, t);
+                    const opcion = cfg.opciones.find((o) => o.id === editor.unidadId) || cfg.opciones[0];
+                    const esGramos = opcion.id === 'g';
+                    const parsed = Number(String(editor.valor).replace(',', '.'));
+                    const valorValido = Number.isFinite(parsed) && parsed > 0;
+                    const gramosBorrador = valorValido
+                        ? (esGramos ? Math.round(parsed) : unidadAGramos(parsed, opcion))
+                        : null;
+                    const gramosEnRango = Number.isFinite(gramosBorrador) && gramosBorrador >= GRAMOS_MINIMOS && gramosBorrador <= 1500;
+                    const gPreview = gramosEnRango ? gramosBorrador : l.ajustable_g;
+                    const kcalPreview = Number.isFinite(l.kcal) && l.ajustable_g > 0
+                        ? Math.round((l.kcal * gPreview) / l.ajustable_g)
+                        : null;
+                    const paso = esGramos ? pasoDe(gPreview) : opcion.paso;
+                    const atajos = atajosParaUnidad(opcion, baseG);
+
+                    const moverBorrador = (delta) => {
+                        const actual = valorValido ? parsed : (esGramos ? l.ajustable_g : gramosAUnidad(l.ajustable_g, opcion));
+                        const nuevo = Math.round((actual + delta) * 100) / 100;
+                        const gNuevo = esGramos ? Math.round(nuevo) : unidadAGramos(nuevo, opcion);
+                        if (!Number.isFinite(gNuevo) || gNuevo < GRAMOS_MINIMOS || gNuevo > 1500) return;
+                        setEditor((prev) => (prev ? { ...prev, valor: String(esGramos ? gNuevo : nuevo) } : prev));
+                    };
+
+                    const cambiarUnidad = (opNueva) => {
+                        const gBase = gramosEnRango ? gramosBorrador : l.ajustable_g;
+                        const nuevoVal = opNueva.id === 'g' ? gBase : gramosAUnidad(gBase, opNueva);
+                        setEditor({ i: idx, unidadId: opNueva.id, valor: String(nuevoVal) });
+                    };
+
+                    const guardar = () => {
+                        if (!gramosEnRango) return;
+                        const gFinal = Math.min(1500, Math.max(GRAMOS_MINIMOS, gramosBorrador));
+                        setUnidadPorLinea((prev) => ({ ...prev, [idx]: opcion.id }));
+                        setEditor(null);
+                        if (gFinal !== l.ajustable_g) ajustar(idx, gFinal);
+                    };
+
+                    const menosDeshab = !gramosEnRango || (() => {
+                        const gM = esGramos ? Math.round(parsed - paso) : unidadAGramos(parsed - paso, opcion);
+                        return gM === null || gM < GRAMOS_MINIMOS || gM === gramosBorrador;
+                    })();
+                    const masDeshab = !gramosEnRango || (() => {
+                        const gP = esGramos ? Math.round(parsed + paso) : unidadAGramos(parsed + paso, opcion);
+                        return gP === null || gP > 1500 || gP === gramosBorrador;
+                    })();
+
+                    return (
+                        <div className={styles.editorCapa}>
+                            <button
+                                type="button"
+                                className={styles.editorBackdrop}
+                                aria-hidden="true"
+                                tabIndex={-1}
+                                onClick={() => setEditor(null)}
+                            />
+                            <div
+                                ref={editorHojaRef}
+                                tabIndex={-1}
+                                className={styles.editorHoja}
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="editor-cantidad-titulo"
+                            >
+                                <div className={styles.editorCabeza}>
+                                    <div className={styles.editorTitulos}>
+                                        <h4 id="editor-cantidad-titulo" className={styles.editorTitulo}>{tituloLimpio}</h4>
+                                        <p className={styles.editorResumen} aria-live="polite">
+                                            {kcalPreview !== null && <span>{formatNumber(kcalPreview)} kcal</span>}
+                                            {kcalPreview !== null && !esGramos && <span className={styles.editorPunto} aria-hidden="true">·</span>}
+                                            {!esGramos && <span>≈ {formatNumber(gPreview)} g</span>}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className={styles.editorCerrar}
+                                        onClick={() => setEditor(null)}
+                                        aria-label={t('Cerrar')}
+                                    >
+                                        <X size={18} strokeWidth={2.25} aria-hidden="true" />
+                                    </button>
+                                </div>
+
+                                <div className={styles.editorStepper}>
+                                    <button
+                                        type="button"
+                                        className={styles.editorPasoBtn}
+                                        onClick={() => moverBorrador(-paso)}
+                                        disabled={menosDeshab}
+                                        aria-label={esGramos
+                                            ? t('Quitar {n} g', { n: paso })
+                                            : t('Quitar {n} {unidad}', { n: formatNumber(paso), unidad: opcion.etiqueta })}
+                                    >
+                                        <Minus size={18} strokeWidth={2.5} aria-hidden="true" />
+                                    </button>
+                                    <div className={styles.editorCampoWrap}>
+                                        <input
+                                            type="number"
+                                            inputMode={esGramos ? 'numeric' : 'decimal'}
+                                            step={esGramos ? '1' : '0.25'}
+                                            min={opcion.min}
+                                            max={opcion.max}
+                                            className={styles.editorInput}
+                                            value={editor.valor}
+                                            aria-label={esGramos
+                                                ? t('Gramos de {nombre}', { nombre: nombreLegible })
+                                                : t('Cantidad de {nombre}', { nombre: nombreLegible })}
+                                            onFocus={(e) => e.target.select()}
+                                            onChange={(e) => setEditor((prev) => (prev ? { ...prev, valor: e.target.value } : prev))}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    guardar();
+                                                }
+                                            }}
+                                        />
+                                        <span className={styles.editorUnidadInline}>
+                                            {opcion.sufijo || opcion.etiqueta}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className={styles.editorPasoBtn}
+                                        onClick={() => moverBorrador(paso)}
+                                        disabled={masDeshab}
+                                        aria-label={esGramos
+                                            ? t('Añadir {n} g', { n: paso })
+                                            : t('Añadir {n} {unidad}', { n: formatNumber(paso), unidad: opcion.etiqueta })}
+                                    >
+                                        <Plus size={18} strokeWidth={2.5} aria-hidden="true" />
+                                    </button>
+                                </div>
+
+                                {atajos.length > 0 && (
+                                    <div className={styles.editorAtajos}>
+                                        {atajos.map((v) => {
+                                            const activo = valorValido && Math.abs(parsed - v) < 0.01;
+                                            const etiqueta = opcion.sufijo
+                                                ? `${formatNumber(v)}${opcion.sufijo}`
+                                                : `${formatNumber(v)} ${opcion.etiqueta}`;
+                                            return (
+                                                <button
+                                                    key={v}
+                                                    type="button"
+                                                    className={styles.editorAtajo}
+                                                    aria-pressed={activo}
+                                                    onClick={() => setEditor((prev) => (prev ? { ...prev, valor: String(v) } : prev))}
+                                                >
+                                                    {etiqueta}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {cfg.opciones.length > 1 && (
+                                    <div className={styles.editorSeccion}>
+                                        <span className={styles.editorEtiqueta}>{t('Unidad')}</span>
+                                        <div className={styles.editorUnidades} role="group" aria-label={t('Elegir unidad')}>
+                                            {cfg.opciones.map((op) => (
+                                                <button
+                                                    key={op.id}
+                                                    type="button"
+                                                    className={styles.editorUnidadChip}
+                                                    aria-pressed={op.id === opcion.id}
+                                                    onClick={() => cambiarUnidad(op)}
+                                                >
+                                                    {op.etiqueta}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className={styles.editorAcciones}>
+                                    <button
+                                        type="button"
+                                        className={styles.editorCancelar}
+                                        onClick={() => setEditor(null)}
+                                    >
+                                        {t('Cancelar')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles.editorGuardar}
+                                        disabled={!gramosEnRango}
+                                        onClick={guardar}
+                                    >
+                                        {t('Guardar')}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {ampliada && fotoUrl && (
                     <div ref={visorRef} className={styles.visor} role="dialog" aria-modal="true" aria-label={t('Foto de {nombre}', { nombre })}>
