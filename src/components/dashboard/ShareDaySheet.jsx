@@ -28,6 +28,7 @@ import { isNativeApp } from '../../config/platform';
 import { useT, formatDate } from '../../i18n';
 import { DISENOS, disenoDelDia } from '../../utils/disenosDeHistoria';
 import { resumenDeSemana, textoDeSemana } from '../../utils/compartirSemana';
+import { resumenDeMes, textoDeMes } from '../../utils/compartirMes';
 import { SITIO, resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, sabeCompartirImagenes, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
 import { piezaEn, moverPieza, alternarPieza, piezasEnSuSitio, piezasMovidas, estadoDePieza } from '../../utils/piezasDeHistoria';
@@ -39,9 +40,12 @@ import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import { getBiologicalDate } from '../../utils/diaBiologico';
 import styles from './ShareDaySheet.module.css';
 
-const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, microMetas = null, fecha = null, semana = null }) => {
+const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, microMetas = null, fecha = null, semana = null, mes = null }) => {
     const t = useT();
     const esSemana = !!semana;
+    // [P1-PLAN-LOTE-1100] cuarta puerta: el mes (lo que pinta el calendario del Diario). Semana y mes son «periodos».
+    const esMes = !!mes && !semana;
+    const esPeriodo = esSemana || esMes;
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
     const bodyRef = useRef(null);
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose });
@@ -55,7 +59,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     // se dibuja en el teléfono: no viaja a ningún servidor. Con foto, el formato es siempre historia (9:16).
     const [foto, setFoto] = useState(null);
     // [P1-PLAN-LOTE-1095] siete diseños, uno por día: nace con el del día que se comparte (la semana, con el de hoy)
-    const [estilo, setEstilo] = useState(() => disenoDelDia(!semana && fecha instanceof Date ? fecha : new Date()).clave);
+    const [estilo, setEstilo] = useState(() => disenoDelDia(!semana && !mes && fecha instanceof Date ? fecha : new Date()).clave);
     const inputFotoRef = useRef(null);
     const inputCamaraRef = useRef(null);
     // [P1-PLAN-LOTE-1050] «Galería» o «Cámara» con NUESTRO selector (el dueño no quería el menú de tres opciones de iOS:
@@ -136,12 +140,15 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     const resumen = useMemo(
         () => (semana
             ? resumenDeSemana(semana)
-            : resumenDelDia({ consumed: delDia, metas: metasDelDia, microMetas, incluirComidas, fecha: fechaDelDia, nombrar })),
-        [semana, delDia, metasDelDia, microMetas, incluirComidas, fechaDelDia, nombrar],
+            : mes
+                ? resumenDeMes(mes)
+                : resumenDelDia({ consumed: delDia, metas: metasDelDia, microMetas, incluirComidas, fecha: fechaDelDia, nombrar })),
+        [semana, mes, delDia, metasDelDia, microMetas, incluirComidas, fechaDelDia, nombrar],
     );
-    const texto = useMemo(() => (resumen.tipo === 'semana' ? textoDeSemana(resumen) : textoDelDia(resumen)), [resumen]);
+    const texto = useMemo(() => (resumen.tipo === 'semana' ? textoDeSemana(resumen)
+        : resumen.tipo === 'mes' ? textoDeMes(resumen) : textoDelDia(resumen)), [resumen]);
     // [1082] La historia en lienzo (vista previa en vivo + JPEG): con tu foto, o siempre en la semana.
-    const enLienzo = !!foto || esSemana;
+    const enLienzo = !!foto || esPeriodo;
     // Sin foto no hay foto que mover: lo que se ajusta son las cifras.
     const capaVista = foto ? capa : 'cifras';
     const caja = useMemo(() => cajaDeCifras(resumen, estilo), [resumen, estilo]);
@@ -283,7 +290,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
         return () => { if (url) URL.revokeObjectURL(url); };
     }, [imagen.url]);
 
-    const archivo = useMemo(() => archivoDeImagen(imagen.blob, esSemana ? 'mi-semana-bioboros.png' : undefined), [imagen.blob, esSemana]);
+    const archivo = useMemo(() => archivoDeImagen(imagen.blob, esSemana ? 'mi-semana-bioboros.png' : esMes ? 'mi-mes-bioboros.png' : undefined), [imagen.blob, esSemana, esMes]);
     const conImagen = puedeCompartirImagen(archivo);
     // [P1-PLAN-LOTE-300] en la app nativa, la hoja del sistema con la IMAGEN (plugins Share + Filesystem)
     // [P1-PLAN-LOTE-386] la imagen es LA forma de compartir: una acción clara y la imagen sola. El texto (WhatsApp por
@@ -303,7 +310,8 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     const [compartiendo, setCompartiendo] = useState(false);
     const onCompartir = useCallback(async () => {
         if (compartiendoRef.current) return;
-        const enCurso = compartir(esSemana ? { archivo, texto, titulo: t('Mi semana'), tituloHoja: t('Compartir tu semana') } : { archivo, texto });
+        const enCurso = compartir(esSemana ? { archivo, texto, titulo: t('Mi semana'), tituloHoja: t('Compartir tu semana') }
+            : esMes ? { archivo, texto, titulo: t('Mi mes'), tituloHoja: t('Compartir tu mes') } : { archivo, texto });
         compartiendoRef.current = true;
         setCompartiendo(true);
         try {
@@ -316,7 +324,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
             compartiendoRef.current = false;
             setCompartiendo(false);
         }
-    }, [archivo, texto, t, esSemana]);
+    }, [archivo, texto, t, esSemana, esMes]);
 
     // Con `id` (P2-TOAST-POLICY): copiar tres veces reemplaza el aviso en vez de apilar tres.
     const onCopiar = useCallback(async () => {
@@ -332,10 +340,10 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
         if (!imagen.url) return;
         const a = document.createElement('a');
         a.href = imagen.url;
-        const base = esSemana ? 'mi-semana-bioboros' : 'mi-dia-bioboros';
+        const base = esSemana ? 'mi-semana-bioboros' : esMes ? 'mi-mes-bioboros' : 'mi-dia-bioboros';
         a.download = imagen.blob?.type === 'image/jpeg' ? `${base}.jpg` : `${base}.png`;
         document.body.appendChild(a); a.click(); a.remove();
-    }, [imagen.url, imagen.blob, esSemana]);
+    }, [imagen.url, imagen.blob, esSemana, esMes]);
 
     // [1082] El estilo y el tamaño de las cifras: los mismos controles con tu foto y en la semana sin foto.
     // [P1-PLAN-LOTE-1090] «se ve medio raro» (el dueño): cada ajuste es UNA fila del mismo ancho, con su rótulo a la
@@ -388,8 +396,8 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     );
     // [1084] Qué textos se ven: cada uno se quita o se vuelve a poner (y se mueve arrastrándolo en la imagen).
     const rotuloDePieza = (id) => ({
-        marca: BRAND, fecha: esSemana ? t('Fechas') : t('Fecha'), sitio: SITIO,
-        pregunta: esSemana ? t('¿Y tú, cómo va tu semana?') : t('¿Y tú, cómo vas hoy?'), sello: t('{app} abajo', { app: BRAND }),
+        marca: BRAND, fecha: esSemana ? t('Fechas') : esMes ? t('Mes') : t('Fecha'), sitio: SITIO,
+        pregunta: esSemana ? t('¿Y tú, cómo va tu semana?') : esMes ? t('¿Y tú, cómo va tu mes?') : t('¿Y tú, cómo vas hoy?'), sello: t('{app} abajo', { app: BRAND }),
     })[id] || id;
     const selectorDePiezas = defsPiezas.length > 0 && (
         <div className={styles.fila} role="group" aria-labelledby="share-day-piezas" aria-describedby="share-day-piezas-pista">
@@ -429,7 +437,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="share-day-title"
-                aria-describedby={conFecha || esSemana ? 'share-day-fecha' : undefined}
+                aria-describedby={conFecha || esPeriodo ? 'share-day-fecha' : undefined}
                 tabIndex={-1}
                 onTouchStart={hoja.onTouchStart}
                 onTouchMove={hoja.onTouchMove}
@@ -440,8 +448,10 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                     <span className={styles.grip} aria-hidden="true" />
                     <div className={styles.headRow}>
                         <div className={styles.headText}>
-                            <h2 id="share-day-title" className={styles.title}>{esSemana ? t('Compartir tu semana') : t('Compartir tu día')}</h2>
-                            {esSemana ? (
+                            <h2 id="share-day-title" className={styles.title}>{esSemana ? t('Compartir tu semana') : esMes ? t('Compartir tu mes') : t('Compartir tu día')}</h2>
+                            {esMes ? (
+                                <p id="share-day-fecha" className={styles.fecha}>{resumen.nombre}</p>
+                            ) : esSemana ? (
                                 <p id="share-day-fecha" className={styles.fecha}>
                                     {[t('Semana {n}', { n: resumen.numero }), resumen.periodo].filter(Boolean).join(' · ')}
                                 </p>
@@ -468,7 +478,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                         {enLienzo ? (
                             <canvas
                                 ref={lienzoRef} width={ANCHO_HISTORIA} height={1920}
-                                role="img" aria-label={esSemana ? t('Mi semana: tu historia') : t('Mi día: tu historia con tu foto')}
+                                role="img" aria-label={esSemana ? t('Mi semana: tu historia') : esMes ? t('Mi mes: tu historia') : t('Mi día: tu historia con tu foto')}
                                 className={`${styles.img} ${styles.lienzo}`}
                             />
                         ) : imagen.url
@@ -517,7 +527,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                             <div className={styles.fila}>
                             <span className={styles.filaRotulo} aria-hidden="true">{t('Mover')}</span>
                             <div className={`${styles.capas} ${styles.capasFila}`} role="radiogroup" aria-label={t('Qué ajustas')}>
-                                {[['foto', t('Foto de fondo'), ImageIcon], ['cifras', esSemana ? t('Resumen de la semana') : t('Resumen del día'), Type]].map(([clave, rotulo, Icono]) => (
+                                {[['foto', t('Foto de fondo'), ImageIcon], ['cifras', esSemana ? t('Resumen de la semana') : esMes ? t('Resumen del mes') : t('Resumen del día'), Type]].map(([clave, rotulo, Icono]) => (
                                     <button
                                         key={clave} type="button" role="radio" aria-checked={capa === clave}
                                         className={capa === clave ? `${styles.capa} ${styles.capaActiva}` : styles.capa}
@@ -555,7 +565,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                             <ChevronRight size={18} className={styles.fotoCtaFlecha} aria-hidden="true" />
                         </button>
                     )}
-                    {!foto && esSemana && !eligiendo && (
+                    {!foto && esPeriodo && !eligiendo && (
                         <div className={styles.conFoto}>
                             {selectorDeEstilo}
                             <div className={styles.fila}>
@@ -566,7 +576,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                             {selectorDePiezas}
                         </div>
                     )}
-                    {!foto && !esSemana && (
+                    {!foto && !esPeriodo && (
                         // [P1-PLAN-LOTE-1092] «mejora el diseño de este también»: el mismo segmentado que la semana y un
                         // interruptor de verdad en vez de la casilla en su caja
                         <div className={styles.conFoto}>
@@ -635,6 +645,8 @@ ShareDaySheet.propTypes = {
     // [P1-COMPARTIR-DIA-PASADO] el día que se comparte (desde el Diario); sin ella, hoy
     fecha: PropTypes.instanceOf(Date),
     // [P1-PLAN-LOTE-1082] la semana que se comparte (lo que pinta «Tu semana»: número, días, estrellas, racha, rango)
+    // [P1-PLAN-LOTE-1100] el mes que se comparte (lo que pinta el calendario: nombre, día de la semana del 1, días)
+    mes: PropTypes.shape({ nombre: PropTypes.string, inicio: PropTypes.number, dias: PropTypes.array, enCurso: PropTypes.bool }),
     semana: PropTypes.shape({
         numero: PropTypes.number, enCurso: PropTypes.bool, periodo: PropTypes.string, dias: PropTypes.array,
         enMeta: PropTypes.number, estrellas: PropTypes.number, racha: PropTypes.number, rango: PropTypes.string,

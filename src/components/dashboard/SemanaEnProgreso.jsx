@@ -19,7 +19,8 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, ChevronLeft, ChevronRight, Flame, Lock, Plus, Share2, Star, Trophy } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Flame, Loader2, Lock, Plus, Share2, Star, Trophy } from 'lucide-react';
+import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { formatDate, formatNumber, useT, useTn } from '../../i18n';
 import { getBiologicalDateStr, getCalendarDateStr } from '../../utils/diaBiologico';
@@ -68,6 +69,8 @@ const SemanaEnProgreso = ({
     const [semanasViejas, setSemanasViejas] = useState(null);
     const [escaleraAbierta, setEscaleraAbierta] = useState(false);
     const [compartiendo, setCompartiendo] = useState(false);
+    // [P1-PLAN-LOTE-1099] compartir UN día desde «Tu semana»: { iso } mientras se pide, { iso, dia } listo
+    const [diaACompartir, setDiaACompartir] = useState(null);
 
     useEffect(() => {
         if (!userId) return undefined;
@@ -195,6 +198,22 @@ const SemanaEnProgreso = ({
         racha: enCurso ? racha : 0,
         rango: rango?.clave || null,
     } : null;
+    // [P1-PLAN-LOTE-1099] El día tal cual lo devuelve el Diario (comidas y totales) y su fecha a mediodía.
+    const compartirDia = async (iso) => {
+        if (!userId || diaACompartir) return;
+        setDiaACompartir({ iso });
+        try {
+            const res = await fetchWithAuth(`/api/diary/consumed/${userId}?date=${iso}&tzOffset=${tzOffset}`);
+            if (!res.ok) throw new Error('dia');
+            const data = await res.json();
+            const meals = Array.isArray(data?.meals) ? data.meals : [];
+            if (!meals.length) throw new Error('vacio');
+            setDiaACompartir({ iso, dia: { iso, meals, totals: data?.totals || {} } });
+        } catch {
+            setDiaACompartir(null);
+            toast.error(t('No pudimos preparar ese día. Inténtalo otra vez.'));
+        }
+    };
     // Desde el cierre del domingo: se va a esa semana y se abre la hoja con ella.
     const compartirSemana = (n) => {
         if (Number.isFinite(Number(n)) && Number(n) !== semana) irA(Number(n));
@@ -253,6 +272,21 @@ const SemanaEnProgreso = ({
 
             {/* [P1-PLAN-LOTE-1059 · plan 1035] cierre de semana e hitos: una vez, y se marcan vistos en el servidor */}
             <CierreDeSemana userId={userId} eventos={servidor?.eventos} onCompartir={compartirSemana} />
+            {diaACompartir?.dia && (
+                <Suspense fallback={null}>
+                    <ShareDaySheet
+                        onClose={() => setDiaACompartir(null)}
+                        diario={diaACompartir.dia}
+                        fecha={mediodiaDe(diaACompartir.iso)}
+                        metas={{
+                            calories: targetCalories || 0,
+                            protein: Number(targetMacros?.protein) || 0,
+                            carbs: Number(targetMacros?.carbs) || 0,
+                            fats: Number(targetMacros?.fats) || 0,
+                        }}
+                    />
+                </Suspense>
+            )}
             {semanaParaCompartir && (
                 <Suspense fallback={null}>
                     <ShareDaySheet onClose={() => setCompartiendo(false)} semana={semanaParaCompartir} />
@@ -463,6 +497,16 @@ const SemanaEnProgreso = ({
                                         ))}
                                     </ul>
                                 </>
+                            )}
+                            {/* [P1-PLAN-LOTE-1099] el dueño: «¿cómo puedo compartir el día anterior?» — desde aquí, sin abrir el Diario */}
+                            {sel.estado !== 'vacio' && sel.estado !== 'futuro' && (
+                                <button type="button" className={`${styles.verDia} ${styles.compartirDia}`}
+                                    onClick={() => compartirDia(sel.iso)} disabled={!!diaACompartir && !diaACompartir.dia}>
+                                    {diaACompartir && !diaACompartir.dia
+                                        ? <Loader2 size={16} className="spin-animation" aria-hidden="true" />
+                                        : <Share2 size={16} strokeWidth={2.5} aria-hidden="true" />}
+                                    {sel.iso === hoyISO ? t('Compartir mi día') : t('Compartir este día')}
+                                </button>
                             )}
                             {onAbrirDia && (
                                 <button type="button" className={styles.verDia} onClick={() => onAbrirDia(sel.iso)}>

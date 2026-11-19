@@ -32,7 +32,9 @@ describe('[1095] los siete diseños', () => {
         expect(DISENOS).toHaveLength(7);
         expect(DISENOS.map((d) => d.dia).sort()).toEqual([0, 1, 2, 3, 4, 5, 6]);
         expect(new Set(DISENOS.map((d) => d.nombre)).size).toBe(7);
-        for (const d of DISENOS) expect(['titular', 'minimal', 'cristal']).toContain(d.base);
+        // [1101] Neón trae forma propia en el día («anillo»); en la semana y el mes, una de las tres
+        for (const d of DISENOS) expect(['titular', 'minimal', 'cristal', 'anillo']).toContain(d.base);
+        for (const d of DISENOS) expect(['titular', 'minimal', 'cristal']).toContain(d.basePeriodo || d.base);
         expect(ESTILOS).toEqual(CLAVES_DE_DISENO);
     });
 
@@ -51,7 +53,9 @@ describe('[1095] los siete diseños', () => {
     it('la caja que se arrastra es la de su composición', () => {
         const r = { calorias: { valor: 1800, meta: 2000, pct: 90 }, macros: [] };
         expect(cajaDeCifras(r, 'marea')).toEqual(cajaDeCifras(r, 'cristal'));
-        expect(cajaDeCifras(r, 'neon')).toEqual(cajaDeCifras(r, 'minimal'));
+        expect(cajaDeCifras(r, 'neon')).not.toEqual(cajaDeCifras(r, 'minimal'));     // [1101] su anillo
+        const semana = { tipo: 'semana', pintor: { caja: (_r, e) => ({ e }), pintar() {} } };
+        expect(cajaDeCifras(semana, 'neon')).toEqual({ e: 'minimal' });
         expect(cajaDeCifras(r, 'brasa')).toEqual(cajaDeCifras(r, 'titular'));
     });
 

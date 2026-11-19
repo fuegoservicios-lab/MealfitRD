@@ -31,7 +31,9 @@ export const DISENOS = Object.freeze([
         noche: { tonos: ['rgb(3, 15, 25)', 'rgb(8, 47, 73)', 'rgb(17, 94, 89)'], brillos: ['34, 211, 238', '20, 184, 166', '99, 102, 241'] },
     },
     {
-        clave: 'neon', base: 'minimal', nombre: i18nKey('Neón'), dia: 5,
+        // [P1-PLAN-LOTE-1101] Neón con forma PROPIA en el día: el anillo grande que brilla (la semana y el mes no la
+        // tienen: allí es el sticker centrado)
+        clave: 'neon', base: 'anillo', basePeriodo: 'minimal', nombre: i18nKey('Neón'), dia: 5,
         tinte: { modo: 'color', de: 'rgb(217, 70, 239)', a: 'rgb(79, 70, 229)', alfa: 0.5 },
         acento: ['rgb(249, 168, 212)', 'rgb(217, 70, 239)'],
         noche: { tonos: ['rgb(10, 4, 25)', 'rgb(46, 16, 101)', 'rgb(88, 28, 135)'], brillos: ['217, 70, 239', '34, 211, 238', '236, 72, 153'] },
@@ -52,6 +54,12 @@ export const disenoDe = (clave) => _POR_CLAVE[clave] || DISENOS[0];
 
 /** La composición que pinta ese diseño: 'titular' | 'minimal' | 'cristal'. */
 export const baseDe = (clave) => disenoDe(clave).base;
+
+/** [1101] La composición con la que se pinta: la semana y el mes (`conPintor`) solo saben titular, minimal y cristal. */
+export const composicionDe = (clave, conPintor = false) => {
+    const d = disenoDe(clave);
+    return conPintor ? (d.basePeriodo || d.base) : d.base;
+};
 
 /** El diseño del día de la semana de `fecha` (domingo = Aurora … sábado = Eclipse). */
 export const disenoDelDia = (fecha = new Date()) => {

@@ -4268,5 +4268,31 @@
   "Escribir los gramos de {nombre}": "Saisir les grammes de {nombre}",
   "Quitar {n} {unidad}": "Retirer {n} {unidad}",
   "Añadir {n} {unidad}": "Ajouter {n} {unidad}",
-  "Escribir la cantidad de {nombre}": "Saisir la quantité de {nombre}"
+  "Escribir la cantidad de {nombre}": "Saisir la quantité de {nombre}",
+  "No pudimos preparar ese día. Inténtalo otra vez.": "Nous n’avons pas pu préparer ce jour. Réessayez.",
+  "Compartir este mes": "Partager ce mois",
+  "Compartir {mes}": "Partager {mes}",
+  "Compartir tu mes": "Partager votre mois",
+  "Mi mes": "Mon mois",
+  "Mi mes: tu historia": "Mon mois : votre story",
+  "Mes": "Mois",
+  "Resumen del mes": "Résumé du mois",
+  "¿Y tú, cómo va tu mes?": "Et vous, comment se passe votre mois ?",
+  "¿Y tú, cómo va tu mes? 💪": "Et vous, comment se passe votre mois ? 💪",
+  "📅 Mi mes en {app} · {mes}": "📅 Mon mois sur {app} · {mes}",
+  "✅ {n} días en meta": {
+    "one": "✅ {n} jour dans l’objectif",
+    "other": "✅ {n} jours dans l’objectif"
+  },
+  "📝 {n} días con registro": {
+    "one": "📝 {n} jour enregistré",
+    "other": "📝 {n} jours enregistrés"
+  },
+  "🔥 Mejor racha: {n} días": {
+    "one": "🔥 Meilleure série : {n} jour",
+    "other": "🔥 Meilleure série : {n} jours"
+  },
+  "Con registro": "Enregistrés",
+  "Mejor racha": "Meilleure série",
+  "Mes perfecto": "Mois parfait"
 }

@@ -4268,5 +4268,31 @@
   "Escribir los gramos de {nombre}": "Scrivi i grammi di {nombre}",
   "Quitar {n} {unidad}": "Togli {n} {unidad}",
   "Añadir {n} {unidad}": "Aggiungi {n} {unidad}",
-  "Escribir la cantidad de {nombre}": "Scrivi la quantità di {nombre}"
+  "Escribir la cantidad de {nombre}": "Scrivi la quantità di {nombre}",
+  "No pudimos preparar ese día. Inténtalo otra vez.": "Non siamo riusciti a preparare quel giorno. Riprova.",
+  "Compartir este mes": "Condividi questo mese",
+  "Compartir {mes}": "Condividi {mes}",
+  "Compartir tu mes": "Condividi il tuo mese",
+  "Mi mes": "Il mio mese",
+  "Mi mes: tu historia": "Il mio mese: la tua storia",
+  "Mes": "Mese",
+  "Resumen del mes": "Riepilogo del mese",
+  "¿Y tú, cómo va tu mes?": "E tu, come va il tuo mese?",
+  "¿Y tú, cómo va tu mes? 💪": "E tu, come va il tuo mese? 💪",
+  "📅 Mi mes en {app} · {mes}": "📅 Il mio mese su {app} · {mes}",
+  "✅ {n} días en meta": {
+    "one": "✅ {n} giorno nell’obiettivo",
+    "other": "✅ {n} giorni nell’obiettivo"
+  },
+  "📝 {n} días con registro": {
+    "one": "📝 {n} giorno registrato",
+    "other": "📝 {n} giorni registrati"
+  },
+  "🔥 Mejor racha: {n} días": {
+    "one": "🔥 Serie migliore: {n} giorno",
+    "other": "🔥 Serie migliore: {n} giorni"
+  },
+  "Con registro": "Registrati",
+  "Mejor racha": "Serie migliore",
+  "Mes perfecto": "Mese perfetto"
 }

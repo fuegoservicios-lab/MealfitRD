@@ -333,6 +333,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const [escaneando, setEscaneando] = useState(false);
     // [P1-COMPARTIR-DIA-PASADO] `{ dia, fecha }` del día que se comparte, fijado al tocar el botón; null = cerrada
     const [aCompartir, setACompartir] = useState(null);
+    // [P1-PLAN-LOTE-1100] compartir el MES que se mira en el calendario
+    const [mesACompartir, setMesACompartir] = useState(null);
     // [P1-PLAN-LOTE-721] la comida cuya ficha está abierta, o null
     const [fichaMeal, setFichaMeal] = useState(null);
     const idsConFoto = useIdsConFoto(userId);
@@ -565,7 +567,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             // [P1-COMPARTIR-DIA-PASADO] con la hoja de compartir, igual: Escape (y el «atrás» de Android, que lo
             // simula) la cierra a ella, y las flechas no cambian el día que hay debajo
             // [P1-PLAN-LOTE-721] y con la ficha de un plato abierta, lo mismo
-            if (aCompartir || fichaMeal) return;
+            if (aCompartir || mesACompartir || fichaMeal) return;
             if (e.key === 'Escape') { e.preventDefault(); onClose?.(); }
             else if (e.key === 'ArrowLeft') { e.preventDefault(); moverDia(-1); }
             else if (e.key === 'ArrowRight') { e.preventDefault(); moverDia(1); }
@@ -577,9 +579,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         // checkpoint de microtasks a mitad del dispatch). En captura este handler corre ANTES que nadie, con el
         // estado de antes de la tecla.
         window.addEventListener('keydown', onKey, true);
-        if (!registrando && !escaneando && !aCompartir && !fichaMeal) cierreRef.current?.focus({ preventScroll: true });
+        if (!registrando && !escaneando && !aCompartir && !mesACompartir && !fichaMeal) cierreRef.current?.focus({ preventScroll: true });
         return () => window.removeEventListener('keydown', onKey, true);
-    }, [open, onClose, moverDia, registrando, escaneando, aCompartir, fichaMeal]);
+    }, [open, onClose, moverDia, registrando, escaneando, aCompartir, mesACompartir, fichaMeal]);
 
     // [P1-PLAN-LOTE-105] Borrar desde cualquier día: el mismo DELETE (filtrado por user_id) que la papelera de la
     // tarjeta de hoy. Tras borrar se vuelve a pedir el día y la tira, y se avisa a la tarjeta (si era hoy, sus
@@ -627,6 +629,23 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const cerrarEscaner = useCallback(() => setEscaneando(false), []);
     // memoizado: `onClose` va en las deps de `useModalAccessibility` y uno nuevo por render le robaría el foco
     const cerrarCompartir = useCallback(() => setACompartir(null), []);
+    const cerrarCompartirMes = useCallback(() => setMesACompartir(null), []);
+    // [P1-PLAN-LOTE-1100] el mes tal como lo pinta el calendario: verde = en meta, ámbar = bajo, naranja = sobre
+    const abrirCompartirMes = () => {
+        const ESTADO = { green: 'meta', under: 'bajo', over: 'pasado' };
+        const delMes = calDias.filter((c) => c.currentMonth);
+        if (!delMes.length) return;
+        const dias = delMes.map((c) => ({
+            iso: c.iso,
+            estado: c.iso > hoyISO ? 'futuro' : (ESTADO[estadoDe(c.iso)] || 'vacio'),
+        }));
+        setMesACompartir({
+            nombre: `${getMeses(t)[calDate.getMonth()]} ${calDate.getFullYear()}`,
+            inicio: new Date(calDate.getFullYear(), calDate.getMonth(), 1, 12).getDay(),
+            dias,
+            enCurso: esMesActual,
+        });
+    };
     const cerrarFicha = useCallback(() => setFichaMeal(null), []);
 
     const fecha = desdeISO(selected);
@@ -694,6 +713,13 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         'Este mes: media de {kcal} kcal en {n} días con registro',
                         { kcal: formatNumber(mes.media), n: mes.n })}
                 </div>
+            )}
+            {/* [P1-PLAN-LOTE-1100] el mes como historia: un anillo por día, los días en meta y la mejor racha */}
+            {mes.n > 0 && (
+                <button type="button" className={styles.compartirMes} onClick={abrirCompartirMes}>
+                    <Share size={15} strokeWidth={2.4} aria-hidden="true" />
+                    {esMesActual ? t('Compartir este mes') : t('Compartir {mes}', { mes: getMeses(t)[calDate.getMonth()] })}
+                </button>
             )}
             {/* [P1-PLAN-LOTE-1059 · plan 1030] las semanas cerradas; tocar una lleva el mes a esa semana */}
             <VitrinaDeSemanas userId={userId} onElegir={irASemana} />
@@ -1163,6 +1189,11 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         onClose={cerrarFicha}
                         onEliminar={borrarComida}
                     />
+                </Suspense>
+            )}
+            {mesACompartir && (
+                <Suspense fallback={null}>
+                    <ShareDaySheet onClose={cerrarCompartirMes} mes={mesACompartir} />
                 </Suspense>
             )}
             {aCompartir && (

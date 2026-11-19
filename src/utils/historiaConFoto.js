@@ -10,7 +10,7 @@ import { fechaLarga, SITIO } from './compartirDia';
 import { BRAND } from '../data/routeMeta';
 import { BLOQUE_INICIAL, acotarBloque, aplicarBloque, cajaTransformada } from './bloqueDeCifras';
 import { definirPiezas, pintarPiezas, estadoDePieza, cajaDePieza } from './piezasDeHistoria';
-import { CLAVES_DE_DISENO, disenoDe, baseDe, tintarFoto } from './disenosDeHistoria';
+import { CLAVES_DE_DISENO, disenoDe, composicionDe, tintarFoto } from './disenosDeHistoria';
 
 export const ANCHO = 1080;
 export const ALTO = 1920;
@@ -337,10 +337,33 @@ const _cristal = (ctx, r, ac = COLOR.calories) => {
     if (metaCumplida(r)) _insignia(ctx, ANCHO / 2, y - 52, 'center');
 };
 
-const _PINTAR = { titular: _titular, minimal: _minimal, cristal: _cristal };
-const _PIE = { titular: _titularPie, minimal: _minimalPie, cristal: _cristalPie };
+// ── [P1-PLAN-LOTE-1101] «anillo» (Neón): el anillo grande de las calorías que brilla y las macros en tres anillos ──
+const _ANILLO = { cy: BASE - 640, R: 230, grosor: 30 };
+const _anilloGrande = (ctx, r, ac = COLOR.calories) => {
+    const cal = r.calorias;
+    const { cy, R, grosor } = _ANILLO;
+    const cx = ANCHO / 2;
+    // el brillo de neón: el mismo anillo, ancho y muy tenue, debajo
+    ctx.save(); ctx.globalAlpha = 0.35; _anillo(ctx, cx, cy, R, grosor * 2.2, cal.meta > 0 ? cal.pct : 100, ac); ctx.restore();
+    _anillo(ctx, cx, cy, R, grosor, cal.meta > 0 ? cal.pct : 100, ac);
+    if (cal.meta > 0) _texto(ctx, formatPercent(cal.pct), cx, cy - 92, { tam: 36, peso: 800, color: ac[0], alinear: 'center' });
+    _texto(ctx, formatNumber(cal.valor), cx, cy + 44, { tam: formatNumber(cal.valor).length > 5 ? 112 : 136, peso: 800, alinear: 'center' });
+    _texto(ctx, cal.meta > 0 ? `/ ${formatNumber(cal.meta)} kcal` : 'kcal', cx, cy + 100, { tam: 32, peso: 600, color: CLARO, alinear: 'center' });
+    if (metaCumplida(r)) _insignia(ctx, cx, cy - R - 70, 'center');
+    const col = (ANCHO - 2 * M) / 3;
+    r.macros.forEach((mc, i) => {
+        const x = M + col / 2 + i * col;
+        const y = BASE - 190;
+        _anillo(ctx, x, y, 62, 12, mc.meta > 0 ? mc.pct : 100, COLOR[mc.clave]);
+        _texto(ctx, _valorMacro(mc), x, y + 12, { tam: 34, peso: 800, alinear: 'center' });
+        _rotulo(ctx, mc.etiqueta, x, y + 62 + 40, { tam: 20, alinear: 'center', max: col - 20 });
+    });
+};
+
+const _PINTAR = { titular: _titular, minimal: _minimal, cristal: _cristal, anillo: _anilloGrande };
+const _PIE = { titular: _titularPie, minimal: _minimalPie, cristal: _cristalPie, anillo: _minimalPie };
 // La oscuridad detrás de las cifras (se leen sobre cualquier foto): sigue al bloque. Cristal trae su propia tarjeta.
-const _OSCURO = { titular: 0.82, minimal: 0.72, cristal: 0 };
+const _OSCURO = { titular: 0.82, minimal: 0.72, cristal: 0, anillo: 0.72 };
 
 // [P1-PLAN-LOTE-1082 · 2026-11-18] «Compartir mi semana»: la MISMA historia (foto, estilos, sticker, cabecera y pie) con
 // otro contenido. Un resumen con `pintor` ({ pintar, caja }) dibuja lo suyo; sin él, el día de siempre.
@@ -369,7 +392,7 @@ const _medir = (s, tam, peso) => {
 };
 
 /** [1084] Las piezas (textos sueltos) de la historia en ese estilo: `{ id, pie, caja, pintar }`. */
-export const piezasDeLaHistoria = (r, estilo = 'titular') => definirPiezas(r, baseDe(estilo), PINCEL, _medir);
+export const piezasDeLaHistoria = (r, estilo = 'titular') => definirPiezas(r, composicionDe(estilo, !!_pintorDe(r)), PINCEL, _medir);
 
 function _tamTitular(r) { return formatNumber(r?.calorias?.valor ?? 0).length > 5 ? 200 : 250; }
 
@@ -379,10 +402,14 @@ export const LIMITES_CIFRAS = Object.freeze({ x0: 0, x1: ANCHO, y0: 0, y1: ALTO,
 
 /** [1078] La caja de las cifras de cada estilo en su sitio de siempre, en px del lienzo: lo que se arrastra y escala. */
 export function cajaDeCifras(r, clave = 'titular') {
-    const estilo = baseDe(clave);     // [1095] la caja es de la composición, no del diseño
     const pintor = _pintorDe(r);
+    const estilo = composicionDe(clave, !!pintor);     // [1095] la caja es de la composición, no del diseño
     if (pintor) return pintor.caja(r, estilo);
     const cumplida = metaCumplida(r);
+    if (estilo === 'anillo') {
+        const y0 = _ANILLO.cy - _ANILLO.R - (cumplida ? 110 : 40);
+        return { x: M, y: y0, w: ANCHO - 2 * M, h: BASE - 60 - y0 };
+    }
     if (estilo === 'minimal') {
         const y0 = cumplida ? BASE - 590 - 30 : BASE - 510 - 30;
         return { x: M, y: y0, w: ANCHO - 2 * M, h: BASE - 108 - y0 };
@@ -470,7 +497,7 @@ export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', enc
         ctx.clearRect(0, 0, ANCHO, ALTO);
         const clave = ESTILOS.includes(estilo) ? estilo : 'titular';
         _fondo(ctx, foto, encuadre, clave);
-        const cual = baseDe(clave);       // [1095] la composición del diseño
+        const cual = composicionDe(clave, !!_pintorDe(r));       // [1095] la composición del diseño
         const acento = disenoDe(clave).acento || COLOR.calories;
         // [1084] los textos sueltos: sus velos (fijos) si alguna se ve; las piezas se pintan al final, encima de todo
         const defs = piezasDeLaHistoria(r, cual);

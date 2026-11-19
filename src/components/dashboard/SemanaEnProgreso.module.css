@@ -602,3 +602,8 @@
 
 /* [P1-PLAN-LOTE-1082] «Compartir tu semana», junto a las flechas y un poco aparte de ellas */
 .compartir { margin-right: 0.35rem; }
+
+/* [P1-PLAN-LOTE-1099] «Compartir este día» va encima de «Ver este día», con el mismo cuerpo pero relleno (es la acción) */
+.compartirDia { gap: 0.45rem; background: var(--primary-fill, var(--primary)); border-color: transparent; color: white; }
+.compartirDia:disabled { opacity: 0.7; cursor: default; }
+.compartirDia + .verDia { margin-top: 0.5rem; }

@@ -4268,5 +4268,31 @@
   "Escribir los gramos de {nombre}": "Type the grams of {nombre}",
   "Quitar {n} {unidad}": "Remove {n} {unidad}",
   "Añadir {n} {unidad}": "Add {n} {unidad}",
-  "Escribir la cantidad de {nombre}": "Type the amount of {nombre}"
+  "Escribir la cantidad de {nombre}": "Type the amount of {nombre}",
+  "No pudimos preparar ese día. Inténtalo otra vez.": "We couldn't prepare that day. Please try again.",
+  "Compartir este mes": "Share this month",
+  "Compartir {mes}": "Share {mes}",
+  "Compartir tu mes": "Share your month",
+  "Mi mes": "My month",
+  "Mi mes: tu historia": "My month: your story",
+  "Mes": "Month",
+  "Resumen del mes": "Month summary",
+  "¿Y tú, cómo va tu mes?": "How's your month going?",
+  "¿Y tú, cómo va tu mes? 💪": "How's your month going? 💪",
+  "📅 Mi mes en {app} · {mes}": "📅 My month on {app} · {mes}",
+  "✅ {n} días en meta": {
+    "one": "✅ {n} day on goal",
+    "other": "✅ {n} days on goal"
+  },
+  "📝 {n} días con registro": {
+    "one": "📝 {n} day logged",
+    "other": "📝 {n} days logged"
+  },
+  "🔥 Mejor racha: {n} días": {
+    "one": "🔥 Best streak: {n} day",
+    "other": "🔥 Best streak: {n} days"
+  },
+  "Con registro": "Logged",
+  "Mejor racha": "Best streak",
+  "Mes perfecto": "Perfect month"
 }
