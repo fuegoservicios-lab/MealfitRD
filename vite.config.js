@@ -360,6 +360,7 @@ export default defineConfig(({ mode }) => {
   // Ver [BIOBOROS-SENTRY-RELEASE] arriba. Anchor: BIOBOROS-SENTRY-RELEASE-DEFINE.
   define: {
     __APP_RELEASE__: JSON.stringify(APP_RELEASE),
+    __SENTRY_DEBUG__: false,
     // [P1-PLAN-LOTE-108] Identidad del paquete web DENTRO de la app nativa (OTA).
     // Sello UTC ordenable: la app solo acepta un paquete POSTERIOR al que ya corre.
     // `scripts/build-ota-bundle.mjs` lo fija por env para que el manifiesto y el

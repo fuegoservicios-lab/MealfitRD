@@ -116,6 +116,18 @@ export const FAMILIAS_NO_PRECACHEABLES = [
         marcadores: ['jspdf', 'html2canvas', 'canvg'],
         gate: 'import() en pages/InformeMedico.jsx y Dashboard — rutas /dashboard/* (con sesión)',
     },
+    {
+        // [P1-PERF-AUDIT-2026-11-18] Analítica de red (~70.6 KiB gz) y panel admin (~31.7 KiB gz).
+        id: 'analytics-posthog',
+        marcadores: ['posthog-js'],
+        gate: 'initPostHog() — telemetría requiere red por definición',
+    },
+    {
+        id: 'admin-panel',
+        marcadores: [],
+        rutas: ['src/pages/AdminPage'],
+        gate: '/admin — panel interno del dueño, solo administradores',
+    },
 ];
 
 const _norm = (id) => String(id || '').split('\\').join('/');

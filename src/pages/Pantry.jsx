@@ -1836,6 +1836,9 @@ const PantryPage = () => {
         if (currentQty < _floor) return; // primera pulsación bajo el floor: no-op
         handleUpdateQuantity(id, currentQty);
 
+        if (holdTimeoutRef.current[id]) { clearTimeout(holdTimeoutRef.current[id]); holdTimeoutRef.current[id] = null; }
+        if (holdIntervalRef.current[id]) { clearInterval(holdIntervalRef.current[id]); holdIntervalRef.current[id] = null; }
+
         holdTimeoutRef.current[id] = setTimeout(() => {
             holdIntervalRef.current[id] = setInterval(() => {
                 currentQty += step;

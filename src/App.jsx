@@ -6,7 +6,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet }
 import { Toaster } from 'sonner';
 // [P2-CONFIRM-DIALOG-PLACEMENT · 2026-09-04] host único de las confirmaciones de `confirmToast`
 import ConfirmDialogHost from './components/common/ConfirmDialogHost';
-import Layout from './components/layout/Layout';
+// [P1-PERF-AUDIT-2026-11-18] Layout (Header+Footer+LogoutConfirmModal) en lazy: nunca se monta
+// en /dashboard*, /login, /assessment ni /history — ahorra ~4-5 kB gz JS y ~3-4 kB gz CSS en arranque.
+const Layout = lazy(() => import('./components/layout/Layout'));
 // [P3-ROUTE-TITLE · 2026-06-29] Título de pestaña por ruta (minimalista + coherente).
 import RouteTitle from './components/layout/RouteTitle';
 // [P1-EMAIL-OTP · 2026-06-21] /register quedó retirado: el login por código crea
@@ -19,10 +21,7 @@ import AppEntryRedirect from './components/layout/AppEntryRedirect';
 // sección sin colapsar el shell (tab bar + keep-alive del chat). Complementa el
 // GlobalErrorBoundary root (que recarga toda la app).
 import { RouteErrorBoundary } from './components/RouteErrorBoundary';
-// [P1-3 · 2026-07-09] TanStack Query provider (foundation). Habilita el estado de
-// servidor keyed por-usuario + clear() en logout (fix estructural fuga PII).
-import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient } from './queryClient';
+// [P1-3 · P1-PERF-AUDIT-2026-11-18] queryClient ligero sin @tanstack/react-query (libera ~8 kB gz).
 // [P1-I18N-DASHBOARD · 2026-08-15] Idioma de la interfaz. El Provider va por
 // ENCIMA de todo: su cambio de contexto es lo que repinta el árbol. Ver el
 // comentario sobre el `return` para por qué se retiró el remontaje que hubo aquí.
@@ -478,7 +477,6 @@ function App() {
   // Lo que queda es lo natural: el texto cambia en el sitio.
   return (
     <I18nProvider>
-    <QueryClientProvider client={queryClient}>
     <AssessmentProvider>
       <Router>
         {/* [P3-11] Primer elemento focusable: salta la navegación al #main-content. */}
@@ -764,7 +762,6 @@ function App() {
         </ModalAwareRoutes>
       </Router>
     </AssessmentProvider>
-    </QueryClientProvider>
     </I18nProvider>
   );
 }

@@ -6917,7 +6917,6 @@ const AgentPage = () => {
                 @keyframes pulse-mic { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
                 .pulse-anim-mic { animation: pulse-mic 1.5s infinite ease-in-out; }
                 @keyframes shimmer { to { background-position: 200% center; } }
-                @keyframes cyberSweep { 0% { left: -50%; } 100% { left: 100%; } }
                 @keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
                 @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
                 .wave-anim { animation: wave 2.5s infinite; transform-origin: 70% 70%; }

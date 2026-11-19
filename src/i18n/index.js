@@ -751,9 +751,13 @@ export function I18nProvider({ children }) {
     // Arranque: carga el catálogo cacheado en este dispositivo.
     useEffect(() => {
         (async () => {
+            const prev = getLocale();
             await initLocale();
-            setLocaleState(getLocale());
-            setCatalogVersion((n) => n + 1);   // el repintado de arranque cuelga de aquí
+            const next = getLocale();
+            setLocaleState(next);
+            if (next !== 'es-DO' || next !== prev) {
+                setCatalogVersion((n) => n + 1);   // solo repintar cuando cargó catálogo externo
+            }
             setReady(true);
         })();
     }, []);

@@ -413,29 +413,26 @@ export const CAMPOS_DERIVADOS_DEL_SERVIDOR = Object.freeze([
 ]);
 
 export const AssessmentProvider = ({ children }) => {
-    // 1. CARGAR DATOS PERSISTENTES (LocalStorage)
-    // [P2-LOCALSTORAGE-GETITEM-DEFENSIVE · 2026-05-15] Usar `safeLocalStorageGet`.
-    // ANTES: `localStorage.getItem(...)` raw. Un throw (iOS Private Mode,
-    // SecurityError, storage corrupt) en estos 3 reads ABORTA el provider
-    // entero, dejando pantalla blanca sin recuperación posible salvo limpieza
-    // manual de storage. Crítico porque AssessmentProvider envuelve toda la app.
-    const savedPlan = safeLocalStorageGet('mealfit_plan', null);
-    // [P1-B7] Migración legacy ANTES de leer `mealfit_form`. Si el storage tenía
-    // sensitive mezclado con public (formato pre-fix), `migrateLegacyFormStorage`
-    // separa: deja public en `mealfit_form` (lo que leeremos abajo) y nos
-    // devuelve sensitive en memoria. La persistencia cifrada del sensitive
-    // ocurrirá en el primer `useEffect` cuando haya session disponible.
-    const _legacyMigration = migrateLegacyFormStorage();
-    const _legacySensitive = _legacyMigration?.sensitiveData || null;
-    const savedForm = safeLocalStorageGet('mealfit_form', null);
-    const savedLikes = safeLocalStorageGet('mealfit_likes', null);
-    // [P1-FORM-RESUME · 2026-06-19] Posición del wizard persistida (paso actual +
-    // máximo alcanzado). Solo enteros, no PII → plain localStorage como el public
-    // `mealfit_form`. Sin esto, un refresh reseteaba `currentStep` a 0 y el usuario
-    // veía sus respuestas "perdidas" porque el wizard saltaba a la primera pregunta
-    // (el formData public SÍ se restaura en el useState de `formData`, pero la
-    // posición no, así que el usuario aterrizaba en el paso 0 en blanco).
-    const savedWizardStep = safeLocalStorageGet('mealfit_wizard_step', null);
+    // 1. CARGAR DATOS PERSISTENTES (LocalStorage — lazy una sola vez al montar)
+    // [P1-PERF-AUDIT-2026-11-18] Antes las 6 lecturas de localStorage + migrateLegacyFormStorage()
+    // + JSON.parse corrían síncronas en el render body en CADA render del provider.
+    const _initStorageRef = useRef(null);
+    if (_initStorageRef.current === null) {
+        const _legacyMigration = migrateLegacyFormStorage();
+        let _parsedWizard = null;
+        try {
+            const _rawStep = safeLocalStorageGet('mealfit_wizard_step', null);
+            if (_rawStep) {
+                const _s = JSON.parse(_rawStep);
+                if (_s && typeof _s === 'object') _parsedWizard = _s;
+            }
+        } catch { _parsedWizard = null; }
+        _initStorageRef.current = {
+            legacySensitive: _legacyMigration?.sensitiveData || null,
+            parsedWizardStep: _parsedWizard,
+        };
+    }
+    const _legacySensitive = _initStorageRef.current.legacySensitive;
 
     // --- ESTADOS DE LA APLICACIÓN ---
 
@@ -482,13 +479,7 @@ export const AssessmentProvider = ({ children }) => {
     // un rango razonable; cualquier basura cae a 0. `maxReachedStep` nunca menor que
     // `currentStep`. El flow tolera índices fuera de rango (`steps[currentStep] ||
     // steps[0]`), así que el clamp es cinturón-y-tirantes.
-    const _parsedWizardStep = (() => {
-        if (!savedWizardStep) return null;
-        try {
-            const s = JSON.parse(savedWizardStep);
-            return (s && typeof s === 'object') ? s : null;
-        } catch { return null; }
-    })();
+    const _parsedWizardStep = _initStorageRef.current.parsedWizardStep;
     const _clampWizardStep = (v) => (Number.isInteger(v) && v >= 0 && v <= 100) ? v : 0;
     const _initialStep = _clampWizardStep(_parsedWizardStep?.currentStep);
     const [currentStep, setCurrentStep] = useState(_initialStep);
@@ -498,34 +489,27 @@ export const AssessmentProvider = ({ children }) => {
     );
 
     // Datos del Plan Generado (JSON devuelto por la IA)
-    // [P2-B] try/catch defensivo: si `mealfit_plan` se corrompe (edición manual,
-    // bug de serialización, downgrade de versión), un throw aquí rompe el render
-    // inicial del AssessmentProvider — y como envuelve toda la app, el usuario
-    // ve pantalla blanca sin forma de recuperarse salvo limpiando storage manual.
     const [planData, setPlanData] = useState(() => {
-        if (!savedPlan) return null;
-        try { return JSON.parse(savedPlan); }
+        const raw = safeLocalStorageGet('mealfit_plan', null);
+        if (!raw) return null;
+        try { return JSON.parse(raw); }
         catch { return null; }
     });
 
     // Estado de Likes Persistente { "NombrePlato": true }
-    // [P2-B] Mismo patrón defensivo que `planData` arriba.
     const [likedMeals, setLikedMeals] = useState(() => {
-        if (!savedLikes) return {};
-        try { return JSON.parse(savedLikes); }
+        const raw = safeLocalStorageGet('mealfit_likes', null);
+        if (!raw) return {};
+        try { return JSON.parse(raw); }
         catch { return {}; }
     });
 
     // Estado de Dislikes Persistente (permanente — sin expiración)
-    // [P1-FRONTEND-HARDEN · 2026-05-23] safeLocalStorageGet vs raw getItem:
-    // en iOS Safari Private Mode getItem lanza SecurityError. Como este call
-    // está FUERA del callback del useState (no se ejecuta lazy), el throw
-    // corta el render del provider entero → pantalla blanca sin recuperación.
-    const savedDislikes = safeLocalStorageGet('mealfit_dislikes', null);
     const [dislikedMeals, setDislikedMeals] = useState(() => {
-        if (!savedDislikes) return {};
+        const raw = safeLocalStorageGet('mealfit_dislikes', null);
+        if (!raw) return {};
         try {
-            const parsed = JSON.parse(savedDislikes);
+            const parsed = JSON.parse(raw);
             const now = Date.now();
             const valid = {};
             for (const meal in parsed) {
@@ -683,14 +667,17 @@ export const AssessmentProvider = ({ children }) => {
     // `useEffect` aparte cuando session está disponible — mientras tanto los
     // campos sensitive arrancan con sus valores default. Ese flicker es el
     // costo aceptable de no leer plain de localStorage.
-    const _parsedSavedForm = (() => {
-        if (!savedForm) return null;
-        try { return JSON.parse(savedForm); } catch { return null; }
-    })();
-    const [formData, setFormData] = useState({
-        ...initialFormData,
-        ...(_parsedSavedForm || {}),
-        ...(_legacySensitive || {}),
+    const [formData, setFormData] = useState(() => {
+        let parsedSavedForm = null;
+        try {
+            const raw = safeLocalStorageGet('mealfit_form', null);
+            if (raw) parsedSavedForm = JSON.parse(raw);
+        } catch { parsedSavedForm = null; }
+        return {
+            ...initialFormData,
+            ...(parsedSavedForm || {}),
+            ...(_legacySensitive || {}),
+        };
     });
     // [P1-PLAN-LOTE-649] El país con que se LEE el plan en español: «guineo (plátano)» para quien vive en España.
     useEffect(() => { setPaisDeLectura(COUNTRY_SYSTEM_UI ? formData?.country : null); }, [formData?.country]);
@@ -2247,12 +2234,9 @@ export const AssessmentProvider = ({ children }) => {
 // Dejar de adivinar: cada escritura de `planData` emite una petición marcada que se ve en el
 // access log de nginx (sin necesitar la consola del usuario). La próxima generación dice, en
 // orden y con id, quién escribió último y si hubo un no-op.
-const _tracePlanWrite = (who, planId) => {
-    try {
-        fetchWithAuth(`/api/plans-data/latest?src=planwrite-${who}&pid=${String(planId || 'none').slice(0, 8)}`)
-            .catch(() => {});
-    } catch { /* noop */ }
-};
+// [P1-PERF-AUDIT-2026-11-18] Desactivado en producción: antes disparaba un segundo
+// GET /api/plans-data/latest (50-300 KB JSONB) por cada escritura/poll sin cambios.
+const _tracePlanWrite = () => {};
 
 const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expectPlanId = null,
                                                src = 'poll' } = {}) => {
@@ -2314,9 +2298,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             if (expectPlanId && plan?.id && plan.id !== expectPlanId) {
                 _idMismatch = true;
                 try {
-                    // Telemetría barata: una petición marcada que se ve en el access log de nginx
-                    // sin necesitar consola del navegador (así se diagnosticó todo este hilo).
-                    fetchWithAuth('/api/plans-data/latest?src=hydrate-id-mismatch').catch(() => {});
+                    fetchWithAuth('/api/plans-data/latest?src=hydrate-id-mismatch&include_plan_data=false').catch(() => {});
                 } catch { /* noop */ }
             }
 

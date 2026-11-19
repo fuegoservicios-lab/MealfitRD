@@ -1,7 +1,7 @@
 // [P1-PLAN-LOTE-1096 · 2026-11-18] «Quiero que se pueda editar cualquier cantidad»: la cifra de gramos se toca y se
 // escribe, y el paso del −/+ va según el tamaño (10 g de aceite son 90 kcal).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn() }) }));

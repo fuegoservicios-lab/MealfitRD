@@ -13,7 +13,6 @@ vi.mock('../hooks/useFotosDeComidas', () => ({
 vi.mock('../context/AssessmentContext', () => ({ useAssessment: vi.fn(() => ({ planData: null })) }));
 
 import { fetchWithAuth } from '../config/api';
-import { toast } from 'sonner';
 import FichaDeComida from '../components/dashboard/FichaDeComida';
 
 const UID = '11111111-1111-1111-1111-111111111111';

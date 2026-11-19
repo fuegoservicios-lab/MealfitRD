@@ -1839,17 +1839,31 @@ const DashboardInner = () => {
     const [despensaMenuRect, setDespensaMenuRect] = useState(null);
     useEffect(() => {
         if (!showDespensaDropdown) return;
-        const measure = () => {
+        let rafId = null;
+        const measureNow = () => {
+            rafId = null;
             const el = despensaDropdownRef.current;
             if (!el) return;
             const r = el.getBoundingClientRect();
-            setDespensaMenuRect({ top: r.top, left: r.left, width: r.width });
+            const top = Math.round(r.top);
+            const left = Math.round(r.left);
+            const width = Math.round(r.width);
+            setDespensaMenuRect((prev) => (
+                prev && prev.top === top && prev.left === left && prev.width === width
+                    ? prev
+                    : { top, left, width }
+            ));
         };
-        measure();
-        window.addEventListener('resize', measure);
+        const measure = () => {
+            if (rafId !== null) return;
+            rafId = requestAnimationFrame(measureNow);
+        };
+        measureNow();
+        window.addEventListener('resize', measure, { passive: true });
         // capture=true: también scrolls de contenedores internos, no solo el window.
-        window.addEventListener('scroll', measure, true);
+        window.addEventListener('scroll', measure, { capture: true, passive: true });
         return () => {
+            if (rafId !== null) cancelAnimationFrame(rafId);
             window.removeEventListener('resize', measure);
             window.removeEventListener('scroll', measure, true);
         };
