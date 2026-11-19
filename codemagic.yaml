@@ -164,11 +164,14 @@ workflows:
           set -e
           chmod +x ./gradlew
           ./gradlew bundleRelease
+          ls -lh app/build/outputs/native-debug-symbols/release/ 2>/dev/null || true
+          unzip -l app/build/outputs/bundle/release/app-release.aab | grep -E "debugsymbols|proguard\.map" || true
         working_directory: android
 
     artifacts:
       - android/app/build/outputs/**/*.aab
       - android/app/build/outputs/mapping/release/mapping.txt
+      - android/app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip
 
   ios-testflight:
     name: iOS → TestFlight

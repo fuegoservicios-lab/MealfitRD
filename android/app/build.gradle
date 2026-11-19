@@ -44,9 +44,10 @@ android {
         // barras y del teclado en MainActivity, y sin READ_MEDIA_IMAGES.
         // [ANDROID-PLAY-R8-EDGE · 2026-11-19] 114: R8 + shrinkResources en release (optimización DEX / ofuscación)
         // y borde a borde moderno con WindowInsetsControllerCompat sin android:navigationBarColor obsoleto.
-        // [ANDROID-PLAY-SYMBOLS · 2026-11-19] 115: símbolos nativos FULL incrustados en el .aab (0 advertencias en Play).
-        versionCode 115
-        versionName "1.0.115"
+        // [ANDROID-PLAY-SYMBOLS · 2026-11-19] 116: SYMBOL_TABLE extrae tabla de símbolos incluso de .so precompilados
+        // de AndroidX/Capacitor (FULL exige secciones DWARF que esas librerías no traen).
+        versionCode 116
+        versionName "1.0.116"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -89,7 +90,7 @@ android {
             minifyEnabled true
             shrinkResources true
             ndk {
-                debugSymbolLevel = 'FULL'
+                debugSymbolLevel = 'SYMBOL_TABLE'
             }
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (_cmKeystore) { signingConfig signingConfigs.testers }
