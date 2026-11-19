@@ -385,6 +385,39 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         toast.success(valor ? t('Avisos activados.') : t('Avisos desactivados.'));
     };
 
+    // [P1-PLAN-LOTE-1105] cada cuánto pide el peso el coach: 7 | 14 | 30 | 0 (nunca); ausente = 14
+    const _avisoPesoDias = () => {
+        const v = Number((userProfile?.health_profile || {}).aviso_peso_dias);
+        return [0, 7, 14, 30].includes(v) ? v : 14;
+    };
+    const [avisoPesoDias, setAvisoPesoDias] = useState(_avisoPesoDias);
+    useEffect(() => {
+        setAvisoPesoDias(_avisoPesoDias());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userProfile?.health_profile?.aviso_peso_dias]);
+    const cambiarFrecuenciaPeso = async (dias) => {
+        if (guardandoPrefAviso) return;
+        const antes = avisoPesoDias;
+        setAvisoPesoDias(dias);
+        setGuardandoPrefAviso(true);
+        try {
+            const res = await fetchWithAuth('/api/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ health_profile: { aviso_peso_dias: dias } }),
+            });
+            if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
+            updateData('aviso_peso_dias', dias);
+            try { await refreshProfileAndPlan(); } catch { /* best-effort: el servidor ya lo tiene */ }
+            toast.success(dias ? t('Listo: te pediré el peso.') : t('Listo: no te pediré el peso.'));
+        } catch {
+            setAvisoPesoDias(antes);
+            toast.error(t('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.'));
+        } finally {
+            setGuardandoPrefAviso(false);
+        }
+    };
+
     // [P1-PLAN-LOTE-162] Android sin permiso de alarmas exactas: los avisos salen, pero con margen. Se ofrece el
     // permiso aquí, a propósito y con una frase, en vez de que el plugin abra Ajustes solo en cada reprogramación.
     const [alarmaExactaFalta, setAlarmaExactaFalta] = useState(false);
@@ -3831,6 +3864,27 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     ))}
                                 </div>
                             )}
+
+                            {/* [P1-PLAN-LOTE-1105] Cada cuánto te pide el peso el coach (en el chat, y al teléfono si
+                                tiene los avisos). Fuera del bloque de avisos: la pregunta en el chat sale igual. */}
+                            <div className={styles.pesoFila}>
+                                <div className={styles.pesoTexto}>
+                                    <div className={styles.pesoTitulo}>{t('Pedirme el peso')}</div>
+                                    <div className={styles.pesoSub}>{t('Por la mañana, en ayunas: el coach te pregunta y anota tu tendencia.')}</div>
+                                </div>
+                                <select
+                                    aria-label={t('Pedirme el peso')}
+                                    value={String(avisoPesoDias)}
+                                    disabled={guardandoPrefAviso}
+                                    onChange={(e) => cambiarFrecuenciaPeso(Number(e.target.value))}
+                                    className={styles.pesoSelect}
+                                >
+                                    <option value="7">{t('Cada semana')}</option>
+                                    <option value="14">{t('Cada 2 semanas')}</option>
+                                    <option value="30">{t('Cada mes')}</option>
+                                    <option value="0">{t('Nunca')}</option>
+                                </select>
+                            </div>
 
                         </section>
                     )}

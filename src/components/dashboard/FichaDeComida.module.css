@@ -467,11 +467,17 @@
 
 .gramosValor {
     /* [1096] es un botón: tocarlo deja escribir los gramos */
+    /* [P1-PLAN-LOTE-1104] centrada en la pastilla; el punteado es un SUBRAYADO pegado al número (como borde del
+       botón caía en el fondo de la pastilla, lejos de la cifra) */
     min-height: 34px;
     padding: 0 0.25rem;
     border: 0;
-    border-bottom: 1px dashed color-mix(in srgb, var(--text-muted) 60%, transparent);
     border-radius: 0;
+    align-items: center;
+    line-height: 1;
+    text-decoration: underline dashed color-mix(in srgb, var(--text-muted) 60%, transparent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
     background: transparent;
     font-family: inherit;
     cursor: text;

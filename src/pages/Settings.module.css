@@ -2134,3 +2134,26 @@
 
 /* [P1-PLAN-LOTE-1068] Aire sobre la zona de peligro (antes en línea). */
 .zonaDePeligro { margin-top: 1.75rem; }
+
+/* [P1-PLAN-LOTE-1105] «Pedirme el peso»: cada cuánto lo pregunta el coach */
+.pesoFila {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.pesoTexto { flex: 1; min-width: 0; }
+.pesoTitulo { font-weight: 600; font-size: 0.875rem; color: var(--text-main); }
+.pesoSub { font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin-top: 0.15rem; }
+.pesoSelect {
+    flex-shrink: 0;
+    font-size: 0.8125rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--bg-muted);
+    color: var(--text-main);
+    font-family: inherit;
+}
