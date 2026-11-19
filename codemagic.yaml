@@ -168,6 +168,7 @@ workflows:
 
     artifacts:
       - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/mapping/release/mapping.txt
 
   ios-testflight:
     name: iOS → TestFlight

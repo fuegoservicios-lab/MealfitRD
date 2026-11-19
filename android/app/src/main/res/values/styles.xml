@@ -14,12 +14,11 @@
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
         <!-- [KB-ANDROID-FONDO-VENTANA · 2026-11-12] Al abrir el teclado Android encoge el contenido de golpe y, hasta
-             que las teclas suben, se ve el FONDO DE LA VENTANA: sin declararlo era el gris del tema (una franja gris
-             de ~300 ms en el video del dueño). Y la barra de navegación del sistema salía blanca bajo la app oscura.
-             Los dos, del negro del arranque. No viaja por OTA: exige un APK nuevo. -->
+             que las teclas suben, se ve el FONDO DE LA VENTANA: el negro del arranque.
+             [ANDROID-PLAY-R8-EDGE · 2026-11-19] Se retiraron `android:navigationBarColor` y
+             `android:windowLightNavigationBar` (obsoletos en Android 15/16); el estilo oscuro de barras
+             se aplica ahora en MainActivity vía `WindowInsetsControllerCompat`. -->
         <item name="android:windowBackground">@color/splashBackground</item>
-        <item name="android:navigationBarColor">@color/splashBackground</item>
-        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
 

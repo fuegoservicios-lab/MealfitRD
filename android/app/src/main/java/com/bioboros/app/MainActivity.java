@@ -5,7 +5,9 @@ import android.view.View;
 
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -22,6 +24,11 @@ public class MainActivity extends BridgeActivity {
         // [P1-PLAN-LOTE-962 · 2026-10-01] Sin el pitido del reconocedor de voz mientras el modo voz escucha.
         registerPlugin(MfSilencioVoz.class);
         super.onCreate(savedInstanceState);
+        // [ANDROID-PLAY-R8-EDGE · 2026-11-19] Iconos claros sobre el fondo oscuro de ventana usando
+        // WindowInsetsControllerCompat (sin android:navigationBarColor ni APIs obsoletas en Android 15/16).
+        WindowInsetsControllerCompat ctrl = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        ctrl.setAppearanceLightStatusBars(false);
+        ctrl.setAppearanceLightNavigationBars(false);
         apartarDeBarrasYTeclado();
     }
 
