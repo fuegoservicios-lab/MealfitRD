@@ -45,10 +45,9 @@ export default function AdminDialogoMotivo({ titulo, explicacion, lista, confirm
         try {
             await onEnviar(motivo.trim());
         } catch (err) {
-            setError(err?.message || TEXTOS.errorGenerico);
-        } finally {
             enviandoRef.current = false;
             setEnviando(false);
+            setError(err?.message || TEXTOS.errorGenerico);
         }
     };
 
@@ -68,7 +67,7 @@ export default function AdminDialogoMotivo({ titulo, explicacion, lista, confirm
                 {explicacion && <p id={idExplicacion} className={styles.explicacion}>{explicacion}</p>}
                 {lista && lista.length > 0 && (
                     <ul className={styles.correosDialogo}>
-                        {lista.map((texto) => <li key={texto}>{texto}</li>)}
+                        {lista.map((texto, i) => <li key={`${texto}-${i}`}>{texto}</li>)}
                     </ul>
                 )}
                 <div className={base.campo}>

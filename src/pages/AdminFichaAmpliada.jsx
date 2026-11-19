@@ -169,8 +169,11 @@ function textoDe(v, profundidad = 0) {
         try { return JSON.stringify(v); } catch { return String(v); }
     }
     const anidado = (x) => (x && typeof x === 'object' ? `(${textoDe(x, profundidad + 1)})` : textoDe(x, profundidad + 1));
-    if (Array.isArray(v)) return v.map(anidado).join(', ');
-    if (typeof v === 'object') return Object.entries(v).map(([k, x]) => `${k}: ${anidado(x)}`).join(', ');
+    if (Array.isArray(v)) return v.length ? v.map(anidado).join(', ') : '—';
+    if (typeof v === 'object') {
+        const pares = Object.entries(v);
+        return pares.length ? pares.map(([k, x]) => `${k}: ${anidado(x)}`).join(', ') : '—';
+    }
     return String(v);
 }
 
@@ -200,9 +203,9 @@ function mensajeDe(err) {
     return err?.message || TEXTOS.errores.generico;
 }
 
-function Dato({ etiqueta, valor, nota }) {
+function Dato({ etiqueta, valor, nota, alerta = false }) {
     return (
-        <div className={styles.dato} data-dato="">
+        <div className={styles.dato} data-dato="" data-alerta={alerta ? 'true' : undefined}>
             <span className={styles.datoEtiqueta}>{etiqueta}</span>
             <span className={styles.datoValor}>{valor}</span>
             {nota && <span className={styles.datoNota}>{nota}</span>}
@@ -224,14 +227,14 @@ function BloqueActividad({ actividad: a }) {
                 <Dato etiqueta={TEXTOS.diasActivos} valor={cifra(a.dias_activos_30d)} />
                 <Dato etiqueta={TEXTOS.comidasPorDia} valor={cifra(a.comidas_por_dia_activo, 1)} />
                 <Dato etiqueta={TEXTOS.planes} valor={cifra(a.planes)} />
-                <Dato etiqueta={TEXTOS.bloques} valor={cifra(a.bloques_fallidos_30d)} />
+                <Dato etiqueta={TEXTOS.bloques} valor={cifra(a.bloques_fallidos_30d)} alerta={Number(a.bloques_fallidos_30d) > 0} />
                 <Dato etiqueta={TEXTOS.mensajes} valor={cifra(a.mensajes_coach)} />
-                <Dato etiqueta={TEXTOS.pulgares} valor={cifra(a.pulgares_abajo)} />
+                <Dato etiqueta={TEXTOS.pulgares} valor={cifra(a.pulgares_abajo)} alerta={Number(a.pulgares_abajo) > 0} />
                 <Dato etiqueta={TEXTOS.escaneos} valor={cifra(a.escaneos)} />
                 <Dato etiqueta={TEXTOS.gasto} valor={usd(a.gasto_ia_30d_usd)} />
                 <Dato etiqueta={TEXTOS.agua} valor={cifra(a.dias_con_agua_30d)} />
                 <Dato etiqueta={TEXTOS.peso} valor={cifra(a.registros_peso)} />
-                <Dato etiqueta={TEXTOS.avisos} valor={cifra(a.avisos_abiertos)} />
+                <Dato etiqueta={TEXTOS.avisos} valor={cifra(a.avisos_abiertos)} alerta={Number(a.avisos_abiertos) > 0} />
                 <Dato etiqueta={TEXTOS.plataformas} valor={plataformas} />
                 <Dato etiqueta={TEXTOS.modo} valor={NOMBRE_MODO[a.modo] || a.modo || TEXTOS.sinElegir} />
                 <Dato etiqueta={TEXTOS.idioma} valor={nombreIdioma(a.idioma) || TEXTOS.sinElegir} />
@@ -280,7 +283,7 @@ function BloquePrueba({ ficha, onCambio, onVerDetalle, refVerDetalle }) {
         if (!enfocarTitulo.current || dialogo) return;
         enfocarTitulo.current = false;
         tituloRef.current?.focus();
-    });
+    }, [dialogo]);
 
     const hecho = (datos) => {
         enfocarTitulo.current = true;
@@ -290,7 +293,7 @@ function BloquePrueba({ ficha, onCambio, onVerDetalle, refVerDetalle }) {
     const marcar = async (motivo, confirmarVuelta) => {
         let datos;
         try {
-            datos = await pedirAdmin(`/api/admin/cuentas/${uid}/prueba`, { motivo, confirmar_vuelta: confirmarVuelta });
+            datos = await pedirAdmin(`/api/admin/cuentas/${encodeURIComponent(uid)}/prueba`, { motivo, confirmar_vuelta: confirmarVuelta });
         } catch (err) {
             // La persona salió ella misma: volver a marcarla se confirma aparte, en un segundo diálogo.
             if (err?.detalle === 'salio_ella' && !confirmarVuelta) { setDialogo({ tipo: 'vuelta', motivo }); return; }
@@ -301,7 +304,7 @@ function BloquePrueba({ ficha, onCambio, onVerDetalle, refVerDetalle }) {
     const quitar = async (motivo) => {
         let datos;
         try {
-            datos = await pedirAdmin(`/api/admin/cuentas/${uid}/prueba/quitar`, { motivo });
+            datos = await pedirAdmin(`/api/admin/cuentas/${encodeURIComponent(uid)}/prueba/quitar`, { motivo });
         } catch (err) {
             throw new Error(mensajeDe(err));
         }
@@ -487,24 +490,29 @@ function CambiosAjustes({ userId }) {
     useEffect(() => {
         if (!abierto) return undefined;
         let vivo = true;
+        const controller = new AbortController();
         (async () => {
             try {
-                const datos = await pedirAdmin(`/api/admin/cuentas/${userId}/ajustes/historial?dias=${dias}`);
+                const datos = await pedirAdmin(
+                    `/api/admin/cuentas/${encodeURIComponent(userId)}/ajustes/historial?dias=${dias}`,
+                    undefined,
+                    { signal: controller.signal },
+                );
                 if (!vivo) return;
                 setCambios(Array.isArray(datos?.cambios) ? datos.cambios : []);
                 setEstado('listo');
             } catch {
-                if (vivo) setEstado('error');
+                if (vivo && !controller.signal.aborted) setEstado('error');
             }
         })();
-        return () => { vivo = false; };
+        return () => { vivo = false; controller.abort(); };
     }, [abierto, dias, userId]);
 
     const alternar = () => {
         if (!abierto) setEstado('cargando');
         setAbierto(!abierto);
     };
-    const elegirDias = (d) => { setEstado('cargando'); setDias(d); };
+    const elegirDias = (d) => { if (d === dias) return; setEstado('cargando'); setDias(d); };
 
     return (
         <div className={styles.cambios}>

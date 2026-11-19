@@ -15,7 +15,11 @@ const write = (key, value) => {
 
 // Only navigation is stored, per administrator and tab. Account data is always fetched again.
 // eslint-disable-next-line react-refresh/only-export-components
-export function useAdminNavigationState(name, fallback, valid = (v) => typeof v === typeof fallback && v !== null) {
+export function useAdminNavigationState(
+    name,
+    fallback,
+    valid = (v) => (fallback === null ? v === null : typeof v === typeof fallback && v !== null),
+) {
     const navigation = useContext(AdminNavigation);
     const key = navigation?.key ? `${navigation.key}:${name}` : null;
     const [value, setValue] = useState(() => key ? read(key, fallback, valid) : fallback);

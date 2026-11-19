@@ -1,20 +1,15 @@
 // frontend/src/pages/AdminCuentasLista.jsx
-// [P1-PLAN-LOTE-833 · 2026-09-29] Panel admin · Cuentas: la lista de TODAS las cuentas (spec
-// docs/superpowers/specs/2026-09-29-admin-cuentas-actividad-pruebas-design.md §4.1, §4.5, §13.5, §13.6; contratos 1, 2
-// y 6). Correo, nombre, plan y la actividad EN NÚMEROS —nunca contenido—, con búsqueda (espera de 300 ms), filtro,
-// orden, páginas de 50, casillas para marcar varias como cuentas de prueba (un solo lote, con motivo) y el CSV con los
-// mismos filtros. Tocar un correo abre su ficha (`onAbrir`). La pide ella misma al montarse: con el interruptor
-// apagado el servidor responde 404, no pinta nada y avisa con `onDisponible(false)` para que el panel quede como hoy.
-// Interno —solo el dueño, solo español—: los textos fijos viven en TEXTOS.
-// [P1-PLAN-LOTE-833 · 2026-09-29, ronda 1] Una marca `sin_marca` no es de prueba (`marcaViva`); `onDisponible` va en una
-// ref (un callback nuevo en cada render ya no vuelve a pedir la lista); una página que dejó de existir se corrige sola; tras
-// marcar varias el foco va al resumen; y «Abriendo la cuenta…» o su fallo (`aviso`) salen junto al título.
+// [P1-PLAN-LOTE-833 · 2026-09-29] Panel admin · Cuentas: la lista de TODAS las cuentas.
+// Mejoras: AbortController en cada consulta, dependencias explícitas en efectos, avatares con inicial,
+// correos sin partirse a mitad de palabra en escritorio con columna fija al desplazar, copia rápida al
+// portapapeles, barra de selección destacada y botón para limpiar búsqueda.
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { Check, Copy, Download, Search, X } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import AdminDialogoMotivo from './AdminDialogoMotivo';
 import {
-    NOMBRE_MODO, NOMBRE_PLAN, cifra, fecha, marcaViva, nombreCsvDeHoy, nombreDeArchivo, pedirAdmin, urlCsvCuentas, urlCuentas,
-    usd,
+    NOMBRE_MODO, NOMBRE_PLAN, cifra, copiarTexto, fecha, marcaViva, nombreCsvDeHoy, nombreDeArchivo, pedirAdmin,
+    urlCsvCuentas, urlCuentas, usd,
 } from '../utils/adminCuentas';
 import base from './AdminCuentas.module.css';
 import styles from './AdminCuentasLista.module.css';
@@ -26,6 +21,8 @@ const TEXTOS = {
     total: (n) => (n === 1 ? '1 cuenta' : `${n} cuentas`),
     herramientas: 'Buscar en la lista',
     buscar: 'Buscar por correo o nombre',
+    placeholderBuscar: 'correo@ejemplo.com o nombre…',
+    limpiarBusqueda: 'Limpiar búsqueda',
     filtro: 'Filtro',
     orden: 'Orden',
     descargar: 'Descargar CSV',
@@ -36,6 +33,8 @@ const TEXTOS = {
     marcarSeleccionadas: 'Marcar seleccionadas como prueba',
     quitarSeleccion: 'Quitar selección',
     seleccionar: (correo) => `Seleccionar ${correo}`,
+    copiarCorreo: (correo) => `Copiar ${correo}`,
+    copiado: 'Copiado',
     seleccion: 'Selección',
     cuenta: 'Cuenta',
     comidas30: (n) => `${n} en 30 días`,
@@ -85,8 +84,9 @@ const COLUMNAS = {
 
 const ESPERA_BUSQUEDA_MS = 300;
 const CORREOS_A_LA_VISTA = 5;
-// [P1-PLAN-LOTE-716] Revocar el enlace del archivo en el acto podía cancelar la descarga en Safari.
 const REVOCAR_TRAS_MS = 30000;
+
+const inicialDe = (c) => (String(c.nombre || c.email || '?').trim().charAt(0) || '?').toUpperCase();
 
 function mensajeLote(err) {
     if (err?.detalle && TEXTOS.errorLote[err.detalle]) return TEXTOS.errorLote[err.detalle];
@@ -95,11 +95,24 @@ function mensajeLote(err) {
 }
 
 function FilaCuenta({ c, elegida, onElegir, onAbrir }) {
+    const [copiado, setCopiado] = useState(false);
     const a = c.actividad || {};
     const viva = marcaViva(c.prueba);
+    const gastoAlto = Number(a.gasto_ia_30d_usd) >= 1;
     const sub = [c.nombre, NOMBRE_PLAN[c.plan_efectivo] || c.plan_efectivo, NOMBRE_MODO[c.modo], c.pais].filter(Boolean).join(' · ');
+
+    const copiar = async (e) => {
+        e.stopPropagation();
+        if (!c.email) return;
+        const ok = await copiarTexto(c.email);
+        if (ok) {
+            setCopiado(true);
+            setTimeout(() => setCopiado(false), 1800);
+        }
+    };
+
     return (
-        <tr data-cuenta={c.user_id}>
+        <tr data-cuenta={c.user_id} data-seleccionada={elegida ? 'true' : undefined}>
             <td className={styles.celdaSeleccion}>
                 <label className={styles.casilla}>
                     <input
@@ -112,26 +125,55 @@ function FilaCuenta({ c, elegida, onElegir, onAbrir }) {
                 </label>
             </td>
             <td className={styles.celdaCuenta}>
-                <button type="button" className={styles.correo} data-abrir-cuenta={c.user_id} onClick={() => onAbrir(c)}>{c.email}</button>
-                {sub && <span className={styles.sub}>{sub}</span>}
-                {(viva || c.es_admin) && (
-                    <span className={styles.etiquetas}>
-                        {viva && <span className={styles.chip} data-tono="prueba">{TEXTOS.prueba}</span>}
-                        {viva && c.prueba.estado === 'aviso_pendiente' && <span className={styles.chip} data-tono="pendiente">{TEXTOS.avisoPendiente}</span>}
-                        {c.es_admin && <span className={styles.chip} data-tono="admin">{TEXTOS.admin}</span>}
+                <div className={styles.cuentaFila}>
+                    <span className={styles.avatar} data-admin={c.es_admin ? 'true' : undefined} aria-hidden="true">
+                        {inicialDe(c)}
                     </span>
-                )}
+                    <div className={styles.cuentaInfo}>
+                        <div className={styles.correoLinea}>
+                            <button
+                                type="button"
+                                className={styles.correo}
+                                data-abrir-cuenta={c.user_id}
+                                title={c.email}
+                                onClick={() => onAbrir(c)}
+                            >
+                                {c.email}
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.copiarBtn}
+                                aria-label={copiado ? TEXTOS.copiado : TEXTOS.copiarCorreo(c.email)}
+                                title={copiado ? TEXTOS.copiado : TEXTOS.copiarCorreo(c.email)}
+                                data-copiado={copiado ? 'true' : undefined}
+                                onClick={copiar}
+                            >
+                                {copiado ? <Check size={13} strokeWidth={2.5} aria-hidden="true" /> : <Copy size={13} strokeWidth={2} aria-hidden="true" />}
+                            </button>
+                        </div>
+                        {sub && <span className={styles.sub}>{sub}</span>}
+                        {(viva || c.es_admin) && (
+                            <span className={styles.etiquetas}>
+                                {viva && <span className={styles.chip} data-tono="prueba">{TEXTOS.prueba}</span>}
+                                {viva && c.prueba.estado === 'aviso_pendiente' && <span className={styles.chip} data-tono="pendiente">{TEXTOS.avisoPendiente}</span>}
+                                {c.es_admin && <span className={styles.chip} data-tono="admin">{TEXTOS.admin}</span>}
+                            </span>
+                        )}
+                    </div>
+                </div>
             </td>
             <td data-etiqueta={COLUMNAS.ultima} className={styles.fecha}>{a.ultima ? fecha(a.ultima) : TEXTOS.sinActividad}</td>
             <td data-etiqueta={COLUMNAS.comidas} className={styles.num}>
-                <span>{cifra(a.comidas_total)}</span>
+                <span className={!a.comidas_total ? styles.cero : undefined}>{cifra(a.comidas_total)}</span>
                 <span className={styles.nota}>{TEXTOS.comidas30(cifra(a.comidas_30d))}</span>
             </td>
-            <td data-etiqueta={COLUMNAS.planes} className={styles.num}>{cifra(a.planes)}</td>
-            <td data-etiqueta={COLUMNAS.mensajes} className={styles.num}>{cifra(a.mensajes_coach)}</td>
-            <td data-etiqueta={COLUMNAS.escaneos} className={styles.num}>{cifra(a.escaneos)}</td>
-            <td data-etiqueta={COLUMNAS.gasto} className={styles.num}>{usd(a.gasto_ia_30d_usd)}</td>
-            <td data-etiqueta={COLUMNAS.dias} className={styles.num}>{cifra(a.dias_activos_30d)}</td>
+            <td data-etiqueta={COLUMNAS.planes} className={`${styles.num} ${!a.planes ? styles.cero : ''}`}>{cifra(a.planes)}</td>
+            <td data-etiqueta={COLUMNAS.mensajes} className={`${styles.num} ${!a.mensajes_coach ? styles.cero : ''}`}>{cifra(a.mensajes_coach)}</td>
+            <td data-etiqueta={COLUMNAS.escaneos} className={`${styles.num} ${!a.escaneos ? styles.cero : ''}`}>{cifra(a.escaneos)}</td>
+            <td data-etiqueta={COLUMNAS.gasto} className={`${styles.num} ${gastoAlto ? styles.gastoAlto : (!Number(a.gasto_ia_30d_usd) ? styles.cero : '')}`}>
+                {usd(a.gasto_ia_30d_usd)}
+            </td>
+            <td data-etiqueta={COLUMNAS.dias} className={`${styles.num} ${!a.dias_activos_30d ? styles.cero : ''}`}>{cifra(a.dias_activos_30d)}</td>
             <td data-etiqueta={COLUMNAS.alta} className={`${styles.num} ${styles.fecha}`}>{fecha(c.alta)}</td>
         </tr>
     );
@@ -148,12 +190,12 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
     const [orden, setOrden] = useAdminNavigationState('lista:orden', 'actividad', (v) => ORDENES.some(([id]) => id === v));
     const [pagina, setPagina] = useAdminNavigationState('lista:pagina', 1, (v) => Number.isInteger(v) && v > 0);
     const [intento, setIntento] = useState(0);
-    const [estado, setEstado] = useState('cargando');   // cargando | lista | error | fuera
+    const [estado, setEstado] = useState('cargando');
     const [datos, setDatos] = useState(null);
     useAdminLoading(!oculta && estado === 'cargando');
     const [pendiente, setPendiente] = useState(false);
     const [fallo, setFallo] = useState(false);
-    const [seleccion, setSeleccion] = useState(() => new Map());   // user_id → correo, en el orden en que se marcan
+    const [seleccion, setSeleccion] = useState(() => new Map());
     const [dialogo, setDialogo] = useState(false);
     const [resultado, setResultado] = useState(null);
     const [descargando, setDescargando] = useState(false);
@@ -161,12 +203,9 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
     const refTodas = useRef(null);
     const resumenRef = useRef(null);
     const enfocarResumen = useRef(false);
-    // En una ref: un `onDisponible` escrito en línea cambia en cada render del padre y, en las dependencias del efecto,
-    // volvía a pedir la lista en bucle (cada respuesta avisa, el padre se pinta, el callback es otro…).
     const onDisponibleRef = useRef(onDisponible);
-    useEffect(() => { onDisponibleRef.current = onDisponible; });
+    useEffect(() => { onDisponibleRef.current = onDisponible; }, [onDisponible]);
 
-    // La búsqueda espera 300 ms a que se deje de escribir: una petición por ráfaga, no una por tecla.
     useEffect(() => {
         const limpio = texto.trim();
         if (limpio === buscar) return undefined;
@@ -181,21 +220,18 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
 
     useEffect(() => {
         let vivo = true;
+        const controller = new AbortController();
         (async () => {
             try {
-                const r = await fetchWithAuth(urlCuentas({ buscar, orden, filtro, pagina }));
+                const r = await fetchWithAuth(urlCuentas({ buscar, orden, filtro, pagina }), { signal: controller.signal });
                 if (!vivo) return;
-                // 404: interruptor apagado (o no admin). El panel sigue como hoy.
                 if (r.status === 404 || r.status === 401) { setEstado('fuera'); onDisponibleRef.current?.(false); return; }
                 if (!r.ok) throw new Error(`Error ${r.status}`);
                 const cuerpo = await r.json();
                 if (!vivo) return;
-                // La lista encogió por debajo de la página pedida (se marcaron cuentas, cambió el filtro en otra pestaña):
-                // se pide la última que existe en vez de dejar una página vacía sin forma de volver.
                 const ultima = Math.max(1, Math.ceil((Number(cuerpo?.total) || 0) / (Number(cuerpo?.por_pagina) || 50)));
                 if (pagina > ultima) { setPagina(ultima); return; }
                 setDatos(cuerpo);
-                // Lo seleccionado que ya no se puede elegir (se marcó desde su ficha, o ya no sale) deja de estarlo.
                 const elegiblesAhora = new Set((Array.isArray(cuerpo?.cuentas) ? cuerpo.cuentas : [])
                     .filter((c) => !marcaViva(c.prueba)).map((c) => c.user_id));
                 setSeleccion((s) => ([...s.keys()].every((id) => elegiblesAhora.has(id))
@@ -206,13 +242,13 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                 setEstado('lista');
                 onDisponibleRef.current?.(true);
             } catch {
-                if (!vivo) return;
+                if (!vivo || controller.signal.aborted) return;
                 setPendiente(false);
                 setFallo(true);
                 setEstado((e) => (e === 'lista' ? e : 'error'));
             }
         })();
-        return () => { vivo = false; };
+        return () => { vivo = false; controller.abort(); };
     }, [buscar, orden, filtro, pagina, version, intento, setPagina]);
 
     const cuentas = Array.isArray(datos?.cuentas) ? datos.cuentas : [];
@@ -220,17 +256,15 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
     const todas = elegibles.length > 0 && elegibles.every((c) => seleccion.has(c.user_id));
     const algunas = elegibles.some((c) => seleccion.has(c.user_id));
 
-    // `indeterminate` no es un atributo: solo se pone por JS.
     useEffect(() => {
         if (refTodas.current) refTodas.current.indeterminate = algunas && !todas;
-    });
-    // Tras marcar varias, el botón que abrió el diálogo queda desactivado (ya no hay selección) y el hook no puede
-    // devolverle el foco: va al resumen, que dice qué pasó con cada una.
+    }, [algunas, todas, estado]);
+
     useEffect(() => {
         if (!enfocarResumen.current || !resumenRef.current) return;
         enfocarResumen.current = false;
         resumenRef.current.focus();
-    });
+    }, [resultado]);
 
     const cerrarDialogo = useCallback(() => setDialogo(false), []);
 
@@ -327,11 +361,11 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                 <div>
                     <h2 id={idTitulo} className={styles.titulo} tabIndex={-1} data-titulo-lista="">{TEXTOS.titulo}</h2>
                     <p className={styles.meta}>{TEXTOS.total(total)}</p>
-                    {/* Junto al título, no debajo de la tabla: abrir una cuenta de la fila 40 dice aquí qué pasa. */}
-                    <p className={styles.meta} role="status">{aviso?.tipo === 'abriendo' ? aviso.texto : ''}</p>
+                    <p className={styles.avisoApertura} role="status">{aviso?.tipo === 'abriendo' ? aviso.texto : ''}</p>
                     {aviso?.tipo === 'error' && <p className={styles.error} role="alert">{aviso.texto}</p>}
                 </div>
-                <button type="button" className={base.boton} onClick={descargar} aria-disabled={descargando || undefined}>
+                <button type="button" className={`${base.boton} ${styles.botonIcono}`} onClick={descargar} aria-disabled={descargando || undefined}>
+                    <Download size={14} strokeWidth={2.2} aria-hidden="true" />
                     {descargando ? TEXTOS.descargando : TEXTOS.descargar}
                 </button>
             </div>
@@ -339,16 +373,30 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
             <div className={styles.herramientas} role="search" aria-label={TEXTOS.herramientas}>
                 <div className={`${styles.campo} ${styles.campoBuscar}`}>
                     <label htmlFor={idBuscar} className={base.etiqueta}>{TEXTOS.buscar}</label>
-                    <input
-                        id={idBuscar}
-                        className={base.input}
-                        type="search"
-                        autoComplete="off"
-                        spellCheck={false}
-                        maxLength={120}
-                        value={texto}
-                        onChange={(e) => setTexto(e.target.value)}
-                    />
+                    <div className={styles.buscarCaja}>
+                        <Search size={15} strokeWidth={2} className={styles.buscarIcono} aria-hidden="true" />
+                        <input
+                            id={idBuscar}
+                            className={`${base.input} ${styles.inputBuscar}`}
+                            type="search"
+                            placeholder={TEXTOS.placeholderBuscar}
+                            autoComplete="off"
+                            spellCheck={false}
+                            maxLength={120}
+                            value={texto}
+                            onChange={(e) => setTexto(e.target.value)}
+                        />
+                        {texto && (
+                            <button
+                                type="button"
+                                className={styles.limpiarBtn}
+                                aria-label={TEXTOS.limpiarBusqueda}
+                                onClick={() => setTexto('')}
+                            >
+                                <X size={14} strokeWidth={2.2} aria-hidden="true" />
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className={styles.campo}>
                     <label htmlFor={idFiltro} className={base.etiqueta}>{TEXTOS.filtro}</label>
@@ -363,7 +411,7 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                     </select>
                 </div>
             </div>
-            <div className={styles.seleccion}>
+            <div className={styles.seleccion} data-activo={nElegidas > 0 ? 'true' : undefined}>
                 <label className={styles.opcion}>
                     <input ref={refTodas} type="checkbox" checked={todas} disabled={elegibles.length === 0} onChange={elegirTodas} />
                     {TEXTOS.seleccionarTodas}
@@ -405,7 +453,7 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                         <thead>
                             <tr>
                                 <th scope="col" className={styles.celdaSeleccion}><span className={styles.srOnly}>{TEXTOS.seleccion}</span></th>
-                                <th scope="col">{TEXTOS.cuenta}</th>
+                                <th scope="col" className={styles.thCuenta}>{TEXTOS.cuenta}</th>
                                 <th scope="col">{COLUMNAS.ultima}</th>
                                 <th scope="col" className={styles.num}>{COLUMNAS.comidas}</th>
                                 <th scope="col" className={styles.num}>{COLUMNAS.planes}</th>

@@ -63,6 +63,24 @@
 .campoEtiqueta { font-size: 0.82rem; color: var(--text-muted); overflow-wrap: anywhere; }
 .campoValor { margin: 0; font-size: 0.9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* el JSON crudo: su propio desplazamiento, nunca el de la página */
+.jsonBarra { display: flex; justify-content: flex-end; padding: 0.45rem 0.75rem; border-top: 1px solid var(--border); background: var(--surface-sunken, var(--bg-page)); }
+.jsonCopiar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 140ms ease, color 140ms ease;
+}
+.jsonCopiar:hover { color: var(--text-main); border-color: color-mix(in srgb, var(--primary) 55%, var(--border)); }
+.jsonCopiar:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .json { margin: 0; padding: 0.75rem 0.9rem; max-width: 100%; max-height: 24rem; overflow-x: auto; overflow-y: auto; border-top: 1px solid var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.78rem; line-height: 1.5; white-space: pre; }
 .memoria { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
 .recuerdo { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.55rem 0.75rem; border-radius: 10px; border: 1px solid var(--border); }
@@ -119,8 +137,37 @@
 /* el mensaje tal cual: con sus saltos de línea y sin interpretar markdown ni HTML */
 .texto { margin: 0; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .fotos { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.fotoBoton { border: 0; padding: 0; background: none; cursor: zoom-in; border-radius: 10px; line-height: 0; }
+.fotoBoton:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .foto { display: block; max-width: 100%; max-height: 20rem; border-radius: 10px; border: 1px solid var(--border); object-fit: contain; background: var(--bg-page); }
 .fotoNota { margin: 0; font-size: 0.8rem; color: var(--text-muted); }
+.lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal, 1000);
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: color-mix(in srgb, #000 80%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.lightboxCerrar {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 1px solid color-mix(in srgb, #fff 25%, transparent);
+    background: color-mix(in srgb, #000 55%, transparent);
+    color: #fff;
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+}
+.lightboxCerrar:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.lightboxImg { max-width: min(92vw, 1100px); max-height: 88dvh; border-radius: 12px; object-fit: contain; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55); }
 .feedback { margin: 0; font-size: 0.8rem; font-weight: 700; }
 .feedback[data-feedback="up"] { color: var(--success-text, var(--success)); }
 .feedback[data-feedback="down"] { color: var(--danger-text, var(--danger)); }

@@ -90,7 +90,7 @@ function entradas(mapa, clave) {
     return pares.sort(([ka, na], [kb, nb]) => nb - na || compareText(ka, kb));
 }
 
-function FilaAjuste({ ajuste: a }) {
+function FilaAjuste({ ajuste: a, focoSegmento, onHoverSegmento }) {
     const conteo = objeto(a.conteo);
     const valores = entradas(conteo.valores, a.clave).filter(([, n]) => n > 0);
     const conValor = valores.reduce((s, [, n]) => s + n, 0);
@@ -101,33 +101,51 @@ function FilaAjuste({ ajuste: a }) {
     for (const [e, n] of Object.entries(conteo)) if (!CONOCIDOS.has(e) && esCuenta(n) && Number(n) > 0) tramos.push({ estado: e, n: Number(n) });
     const nombreDe = (e) => TEXTOS.estados[e] || e;
     const partes = [
-        ...valores.map(([v, n]) => ({ clave: `valor:${v}`, texto: TEXTOS.cifra(nombreValor(a.clave, v), cifra(n)) })),
-        ...tramos.filter((t) => t.estado !== 'valor').map((t) => ({ clave: t.estado, texto: TEXTOS.cifra(nombreDe(t.estado), cifra(t.n)) })),
+        ...valores.map(([v, n]) => ({ clave: `valor:${v}`, estado: 'valor', texto: TEXTOS.cifra(nombreValor(a.clave, v), cifra(n)) })),
+        ...tramos.filter((t) => t.estado !== 'valor').map((t) => ({ clave: t.estado, estado: t.estado, texto: TEXTOS.cifra(nombreDe(t.estado), cifra(t.n)) })),
     ];
     return (
         <li className={styles.fila} data-ajuste={a.clave}>
             <span className={styles.etiqueta}>{a.etiqueta || a.clave}</span>
-            <span className={styles.barra} data-barra="" aria-hidden="true">
+            <span className={styles.barra} data-barra="" data-foco={focoSegmento || undefined} aria-hidden="true" onMouseLeave={() => onHoverSegmento?.(null)}>
                 {tramos.map((t) => (
-                    <span key={t.estado} className={styles.tramo} data-segmento={t.estado} style={{ flexGrow: t.n }} title={TEXTOS.cifra(nombreDe(t.estado), cifra(t.n))} />
+                    <span
+                        key={t.estado}
+                        className={styles.tramo}
+                        data-segmento={t.estado}
+                        data-resaltado={focoSegmento === t.estado ? 'true' : undefined}
+                        style={{ flexGrow: t.n }}
+                        title={TEXTOS.cifra(nombreDe(t.estado), cifra(t.n))}
+                        onMouseEnter={() => onHoverSegmento?.(t.estado)}
+                    />
                 ))}
             </span>
             <p className={styles.cifras}>
                 {partes.length === 0
                     ? <span className={styles.cifra}>{TEXTOS.sinDatos}</span>
-                    : partes.map((p) => <span key={p.clave} className={styles.cifra}>{p.texto}</span>)}
+                    : partes.map((p) => (
+                        <span
+                            key={p.clave}
+                            className={styles.cifra}
+                            data-resaltado={focoSegmento === p.estado ? 'true' : undefined}
+                        >
+                            {p.texto}
+                        </span>
+                    ))}
             </p>
         </li>
     );
 }
 
-function GrupoAjustes({ nombre, ajustes }) {
+function GrupoAjustes({ nombre, ajustes, focoSegmento, onHoverSegmento }) {
     const id = useId();
     return (
         <section className={styles.grupo} aria-labelledby={id}>
             <h4 id={id} className={styles.grupoTitulo}>{nombre}</h4>
             <ul className={styles.filas}>
-                {ajustes.map((a, i) => <FilaAjuste key={`${a.clave}-${i}`} ajuste={a} />)}
+                {ajustes.map((a, i) => (
+                    <FilaAjuste key={`${a.clave}-${i}`} ajuste={a} focoSegmento={focoSegmento} onHoverSegmento={onHoverSegmento} />
+                ))}
             </ul>
         </section>
     );
@@ -135,6 +153,9 @@ function GrupoAjustes({ nombre, ajustes }) {
 
 function PorAjuste({ ajustes }) {
     const id = useId();
+    const [fijado, setFijado] = useState(null);
+    const [hover, setHover] = useState(null);
+    const foco = fijado || hover;
     const grupos = [];
     for (const a of ajustes) {
         // [P1-PLAN-LOTE-837 · 2026-09-29] Los del dispositivo ya tienen su bloque «En el dispositivo» (como en la ficha).
@@ -147,17 +168,30 @@ function PorAjuste({ ajustes }) {
     return (
         <section className={`${pagina.bloque} ${pagina.bloqueAncho}`} aria-labelledby={id}>
             <h3 id={id} className={pagina.titulo}>{TEXTOS.porAjuste}</h3>
-            <ul className={styles.leyenda} aria-label={TEXTOS.leyenda}>
+            <ul className={styles.leyenda} aria-label={TEXTOS.leyenda} onMouseLeave={() => setHover(null)}>
                 {ORDEN.map((e) => (
                     <li key={e} className={styles.leyendaItem}>
-                        <span className={styles.muestra} data-segmento={e} aria-hidden="true" />
-                        {TEXTOS.estados[e]}
+                        <button
+                            type="button"
+                            className={styles.leyendaBoton}
+                            aria-pressed={fijado === e}
+                            data-activo={foco === e ? 'true' : undefined}
+                            onMouseEnter={() => setHover(e)}
+                            onFocus={() => setHover(e)}
+                            onBlur={() => setHover(null)}
+                            onClick={() => setFijado((prev) => (prev === e ? null : e))}
+                        >
+                            <span className={styles.muestra} data-segmento={e} aria-hidden="true" />
+                            {TEXTOS.estados[e]}
+                        </button>
                     </li>
                 ))}
             </ul>
             {grupos.length === 0 ? <p className={styles.vacio}>{TEXTOS.sinDatos}</p> : (
                 <div className={styles.grupos}>
-                    {grupos.map((g) => <GrupoAjustes key={g.nombre} nombre={g.nombre} ajustes={g.ajustes} />)}
+                    {grupos.map((g) => (
+                        <GrupoAjustes key={g.nombre} nombre={g.nombre} ajustes={g.ajustes} focoSegmento={foco} onHoverSegmento={setHover} />
+                    ))}
                 </div>
             )}
         </section>
@@ -240,6 +274,8 @@ export default function AdminAjustesResumen({ dias, version = 0 }) {
     useAdminLoading(!res || res.clave !== clave);
 
     useEffect(() => {
+        // Si el interruptor respondió 404/401, no repetimos peticiones inútiles al cambiar 7→30→90.
+        if (res?.fuera) return undefined;
         const ctrl = new AbortController();
         const esta = `${d}#${version}#${intento}`;
         (async () => {
@@ -257,6 +293,7 @@ export default function AdminAjustesResumen({ dias, version = 0 }) {
             }
         })();
         return () => ctrl.abort();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [d, version, intento]);
 
     if (!res || res.fuera || (!res.datos && !res.fallo)) return null;

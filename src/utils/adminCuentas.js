@@ -61,12 +61,55 @@ const FORMATO_FECHA_HORA = { ...FORMATO_FECHA, hour: '2-digit', minute: '2-digit
 export const fecha = (iso) => (iso ? formatDate(iso, FORMATO_FECHA) || '—' : '—');
 export const fechaHora = (iso) => (iso ? formatDate(iso, FORMATO_FECHA_HORA) || '—' : '—');
 /** Importes en US$ con 2 decimales, como el resto del panel («US$0.28»). */
-export const usd = (n) => `US$${(Number.isFinite(Number(n)) ? Number(n) : 0).toFixed(2)}`;
+export const usd = (n) => {
+    const num = (typeof n === 'boolean' || n === null || n === undefined || n === '') ? 0 : Number(n);
+    if (!Number.isFinite(num)) return 'US$0.00';
+    return num < 0 ? `-US$${Math.abs(num).toFixed(2)}` : `US$${num.toFixed(2)}`;
+};
 /** Una cifra con el formato del idioma activo; lo que no es cifra sale «—». */
 export const cifra = (n, decimales = 0) => {
-    if (n === null || n === undefined || n === '' || !Number.isFinite(Number(n))) return '—';
+    if (n === null || n === undefined || n === '' || typeof n === 'boolean' || !Number.isFinite(Number(n))) return '—';
     return formatNumber(Number(n), { maximumFractionDigits: decimales }) || '—';
 };
+
+/** Genera un UUID v4 incluso fuera de contextos HTTPS locales donde `crypto.randomUUID` puede faltar. */
+export function generarRequestId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        crypto.getRandomValues(bytes);
+    } else {
+        for (let i = 0; i < 16; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/** Copia texto al portapapeles de forma segura; devuelve `true` si pudo. */
+export async function copiarTexto(texto) {
+    try {
+        if (navigator?.clipboard?.writeText) {
+            await navigator.clipboard.writeText(String(texto));
+            return true;
+        }
+    } catch { /* fallback abajo */ }
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = String(texto);
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        ta.remove();
+        return ok;
+    } catch {
+        return false;
+    }
+}
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
 export const NOMBRE_PLAN = { gratis: 'Gratis', basic: 'Básico', plus: 'Plus', ultra: 'Max', admin: 'Administración' };
@@ -94,10 +137,12 @@ export function nombresDePlataformas(valor) {
     }).join(', ');
 }
 
+const DISPLAY_NAMES = {};
 function nombreIntl(tipo, codigo) {
     if (!codigo || typeof codigo !== 'string') return null;
     try {
-        return new Intl.DisplayNames(['es'], { type: tipo }).of(codigo) || codigo;
+        if (!DISPLAY_NAMES[tipo]) DISPLAY_NAMES[tipo] = new Intl.DisplayNames(['es'], { type: tipo });
+        return DISPLAY_NAMES[tipo].of(codigo) || codigo;
     } catch {
         return codigo;
     }

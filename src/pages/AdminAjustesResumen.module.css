@@ -1,9 +1,5 @@
-/* frontend/src/pages/AdminAjustesResumen.module.css — [P1-PLAN-LOTE-834 · 2026-09-29] «Ajustes de la gente» en
-   Métricas. Los bloques, títulos y tablas son los de AdminPage.module.css; aquí van la barra apilada, su leyenda y las
-   cifras. La barra acompaña (el dato va en el texto): tramos finos con un hueco de 2 px, extremos redondeados, y
-   «sin elegir» con trama a 135° para no depender del color. Los tonos son los de los estados de la ficha (lote 833);
-   en oscuro «apagado» y «sin elegir» bajan un paso para separarse del celeste de «automático». Nada por debajo de
-   12 px. */
+/* frontend/src/pages/AdminAjustesResumen.module.css — [P1-PLAN-LOTE-834] «Ajustes de la gente» en Métricas.
+   Leyenda interactiva con resaltado cruzado en todas las barras apiladas y cifras. */
 .raiz {
     --tramo-valor: var(--primary);
     --tramo-encendido: var(--success);
@@ -15,27 +11,51 @@
     --tramo-apagado: color-mix(in srgb, var(--text-muted) 60%, var(--bg-card));
     --tramo-sin-elegir: color-mix(in srgb, var(--text-muted) 25%, var(--bg-card));
 }
-.base { margin: -0.35rem 0 0.85rem; font-size: 0.82rem; color: var(--text-muted); }
+.base { margin: -0.35rem 0 0.9rem; font-size: 0.82rem; color: var(--text-muted); }
 .espera { opacity: 0.5; transition: opacity 180ms ease; }
 .fallo { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; margin: 0 0 0.85rem; }
 .falloTexto { margin: 0; font-size: 0.86rem; color: var(--danger-text, var(--danger)); }
 .vacio { margin: 0; font-size: 0.86rem; color: var(--text-muted); }
 
-/* leyenda: cada estado con su palabra */
-.leyenda { list-style: none; margin: 0 0 0.9rem; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; font-size: 0.8rem; color: var(--text-main); }
-.leyendaItem { display: inline-flex; align-items: center; gap: 0.4rem; }
-.muestra { width: 0.9rem; height: 0.6rem; border-radius: 3px; flex: none; }
+/* Leyenda interactiva: pulsar o pasar el cursor resalta ese segmento en todas las barras */
+.leyenda { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem 0.55rem; font-size: 0.8rem; color: var(--text-main); }
+.leyendaItem { display: inline-flex; }
+.leyendaBoton {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    background: var(--surface-sunken, color-mix(in srgb, var(--bg-card) 80%, var(--bg-page)));
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 150ms ease, background-color 150ms ease, transform 120ms ease;
+}
+.leyendaBoton:active { transform: scale(0.97); }
+.leyendaBoton[data-activo="true"],
+.leyendaBoton[aria-pressed="true"] {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 14%, var(--bg-card));
+}
+.leyendaBoton:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.muestra { width: 0.85rem; height: 0.55rem; border-radius: 3px; flex: none; }
 
-/* por ajuste */
-.grupos { display: flex; flex-direction: column; gap: 1rem; }
-.grupo { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
-.grupoTitulo { margin: 0; font-size: 0.86rem; font-weight: 700; color: var(--text-muted); }
+/* Por ajuste */
+.grupos { display: flex; flex-direction: column; gap: 1.15rem; }
+.grupo { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.grupoTitulo { margin: 0; font-size: 0.84rem; font-weight: 700; color: var(--text-muted); }
 .filas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.fila { display: grid; grid-template-columns: minmax(8rem, 15rem) minmax(0, 1fr); align-items: center; gap: 0.3rem 1rem; padding: 0.55rem 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent); }
+.fila { display: grid; grid-template-columns: minmax(8rem, 15rem) minmax(0, 1fr); align-items: center; gap: 0.35rem 1rem; padding: 0.6rem 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent); }
 .fila:last-child { border-bottom: 0; }
-.etiqueta { font-size: 0.9rem; overflow-wrap: anywhere; }
-.barra { display: flex; gap: 2px; height: 0.75rem; border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--border) 70%, transparent); }
-.tramo { flex: 0 1 0; min-width: 3px; }
+.etiqueta { font-size: 0.88rem; font-weight: 600; overflow-wrap: anywhere; }
+.barra { display: flex; gap: 2px; height: 0.85rem; border-radius: 5px; overflow: hidden; background: var(--surface-sunken, color-mix(in srgb, var(--border) 70%, transparent)); }
+.tramo { flex: 0 1 0; min-width: 3px; transition: opacity 150ms ease, filter 150ms ease; cursor: pointer; }
+.barra[data-foco] .tramo { opacity: 0.24; }
+.barra[data-foco] .tramo[data-resaltado="true"] { opacity: 1; filter: brightness(1.1); }
 .tramo[data-segmento="valor"], .muestra[data-segmento="valor"] { background: var(--tramo-valor); }
 .tramo[data-segmento="encendido"], .muestra[data-segmento="encendido"] { background: var(--tramo-encendido); }
 .tramo[data-segmento="automatico"], .muestra[data-segmento="automatico"] { background: var(--tramo-automatico); }
@@ -44,26 +64,24 @@
     background: repeating-linear-gradient(135deg, var(--tramo-sin-elegir) 0 3px, color-mix(in srgb, var(--tramo-sin-elegir) 45%, var(--bg-card)) 3px 6px);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-muted) 35%, transparent);
 }
-/* un estado que el panel aún no conoce: neutro, con su nombre en el texto */
 .tramo:not([data-segmento="valor"]):not([data-segmento="encendido"]):not([data-segmento="automatico"]):not([data-segmento="apagado"]):not([data-segmento="sin_elegir"]) { background: var(--border); }
-.cifras { grid-column: 2; margin: 0; display: flex; flex-wrap: wrap; gap: 0.15rem 0.85rem; font-size: 0.82rem; color: var(--text-main); font-variant-numeric: tabular-nums; }
-/* sin `nowrap`: un valor largo (el servidor manda un objeto como JSON) se parte antes que ensanchar la página; los
-   cortos pasan enteros a la línea siguiente porque la fila envuelve por elementos */
-.cifra { min-width: 0; overflow-wrap: anywhere; }
+.cifras { grid-column: 2; margin: 0; display: flex; flex-wrap: wrap; gap: 0.2rem 0.75rem; font-size: 0.8rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.cifra { min-width: 0; overflow-wrap: anywhere; transition: color 140ms ease; }
+.cifra[data-resaltado="true"] { color: var(--text-main); font-weight: 700; }
 .total { font-weight: 700; }
 
-/* dispositivo */
-.dispositivo { margin: 0; display: flex; flex-direction: column; gap: 0.65rem; }
-.dispositivoFila { display: flex; flex-direction: column; gap: 0.2rem; }
+/* Dispositivo */
+.dispositivo { margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.dispositivoFila { display: flex; flex-direction: column; gap: 0.25rem; padding-bottom: 0.55rem; border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent); }
+.dispositivoFila:last-child { padding-bottom: 0; border-bottom: 0; }
 .dispositivoClave { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
-.valores { margin: 0; display: flex; flex-wrap: wrap; gap: 0.15rem 0.85rem; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.valores { margin: 0; display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) {
-    .espera { transition: none; }
+    .espera, .leyendaBoton, .tramo, .cifra { transition: none; }
 }
 
 @media (max-width: 640px) {
-    /* etiqueta, barra y cifras una debajo de otra */
     .fila { grid-template-columns: minmax(0, 1fr); gap: 0.35rem; }
     .cifras { grid-column: 1; }
 }

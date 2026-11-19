@@ -20,10 +20,10 @@
 //     sobre la nueva.
 // Solo lectura. Interno —solo el dueño, solo español—: los textos fijos viven en TEXTOS y en las tablas de abajo.
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Check, Copy, X } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { formatDate } from '../i18n';
-import { cifra, fecha, fechaHora, pedirAdmin, usd } from '../utils/adminCuentas';
+import { cifra, copiarTexto, fecha, fechaHora, pedirAdmin, usd } from '../utils/adminCuentas';
 import comun from './AdminCuentas.module.css';
 import styles from './AdminPruebaDetalle.module.css';
 import { useAdminLoading, useAdminNavigationState } from '../hooks/useAdminNavigation';
@@ -431,6 +431,30 @@ function GrupoCampos({ nombre, campos }) {
     );
 }
 
+function BloqueJsonCrudo({ crudo }) {
+    const [copiado, setCopiado] = useState(false);
+    const contenido = jsonBonito(crudo);
+    const copiar = async () => {
+        const ok = await copiarTexto(contenido);
+        if (ok) {
+            setCopiado(true);
+            setTimeout(() => setCopiado(false), 1800);
+        }
+    };
+    return (
+        <details className={styles.plegable}>
+            <summary className={styles.resumenPlegable}>{TEXTOS.crudo}</summary>
+            <div className={styles.jsonBarra}>
+                <button type="button" className={styles.jsonCopiar} onClick={copiar}>
+                    {copiado ? <Check size={13} strokeWidth={2.5} aria-hidden="true" /> : <Copy size={13} strokeWidth={2} aria-hidden="true" />}
+                    {copiado ? 'Copiado' : 'Copiar JSON'}
+                </button>
+            </div>
+            <pre className={styles.json}>{contenido}</pre>
+        </details>
+    );
+}
+
 function PanelFormulario({ raiz }) {
     const idCampos = useId();
     const idMemoria = useId();
@@ -449,12 +473,7 @@ function PanelFormulario({ raiz }) {
                         {grupos.map((g) => <GrupoCampos key={g.nombre} nombre={g.nombre} campos={g.items} />)}
                     </div>
                 )}
-                {crudo && (
-                    <details className={styles.plegable}>
-                        <summary className={styles.resumenPlegable}>{TEXTOS.crudo}</summary>
-                        <pre className={styles.json}>{jsonBonito(crudo)}</pre>
-                    </details>
-                )}
+                {crudo && <BloqueJsonCrudo crudo={crudo} />}
             </section>
             <section className={styles.bloque} aria-labelledby={idMemoria}>
                 <h3 id={idMemoria} className={styles.subtitulo}>{TEXTOS.memoria}</h3>
@@ -674,7 +693,10 @@ function PanelPlanes({ raiz, onInvalido }) {
 /** Una foto del chat: se pide con la sesión, se pinta desde un blob y el blob se libera al desmontarse. */
 function FotoAdjunta({ url, alt }) {
     const [foto, setFoto] = useState({ src: null, fallo: false });
+    const [ampliada, setAmpliada] = useState(false);
     useEffect(() => {
+        setFoto({ src: null, fallo: false });
+        setAmpliada(false);
         const ctrl = new AbortController();
         let creada = null;
         (async () => {
@@ -695,15 +717,37 @@ function FotoAdjunta({ url, alt }) {
             if (creada) URL.revokeObjectURL(creada);
         };
     }, [url]);
+
+    useEffect(() => {
+        if (!ampliada) return undefined;
+        const onKey = (e) => { if (e.key === 'Escape') setAmpliada(false); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [ampliada]);
+
     if (foto.fallo) return <p className={styles.fotoNota}>{TEXTOS.fotoFallo}</p>;
     if (!foto.src) return <p className={styles.fotoNota}>{TEXTOS.cargandoFoto}</p>;
-    return <img className={styles.foto} src={foto.src} alt={alt} />;
+    return (
+        <>
+            <button type="button" className={styles.fotoBoton} onClick={() => setAmpliada(true)} title={alt}>
+                <img className={styles.foto} src={foto.src} alt={alt} />
+            </button>
+            {ampliada && (
+                <div className={styles.lightbox} role="dialog" aria-modal="true" aria-label={alt} onClick={() => setAmpliada(false)}>
+                    <button type="button" className={styles.lightboxCerrar} aria-label="Cerrar" onClick={() => setAmpliada(false)}>
+                        <X size={20} strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                    <img className={styles.lightboxImg} src={foto.src} alt={alt} onClick={(e) => e.stopPropagation()} />
+                </div>
+            )}
+        </>
+    );
 }
 
 // [P1-PLAN-LOTE-1056 · 2026-11-17] El coach escribe en markdown y aquí se veía crudo («**desayuno**», captura del dueño).
 // Solo las negritas, que es lo que usa: sin HTML ni librería de markdown en el panel.
 function conNegritas(s) {
-    const partes = String(s || '').split(/\*\*([^*\n]+?)\*\*/g);
+    const partes = String(s || '').split(/\*\*((?:[^*\n]|\*(?!\*))+?)\*\*/g);
     return partes.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : p));
 }
 
@@ -785,7 +829,7 @@ function PanelConversaciones({ raiz, onInvalido }) {
         volverA.current = null;
         const botones = listaRef.current ? [...listaRef.current.querySelectorAll('[data-sesion]')] : [];
         botones.find((b) => b.dataset.sesion === id)?.focus();
-    });
+    }, [abierta, datos]);
     // El hilo se desmonta al cerrarlo: aborta lo que esté en vuelo y libera sus fotos. La lista no se vuelve a pedir.
     const cerrar = () => { volverA.current = texto(abierta?.id); setAbierta(null); };
     if (abierta) return <Hilo raiz={raiz} sesion={abierta} onCerrar={cerrar} onInvalido={onInvalido} />;
