@@ -3,7 +3,8 @@
 // `_fidelity_report.mode` (Fase 3) para decir con honestidad si el motor OBEDECIÓ la política
 // (`enforce`) o solo la registró (`shadow`). Nunca inventa: si no hay política, no se pinta.
 import { useState } from 'react';
-import { Compass, ChevronDown, ChevronUp, AlertTriangle, ShoppingBasket, Snowflake, CookingPot, Leaf, Utensils, SlidersHorizontal } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Compass, ChevronDown, AlertTriangle, ShoppingBasket, Snowflake, CookingPot, Leaf, Utensils, SlidersHorizontal, Sparkles } from 'lucide-react';
 // [P1-ARQ25-F7-CULTURE · 2026-09-05] «Cocina: dominicana 70 % · española 30 %» desde culture_weights.
 import { cultureWeightsSummary, cultureForCountry } from '../../config/cultures';
 import { useT } from '../../i18n';
@@ -77,7 +78,7 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
         && effective.culture_weights[0]?.profile_id === cultureForCountry(effective.market_country);
 
     return (
-        <section className={styles.card} aria-labelledby="plan-policy-title">
+        <section className={`${styles.card} ${open ? styles.cardOpen : styles.cardCollapsed}`} aria-labelledby="plan-policy-title">
             <button type="button" className={styles.header} onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-controls="plan-policy-body">
                 <span className={styles.icon}><Compass size={18} aria-hidden="true" /></span>
                 <span className={styles.titleWrap}>
@@ -92,12 +93,16 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                         {t('Organizado para comprar cada {n} días', { n: shop.main_cycle_days ?? 7 })}
                     </span>
                 </span>
-                {count > 0 && (
-                    <span className={blocking.length ? styles.badgeWarn : styles.badge}>
-                        {count === 1 ? t('1 ajuste') : t('{n} ajustes', { n: count })}
+                <span className={styles.headerRight}>
+                    {count > 0 && (
+                        <span className={blocking.length ? styles.badgeWarn : styles.badge}>
+                            {count === 1 ? t('1 ajuste') : t('{n} ajustes', { n: count })}
+                        </span>
+                    )}
+                    <span className={styles.menuToggle} aria-hidden="true">
+                        <ChevronDown size={15} className={`${styles.menuChev} ${open ? styles.menuChevOpen : ''}`} />
                     </span>
-                )}
-                {open ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
+                </span>
             </button>
 
             {blocking.length > 0 && (
@@ -117,68 +122,101 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                 </div>
             )}
 
-            {open && (
-                <div id="plan-policy-body" className={styles.body}>
-                    <ul className={styles.facts}>
-                        <li><ShoppingBasket size={15} aria-hidden="true" />
-                            <span><b>{t('Compra principal:')}</b> {t('cada {n} días', { n: shop.main_cycle_days ?? 7 })}</span></li>
-                        <li><Leaf size={15} aria-hidden="true" /> <span>{hechoSupuesto(t, topupFact(t, shop.fresh_topup_days), supuestos.has('fresh_topup_days'))}</span></li>
-                        <li><Snowflake size={15} aria-hidden="true" /> <span>{hechoSupuesto(t, freezerFact(t, shop.freezer_mode), supuestos.has('freezer_mode'))}</span></li>
-                        <li><CookingPot size={15} aria-hidden="true" /> <span>{hechoSupuesto(t, batchFact(t, shop.batch_cooking), supuestos.has('batch_cooking'))}</span></li>
-                        {/* [P2-POLICY-PANEL-UI · 2026-09-05 · r2] Sin la etiqueta «Cocina:»: los nombres de perfil YA
-                            empiezan por «Cocina …» («Cocina estadounidense cotidiana»), así que la fila leía «Cocina:
-                            Cocina estadounidense cotidiana». El icono de cubiertos da el contexto. */}
-                        {cultureText && (
-                            <li><Utensils size={15} aria-hidden="true" />
-                                <span><b>{t('Estilo de cocina:')}</b> {cultureIsMarketDefault
-                                    ? t('{resumen} (la de tu país de compra)', { resumen: cultureText })
-                                    : cultureText}</span></li>
-                        )}
-                    </ul>
-                    {anchorIds.length > 0 ? (
-                        <>
-                            <h4 className={styles.subhead}>{t('Tus alimentos habituales')}</h4>
-                            <ul className={styles.anchors}>
-                                {anchorIds.map((id) => (
-                                    <AnchorLine key={id} t={t} requested={reqAnchors.get(id)} applied={appAnchors.get(id)} />
-                                ))}
-                            </ul>
-                        </>
-                    ) : (
-                        <p className={styles.muted}>{t('No marcaste alimentos habituales: el plan varía libremente dentro de tu perfil.')}</p>
-                    )}
-                    {(soft.length > 0 || tiempo) && (
-                        <>
-                            <h4 className={styles.subhead}>{t('Así adaptamos tu plan')}</h4>
-                            <ul className={styles.reasons}>
-                                {soft.map((r, i) => (
-                                    <li key={i}>
-                                        <span className={styles.reasonTitle}>{relaxationTitle(t, r)}</span>
-                                        <span className={styles.reasonDetail}>{relaxationCopy(t, r)}</span>
-                                    </li>
-                                ))}
-                                {tiempo && (
-                                    <li key="tiempo-de-cocina">
-                                        <span className={styles.reasonTitle}>{t('Tiempo de cocina')}</span>
-                                        <span className={styles.reasonDetail}>{prepTimeCopy(t, tiempo)}</span>
+            <AnimatePresence initial={false}>
+                {open && (
+                    <motion.div
+                        id="plan-policy-body"
+                        className={styles.bodyWrap}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                        <div className={styles.body}>
+                            <ul className={styles.facts}>
+                                <li>
+                                    <span className={styles.factIco} aria-hidden="true"><ShoppingBasket size={14} /></span>
+                                    <span><b>{t('Compra principal:')}</b> {t('cada {n} días', { n: shop.main_cycle_days ?? 7 })}</span>
+                                </li>
+                                <li>
+                                    <span className={styles.factIco} aria-hidden="true"><Leaf size={14} /></span>
+                                    <span>{hechoSupuesto(t, topupFact(t, shop.fresh_topup_days), supuestos.has('fresh_topup_days'))}</span>
+                                </li>
+                                <li>
+                                    <span className={styles.factIco} aria-hidden="true"><Snowflake size={14} /></span>
+                                    <span>{hechoSupuesto(t, freezerFact(t, shop.freezer_mode), supuestos.has('freezer_mode'))}</span>
+                                </li>
+                                <li>
+                                    <span className={styles.factIco} aria-hidden="true"><CookingPot size={14} /></span>
+                                    <span>{hechoSupuesto(t, batchFact(t, shop.batch_cooking), supuestos.has('batch_cooking'))}</span>
+                                </li>
+                                {/* [P2-POLICY-PANEL-UI · 2026-09-05 · r2] Sin la etiqueta «Cocina:»: los nombres de perfil YA
+                                    empiezan por «Cocina …» («Cocina estadounidense cotidiana»), así que la fila leía «Cocina:
+                                    Cocina estadounidense cotidiana». El icono de cubiertos da el contexto. */}
+                                {cultureText && (
+                                    <li className={styles.factWide}>
+                                        <span className={styles.factIco} aria-hidden="true"><Utensils size={14} /></span>
+                                        <span><b>{t('Estilo de cocina:')}</b> {cultureIsMarketDefault
+                                            ? t('{resumen} (la de tu país de compra)', { resumen: cultureText })
+                                            : cultureText}</span>
                                     </li>
                                 )}
                             </ul>
-                        </>
-                    )}
-                    {!enforced && (
-                        <p className={styles.muted}>
-                            {t('Guardamos estas preferencias con tu plan; el motor las aplica de forma gradual y aquí verás cuándo las sigue al pie de la letra.')}
-                        </p>
-                    )}
-                    {onEdit && (
-                        <button type="button" className={styles.editCta} onClick={() => onEdit('mealOrganization')}>
-                            <SlidersHorizontal size={15} aria-hidden="true" />
-                            {t('Ajustar mi plan')}
-                        </button>
-                    )}
-                </div>
-            )}
+                            {anchorIds.length > 0 ? (
+                                <div className={styles.section}>
+                                    <h4 className={styles.subhead}>
+                                        <span>{t('Tus alimentos habituales')}</span>
+                                        <span className={styles.subheadLine} aria-hidden="true" />
+                                    </h4>
+                                    <ul className={styles.anchors}>
+                                        {anchorIds.map((id) => (
+                                            <AnchorLine key={id} t={t} requested={reqAnchors.get(id)} applied={appAnchors.get(id)} />
+                                        ))}
+                                    </ul>
+                                </div>
+                            ) : (
+                                <p className={styles.muted}>{t('No marcaste alimentos habituales: el plan varía libremente dentro de tu perfil.')}</p>
+                            )}
+                            {(soft.length > 0 || tiempo) && (
+                                <div className={styles.section}>
+                                    <h4 className={styles.subhead}>
+                                        <Sparkles size={12} aria-hidden="true" className={styles.subheadIco} />
+                                        <span>{t('Así adaptamos tu plan')}</span>
+                                        <span className={styles.subheadLine} aria-hidden="true" />
+                                    </h4>
+                                    <ul className={styles.reasons}>
+                                        {soft.map((r, i) => (
+                                            <li key={i}>
+                                                <span className={styles.reasonTitle}>{relaxationTitle(t, r)}</span>
+                                                <span className={styles.reasonDetail}>{relaxationCopy(t, r)}</span>
+                                            </li>
+                                        ))}
+                                        {tiempo && (
+                                            <li key="tiempo-de-cocina">
+                                                <span className={styles.reasonTitle}>{t('Tiempo de cocina')}</span>
+                                                <span className={styles.reasonDetail}>{prepTimeCopy(t, tiempo)}</span>
+                                            </li>
+                                        )}
+                                    </ul>
+                                </div>
+                            )}
+                            {!enforced && (
+                                <p className={styles.muted}>
+                                    {t('Guardamos estas preferencias con tu plan; el motor las aplica de forma gradual y aquí verás cuándo las sigue al pie de la letra.')}
+                                </p>
+                            )}
+                            {onEdit && (
+                                <div className={styles.footer}>
+                                    <button type="button" className={styles.editCta} onClick={() => onEdit('mealOrganization')}>
+                                        <SlidersHorizontal size={14} aria-hidden="true" />
+                                        {t('Ajustar mi plan')}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </section>
     );
 }

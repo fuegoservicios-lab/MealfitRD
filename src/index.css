@@ -1498,13 +1498,16 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
   margin-bottom: 24px;
 }
 
-/* Las 5 semanas se REPARTEN el ancho en una sola fila: sin envolver no hay
-   huérfana, y sin scroll no hay nada cortado. */
+/* Las semanas se reparten el ancho cuando son <=5 y deslizan suavemente sin
+   aplastar los títulos («Se…») cuando un plan acumula 6–9+ semanas. */
 .plan-week-pills {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  grid-auto-columns: minmax(112px, 1fr);
   gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
 }
 
 .plan-week-pill {
