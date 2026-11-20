@@ -167,9 +167,10 @@
 }
 
 .radioCard.checked .iconChip {
-    background: var(--primary);
-    /* [FORM-STATIC-HOVER · 2026-07-03] Glow reducido (0.5 → 0.3) — "que no brillen tanto". */
-    box-shadow: 0 6px 16px -4px rgba(79, 70, 229, 0.3);
+    /* [P1-PLAN-LOTE-1121 · 2026-11-20] «Lo siento muy brilloso»: el relleno sólido de --primary (lavanda claro en
+       oscuro) + resplandor era lo más llamativo de la pantalla. Ahora tinte suave + aro fino, sin resplandor. */
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 45%, transparent);
 }
 
 .icon {
@@ -178,7 +179,7 @@
 }
 
 .radioCard.checked .icon {
-    color: #fff;
+    color: var(--primary);
 }
 
 .radioTextContent {
@@ -378,8 +379,8 @@
 }
 
 :global(html[data-theme="dark"]) .radioCard.checked .iconChip {
-    /* [FORM-STATIC-HOVER · 2026-07-03] Glow reducido (0.55 → 0.35). */
-    box-shadow: 0 6px 18px -4px rgba(129, 140, 248, 0.35);
+    /* [P1-PLAN-LOTE-1121] sin resplandor también en oscuro (era 0 6px 18px -4px lavanda .35) */
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 45%, transparent);
 }
 
 :global(html[data-theme="dark"]) .checkboxWrapper:has(.checkboxInput:checked) {
