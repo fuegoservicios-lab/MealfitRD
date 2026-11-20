@@ -7,14 +7,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    /* [P1-PLAN-LOTE-1128] icono fantasma: sin aro ni relleno en reposo (parecía un botón principal junto al logo);
+       el área táctil sigue en 40 px y el fondo aparece al pasar o pulsar */
     flex: 0 0 40px;
     width: 40px;
     height: 40px;
     padding: 0;
-    border: 1px solid color-mix(in srgb, var(--text-muted) 22%, transparent);
+    border: 1px solid transparent;
     border-radius: 50%;
-    background: var(--bg-muted);
-    color: var(--text-muted);
+    background: transparent;
+    color: var(--text-light, var(--text-muted));
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
@@ -30,7 +32,7 @@
 @media (hover: hover) {
     .acceso:hover {
         color: var(--text-main);
-        border-color: color-mix(in srgb, var(--text-muted) 40%, transparent);
+        background: var(--bg-muted);
     }
 }
 

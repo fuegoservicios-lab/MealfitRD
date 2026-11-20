@@ -301,16 +301,19 @@
 }
 
 .targetHelp summary {
+    /* [P1-PLAN-LOTE-1128] pastilla discreta con borde: antes era texto suelto que no parecía tocable */
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: 6px;
-    min-height: 36px;
+    min-height: 32px;
     width: fit-content;
     max-width: 100%;
     margin-left: auto;
-    padding: 4px 0 4px 8px;
-    border-radius: 6px;
+    padding: 4px 10px 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full, 999px);
+    background: color-mix(in srgb, var(--bg-muted) 60%, transparent);
     cursor: pointer;
     list-style: none;
 }
@@ -495,13 +498,29 @@
     gap: 0.55rem;
 }
 
+/* [P1-PLAN-LOTE-1128 · 2026-11-20] Estado vacío con forma: tarjeta de borde discontinuo, icono índigo y dos líneas. */
 .mealsEmpty {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     margin: 0;
-    color: #64748B;
-    font-size: 0.82rem;
-    line-height: 1.4;
-    font-weight: 500;
+    padding: 12px 14px;
+    border: 1px dashed color-mix(in srgb, var(--text-muted) 30%, transparent);
+    border-radius: var(--radius-md, 12px);
+    color: var(--text-muted);
 }
+.mealsEmptyIcon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full, 999px);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    color: var(--primary);
+}
+.mealsEmptyText { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 0.8125rem; line-height: 1.4; }
+.mealsEmptyText strong { color: var(--text-main); font-size: 0.875rem; font-weight: 600; }
 
 /* [PROGRESO-HOJA · 2026-11-11] Las comidas del día son UNA hoja con divisiones finas (el mismo lenguaje que la
    lista de micros), no una pila de tarjeticas sueltas: la piel la lleva la lista y las filas solo se separan. */

@@ -659,9 +659,14 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                 {isLoggedIn && !loading && (
                     <div className={styles.mealsSection}>
                         {_todaysMeals.length === 0 ? (
-                            <p className={styles.mealsEmpty}>
-                                {t('Aún no registras comidas hoy. Usa «Registrar comida», escanéala o cuéntaselo a tu coach en el chat.')}
-                            </p>
+                            /* [P1-PLAN-LOTE-1128] estado vacío con forma (icono + frase + pista), no un párrafo gris suelto */
+                            <div className={styles.mealsEmpty}>
+                                <span className={styles.mealsEmptyIcon} aria-hidden="true"><Utensils size={18} /></span>
+                                <span className={styles.mealsEmptyText}>
+                                    <strong>{t('Aún no registras comidas hoy')}</strong>
+                                    <span>{t('Usa «Registrar comida», una foto o el chat con tu coach.')}</span>
+                                </span>
+                            </div>
                         ) : (
                             <>
                                 <ul className={styles.mealsList}>
