@@ -10,9 +10,9 @@ const leer = (p) => readFileSync(resolve(process.cwd(), p), 'utf8').split(String
 
 describe('lote 926 · el contador va primero y el plan con IA dice Beta', () => {
     it('RadioCard pinta la etiqueta junto al título', () => {
-        render(<RadioCard name="m" value="a" label="Contar lo que como" badge="Recomendado" checked={false} onChange={() => {}} />);
+        render(<RadioCard name="m" value="a" label="Modo contador" badge="Recomendado" checked={false} onChange={() => {}} />);
         expect(screen.getByText('Recomendado')).toBeInTheDocument();
-        expect(screen.getByText('Contar lo que como')).toBeInTheDocument();
+        expect(screen.getByText('Modo contador')).toBeInTheDocument();
     });
 
     it('en el paso 0 la tarjeta del contador va antes que la del plan, con sus etiquetas', () => {
@@ -23,7 +23,7 @@ describe('lote 926 · el contador va primero y el plan con IA dice Beta', () => 
         expect(plan).toBeGreaterThan(contador);
         expect(s).toContain("badge={t('Recomendado')}");
         expect(s).toContain("badge={t('Beta · en pruebas')}");   // [P1-PLAN-LOTE-1116]
-        expect(s).toContain("t('Plan de comidas con IA')");
+        expect(s).toContain("t('Modo plan con IA')");
     });
 
     it('los pasos del formulario ya no hablan en jerga', () => {

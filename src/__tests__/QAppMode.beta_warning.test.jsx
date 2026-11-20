@@ -23,7 +23,7 @@ describe('QAppMode - Advertencia de versión Beta para el Plan de comidas', () =
         localStorage.clear();
     });
 
-    it('al seleccionar Plan de comidas con IA con cuenta activa (isAuth) muestra el modal de advertencia Beta', () => {
+    it('al seleccionar Modo plan con IA con cuenta activa (isAuth) muestra el modal de advertencia Beta', () => {
         vi.mocked(useAssessment).mockReturnValue({
             formData: { appMode: 'tracking' },
             updateData: mockUpdateData,
@@ -32,7 +32,7 @@ describe('QAppMode - Advertencia de versión Beta para el Plan de comidas', () =
 
         render(<QAppMode onAutoAdvance={mockOnAutoAdvance} />);
 
-        const planCard = screen.getByText('Plan de comidas con IA');
+        const planCard = screen.getByText('Modo plan con IA');
         fireEvent.click(planCard);
 
         // [P1-PLAN-LOTE-1116] el aviso pesa: título de fase de pruebas, seis advertencias y la Beta bloqueada
@@ -53,7 +53,7 @@ describe('QAppMode - Advertencia de versión Beta para el Plan de comidas', () =
 
         render(<QAppMode onAutoAdvance={mockOnAutoAdvance} />);
 
-        const planCard = screen.getByText('Plan de comidas con IA');
+        const planCard = screen.getByText('Modo plan con IA');
         fireEvent.click(planCard);
 
         const btnTracking = screen.getByText('Usar el contador (recomendado)');
@@ -72,7 +72,7 @@ describe('QAppMode - Advertencia de versión Beta para el Plan de comidas', () =
 
         render(<QAppMode onAutoAdvance={mockOnAutoAdvance} />);
 
-        const planCard = screen.getByText('Plan de comidas con IA');
+        const planCard = screen.getByText('Modo plan con IA');
         fireEvent.click(planCard);
 
         const btnPlan = screen.getByText('Probar el plan Beta de todos modos');
@@ -94,7 +94,7 @@ describe('QAppMode - Advertencia de versión Beta para el Plan de comidas', () =
 
         render(<QAppMode onAutoAdvance={mockOnAutoAdvance} />);
 
-        const planCard = screen.getByText('Plan de comidas con IA');
+        const planCard = screen.getByText('Modo plan con IA');
         fireEvent.click(planCard);
 
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

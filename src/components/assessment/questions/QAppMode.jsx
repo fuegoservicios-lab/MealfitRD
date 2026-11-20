@@ -77,10 +77,10 @@ export const QAppMode = ({ onAutoAdvance }) => {
         <div className={styles.lista}>
             <RadioCard
                 name="appMode" value="tracking" icon={Gauge}
-                label={t('Contar lo que como')}
+                label={t('Modo contador')}
                 badge={t('Recomendado')} badgeTone="accent"
                 desc={isAuth
-                    ? t('El modo estable: anota tus comidas con una foto o un texto, ve tus calorías y proteínas al instante y el coach te guía.')
+                    ? t('Registra lo que comes con una foto o un texto y ve tus calorías y proteínas al momento. Rápido, estable y con el coach a tu lado.')
                     : t('Requiere cuenta: tu diario vive en tu perfil. Inicia sesión para usar este modo.')}
                 checked={value === 'tracking'}
                 disabled={!isAuth}
@@ -98,9 +98,9 @@ export const QAppMode = ({ onAutoAdvance }) => {
             />
             <RadioCard
                 name="appMode" value="plan" icon={CalendarRange}
-                label={t('Plan de comidas con IA')}
+                label={t('Modo plan con IA')}
                 badge={t('Beta · en pruebas')}
-                desc={t('Experimental: la IA arma un menú con recetas y lista de compras. Puede fallar.')}
+                desc={t('La IA te arma un menú con recetas y lista de compras. Aún en pruebas: tarda varios minutos y puede fallar.')}
                 checked={value === 'plan'}
                 onChange={() => abrirAviso()}
                 onClick={() => {
