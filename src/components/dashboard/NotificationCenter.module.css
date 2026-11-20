@@ -1,3 +1,5 @@
+/* [P1-PLAN-LOTE-1126 · 2026-11-20] El turquesa del tirador y del cajón pasa al índigo de la app (pedido del dueño);
+   el turquesa queda solo como TONO semántico de aviso (.tone_teal, .exTone_near). */
 /* NotificationCenter — centro de notificaciones del dashboard.
    [P3-NOTIF-CENTER · 2026-06-16] Tirador-pestaña fijo en el borde derecho (PC) /
    botón flotante (móvil) → drawer glassy que se desliza desde la derecha con las
@@ -35,7 +37,7 @@
     background:
         linear-gradient(150deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.96));
     box-shadow:
-        -6px 0 24px -12px rgba(34, 211, 238, 0.55),
+        -6px 0 24px -12px rgba(129, 140, 248, 0.55),
         -1px 0 0 0 rgba(148, 163, 184, 0.14),
         inset 1px 0 0 0 rgba(148, 163, 184, 0.08);
     -webkit-backdrop-filter: blur(8px);
@@ -59,7 +61,7 @@
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(150deg, rgba(34, 211, 238, 0.7), rgba(129, 140, 248, 0.35) 60%, transparent);
+    background: linear-gradient(150deg, rgba(129, 140, 248, 0.7), rgba(129, 140, 248, 0.35) 60%, transparent);
     -webkit-mask:
         linear-gradient(#000 0 0) content-box,
         linear-gradient(#000 0 0);
@@ -74,7 +76,7 @@
     position: absolute;
     inset: 12px 4px;
     border-radius: 12px;
-    background: radial-gradient(circle at 60% 50%, rgba(34, 211, 238, 0.4), transparent 70%);
+    background: radial-gradient(circle at 60% 50%, rgba(129, 140, 248, 0.4), transparent 70%);
     filter: blur(8px);
     z-index: -1;
     opacity: 0.5;
@@ -83,14 +85,14 @@
 
 .handleIcon {
     position: relative;
-    filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.45));
+    filter: drop-shadow(0 0 5px rgba(129, 140, 248, 0.45));
 }
 
 .handle:hover {
     transform: translateY(-50%); /* solo el centrado; sin desplazamiento al hover */
     color: #e0e7ff;
     box-shadow:
-        -10px 0 30px -12px rgba(34, 211, 238, 0.7),
+        -10px 0 30px -12px rgba(129, 140, 248, 0.7),
         -1px 0 0 0 rgba(148, 163, 184, 0.2),
         inset 1px 0 0 0 rgba(148, 163, 184, 0.12);
 }
@@ -114,7 +116,7 @@
     line-height: 1;
     color: #1e1b3a;
     background: linear-gradient(135deg, #67e8f9, #818cf8);
-    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.95), 0 0 10px rgba(34, 211, 238, 0.6);
+    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.95), 0 0 10px rgba(129, 140, 248, 0.6);
     font-variant-numeric: tabular-nums;
 }
 
@@ -163,7 +165,7 @@
     overflow: hidden;
     color: var(--text-main);
     background:
-        radial-gradient(120% 60% at 100% 0%, rgba(34, 211, 238, 0.1), transparent 60%),
+        radial-gradient(120% 60% at 100% 0%, rgba(129, 140, 248, 0.1), transparent 60%),
         radial-gradient(120% 50% at 0% 100%, rgba(129, 140, 248, 0.1), transparent 55%),
         linear-gradient(180deg, rgba(23, 31, 50, 0.97), rgba(13, 19, 33, 0.98));
     border-left: 1px solid rgba(148, 163, 184, 0.16);
@@ -180,7 +182,7 @@
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, transparent, #22d3ee 30%, #818cf8 70%, transparent);
+    background: linear-gradient(90deg, transparent, #818cf8 30%, #818cf8 70%, transparent);
     opacity: 0.85;
 }
 
@@ -222,8 +224,8 @@
 
 /* Con no leídas: el punto vira a teal y late. */
 .headDotAlert {
-    background: #22d3ee;
-    box-shadow: 0 0 8px rgba(34, 211, 238, 0.85);
+    background: #818cf8;
+    box-shadow: 0 0 8px rgba(129, 140, 248, 0.85);
     animation: notifDotPulse 1.8s ease-in-out infinite;
 }
 
@@ -242,8 +244,8 @@
     font-size: 0.75rem;
     font-weight: 800;
     color: #cffafe;
-    background: rgba(34, 211, 238, 0.16);
-    border: 1px solid rgba(34, 211, 238, 0.4);
+    background: rgba(129, 140, 248, 0.16);
+    border: 1px solid rgba(129, 140, 248, 0.4);
     font-variant-numeric: tabular-nums;
 }
 
@@ -289,8 +291,8 @@
 
 .markBtn:hover {
     color: #67e8f9;
-    border-color: rgba(34, 211, 238, 0.5);
-    background: rgba(34, 211, 238, 0.1);
+    border-color: rgba(129, 140, 248, 0.5);
+    background: rgba(129, 140, 248, 0.1);
 }
 
 /* Divisor entre las acciones (Marcar leídas / Limpiar) y la X de cerrar el
@@ -718,7 +720,7 @@
 .closeBtn:focus-visible,
 .clearBtn:focus-visible,
 .markBtn:focus-visible {
-    outline: 2px solid #22d3ee;
+    outline: 2px solid #818cf8;
     outline-offset: 2px;
 }
 
@@ -789,19 +791,19 @@
     color: #0e7490;
     background: linear-gradient(150deg, rgba(255, 255, 255, 0.96), rgba(236, 242, 250, 0.97));
     box-shadow:
-        -6px 0 22px -14px rgba(34, 211, 238, 0.5),
+        -6px 0 22px -14px rgba(129, 140, 248, 0.5),
         -1px 0 0 0 rgba(15, 23, 42, 0.06);
 }
 
 :global(html:not([data-theme="dark"])) .handleBadge {
     color: #ffffff;
-    box-shadow: 0 0 0 2px #ffffff, 0 0 8px rgba(34, 211, 238, 0.5);
+    box-shadow: 0 0 0 2px #ffffff, 0 0 8px rgba(129, 140, 248, 0.5);
 }
 
 :global(html:not([data-theme="dark"])) .drawer {
     color: #0f172a;
     background:
-        radial-gradient(120% 60% at 100% 0%, rgba(34, 211, 238, 0.1), transparent 60%),
+        radial-gradient(120% 60% at 100% 0%, rgba(129, 140, 248, 0.1), transparent 60%),
         radial-gradient(120% 50% at 0% 100%, rgba(129, 140, 248, 0.1), transparent 55%),
         linear-gradient(180deg, #ffffff, #f1f5f9);
     border-left: 1px solid rgba(15, 23, 42, 0.08);
@@ -943,7 +945,7 @@
     color: #c7d2fe;
     background: radial-gradient(circle at 32% 26%, rgba(51, 65, 85, 0.96), rgba(15, 23, 42, 0.98) 72%);
     box-shadow:
-        0 6px 16px -10px rgba(34, 211, 238, 0.65),
+        0 6px 16px -10px rgba(129, 140, 248, 0.65),
         inset 0 1px 0 0 rgba(148, 163, 184, 0.14);
     transition: box-shadow 0.32s ease, color 0.2s ease;
 }
@@ -953,7 +955,7 @@
     transform: none;
     color: #e0e7ff;
     box-shadow:
-        0 8px 20px -10px rgba(34, 211, 238, 0.85),
+        0 8px 20px -10px rgba(129, 140, 248, 0.85),
         inset 0 1px 0 0 rgba(148, 163, 184, 0.2);
 }
 
@@ -962,11 +964,11 @@
     padding: 1.5px;
     background: conic-gradient(
         from 210deg,
-        rgba(34, 211, 238, 0.95),
+        rgba(129, 140, 248, 0.95),
         rgba(129, 140, 248, 0.75) 32%,
         rgba(129, 140, 248, 0) 58%,
-        rgba(34, 211, 238, 0.3) 86%,
-        rgba(34, 211, 238, 0.95)
+        rgba(129, 140, 248, 0.3) 86%,
+        rgba(129, 140, 248, 0.95)
     );
     opacity: 0.55;
     transition: opacity 0.3s ease;
@@ -1010,7 +1012,7 @@
     margin-left: -2.5px;
     border-radius: 50%;
     background: #67e8f9;
-    box-shadow: 0 0 8px 1px rgba(34, 211, 238, 0.9);
+    box-shadow: 0 0 8px 1px rgba(129, 140, 248, 0.9);
 }
 
 .handleAlert .handleOrbit {

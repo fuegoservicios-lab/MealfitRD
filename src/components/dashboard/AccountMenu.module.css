@@ -238,3 +238,25 @@
 }
 .accountChevron { width: 15px; height: 15px; flex: none; color: var(--text-light); }
 .account:hover .accountChevron { color: var(--text-main); }
+
+/* [P1-PLAN-LOTE-1127 · 2026-11-20] Pie de cuenta más limpio (pedido del dueño): el texto se centraba (un <button>
+   centra por defecto), el avatar era un disco lavanda brillante y la fila no tenía forma. Ahora: texto a la
+   izquierda, avatar en tinte índigo (como los iconos de Configuración, lote 1124) y la fila como tarjeta sutil. */
+.account {
+  padding: 8px 10px 8px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+  background: color-mix(in srgb, var(--bg-muted) 55%, transparent);
+  text-align: left;
+}
+.account:hover { background: var(--bg-muted); }
+.avatar {
+  width: 36px;
+  height: 36px;
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  color: var(--primary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 35%, transparent);
+  font-size: 15px;
+}
+.accountText { gap: 1px; text-align: left; }
+.name { font-size: 14px; }
