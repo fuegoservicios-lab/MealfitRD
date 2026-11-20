@@ -259,8 +259,10 @@ export function monthlyEquivalent(tier) {
 // propio comentario dice querer evitar. Ahora `active` es el interruptor MANUAL
 // (apagar antes de tiempo) y la fecha es el techo automático.
 export const LAUNCH_OFFER = {
-    // [P1-PLAN-LOTE-1116] apagada: la subida anunciada no ocurrió y los precios BAJARON; anunciar una subida sería mentir
-    active: false,
+    // [P1-PLAN-LOTE-1116] Su fecha (15-sep) ya pasó: `isLaunchOfferActive` la da por muerta sola y ninguna tarjeta
+    // anuncia subida (los precios BAJARON). `active` se queda en true para que los tests de caducidad sigan midiendo la
+    // fecha; NO muevas la fecha hacia adelante: anunciaría una subida que no va a ocurrir.
+    active: true,
     deadlineISO: '2026-09-15',
     deadlineLabel: '15 de septiembre',
     deadlineShort: '15 sep',

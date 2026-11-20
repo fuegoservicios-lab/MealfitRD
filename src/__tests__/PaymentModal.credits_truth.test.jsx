@@ -36,7 +36,7 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.f
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 
 import PaymentModal from '../components/dashboard/PaymentModal';
-import { TIER_CREDITS, creditsVsPredecessor, includesPredecessor } from '../config/plans';
+import { TIER_CREDITS, TIER_LIMITS } from '../config/plans';
 
 function renderModal(tier) {
     render(
@@ -57,42 +57,35 @@ describe('[P1-CHECKOUT-CREDITS-TRUTH] el checkout dice la verdad del ladder', ()
     });
     afterEach(() => vi.unstubAllEnvs());
 
+    // [P1-PLAN-LOTE-1116 · 2026-11-20] Lo que incluye cada plan son sus TOPES reales; la regla de este test sigue:
+    // las cifras se DERIVAN del SSOT (`TIER_CREDITS` / `TIER_LIMITS`, paridad con el servidor), nunca a mano.
     it.each(['basic', 'plus', 'ultra'])(
-        '%s muestra la cifra de créditos que el backend concede de verdad',
+        '%s muestra los planes con IA que el backend concede de verdad',
         (tier) => {
             renderModal(tier);
-            expect(
-                screen.getByText(`${TIER_CREDITS[tier]} Créditos de IA al mes`)
-            ).toBeInTheDocument();
+            expect(screen.getByText(`${TIER_CREDITS[tier]} planes con IA al mes (Beta)`)).toBeInTheDocument();
         }
     );
 
     it.each(['basic', 'plus', 'ultra'])(
-        'el salto de %s se deriva de TIER_CREDITS, no está escrito a mano',
+        '%s muestra sus topes de fotos, coach y voz desde TIER_LIMITS',
         (tier) => {
             renderModal(tier);
-            expect(screen.getByText(creditsVsPredecessor(tier))).toBeInTheDocument();
+            const l = TIER_LIMITS[tier];
+            const texto = document.body.textContent.replace(/[  ,.]/g, '');
+            expect(texto).toContain(`${l.fotos_dia} fotos analizadas al día`);
+            expect(texto).toContain(`${l.coach_mes} mensajes con el coach al mes`);
+            expect(texto).toContain(`${l.voz_min_mes} min de voz en vivo al mes`);
         }
     );
 
-    it.each(['basic', 'plus', 'ultra'])(
-        '%s hereda el escalón anterior con el mismo helper que /upgrade',
-        (tier) => {
-            renderModal(tier);
-            expect(screen.getByText(includesPredecessor(tier))).toBeInTheDocument();
-        }
-    );
-
-    it('Max ya NO vende «ilimitado» — el backend corta en 500', () => {
+    it('Max NO vende «ilimitado» — el backend corta', () => {
         renderModal('ultra');
         expect(document.body.textContent).not.toMatch(/ilimitad/i);
     });
 
-    it.each([
-        ['basic', '3× más que Gratis'],
-        ['plus', '13× más que Gratis'],
-    ])('no queda rastro del múltiplo viejo de %s (ladder gratis=15)', (tier, viejo) => {
+    it.each(['basic', 'plus', 'ultra'])('no queda rastro de los «Créditos de IA» del ladder viejo en %s', (tier) => {
         renderModal(tier);
-        expect(screen.queryByText(viejo)).toBeNull();
+        expect(document.body.textContent).not.toMatch(/Créditos de IA al mes/);
     });
 });

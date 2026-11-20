@@ -13,7 +13,7 @@ describe('Free iOS entitlements', () => {
         expect(limiteDePlanes('ultra', { limit: 200 })).toBe(200);
         platform.value = 'web';
         expect(iosFreeProfile(paid)).toBe(paid);
-        expect(limiteDePlanes('ultra', null)).toBe(500);
+        expect(limiteDePlanes('ultra', null)).toBe(60);   // [P1-PLAN-LOTE-1116] escalera nueva
         platform.value = 'android';
         expect(iosFreeProfile(paid)).toBe(paid);
         platform.value = 'web';
