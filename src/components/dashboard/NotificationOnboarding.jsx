@@ -7,6 +7,7 @@ import { useLatestRef } from '../../hooks/useLatestRef';
 import { estadoDeAvisos, activarAvisos } from '../../utils/avisosDeComida';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import { useT } from '../../i18n';
+import Button from '../ui/Button';
 import styles from './NotificationOnboarding.module.css';
 
 // Se monta tras el formulario, en el contador, el agente y la generación de planes.
@@ -89,22 +90,25 @@ export default function NotificationOnboarding() {
     };
 
     if (!isOpen) return null;
+    // [P1-PLAN-LOTE-1118 · 2026-11-20] Más claro, limpio y minimalista (pedido del dueño): sin anillo de foco en la
+    // tarjeta, icono sin baldosa, botones comunes y sin la nota repetida de Configuración.
     return createPortal(
         <div className={styles.overlay}>
             <section ref={containerRef} role="dialog" aria-modal="true" aria-labelledby="notification-welcome-title"
                 aria-describedby="notification-welcome-description" tabIndex={-1} className={styles.card}>
-                <div className={styles.icon} aria-hidden="true">{enabled ? <Check size={28} /> : <Bell size={28} />}</div>
+                <span className={styles.icon} aria-hidden="true">{enabled ? <Check size={22} /> : <Bell size={22} />}</span>
                 <h2 id="notification-welcome-title">{enabled ? t('Notificaciones activadas') : t('Activa tus recordatorios')}</h2>
                 <p id="notification-welcome-description">{enabled
                     ? t('Puedes ajustar tus recordatorios cuando quieras en Configuración.')
                     : t('Recibe avisos para registrar tus comidas y seguir tu progreso.')}</p>
-                {error && <p className={styles.error} role="alert">{t('No pudimos activarlas. Inténtalo de nuevo o hazlo después desde Configuración.')}</p>}
-                <button type="button" className={styles.primary} disabled={enabling} onClick={enabled ? dismiss : enable}>
-                    {enabling && <Loader2 size={20} className={styles.spinner} aria-hidden="true" />}
-                    {enabled ? t('Continuar') : enabling ? t('Activando...') : t('Activar notificaciones')}
-                </button>
-                {!enabled && <button type="button" className={styles.secondary} disabled={enabling} onClick={dismiss}>{t('Ahora no')}</button>}
-                {!enabled && <small>{t('Puedes cambiarlas después en Configuración.')}</small>}
+                {error && <p className={styles.error} role="alert">{t('No se pudieron activar. Prueba otra vez.')}</p>}
+                <div className={styles.actions}>
+                    <Button block disabled={enabling} onClick={enabled ? dismiss : enable}>
+                        {enabling && <Loader2 size={18} className={styles.spinner} aria-hidden="true" />}
+                        {enabled ? t('Continuar') : enabling ? t('Activando...') : t('Activar notificaciones')}
+                    </Button>
+                    {!enabled && <Button variant="text" block disabled={enabling} onClick={dismiss}>{t('Ahora no')}</Button>}
+                </div>
             </section>
         </div>, document.body,
     );
