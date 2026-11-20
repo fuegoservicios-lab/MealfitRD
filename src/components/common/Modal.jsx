@@ -27,6 +27,22 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
     // Para responsividad
     const isDesktop = useMediaQuery('(min-width: 641px)');
     const isMobile = isBottomSheetOnMobile && !isDesktop;
+    // [P1-PLAN-LOTE-1120 · 2026-11-20] Un contenido más alto que la pantalla (el aviso Beta del formulario) se salía
+    // por arriba y por abajo: ahora el modal tiene altura máxima y se desplaza por dentro. En la hoja de móvil, el
+    // gesto de arrastrar para cerrar se apaga SOLO cuando hay que desplazarse (arrastrar se comería el scroll).
+    const [desborda, setDesborda] = useState(false);
+    useEffect(() => {
+        if (!isOpen) { setDesborda(false); return undefined; }
+        const medir = () => {
+            const el = modalRef.current;
+            if (el) setDesborda(el.scrollHeight > el.clientHeight + 1);
+        };
+        const raf = requestAnimationFrame(medir);
+        const ro = typeof ResizeObserver !== 'undefined' && modalRef.current ? new ResizeObserver(medir) : null;
+        if (ro) { ro.observe(modalRef.current); Array.from(modalRef.current.children).forEach((c) => ro.observe(c)); }
+        window.addEventListener('resize', medir);
+        return () => { cancelAnimationFrame(raf); ro?.disconnect(); window.removeEventListener('resize', medir); };
+    }, [isOpen]);
 
     const keepFieldVisible = useCallback(() => {
         const panel = modalRef.current;
@@ -191,7 +207,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             if (modalRef.current?.contains(active) && active !== modalRef.current && active !== initialFocusRef?.current) return;
                             initialFocusRef?.current?.focus({ preventScroll: true });
                         }}
-                        drag={isMobile && !(adjustToKeyboard && visibleViewport && document.activeElement?.matches('input, textarea')) ? "y" : false}
+                        drag={isMobile && !desborda && !(adjustToKeyboard && visibleViewport && document.activeElement?.matches('input, textarea')) ? "y" : false}
                         dragConstraints={{ top: 0, bottom: 0 }}
                         dragElastic={{ top: 0, bottom: 1 }}
                         onDragEnd={(event, info) => {
@@ -206,7 +222,9 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             borderRadius: isMobile ? '1.5rem 1.5rem 0 0' : '1.25rem',
                             padding: isMobile ? '1.5rem 1.25rem 2rem' : '2rem',
                             width: '100%', maxWidth, position: 'relative', zIndex: 1,
-                            ...(adjustToKeyboard ? { maxHeight: '100%', overflowY: 'auto', overscrollBehavior: 'contain', scrollPadding: '1rem' } : {}),
+                            maxHeight: isMobile && !adjustToKeyboard ? 'calc(100% - max(12px, env(safe-area-inset-top)))' : '100%',
+                            overflowY: 'auto', overscrollBehavior: 'contain',
+                            ...(adjustToKeyboard ? { scrollPadding: '1rem' } : {}),
                             boxShadow: isMobile ? '0 -10px 32px rgba(0, 0, 0, 0.28)' : '0 24px 56px -12px rgba(0, 0, 0, 0.5)',
                             // [P2-MODAL-OUTLINE-A11Y] outline ahora gestionado
                             // por `.mealfit-modal-content:focus-visible` en
