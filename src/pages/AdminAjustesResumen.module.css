@@ -25,7 +25,7 @@
     align-items: center;
     gap: 0.42rem;
     padding: 0.25rem 0.65rem;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
     background: var(--surface-sunken, color-mix(in srgb, var(--bg-card) 80%, var(--bg-page)));
     color: var(--text-main);

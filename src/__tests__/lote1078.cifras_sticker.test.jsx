@@ -23,11 +23,13 @@ const props = {
 const resumen = (valor, meta) => ({ calorias: { valor, meta, pct: meta ? Math.round((valor / meta) * 100) : 0 }, macros: [] });
 
 beforeEach(() => {
+    // [P1-PLAN-LOTE-1114] el diseño de la historia nace del día de la semana (1095): fecha fija, como en el 1084
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2026, 10, 18, 12));
     globalThis.URL.createObjectURL = vi.fn(() => 'blob:x');
     globalThis.URL.revokeObjectURL = vi.fn();
     vi.stubGlobal('navigator', { ...navigator, share: vi.fn().mockResolvedValue(undefined), canShare: () => true, clipboard: { writeText: vi.fn() } });
 });
-afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe('[1078] la geometría del sticker', () => {
     it('en su sitio de siempre las cifras de cada estilo caben en sus límites: sin tocar nada, la historia sale igual', () => {

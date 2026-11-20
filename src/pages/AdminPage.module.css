@@ -63,7 +63,7 @@
     gap: 0.45rem;
     padding: 0.5rem 1rem 0.5rem 0.8rem;
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     background: var(--bg-card);
     color: var(--text-main);
     font-family: var(--font-body);
@@ -129,7 +129,7 @@
     grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr));
     padding: 3px;
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     background: var(--surface-sunken, var(--bg-card));
 }
 
@@ -139,7 +139,7 @@
     bottom: 3px;
     left: 3px;
     width: calc((100% - 6px) / var(--n, 3));
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     background: var(--primary-fill);
     box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 35%, transparent);
     transform: translateX(calc(var(--i, 0) * 100%));
@@ -153,7 +153,7 @@
     background: transparent;
     color: var(--text-muted);
     font-family: var(--font-body);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     padding: 0.42rem 1rem;
     font-size: 0.84rem;
     font-weight: 600;
@@ -199,7 +199,7 @@
     background: var(--bg-card);
     color: var(--text-main);
     font-family: var(--font-body);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     padding: 0.44rem 1rem;
     font-size: 0.84rem;
     font-weight: 600;
@@ -239,7 +239,7 @@
     font-family: var(--font-body);
     font-size: 0.78rem;
     font-weight: 600;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     padding: 0.28rem 0.75rem;
     cursor: pointer;
     white-space: nowrap;
@@ -283,7 +283,7 @@
 .estadoError {
     margin-top: 1.5rem;
     padding: 1.5rem;
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     background: var(--bg-card);
     display: flex;
@@ -298,7 +298,7 @@
 .esqueletoGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.9rem; }
 .esqueletoCard {
     height: 11rem;
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     background: linear-gradient(110deg, var(--bg-card) 25%, color-mix(in srgb, var(--primary) 7%, var(--bg-card)) 50%, var(--bg-card) 75%);
     background-size: 200% 100%;
@@ -306,7 +306,7 @@
 }
 .esqueletoBloque {
     height: 12rem;
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     background: linear-gradient(110deg, var(--bg-card) 25%, color-mix(in srgb, var(--primary) 6%, var(--bg-card)) 50%, var(--bg-card) 75%);
     background-size: 200% 100%;
@@ -342,7 +342,7 @@
     flex: 1 1 340px;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     padding: 1.15rem 1.25rem 1.25rem;
     min-width: 0;
     display: flex;
@@ -382,7 +382,7 @@
     gap: 0.38rem;
     padding: 1.15rem 1.25rem 1.15rem;
     min-width: 0;
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     background: var(--bg-card);
     box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.08));
@@ -550,13 +550,13 @@
 }
 
 .miniHint {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     opacity: 0.72;
 }
 
 .miniBadge {
-    font-size: 0.74rem;
+    font-size: 0.75rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--primary);
@@ -666,7 +666,7 @@
     background: var(--bg-card);
     color: var(--text-muted);
     font-family: var(--font-body);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     padding: 0.3rem 0.85rem;
     min-height: 1.95rem;
     font-size: 0.75rem;
@@ -747,8 +747,8 @@
     gap: 0.35rem;
     min-width: 5.4rem;
     padding: 0.24rem 0.6rem;
-    border-radius: 999px;
-    font-size: 0.74rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.01em;
     color: var(--text-muted);
@@ -777,7 +777,7 @@
     color: var(--text-main);
     padding: 0.36rem 0.65rem;
     margin-top: 0.1rem;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     border-left: 2px solid color-mix(in srgb, var(--primary) 65%, transparent);
     background: color-mix(in srgb, var(--primary) 8%, transparent);
 }
@@ -790,7 +790,7 @@
     margin-top: 0.2rem;
 }
 .avisoMomento {
-    font-size: 0.74rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
 }
@@ -802,7 +802,7 @@
     min-width: 2rem;
     height: 2rem;
     padding: 0 0.55rem;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     display: inline-grid;
     place-items: center;
     color: var(--text-main);
@@ -861,7 +861,7 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.18rem 0.65rem;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     font-size: 0.78rem;
     font-variant-numeric: tabular-nums;
     color: var(--text-main);
@@ -893,7 +893,7 @@
 }
 
 .serieCifra {
-    font-size: 0.74rem;
+    font-size: 0.75rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -923,7 +923,7 @@
 .serieBarraCero { background: var(--border); }
 
 .serieRotulo {
-    font-size: 0.74rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     white-space: nowrap;
     overflow: visible;
@@ -954,7 +954,7 @@
     flex: none;
     display: inline-grid;
     place-items: center;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: var(--primary);
     background: color-mix(in srgb, var(--primary) 13%, transparent);
@@ -966,7 +966,7 @@
 .pasoCarril {
     grid-column: 1 / -1;
     height: 8px;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     background: var(--surface-sunken, color-mix(in srgb, var(--border) 65%, transparent));
     overflow: hidden;
 }
@@ -974,7 +974,7 @@
 .pasoBarra {
     display: block;
     height: 100%;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     background: linear-gradient(90deg, var(--primary-fill), var(--primary));
 }
 
@@ -989,8 +989,8 @@
 .num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sinPartir { white-space: nowrap; }
 .textoLargo { min-width: 13rem; }
-.barraCarril { display: block; width: 100%; height: 4px; margin-top: 0.4rem; border-radius: 999px; background: color-mix(in srgb, var(--border) 55%, transparent); overflow: hidden; }
-.barra { display: block; height: 100%; min-width: 2px; border-radius: 999px; background: linear-gradient(90deg, var(--primary-fill), var(--primary)); }
+.barraCarril { display: block; width: 100%; height: 4px; margin-top: 0.4rem; border-radius: var(--radius-full); background: color-mix(in srgb, var(--border) 55%, transparent); overflow: hidden; }
+.barra { display: block; height: 100%; min-width: 2px; border-radius: var(--radius-full); background: linear-gradient(90deg, var(--primary-fill), var(--primary)); }
 
 @media (prefers-reduced-motion: reduce) {
     .indicador, .rango, .volver, .volver svg, .contenido, .boton, .salto, .resumenCelda, .resumenBoton, .resumenFlecha, .historialFlecha, .miniBarra, .serieBarra {
@@ -1024,5 +1024,5 @@
     .avisoNivel { grid-column: 1 / -1; }
     .avisoRevisado { min-height: 2.75rem; padding: 0.5rem 1rem; }
     .serie { gap: 0.2rem; height: 9.5rem; }
-    .serieCifra { font-size: 0.74rem; }
+    .serieCifra { font-size: 0.75rem; }
 }

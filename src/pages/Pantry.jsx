@@ -2396,7 +2396,7 @@ const PantryPage = () => {
                         <div className="skeleton" style={{ width: '180px', height: '45px', borderRadius: '99px' }} />
                     </div>
 
-                    <div style={{ marginTop: '1.5rem' }}>
+                    <div className={fstyles.esqueletoBuscador}>
                         <div className="skeleton" style={{ width: '100%', height: '54px', borderRadius: '1rem' }} />
                     </div>
                 </header>

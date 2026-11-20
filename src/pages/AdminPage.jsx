@@ -20,7 +20,7 @@ import { AdminNavigationProvider, useAdminLoading, useAdminNavigationState } fro
 
 const RANGOS = [7, 30, 90];
 const VISTAS = [
-    ['metricas', 'Métricas'],
+    ['metricas', 'Métricas'], // [I18N-EXEMPT: panel interno del dueño, solo español]
     ['cuentas', 'Cuentas'],
 ];
 // Enfriamiento para evitar ráfagas de peticiones al volver de DevTools o cambiar rápido entre ventanas.

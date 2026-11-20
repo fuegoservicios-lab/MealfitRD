@@ -16,7 +16,7 @@
     gap: 0.18rem;
     min-width: 0;
     padding: 0.65rem 0.8rem;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
     background: var(--surface-sunken, color-mix(in srgb, var(--bg-page) 55%, var(--bg-card)));
 }

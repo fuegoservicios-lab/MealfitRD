@@ -4,7 +4,7 @@
 // (`enforce`) o solo la registró (`shadow`). Nunca inventa: si no hay política, no se pinta.
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Compass, ChevronDown, AlertTriangle, ShoppingBasket, Snowflake, CookingPot, Leaf, Utensils, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Compass, ChevronDown, AlertTriangle, ShoppingBasket, Snowflake, CookingPot, Leaf, Utensils, SlidersHorizontal, Settings2 } from 'lucide-react';
 // [P1-ARQ25-F7-CULTURE · 2026-09-05] «Cocina: dominicana 70 % · española 30 %» desde culture_weights.
 import { cultureWeightsSummary, cultureForCountry } from '../../config/cultures';
 import { useT } from '../../i18n';
@@ -180,7 +180,7 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                             {(soft.length > 0 || tiempo) && (
                                 <div className={styles.section}>
                                     <h4 className={styles.subhead}>
-                                        <Sparkles size={12} aria-hidden="true" className={styles.subheadIco} />
+                                        <Settings2 size={12} aria-hidden="true" className={styles.subheadIco} />
                                         <span>{t('Así adaptamos tu plan')}</span>
                                         <span className={styles.subheadLine} aria-hidden="true" />
                                     </h4>

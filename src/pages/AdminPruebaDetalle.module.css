@@ -69,7 +69,7 @@
     align-items: center;
     gap: 0.35rem;
     padding: 0.28rem 0.65rem;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     border: 1px solid var(--border);
     background: var(--bg-card);
     color: var(--text-muted);
@@ -167,7 +167,7 @@
     cursor: pointer;
 }
 .lightboxCerrar:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.lightboxImg { max-width: min(92vw, 1100px); max-height: 88dvh; border-radius: 12px; object-fit: contain; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55); }
+.lightboxImg { max-width: min(92vw, 1100px); max-height: 88dvh; border-radius: var(--radius-md); object-fit: contain; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55); }
 .feedback { margin: 0; font-size: 0.8rem; font-weight: 700; }
 .feedback[data-feedback="up"] { color: var(--success-text, var(--success)); }
 .feedback[data-feedback="down"] { color: var(--danger-text, var(--danger)); }

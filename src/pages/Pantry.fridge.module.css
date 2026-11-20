@@ -407,3 +407,8 @@
 /* [P1-PLAN-LOTE-1066] Los dos botones de la hoja de cantidad: mismo reparto que antes (1 : 1,4). */
 .qtyCancelar { flex: 1; }
 .qtyGuardar { flex: 1.4; }
+
+/* [P1-PLAN-LOTE-1114] el hueco del buscador en el esqueleto de carga (antes style en línea) */
+.esqueletoBuscador {
+    margin-top: 1.5rem;
+}
