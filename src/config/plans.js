@@ -43,7 +43,10 @@ import { formatNumber } from '../i18n';
 // que cobra nueve veces de más.
 
 /** Tiers sin opción de pago anual. Vacío = todos ofrecen anual. */
-export const ANNUAL_DISABLED_TIERS = new Set(['ultra']);
+// [P1-PLAN-LOTE-1116 · 2026-11-20] Max ya tiene su anual en PayPal, creado por API con `interval_unit: YEAR`:
+//     Bioboros Max Anual   89.99 USD / 1 YEAR   P-9VJ46656LL145604DNL76RXY
+// (y su id en VITE_PAYPAL_PLAN_ULTRA_ANNUAL + PAYPAL_PLAN_ULTRA_ANNUAL_ID del VPS): el set queda vacío.
+export const ANNUAL_DISABLED_TIERS = new Set([]);
 
 // [P1-CREDITS-LADDER · 2026-07-31] Créditos/mes por tier — PARIDAD con
 // backend/auth.py::_TIER_LIMITS (test_p1_credits_ladder.py ancla ambos lados).
@@ -51,7 +54,18 @@ export const ANNUAL_DISABLED_TIERS = new Set(['ultra']);
 // Upgrade.jsx + Pricing.jsx — dos copias del mismo número garantizan drift.
 // Max ya NO es "ilimitado": 500/mes (≈16/día) — inalcanzable para uso humano
 // real, acotado para abuso. El copy de venta usa estos números.
-export const TIER_CREDITS = { gratis: 10, basic: 50, plus: 200, ultra: 500 };
+// [P1-PLAN-LOTE-1116 · 2026-11-20] Precios bajados y generador en Beta: 4 / 12 / 30 / 60 (paridad auth._TIER_LIMITS).
+export const TIER_CREDITS = { gratis: 4, basic: 12, plus: 30, ultra: 60 };
+
+// [P1-PLAN-LOTE-1116 · 2026-11-20] Los topes de uso por nivel que la página de planes enseña. PARIDAD con
+// backend/topes_por_nivel.py::TABLA (test_p1_plan_lote_1116_topes ancla los dos lados). El gasto en US$ no se
+// enseña: es la red de seguridad, no una promesa.
+export const TIER_LIMITS = {
+    gratis: { coach_mes: 60, coach_dia: 20, fotos_dia: 4, voz_min_mes: 5 },
+    basic: { coach_mes: 300, coach_dia: 60, fotos_dia: 10, voz_min_mes: 20 },
+    plus: { coach_mes: 900, coach_dia: 120, fotos_dia: 20, voz_min_mes: 45 },
+    ultra: { coach_mes: 2000, coach_dia: 250, fotos_dia: 40, voz_min_mes: 100 },
+};
 
 // [P2-TIER-DISPLAY-NAME · 2026-07-31] Nombre COMERCIAL por tier. La clave
 // `ultra` no se renombra (la usan PayPal, `user_profiles.plan_tier` y los
@@ -172,20 +186,37 @@ export function includesPredecessor(tier, t) {
 // (no el ofrecimiento) para que el día que se cree el plan anual de Max en PayPal
 // el importe no haya que reinventarlo. NO derives de aquí ningún texto de venta:
 // quien decide si un tier tiene anual es `ANNUAL_DISABLED_TIERS`, no este objeto.
+// [P1-PLAN-LOTE-1116 · 2026-11-20] Precios nuevos, decisión del dueño («muy elevados; algo competitivo»): un tercio o
+// menos de los de antes y anual con ~37-40 % de ahorro, también en Max. Mismos importes en los planes de PayPal
+// (update-pricing-schemes sobre los MISMOS ids): el cobro lo lee el backend del plan, no de aquí.
 export const PRICING = {
     basic: {
-        monthly: { price: '9.99', label: '/mes' },
-        annual: { price: '89.99', label: '/año', monthlyEquiv: '7.50' },
+        monthly: { price: '3.99', label: '/mes' },
+        annual: { price: '29.99', label: '/año', monthlyEquiv: '2.50' },
     },
     plus: {
-        monthly: { price: '19.99', label: '/mes' },
-        annual: { price: '179.99', label: '/año', monthlyEquiv: '15.00' },
+        monthly: { price: '6.99', label: '/mes' },
+        annual: { price: '49.99', label: '/año', monthlyEquiv: '4.17' },
     },
     ultra: {
-        monthly: { price: '49.99', label: '/mes' },
-        annual: { price: '449.99', label: '/año', monthlyEquiv: '37.50' },
+        monthly: { price: '11.99', label: '/mes' },
+        annual: { price: '89.99', label: '/año', monthlyEquiv: '7.50' },
     },
 };
+
+/** Ahorro del anual frente a 12 mensualidades, en % entero (derivado, nunca escrito a mano). */
+export function annualSavingsPct(tier) {
+    const m = Number(PRICING[tier]?.monthly?.price);
+    const a = Number(PRICING[tier]?.annual?.price);
+    if (!hasAnnualBilling(tier) || !(m > 0) || !(a > 0)) return null;
+    return Math.round((1 - a / (m * 12)) * 100);
+}
+
+/** El mayor ahorro anual de la escalera (para el «Ahorra hasta X %» del interruptor). */
+export function maxAnnualSavingsPct() {
+    const v = ['basic', 'plus', 'ultra'].map(annualSavingsPct).filter((x) => Number.isFinite(x));
+    return v.length ? Math.max(...v) : null;
+}
 
 // [PAY-MODAL-PERSIST · 2026-06-18 · movido al SSOT P2-LANDING-COPY-TRUTH] Nombre
 // del plan para re-derivar el `name` del modal al rehidratarlo desde la URL tras
@@ -228,7 +259,8 @@ export function monthlyEquivalent(tier) {
 // propio comentario dice querer evitar. Ahora `active` es el interruptor MANUAL
 // (apagar antes de tiempo) y la fecha es el techo automático.
 export const LAUNCH_OFFER = {
-    active: true,
+    // [P1-PLAN-LOTE-1116] apagada: la subida anunciada no ocurrió y los precios BAJARON; anunciar una subida sería mentir
+    active: false,
     deadlineISO: '2026-09-15',
     deadlineLabel: '15 de septiembre',
     deadlineShort: '15 sep',

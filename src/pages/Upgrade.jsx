@@ -1,34 +1,18 @@
 /**
- * [P3-UPGRADE-PAGE-V2 · 2026-05-26] Página dedicada de comparación de planes
- * para el usuario logueado del dashboard.
+ * [P1-PLAN-LOTE-1116 · 2026-11-20] Planes de pago, rediseñados para la app (decisión del dueño: «precios muy
+ * elevados… renueva el diseño completo y sus descripciones»).
  *
- * Decisión de diseño (vs P3-UPGRADE-PAGE inicial que reusaba `<Pricing />`
- * de la landing): sustituido por componente standalone con UX
- * dashboard-native. Razones:
- *   - El componente landing prioriza copy de marketing (badges "Más Popular",
- *     descripciones largas, CTA "Empezar gratis"). El usuario logueado ya
- *     pasó el funnel — necesita densidad informativa.
- *   - Aquí destacamos: créditos restantes del mes, plan actual con border
- *     verde y badge "TU PLAN", tabla comparativa feature-by-feature (cero
- *     en landing), FAQ billing, trust badges PayPal+SSL.
- *   - Pricing.jsx sigue siendo SSOT de la landing — sin cambios.
+ * Qué cambió frente a P3-UPGRADE-PAGE-V2:
+ *   - Precios nuevos (3,99 / 6,99 / 11,99 USD al mes; anual con ~37-40 % de ahorro, también en Max). Viven en
+ *     `config/plans.js` (PRICING) y en los planes de PayPal con los MISMOS ids.
+ *   - Lo que distingue un plan ya no son «créditos» abstractos: son los TOPES reales de uso (fotos al día, mensajes
+ *     con el coach, minutos de voz en vivo, planes con IA en Beta), los mismos que aplica el servidor
+ *     (`backend/topes_por_nivel.py` ↔ `TIER_LIMITS`).
+ *   - El contador es el producto estable y es gratis para siempre: la página lo dice arriba, antes de vender nada.
+ *   - Móvil primero: una columna de tarjetas compactas, botón de la app (`components/ui/Button`), tokens del sistema
+ *     de diseño (sin degradados, hex ni tamaños fuera de escala). La tabla y las preguntas, solo en pantallas anchas.
  *
- * Estructura:
- *   1. Sticky header con back-link.
- *   2. Hero personalizado (badge "Planes Flexibles", título gradient).
- *   3. UserContextCard: plan actual + créditos restantes del mes.
- *   4. Toggle Mensual/Anual con badge -25%.
- *   5. PlansGrid (4 cards: Gratis/Básico/Plus/Ultra) — plan actual o más
- *      popular destacado con border colorido + badge top.
- *   6. ComparativeTable feature-by-feature (12 features × 4 planes).
- *   7. FAQ accordion (4 preguntas clave: cancelación / créditos / reembolsos / datos).
- *   8. TrustBadges (4 items: Pago seguro PayPal · Privacidad · Cambio de plan · Cancelar).
- *   9. FooterLinks (Privacy / Terms / Soporte).
- *
- * Reusos:
- *   - PaymentModal sin cambios (mismo flujo PayPal).
- *   - upgradeUserPlan del context para post-pago.
- *   - PRICING + tierRank locales (consistentes con Pricing.jsx).
+ * La lógica del cobro (checkout persistido en la URL, verify antes de navegar, invitados → cuenta) es la de siempre.
  */
 import React, { useState, lazy, Suspense, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -36,208 +20,77 @@ import { useAssessment } from '../context/AssessmentContext';
 // [P1-PLAN-LOTE-680] Invitado → hoja «Guarda tu plan» (login sin salir del plan) en vez de toast + /register.
 import { pedirCuentaInvitado } from '../utils/hojaGuardarPlan';
 import {
-    ArrowLeft, Check, X, Zap, ChevronDown,
-    ShieldCheck, RefreshCw, CreditCard, BadgeCheck,
+    ArrowLeft, Check, X, ChevronDown, ShieldCheck, Camera, MessageCircle, Mic, CalendarRange, Gauge,
+    Headphones, Rocket,
 } from 'lucide-react';
 import styles from './Upgrade.module.css';
-import { formatDate, t, useT } from '../i18n';
-// [P5-SPEED-PAYMENTMODAL-LAZY · 2026-06-01] lazy + gate por isPaymentOpen → el
-// chunk de PaymentModal (wrapper PayPal ~22KB) se baja al abrir el checkout, no al
-// montar esta página lazy. Comportamiento idéntico (PaymentModal ya devolvía null
-// y montaba el PayPalScriptProvider solo cuando isOpen).
+import { formatDate, formatNumber, t, useT } from '../i18n';
+import Button from '../components/ui/Button';
+// [P5-SPEED-PAYMENTMODAL-LAZY · 2026-06-01] el chunk de PayPal se baja al abrir el checkout.
 const PaymentModal = lazy(() => import('../components/dashboard/PaymentModal'));
-
-/* ============================================================
-   CONFIG: precios + features (SSOT local de esta página)
-   ============================================================ */
-
-// [P2-LANDING-COPY-TRUTH · 2026-08-14] `PRICING` vive en `config/plans.js`.
-
-
-// [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no se ofrece en facturación anual —
-// siempre mensual. El toggle "Anual" no aplica a esta tarjeta. (= Pricing.jsx)
-// [P1-CREDITS-LADDER + P1-LAUNCH-OFFER · 2026-07-31] Créditos por tier y
-// anclaje de precio de lanzamiento — SSOT compartido con Pricing.jsx.
-// [P1-LEGAL-LINKS-APEX · 2026-08-22] Las legales viven SOLO en el apex
-// (P1-LEGAL-UNA-SOLA-COPIA). Un href relativo funcionaba en web por el 301 de
-// nginx; en la app nativa (capacitor://) abriría la copia JSX obsoleta.
+// [P1-LEGAL-LINKS-APEX · 2026-08-22] Las legales viven SOLO en el apex (en capacitor:// un href relativo abriría la
+// copia JSX obsoleta).
 import { apexUrl } from '../config/site';
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../data/routeMeta';
 import { planPagado } from '../utils/regalosCuenta';
 import {
-    ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_DISPLAY_NAME, tierDisplayName, periodLabel,
-    creditsVsPredecessor, includesPredecessor,
-    PRICING, NAME_BY_TIER, TIER_RANK, isLaunchOfferActive, monthlyEquivalent,
+    ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_LIMITS, tierDisplayName, periodLabel,
+    PRICING, NAME_BY_TIER, TIER_RANK, isLaunchOfferActive, monthlyEquivalent, annualSavingsPct, maxAnnualSavingsPct,
 } from '../config/plans';
 
+const PAGO = ['basic', 'plus', 'ultra'];
 
-/* [P2-TIER-DISPLAY-NAME · 2026-07-31] El botón componía el rótulo
-   capitalizando la clave interna, así que la tarjeta "Max" ofrecía "Cambiar a
-   Ultra" y la "Básico", "Cambiar a Basic": el nombre de la base de datos se
-   colaba a la interfaz. El mapa vive en `config/plans.js` (lo comparten
-   landing y dashboard). */
-const DISPLAY_BY_TIER = TIER_DISPLAY_NAME;
-
-/* [P3-PRICING-HONEST-COPY · 2026-07-12] Directiva del owner: el plan Gratis
-   tiene acceso a TODAS las funciones (por ahora) — lo único que diferencia los
-   tiers son los CRÉDITOS.
-   [P1-CREDITS-LADDER · 2026-07-31] Los créditos salen de la lista de features:
-   ahora son el HERO de cada tarjeta (bloque propio con cifra grande + gauge,
-   ver renderPlanCard) porque son el diferenciador real. Max deja de vender
-   "ilimitado": 500/mes acotado (paridad backend auth._TIER_LIMITS).
-   [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante: un `t()` en ámbito de
-   módulo se evalúa al importar —antes de que el catálogo esté cargado— y se
-   queda congelado en español para siempre. */
-function getPlanSummary() {
+/* [P1-I18N-DASHBOARD · 2026-08-15] FUNCIONES, no constantes: un `t()` en ámbito de módulo se evalúa al importar
+   —antes de que el catálogo esté cargado— y se queda congelado en español. */
+function getDescripcion(tier) {
     return {
-        gratis: {
-            description: t('Empieza con todo: plan completo, recetas, asistente y nevera. Gratis.'),
-            features: [
-                t('Todas las funciones incluidas'),
-                t('Plan de Comidas con IA'),
-                t('Recetas + Lista de Compras PDF'),
-                t('Asistente IA con Visión'),
-                t('Nevera Inteligente'),
-            ],
-        },
-        /* [P2-LADDER-VS-PREDECESSOR · 2026-07-31] El salto se mide contra el
-           escalón ANTERIOR (pedido del owner), no contra Gratis: quien está en
-           Básico quiere saber qué gana pasando a Plus, no cuánto lleva sobre el
-           plan gratis. Los múltiplos y los nombres se DERIVAN de `TIER_CREDITS`
-           (config/plans.js) — escribirlos a mano era garantizar que un día el
-           ladder cambiara y la página siguiera prometiendo el salto viejo.
-           [P1-I18N-DASHBOARD] Esas dos cadenas se COMPONEN en config/plans.js y
-           siguen en español: traducirlas aquí exigiría reimplementar el ladder,
-           que es justo lo que ese módulo existe para evitar. */
-        basic: {
-            description: t('Más créditos para regenerar platos y días sin miedo a quedarte corto.'),
-            features: [
-                creditsVsPredecessor('basic', t),
-                includesPredecessor('basic', t),
-            ],
-        },
-        plus: {
-            description: t('Combustible de sobra: ajusta, regenera y experimenta toda la semana.'),
-            features: [
-                creditsVsPredecessor('plus', t),
-                includesPredecessor('plus', t),
-            ],
-        },
-        ultra: {
-            description: t('El tope más alto: para quien ajusta y optimiza su plan todos los días.'),
-            features: [
-                creditsVsPredecessor('ultra', t),
-                t('Acceso Anticipado a Funciones'),
-                t('Soporte Prioritario VIP'),
-                includesPredecessor('ultra', t),
-            ],
-        },
-    };
+        gratis: t('Para empezar: el contador completo, con fotos y coach todos los días.'),
+        basic: t('Para registrar todo con foto, sin pensarlo dos veces.'),
+        plus: t('El equilibrio: coach a diario, voz en vivo y planes con IA.'),
+        ultra: t('Para quien usa la IA a fondo, cada día.'),
+    }[tier];
 }
 
-/* [P1-CREDITS-LADDER · 2026-07-31] Ancho del gauge de créditos por tier —
-   escala sqrt(créditos/500) para que la escalera se LEA (una escala lineal
-   aplastaría a Gratis/Básico contra cero). */
-const CREDIT_GAUGE_PCT = { gratis: '14%', basic: '32%', plus: '63%', ultra: '100%' };
+/** Lo que incluye cada plan, derivado de los TOPES reales (los que aplica el servidor). */
+function getIncluye(tier) {
+    const l = TIER_LIMITS[tier];
+    const n = (v) => formatNumber(v);
+    const filas = [
+        { icon: Camera, texto: t('{n} fotos analizadas al día', { n: n(l.fotos_dia) }) },
+        { icon: MessageCircle, texto: t('{n} mensajes con el coach al mes', { n: n(l.coach_mes) }) },
+        { icon: Mic, texto: t('{n} min de voz en vivo al mes', { n: n(l.voz_min_mes) }) },
+        { icon: CalendarRange, texto: t('{n} planes con IA al mes (Beta)', { n: n(TIER_CREDITS[tier]) }) },
+    ];
+    if (tier === 'ultra') {
+        filas.push({ icon: Headphones, texto: t('Soporte prioritario') });
+        filas.push({ icon: Rocket, texto: t('Acceso anticipado a lo nuevo') });
+    }
+    return filas;
+}
 
-/* [P3-PRICING-CARD-TONE · 2026-07-12] Hue de acento por tier (barra superior,
-   glow de hover, iconos de features). Max en ámbar premium. */
-const TIER_TONE = {
-    gratis: '#38BDF8',
-    basic: '#34D399',
-    plus: '#8B5CF6',
-    ultra: '#F59E0B',
-};
-
-/* ============================================================
-   CONFIG: tabla comparativa feature-by-feature
-   ============================================================ */
-
-/* [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante (ver getPlanSummary).
-   Los `values` son datos: cifras y el check `'✓'` no pasan por el catálogo;
-   `'Limitado'` sí, porque se pinta como texto. */
-function getCompFeatures() {
+/** Lo que es igual en todos los planes, también en Gratis. */
+function getSiempreIncluido() {
     return [
-        {
-            category: t('Créditos & Generación'),
-            rows: [
-                {
-                    // [P1-CREDITS-LADDER · 2026-07-31] 15→10 y Max ∞→500 (paridad
-                    // backend). El "ilimitado" era cola de costo sin acotar.
-                    name: t('Créditos de IA al mes'),
-                    desc: t('Cada generación de plan consume 1 crédito'),
-                    values: { gratis: '10', basic: '50', plus: '200', ultra: '500' },
-                },
-                {
-                    name: t('Regenerar plato individual'),
-                    desc: t('Cambiar un plato sin regenerar el plan completo'),
-                    values: { gratis: true, basic: true, plus: true, ultra: true },
-                },
-                {
-                    name: t('Regenerar plan completo'),
-                    desc: t('Generar plan desde cero con nueva configuración'),
-                    values: { gratis: t('Limitado'), basic: t('Limitado'), plus: '✓', ultra: '✓' },
-                },
-            ],
-        },
-        {
-            category: t('Inteligencia & Aprendizaje'),
-            rows: [
-                {
-                    name: t('Asistente IA con Visión'),
-                    desc: t('Sube fotos de comida y el agente las analiza'),
-                    values: { gratis: true, basic: true, plus: true, ultra: true },
-                },
-                {
-                    /* [P3-PRICING-HONEST-COPY · 2026-07-12] Incluida en TODOS los
-                       tiers (directiva del owner: Gratis accede a todo por ahora). */
-                    name: t('Memoria a Largo Plazo'),
-                    desc: t('El agente recuerda tus preferencias y ajustes'),
-                    values: { gratis: true, basic: true, plus: true, ultra: true },
-                },
-            ],
-        },
-        {
-            category: t('Tracking & Métricas'),
-            rows: [
-                {
-                    name: t('Nevera Inteligente'),
-                    desc: t('Inventario sincronizado con tus compras'),
-                    values: { gratis: true, basic: true, plus: true, ultra: true },
-                },
-                {
-                    name: t('Analizador de Macros'),
-                    desc: t('Desglose de calorías y macronutrientes'),
-                    values: { gratis: true, basic: true, plus: true, ultra: true },
-                },
-                // [P1-PHANTOM-FEATURE · 2026-05-31] 'Integración Apple Health/Fit'
-                // eliminada: no existe implementación (cero HealthKit/Google Fit en el
-                // codebase) y es arquitectónicamente imposible en una PWA pura (sin
-                // wrapper nativo Capacitor/Cordova). Vendida con ✓ en un plan de pago =
-                // riesgo de reembolsos/disputas. Reintroducir solo cuando exista de verdad.
-            ],
-        },
-        {
-            category: t('Soporte & Acceso'),
-            rows: [
-                {
-                    name: t('Historial de Planes'),
-                    desc: t('Revisa planes pasados y métricas evolutivas'),
-                    values: { gratis: true, basic: true, plus: true, ultra: true },
-                },
-                {
-                    name: t('Acceso Anticipado'),
-                    desc: t('Prueba nuevas funciones antes que nadie'),
-                    values: { gratis: false, basic: false, plus: false, ultra: true },
-                },
-                {
-                    name: t('Soporte Prioritario VIP'),
-                    desc: t('Respuesta < 24h con técnico dedicado'),
-                    values: { gratis: false, basic: false, plus: false, ultra: true },
-                },
-            ],
-        },
+        t('Contador de calorías y macros sin límite'),
+        t('Buscador de alimentos y registro escrito'),
+        t('Progreso, semanas y rachas'),
+        t('Micronutrientes del día'),
+        t('Nevera y lista de compras'),
+    ];
+}
+
+/* Tabla comparativa (pantallas anchas): las mismas cifras que las tarjetas. */
+function getFilasTabla() {
+    const fila = (nombre, clave) => ({ nombre, valores: Object.fromEntries(['gratis', ...PAGO].map((tier) => [tier, formatNumber(TIER_LIMITS[tier][clave])])) });
+    return [
+        fila(t('Fotos analizadas al día'), 'fotos_dia'),
+        fila(t('Mensajes con el coach al día'), 'coach_dia'),
+        fila(t('Mensajes con el coach al mes'), 'coach_mes'),
+        fila(t('Minutos de voz en vivo al mes'), 'voz_min_mes'),
+        { nombre: t('Planes con IA al mes (Beta)'), valores: Object.fromEntries(['gratis', ...PAGO].map((tier) => [tier, formatNumber(TIER_CREDITS[tier])])) },
+        { nombre: t('Contador, buscador y progreso'), valores: { gratis: true, basic: true, plus: true, ultra: true } },
+        { nombre: t('Soporte prioritario'), valores: { gratis: false, basic: false, plus: false, ultra: true } },
     ];
 }
 
@@ -245,7 +98,7 @@ function getCompFeatures() {
    CONFIG: FAQ
    ============================================================ */
 
-/* [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante (ver getPlanSummary). */
+/* [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante (ver arriba). */
 function getFaqItems() {
     return [
         {
@@ -254,11 +107,14 @@ function getFaqItems() {
         },
         {
             q: t('¿Qué pasa cuando se acaban mis créditos del mes?'),
-            // [P1-PLAN-LOTE-718 · 2026-09-28] Prometía dos cosas que el backend no hace. Los créditos se cuentan
-            // desde el día 1 del mes natural (`db_profiles.get_monthly_api_usage`), no desde la fecha de alta. Y no
-            // hay prorrateo: subir de plan es una suscripción NUEVA a precio completo y la anterior se cancela en
-            // ese momento sin devolver lo ya pagado (`routers/billing.py`, «Detectado Upgrade/Cambio»).
+            // [P1-PLAN-LOTE-718 · 2026-09-28] Los créditos se cuentan desde el día 1 del mes natural
+            // (`db_profiles.get_monthly_api_usage`), y subir de plan es una suscripción NUEVA sin prorrateo
+            // (`routers/billing.py`, «Detectado Upgrade/Cambio»).
             a: t('Tus créditos se renuevan el día 1 de cada mes. Si necesitas más antes, puedes pasarte a un plan superior y su límite se aplica al momento. El cambio es una suscripción nueva a precio completo: la anterior se cancela en ese momento, sin prorrateo ni reembolso de lo ya pagado.'),
+        },
+        {
+            q: t('¿Qué pasa si llego a un tope del día?'),
+            a: t('El contador sigue funcionando: puedes registrar escribiendo o con el buscador. Las fotos y los mensajes del día vuelven a las 24 horas; los del mes, el día 1.'),
         },
         {
             q: t('¿Ofrecen reembolsos?'),
@@ -275,47 +131,21 @@ function getFaqItems() {
    COMPONENTES INLINE
    ============================================================ */
 
-const CompTableCell = ({ value, isCurrent }) => {
+const CeldaTabla = ({ value, destacada }) => {
     const t = useT();
-    const cls = isCurrent ? styles.compTableCellHighlight : '';
-    // [P3-UPGRADE-TABLE-POLISH · 2026-07-01] '✓' (string) se trata como `true` →
-    // check verde consistente (antes salía como un tick de texto diminuto).
-    if (value === true || value === '✓') {
-        return <td className={cls}><Check size={18} className={styles.compTableIconYes} aria-label={t('Incluido')} /></td>;
-    }
-    if (value === false) {
-        return <td className={cls}><X size={18} className={styles.compTableIconNo} aria-label={t('No incluido')} /></td>;
-    }
-    // [P1-CREDITS-LADDER · 2026-07-31] Rama '∞' + InfinityIcon eliminadas:
-    // Max ya no vende ilimitado (500/mes acotado) y ningún valor de la tabla
-    // usa el símbolo.
-    // [P3-UPGRADE-TABLE-POLISH · 2026-07-01] Valor cualitativo (ej. "Limitado")
-    // como chip sutil; los numéricos (15/50/200) quedan como cifra en negrita.
-    if (typeof value === 'string' && !/^\d+$/.test(value)) {
-        return <td className={cls}><span className={styles.compTablePill}>{value}</span></td>;
-    }
+    const cls = destacada ? styles.compTableCellHighlight : '';
+    if (value === true) return <td className={cls}><Check size={18} className={styles.compTableIconYes} aria-label={t('Incluido')} /></td>;
+    if (value === false) return <td className={cls}><X size={18} className={styles.compTableIconNo} aria-label={t('No incluido')} /></td>;
     return <td className={cls}>{value}</td>;
 };
 
 const FAQItem = ({ item, isOpen, onToggle }) => (
     <div className={`${styles.faqItem} ${isOpen ? styles.faqItemOpen : ''}`}>
-        <button
-            type="button"
-            className={styles.faqQuestion}
-            onClick={onToggle}
-            aria-expanded={isOpen}
-        >
+        <button type="button" className={styles.faqQuestion} onClick={onToggle} aria-expanded={isOpen}>
             {item.q}
-            <ChevronDown
-                size={20}
-                className={`${styles.faqChevron} ${isOpen ? styles.faqChevronOpen : ''}`}
-            />
+            <ChevronDown size={20} className={`${styles.faqChevron} ${isOpen ? styles.faqChevronOpen : ''}`} />
         </button>
-        {isOpen && (
-            <div className={styles.faqAnswer}>
-                {item.a}
-            </div>
-        )}
+        {isOpen && <div className={styles.faqAnswer}>{item.a}</div>}
     </div>
 );
 
@@ -500,12 +330,14 @@ const Upgrade = () => {
     const isCurrentPlan = (tier) => currentTier === tier;
     const isPopularPlan = (tier) => tier === 'plus' && !isCurrentPlan('plus');
 
+    const ahorroMax = maxAnnualSavingsPct();
+
     const renderPlanCard = (tier, displayName, ctaName) => {
         const isCurrent = isCurrentPlan(tier);
         const isPopular = isPopularPlan(tier);
         const disabled = isButtonDisabled(tier);
         const isFree = tier === 'gratis';
-        const summary = getPlanSummary()[tier];
+        const ahorro = !isFree && isAnnualForTier(tier) ? annualSavingsPct(tier) : null;
 
         const cardClass = [
             styles.planCard,
@@ -513,129 +345,78 @@ const Upgrade = () => {
             isPopular && styles.planCardPopular,
         ].filter(Boolean).join(' ');
 
-        const btnClass = [
-            styles.planButton,
-            isPopular && !disabled && styles.planButtonPrimary,
-            disabled && styles.planButtonDisabled,
-        ].filter(Boolean).join(' ');
-
         return (
-            <div key={tier} className={cardClass} style={{ '--tone': TIER_TONE[tier] || '#94A3B8' }}>
-                {isPopular && (
-                    <div className={`${styles.planCardBadge} ${styles.planCardBadgePopular}`}>
-                        {t('Más Popular')}
+            <article key={tier} className={cardClass} aria-label={displayName}>
+                <header className={styles.planHead}>
+                    <h3 className={styles.planName}>{displayName}</h3>
+                    {isCurrent && <span className={`${styles.planBadge} ${styles.planBadgeCurrent}`}>{t('Tu plan')}</span>}
+                    {isPopular && <span className={`${styles.planBadge} ${styles.planBadgePopular}`}>{t('Más elegido')}</span>}
+                </header>
+
+                <div className={styles.planPrice}>
+                    <span className={styles.planPriceCurrency}>USD$</span>
+                    <span className={styles.planPriceAmount}>{isFree ? '0' : getPrice(tier)}</span>
+                    {!isFree && <span className={styles.planPricePeriod}>{getPeriodLabel(tier)}</span>}
+                </div>
+                <div className={styles.planPriceEquivalent}>
+                    {isFree && t('Gratis para siempre')}
+                    {!isFree && getMonthlyEquiv(tier) && (
+                        <>
+                            {t('equivale a ${monto}/mes', { monto: getMonthlyEquiv(tier) })}
+                            {ahorro ? <span className={styles.planSaving}>{t('Ahorras {pct} %', { pct: ahorro })}</span> : null}
+                        </>
+                    )}
+                    {!isFree && isAnnual && ANNUAL_DISABLED_TIERS.has(tier) && t('Disponible solo en facturación mensual')}
+                </div>
+                {/* [P1-LAUNCH-OFFER · 2026-07-31] Anclaje de lanzamiento (hoy apagado en config/plans.js: los precios
+                    BAJARON). La fecha se DERIVA del ISO con `timeZone: 'UTC'` (P2-I18N-FECHA-LANZAMIENTO-CLAVADA). */}
+                {!isFree && ofertaViva && !isAnnualForTier(tier) && LAUNCH_OFFER.futureMonthly[tier] && (
+                    <div className={styles.launchOffer}>
+                        <span className={styles.launchOfferOld}>USD${LAUNCH_OFFER.futureMonthly[tier]}</span>
+                        <span className={styles.launchOfferPill}>
+                            {t('Lanzamiento · sube el {fecha}', {
+                                fecha: formatDate(new Date(LAUNCH_OFFER.deadlineISO), {
+                                    day: 'numeric', month: 'short', timeZone: 'UTC',
+                                }),
+                            })}
+                        </span>
                     </div>
                 )}
 
-                <h3 className={styles.planName}>
-                    {displayName}
-                </h3>
-
-                <div>
-                    <div className={styles.planPrice}>
-                        <span className={styles.planPriceCurrency}>USD$</span>
-                        <span className={styles.planPriceAmount}>{isFree ? '0' : getPrice(tier)}</span>
-                        {!isFree && <span className={styles.planPricePeriod}>{getPeriodLabel(tier)}</span>}
-                    </div>
-                    {!isFree && isAnnual && getMonthlyEquiv(tier) && (
-                        <div className={styles.planPriceEquivalent}>
-                            {t('equivale a ${monto}/mes', { monto: getMonthlyEquiv(tier) })}
-                        </div>
-                    )}
-                    {/* [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no tiene plan anual:
-                        con el toggle en "Anual" aclaramos que se factura mensual. */}
-                    {!isFree && isAnnual && ANNUAL_DISABLED_TIERS.has(tier) && (
-                        <div className={styles.planPriceEquivalent}>
-                            {t('Disponible solo en facturación mensual')}
-                        </div>
-                    )}
-                    {/* [P1-LAUNCH-OFFER · 2026-07-31] Anclaje de lanzamiento: el
-                        precio FUTURO tachado + la fecha en que sube. Solo vista
-                        mensual (los anuales no tienen precio futuro definido).
-                        ⚠️ La subida debe ser real en esa fecha — ver config/plans.js. */}
-                    {!isFree && ofertaViva && !isAnnualForTier(tier)
-                        && LAUNCH_OFFER.futureMonthly[tier] && (
-                        <div className={styles.launchOffer}>
-                            <span className={styles.launchOfferOld}>
-                                USD${LAUNCH_OFFER.futureMonthly[tier]}
-                            </span>
-                            <span className={styles.launchOfferPill}>
-                                {/* [P2-I18N-FECHA-LANZAMIENTO-CLAVADA · 2026-08-22] La fecha se
-                                    DERIVA del ISO, no se lee de `deadlineShort` — que es la
-                                    cadena española de la landing («15 sep») y se estaba
-                                    inyectando dentro de una frase traducida: «Lancement ·
-                                    augmente le 15 sep».
-
-                                    `timeZone: 'UTC'` es load-bearing: `new Date('2026-09-15')`
-                                    es medianoche UTC, así que al oeste de Greenwich se
-                                    formatearía como día 14 — el mismo «¿día de quién?» que el
-                                    comentario de `P3-LAUNCH-OFFER-LOCAL-DAY` documenta al lado
-                                    de esta constante. Aquí la respuesta es distinta a la de la
-                                    caducidad: lo que se PINTA es la fecha del calendario, no un
-                                    instante, y esa no depende de dónde esté el lector. */}
-                                {t('Lanzamiento · sube el {fecha}', {
-                                    fecha: formatDate(new Date(LAUNCH_OFFER.deadlineISO), {
-                                        day: 'numeric', month: 'short', timeZone: 'UTC',
-                                    }),
-                                })}
-                            </span>
-                        </div>
-                    )}
-                </div>
-
-                <p className={styles.planDescription}>{summary.description}</p>
-
-                {/* [P1-CREDITS-LADDER · 2026-07-31] Los créditos son EL diferenciador
-                    real entre tiers (P3-PRICING-HONEST-COPY) → bloque hero propio:
-                    cifra grande + gauge en el tono del tier. La escalera se ve. */}
-                <div className={styles.creditBlock}>
-                    <div className={styles.creditRow}>
-                        <span className={styles.creditNumber}>{TIER_CREDITS[tier]}</span>
-                        <span className={styles.creditLabel}>{t('créditos')}<br />{t('al mes')}</span>
-                    </div>
-                    <div className={styles.creditGauge} aria-hidden="true">
-                        <div
-                            className={styles.creditGaugeFill}
-                            style={{ width: CREDIT_GAUGE_PCT[tier] }}
-                        />
-                    </div>
-                </div>
+                <p className={styles.planDescription}>{getDescripcion(tier)}</p>
 
                 <ul className={styles.planFeatures}>
-                    {/* `.filter(Boolean)`: los múltiplos derivados devuelven `null`
-                        si el ladder dejara de crecer — sin el filtro quedaría un
-                        bullet con su check y sin texto. */}
-                    {summary.features.filter(Boolean).map((feat, idx) => (
-                        <li key={idx} className={styles.planFeatureItem}>
-                            <Check size={16} className={styles.planFeatureIcon} />
-                            <span>{feat}</span>
+                    {getIncluye(tier).map(({ icon: Icono, texto }) => (
+                        <li key={texto} className={styles.planFeatureItem}>
+                            <Icono size={16} strokeWidth={2.25} className={styles.planFeatureIcon} aria-hidden="true" />
+                            <span>{texto}</span>
                         </li>
                     ))}
                 </ul>
 
-                <button
-                    type="button"
-                    className={btnClass}
-                    onClick={() => isFree ? handleFreePlanClick() : handleUpgradeClick(tier, ctaName)}
+                <Button
+                    variant={isPopular && !disabled ? 'primary' : 'secondary'}
+                    block
+                    className={[styles.planButton, isPopular && !disabled && styles.planButtonPrimary].filter(Boolean).join(' ')}
+                    onClick={() => (isFree ? handleFreePlanClick() : handleUpgradeClick(tier, ctaName))}
                     disabled={disabled}
                 >
                     {getButtonText(tier)}
-                </button>
-            </div>
+                </Button>
+            </article>
         );
     };
 
     return (
         <div className={styles.root}>
-            {/* --- MODAL DE PAGO (reuse) --- [P5-SPEED-PAYMENTMODAL-LAZY · 2026-06-01]
-                gate por isPaymentOpen + Suspense → chunk lazy al abrir. */}
+            {/* --- MODAL DE PAGO --- [P5-SPEED-PAYMENTMODAL-LAZY] chunk lazy al abrir. */}
             {isPaymentOpen && (
                 <Suspense fallback={null}>
                     <PaymentModal
                         isOpen={isPaymentOpen}
                         onClose={closePayment}
                         onSuccess={(subId, coupon) => handlePaymentSuccess(selectedPlan?.tier, subId, coupon)}
-                        price={selectedPlan?.price || '9.99'}
+                        price={selectedPlan?.price || PRICING.basic.monthly.price}
                         planName={/* [I18N-EXEMPT: NOMBRE del plan en PayPal, no copy: viaja al proveedor y sale en el cargo] */ selectedPlan?.name || 'Suscripción Básico'}
                         tier={selectedPlan?.tier || 'basic'}
                         isAnnual={selectedPlan?.isAnnual || false}
@@ -645,55 +426,29 @@ const Upgrade = () => {
                 </Suspense>
             )}
 
-            {/* --- HEADER STICKY ---
-                [P3-UPGRADE-HEADER-MINIMAL · 2026-05-26] Removido el título
-                "Comparar Planes" — el contexto ya queda claro por las cards
-                de planes que dominan el viewport. Solo back-link. */}
             <header className={styles.stickyHeader}>
-                <button
-                    type="button"
-                    onClick={() => navigate('/dashboard')}
-                    aria-label={t('Volver al dashboard')}
-                    className={styles.backButton}
-                >
-                    <ArrowLeft size={18} />
-                    {t('Volver al Dashboard')}
-                </button>
+                <Button variant="text" size="sm" onClick={() => navigate('/dashboard')} aria-label={t('Volver al dashboard')}>
+                    <ArrowLeft size={18} aria-hidden="true" />
+                    {t('Volver')}
+                </Button>
             </header>
 
             {/* --- HERO --- */}
             <section className={styles.hero}>
-                <div className={styles.heroBadge}>
-                    <Zap size={12} />
-                    {t('Planes Flexibles')}
-                </div>
-                <h1 className={styles.heroTitle}>
-                    {t('Invierte en tu')} <span className={styles.heroTitleGradient}>{t('Salud')}</span>
-                </h1>
+                <p className={styles.heroEyebrow}>{t('Planes')}</p>
+                <h1 className={styles.heroTitle}>{t('Más IA, cuando la necesites')}</h1>
                 <p className={styles.heroSubtitle}>
-                    {t('Elige tu plan. Cambia cuando quieras.')}
+                    {t('El contador es gratis para siempre. Un plan te da más fotos analizadas, más coach y voz en vivo.')}
                 </p>
-
-                {/* [P1-PLAN-LOTE-776 · 2026-09-28] Cortesía vigente: el nombre viene de `plan_tier`
-                    (efectivo); el resto de esta página decide por `planPagado` (rawTier arriba). */}
+                {/* [P1-PLAN-LOTE-776 · 2026-09-28] Cortesía vigente: el nombre viene de `plan_tier` (efectivo). */}
                 {userProfile?.cortesia && (
                     <p className={styles.cortesiaNota}>
                         {t('Tienes {nombre} de cortesía. Si te suscribes, lo conservas cuando termine.', { nombre: tierDisplayName(userProfile.cortesia.plan, t) })}
                     </p>
                 )}
-
-                {/* [P3-UPGRADE-DESKTOP-MINIMAL · 2026-05-26] User context
-                    card "TU PLAN ACTUAL · Ultra · ∞ créditos" eliminado.
-                    Esta info ya es visible:
-                      - Desktop: en el popover del avatar del sidebar (mini
-                        sección "Tu plan" con badge tier + "Ver Planes").
-                      - Mobile: en el chip ULTRA del header del Dashboard.
-                      - En las propias cards de planes abajo, la card del tier
-                        actual del usuario muestra el badge "TU PLAN" en verde.
-                    Duplicar la info aquí era ruido visual. */}
             </section>
 
-            {/* --- TOGGLE MENSUAL / ANUAL --- */}
+            {/* --- MENSUAL / ANUAL --- */}
             <div className={styles.toggleWrapper}>
                 <div className={styles.toggle} role="group" aria-label={t('Periodo de facturación')}>
                     <button
@@ -711,163 +466,83 @@ const Upgrade = () => {
                         aria-pressed={isAnnual}
                     >
                         {t('Anual')}
-                        <span className={styles.toggleDiscountBadge}>-25%</span>
+                        {ahorroMax ? <span className={styles.toggleDiscountBadge}>{t('hasta −{pct} %', { pct: ahorroMax })}</span> : null}
                     </button>
                 </div>
             </div>
 
-            {/* --- PLANS GRID --- */}
+            {/* --- TARJETAS --- [P1-PRICING-I18N] el `tier` que viaja al checkout es la clave cruda. */}
             <div className={styles.plansGrid}>
-                {/* [P1-PRICING-I18N · 2026-08-20] El nombre visible sale del SSOT y pasa
-                    por `t()`; el `ctaName` es el rótulo que ve el usuario en el modal de
-                    pago (`planName`), NO viaja a PayPal — quien gobierna el cobro es el
-                    `tier`, que sigue siendo la clave interna intacta. */}
                 {renderPlanCard('gratis', tierDisplayName('gratis', t), t('Plan Gratis'))}
                 {renderPlanCard('basic', tierDisplayName('basic', t), t('Suscripción {plan}', { plan: tierDisplayName('basic', t) }))}
                 {renderPlanCard('plus', tierDisplayName('plus', t), t('Suscripción {plan}', { plan: tierDisplayName('plus', t) }))}
                 {renderPlanCard('ultra', tierDisplayName('ultra', t), t('Suscripción {plan}', { plan: tierDisplayName('ultra', t) }))}
             </div>
 
-            {/* --- TABLA COMPARATIVA ---
-                [P3-UPGRADE-MOBILE-MINIMAL · 2026-05-26] `sectionTable` class
-                adicional para poder ocultarla en mobile via media query.
-                En mobile la grid de cards arriba ya comunica lo esencial;
-                la tabla detallada solo aporta valor en desktop con espacio. */}
-            <section className={`${styles.sectionWrapper} ${styles.sectionTable}`}>
-                <h2 className={styles.sectionTitle}>{t('Compara todo en detalle')}</h2>
-                <p className={styles.sectionSubtitle}>
-                    {t('Cada feature, cada plan. Encuentra exactamente lo que necesitas.')}
-                </p>
+            {/* --- SIEMPRE INCLUIDO --- */}
+            <section className={styles.siempre} aria-labelledby="upgrade-siempre">
+                <div className={styles.siempreHead}>
+                    <Gauge size={18} strokeWidth={2.25} aria-hidden="true" className={styles.siempreIcon} />
+                    <h2 id="upgrade-siempre" className={styles.siempreTitle}>{t('En todos los planes, también en Gratis')}</h2>
+                </div>
+                <ul className={styles.siempreList}>
+                    {getSiempreIncluido().map((texto) => (
+                        <li key={texto}><Check size={14} strokeWidth={2.5} aria-hidden="true" />{texto}</li>
+                    ))}
+                </ul>
+            </section>
 
+            {/* --- TABLA (pantallas anchas) --- */}
+            <section className={`${styles.sectionWrapper} ${styles.sectionTable}`}>
+                <h2 className={styles.sectionTitle}>{t('Compara los planes')}</h2>
                 <div className={styles.tableWrapper}>
                     <table className={styles.compTable}>
                         <thead>
                             <tr>
-                                <th>{t('Característica')}</th>
-                                {/* [P1-PRICING-I18N · 2026-08-20] Los nombres comerciales
-                                    SÍ se traducen ahora (decisión del dueño): «Gratis» y
-                                    «Básico» son palabras españolas, no marcas. Lo que NO
-                                    cambia son las CLAVES internas — `gratis`/`basic`/
-                                    `plus`/`ultra` las usan PayPal, `user_profiles.plan_tier`
-                                    y los knobs. Se traduce la capa visible, nada más. */}
+                                <th>{t('Incluye')}</th>
                                 <th>{tierDisplayName('gratis', t)}</th>
                                 <th>{tierDisplayName('basic', t)}</th>
-                                <th className={styles.compTableCellHighlight}>
-                                    <span className={styles.compTablePopularBadge}>{t('Popular')}</span>
-                                    {tierDisplayName('plus', t)}
-                                </th>
-                                {/* [P1-CREDITS-LADDER] El tier interno se llama `ultra`
-                                    pero el nombre comercial es Max (= tarjetas arriba). */}
+                                <th className={styles.compTableCellHighlight}>{tierDisplayName('plus', t)}</th>
                                 <th>{tierDisplayName('ultra', t)}</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {getCompFeatures().map((section) => (
-                                <React.Fragment key={section.category}>
-                                    <tr className={styles.compTableCategoryRow}>
-                                        <td colSpan={5}>
-                                            {section.category}
-                                        </td>
-                                    </tr>
-                                    {section.rows.map((row) => (
-                                        <tr key={row.name}>
-                                            <td>
-                                                <div className={styles.compTableFeatureRow}>
-                                                    <span className={styles.compTableFeatureName}>{row.name}</span>
-                                                    {row.desc && (
-                                                        <span className={styles.compTableFeatureDesc}>{row.desc}</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <CompTableCell value={row.values.gratis} />
-                                            <CompTableCell value={row.values.basic} />
-                                            <CompTableCell value={row.values.plus} isCurrent />
-                                            <CompTableCell value={row.values.ultra} />
-                                        </tr>
-                                    ))}
-                                </React.Fragment>
+                            {getFilasTabla().map((fila) => (
+                                <tr key={fila.nombre}>
+                                    <td className={styles.compTableFeatureName}>{fila.nombre}</td>
+                                    <CeldaTabla value={fila.valores.gratis} />
+                                    <CeldaTabla value={fila.valores.basic} />
+                                    <CeldaTabla value={fila.valores.plus} destacada />
+                                    <CeldaTabla value={fila.valores.ultra} />
+                                </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
             </section>
 
-            {/* --- FAQ ---
-                [P3-UPGRADE-MOBILE-MINIMAL · 2026-05-26] `sectionFaq` class
-                adicional para ocultarla en mobile. En mobile el FAQ accordion
-                de 6 items hace la página muy larga; quien quiera detalle
-                contacta soporte. */}
+            {/* --- PREGUNTAS --- */}
             <section className={`${styles.sectionWrapper} ${styles.sectionFaq}`}>
                 <h2 className={styles.sectionTitle}>{t('Preguntas frecuentes')}</h2>
-                <p className={styles.sectionSubtitle}>
-                    {t('Si tienes otra duda, escríbenos a bioboros.support@gmail.com.')}
-                </p>
-
                 <div className={styles.faqList}>
                     {getFaqItems().map((item, idx) => (
-                        <FAQItem
-                            key={idx}
-                            item={item}
-                            isOpen={openFAQ === idx}
-                            onToggle={() => setOpenFAQ(openFAQ === idx ? null : idx)}
-                        />
+                        <FAQItem key={item.q} item={item} isOpen={openFAQ === idx} onToggle={() => setOpenFAQ(openFAQ === idx ? null : idx)} />
                     ))}
                 </div>
             </section>
 
-            {/* --- TRUST LINE MOBILE (solo visible ≤768px) ---
-                [P3-UPGRADE-MOBILE-MINIMAL · 2026-05-26] El grid de 4 trust
-                cards (PayPal/SSL/Garantía/Cancela) es valioso en desktop
-                pero verboso en mobile. Aquí 1 línea inline con los mismos
-                signals compactados — solo aparece en mobile. */}
-            <div className={styles.trustLineMobile}>
+            <div className={styles.trustLine}>
                 <ShieldCheck size={14} aria-hidden="true" />
-                <span>{t('Pago seguro · Datos protegidos · Cancela cuando quieras')}</span>
+                <span>{t('Pago seguro con PayPal · Cancela cuando quieras · No vendemos tus datos')}</span>
             </div>
 
-            {/* --- TRUST BADGES (desktop only) --- */}
-            <section className={styles.trustGrid}>
-                <div className={styles.trustItem}>
-                    <div className={styles.trustIcon}>
-                        <CreditCard size={20} />
-                    </div>
-                    <h3 className={styles.trustTitle}>{t('Pago seguro')}</h3>
-                    <p className={styles.trustDesc}>{t('Procesado por PayPal (PCI-DSS L1)')}</p>
-                </div>
-                <div className={styles.trustItem}>
-                    <div className={styles.trustIcon}>
-                        <ShieldCheck size={20} />
-                    </div>
-                    <h3 className={styles.trustTitle}>{t('Tus datos, protegidos')}</h3>
-                    <p className={styles.trustDesc}>{t('No los vendemos ni entrenamos IA con ellos')}</p>
-                </div>
-                <div className={styles.trustItem}>
-                    <div className={styles.trustIcon}>
-                        <RefreshCw size={20} />
-                    </div>
-                    <h3 className={styles.trustTitle}>{t('Cambia de plan al instante')}</h3>
-                    <p className={styles.trustDesc}>{t('Sube o baja tu plan cuando quieras')}</p>
-                </div>
-                <div className={styles.trustItem}>
-                    <div className={styles.trustIcon}>
-                        <BadgeCheck size={20} />
-                    </div>
-                    <h3 className={styles.trustTitle}>{t('Cancela cuando quieras')}</h3>
-                    <p className={styles.trustDesc}>{t('Sin penalización ni preguntas')}</p>
-                </div>
-            </section>
-
-            {/* --- FOOTER LINKS --- */}
             <footer className={styles.footerLinks}>
                 <a href={apexUrl('/privacy')} target="_blank" rel="noopener noreferrer">{t('Privacidad')}</a>
-                ·
+                <span aria-hidden="true">·</span>
                 <a href={apexUrl('/terms')} target="_blank" rel="noopener noreferrer">{t('Términos')}</a>
-                ·
+                <span aria-hidden="true">·</span>
                 <a href="mailto:bioboros.support@gmail.com">{t('Soporte')}</a>
-                <br />
-                <span style={{ marginTop: '0.5rem', display: 'inline-block' }}>
-                    {t('© 2026 {app} · Hecho en República Dominicana 🇩🇴', { app: BRAND })}
-                </span>
+                <span className={styles.footerNote}>{t('© 2026 {app} · Hecho en República Dominicana 🇩🇴', { app: BRAND })}</span>
             </footer>
         </div>
     );

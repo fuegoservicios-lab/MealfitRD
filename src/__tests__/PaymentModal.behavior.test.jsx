@@ -74,7 +74,7 @@ describe('PaymentModal · comportamiento (P2-9)', () => {
         // Precio en la línea de suscripción Y en el total (sin descuento).
         expect(screen.getAllByText('US$25.00')).toHaveLength(2);
         // Feature del tier plus (PLAN_FEATURES espeja Pricing.jsx).
-        expect(screen.getByText('200 Créditos de IA al mes')).toBeInTheDocument();
+        expect(screen.getByText('20 fotos analizadas al día')).toBeInTheDocument();   // [P1-PLAN-LOTE-1116] los topes reales de Plus
     });
 
     it('focus trap REAL: foco inicial al contenedor; Tab desde el último cicla al primero', async () => {

@@ -11,16 +11,33 @@
 //     leen formData, y los crons son donde se gasta el dinero. Este paso no ES el
 //     interruptor — lo PULSA (PUT /api/profile/plan-mode) al terminar el formulario.
 //
-// Coste honesto: quien sí quiere plan da un tap más. A cambio, la primera pantalla
-// por fin dice qué hace el producto.
+// [P1-PLAN-LOTE-1116 · 2026-11-20] Decisión del dueño: el contador es el modo ESTABLE y el generador de planes está
+// en pruebas; el aviso tiene que pesar «lo máximo posible». Ahora: seis advertencias concretas, el contador como
+// primera opción y botón principal, y «Probar la Beta» bloqueado hasta marcar «Entiendo…». Sin cuenta sigue avanzando
+// directo (P1-PLAN-LOTE-BETA-WARN, 5-nov): el contador exige cuenta, así que no hay alternativa que ofrecerle.
 import { useState } from 'react';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard } from '../../common/FormUI';
 import Modal from '../../common/Modal';
-import { CalendarRange, Gauge, FlaskConical } from 'lucide-react';
+import Button from '../../ui/Button';
+import { CalendarRange, Gauge, FlaskConical, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useT } from '../../../i18n';
 import { WORDMARK_TEXT } from '../../../config/brand';
+import { TIER_CREDITS } from '../../../config/plans';
+import styles from './QAppMode.module.css';
+
+/** Las advertencias del generador en pruebas. FUNCIÓN (no constante): el `t()` de módulo quedaría congelado. */
+function advertencias(t) {
+    return [
+        t('Los menús pueden traer platos repetidos, cantidades raras o ingredientes que no tienes.'),
+        t('Generar un plan tarda varios minutos y a veces falla o se queda a medias.'),
+        t('Las recetas y la lista de compras pueden no cuadrar del todo.'),
+        t('Puede cambiar sin aviso mientras lo mejoramos.'),
+        t('Cada plan gasta uno de tus planes con IA del mes (en Gratis, {n}).', { n: TIER_CREDITS.gratis }),
+        t('No sustituye a un nutricionista ni a tu médico.'),
+    ];
+}
 
 export const QAppMode = ({ onAutoAdvance }) => {
     const { formData, updateData, isGuest } = useAssessment();
@@ -28,19 +45,18 @@ export const QAppMode = ({ onAutoAdvance }) => {
     const value = formData.appMode;
     const isAuth = !isGuest;
     const [showBetaModal, setShowBetaModal] = useState(false);
+    const [entendido, setEntendido] = useState(false);
 
     const set = (v) => updateData('appMode', v);
 
-    // [P1-PLAN-LOTE-BETA-WARN · 2026-11-05]
-    // La advertencia de la Beta solo debe aparecer a personas con cuenta (isAuth = true).
-    // Si es invitado/sin cuenta, avanza directo sin bloquear.
-    const checkBetaWarning = (onConfirm) => {
-        if (!isAuth) {
-            onConfirm();
-            return true;
+    const abrirAviso = () => {
+        if (!isAuth) {           // [P1-PLAN-LOTE-BETA-WARN] sin cuenta no hay contador que recomendar: avanza
+            set('plan');
+            onAutoAdvance();
+            return;
         }
+        setEntendido(false);
         setShowBetaModal(true);
-        return false;
     };
 
     const handleChooseTracking = () => {
@@ -50,21 +66,21 @@ export const QAppMode = ({ onAutoAdvance }) => {
     };
 
     const handleConfirmPlanBeta = () => {
+        if (!entendido) return;
         setShowBetaModal(false);
         set('plan');
         onAutoAdvance();
     };
 
-    // [P1-PLAN-LOTE-926 · 2026-09-30] Decisión del dueño para salir a la App Store: el contador es la forma PRINCIPAL y
-    // recomendada (va primero, con «Recomendado»); el plan generado por IA sigue disponible como «Beta».
+    // [P1-PLAN-LOTE-926 · 2026-09-30] El contador es la forma PRINCIPAL y recomendada (va primero, con «Recomendado»).
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className={styles.lista}>
             <RadioCard
                 name="appMode" value="tracking" icon={Gauge}
                 label={t('Contar lo que como')}
                 badge={t('Recomendado')} badgeTone="accent"
                 desc={isAuth
-                    ? t('Anota tus comidas con una foto o un texto. Te decimos cuántas calorías y proteínas llevas, y el coach te ayuda.')
+                    ? t('El modo estable: anota tus comidas con una foto o un texto, ve tus calorías y proteínas al instante y el coach te guía.')
                     : t('Requiere cuenta: tu diario vive en tu perfil. Inicia sesión para usar este modo.')}
                 checked={value === 'tracking'}
                 disabled={!isAuth}
@@ -83,24 +99,16 @@ export const QAppMode = ({ onAutoAdvance }) => {
             <RadioCard
                 name="appMode" value="plan" icon={CalendarRange}
                 label={t('Plan de comidas con IA')}
-                badge={t('Beta')}
-                desc={t('La IA te arma el menú de cada día, con recetas y lista de compras.')}
+                badge={t('Beta · en pruebas')}
+                desc={t('Experimental: la IA arma un menú con recetas y lista de compras. Puede fallar.')}
                 checked={value === 'plan'}
-                onChange={() => {
-                    checkBetaWarning(() => {
-                        set('plan');
-                        onAutoAdvance();
-                    });
-                }}
+                onChange={() => abrirAviso()}
                 onClick={() => {
                     if (value === 'plan') {
                         onAutoAdvance();
                         return;
                     }
-                    checkBetaWarning(() => {
-                        set('plan');
-                        onAutoAdvance();
-                    });
+                    abrirAviso();
                 }}
             />
 
@@ -108,110 +116,56 @@ export const QAppMode = ({ onAutoAdvance }) => {
                 isOpen={showBetaModal}
                 onClose={() => setShowBetaModal(false)}
                 titleId="modal-beta-plan-title"
-                maxWidth="460px"
+                maxWidth="480px"
                 isBottomSheetOnMobile={true}
             >
-                <div style={{ padding: '0.25rem 0.1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.15rem' }}>
-                        <div style={{
-                            width: 46,
-                            height: 46,
-                            borderRadius: '14px',
-                            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(139, 92, 246, 0.22) 100%)',
-                            border: '1px solid rgba(245, 158, 11, 0.4)',
-                            display: 'grid',
-                            placeItems: 'center',
-                            color: '#F59E0B',
-                            flexShrink: 0,
-                            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.15)',
-                        }}>
+                <div className={styles.aviso}>
+                    <div className={styles.cabecera}>
+                        <div className={styles.icono} aria-hidden="true">
                             <FlaskConical size={24} strokeWidth={2.2} />
                         </div>
                         <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <h3 id="modal-beta-plan-title" style={{ margin: 0, fontSize: '1.12rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.25 }}>
-                                    {t('Plan de comidas con IA')}
-                                </h3>
-                                <span style={{
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700,
-                                    padding: '0.12rem 0.5rem',
-                                    borderRadius: 999,
-                                    background: 'rgba(245, 158, 11, 0.2)',
-                                    color: '#F59E0B',
-                                    border: '1px solid rgba(245, 158, 11, 0.4)',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.04em',
-                                }}>
-                                    {t('Beta')}
-                                </span>
-                            </div>
-                            <p style={{ margin: '0.2rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                                {t('Función en desarrollo activo')}
-                            </p>
+                            <h3 id="modal-beta-plan-title" className={styles.titulo}>
+                                {t('El plan con IA está en fase de pruebas')}
+                            </h3>
+                            <p className={styles.subtitulo}>{t('Beta: todavía no es el modo estable de {marca}', { marca: WORDMARK_TEXT })}</p>
                         </div>
                     </div>
 
-                    <div style={{
-                        background: 'var(--bg-muted, rgba(255, 255, 255, 0.04))',
-                        border: '1px solid var(--border)',
-                        borderRadius: '14px',
-                        padding: '1rem',
-                        marginBottom: '1.25rem',
-                        fontSize: '0.88rem',
-                        lineHeight: 1.55,
-                    }}>
-                        <p style={{ margin: '0 0 0.75rem', color: 'var(--text-main)' }}>
-                            {t('Esta función aún está en fase Beta y no está al 100%. Las sugerencias automáticas de recetas y menús pueden requerir ajustes frecuentes.')}
+                    <div className={styles.alerta} role="note">
+                        <p className={styles.alertaTitulo}>
+                            <AlertTriangle size={16} strokeWidth={2.4} aria-hidden="true" />
+                            {t('Antes de seguir, ten en cuenta:')}
                         </p>
-                        <p style={{ margin: 0, color: 'var(--text-muted)' }}>
-                            <strong style={{ color: 'var(--primary, #6366F1)' }}>{t('Te recomendamos: ')}</strong>
-                            {t('Usar el modo contador («Contar lo que como»). Es la experiencia principal de {marca}: más rápida, precisa con fotos y voz, y totalmente probada.', { marca: WORDMARK_TEXT })}
+                        <ul className={styles.advertencias}>
+                            {advertencias(t).map((texto) => <li key={texto}>{texto}</li>)}
+                        </ul>
+                    </div>
+
+                    <div className={styles.recomendacion}>
+                        <ShieldCheck size={18} strokeWidth={2.3} aria-hidden="true" className={styles.recomendacionIcono} />
+                        <p>
+                            <strong>{t('Te recomendamos el contador.')}</strong>{' '}
+                            {t('Es la experiencia probada de {marca}: registras con una foto o un texto, ves tus calorías y proteínas al instante y el coach te ayuda. Siempre puedes activar el plan más tarde en Ajustes.', { marca: WORDMARK_TEXT })}
                         </p>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                        <button
-                            type="button"
-                            data-hover="boton"
-                            onClick={handleChooseTracking}
-                            style={{
-                                width: '100%',
-                                padding: '0.85rem 1.1rem',
-                                borderRadius: '0.85rem',
-                                border: 'none',
-                                background: 'var(--primary-fill)', // [P1-PLAN-LOTE-1067] relleno del sistema, sin degradado ni color de estado propio
-                                color: '#FFFFFF',
-                                fontWeight: 700,
-                                fontSize: '0.95rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '0.5rem',
-                                boxShadow: 'var(--cta-shadow)',
-                            }}
-                        >
-                            <span>{t('Usar solo el contador (Recomendado)')}</span>
-                        </button>
-                        <button
-                            type="button"
-                            data-hover="fantasma"
-                            onClick={handleConfirmPlanBeta}
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem 1rem',
-                                borderRadius: '0.85rem',
-                                border: '1px solid var(--border)',
-                                background: 'transparent',
-                                color: 'var(--text-muted)',
-                                fontWeight: 600,
-                                fontSize: '0.88rem',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            {t('Entendido, probar versión Beta')}
-                        </button>
+                    <label className={styles.confirmar}>
+                        <input
+                            type="checkbox"
+                            checked={entendido}
+                            onChange={(e) => setEntendido(e.target.checked)}
+                        />
+                        <span>{t('Entiendo que es una versión de prueba: puede fallar y cambiar sin aviso.')}</span>
+                    </label>
+
+                    <div className={styles.botones}>
+                        <Button variant="primary" block onClick={handleChooseTracking}>
+                            {t('Usar el contador (recomendado)')}
+                        </Button>
+                        <Button variant="secondary" block onClick={handleConfirmPlanBeta} disabled={!entendido}>
+                            {t('Probar el plan Beta de todos modos')}
+                        </Button>
                     </div>
                 </div>
             </Modal>

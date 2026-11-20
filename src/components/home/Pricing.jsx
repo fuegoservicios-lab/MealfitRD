@@ -25,7 +25,7 @@ const PaymentModal = lazy(() => import('../../components/dashboard/PaymentModal'
 // anclaje de precio de lanzamiento — SSOT compartido con Upgrade.jsx.
 import {
     ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_DISPLAY_NAME,
-    creditsVsPredecessor, includesPredecessor,
+    TIER_LIMITS, maxAnnualSavingsPct,
     PRICING, NAME_BY_TIER, TIER_RANK, isLaunchOfferActive, monthlyEquivalent,
 } from '../../config/plans';
 import { planPagado } from '../../utils/regalosCuenta';
@@ -62,6 +62,14 @@ const disabledStyles = { opacity: 0.85, cursor: 'not-allowed', filter: 'grayscal
  * El paso previo —tests que monten este componente— ya existe
  * (`Pricing.p2_checkout_characterization.test.jsx`); el hook viene después.
  */
+// [P1-PLAN-LOTE-1116] Las cuatro líneas de topes de una tarjeta, de `TIER_LIMITS` (paridad con el servidor).
+const limitesDe = (tier) => [
+    <>{TIER_LIMITS[tier].fotos_dia} fotos analizadas al día</>,
+    <>{TIER_LIMITS[tier].coach_mes} mensajes con el coach al mes</>,
+    <>{TIER_LIMITS[tier].voz_min_mes} min de voz en vivo al mes</>,
+    <>{TIER_CREDITS[tier]} planes con IA al mes (Beta)</>,
+];
+
 const PlanCard = ({ name, popular = false, priceNode, noteNode, description, features, cta }) => (
     <div className={popular ? `${styles.card} ${styles.popular}` : styles.card}>
         {popular && <div className={styles.popularBadge}>Más Popular</div>}
@@ -107,7 +115,6 @@ const Pricing = () => {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const {
-        PLAN_LIMIT,
         planData,
         upgradeUserPlan,
         userProfile,
@@ -400,7 +407,8 @@ const Pricing = () => {
                             aria-pressed={isAnnual}
                         >
                             Anual
-                            <span className={styles.discountBadge}>-25%</span>
+                            {/* [P1-PLAN-LOTE-1116] el ahorro se DERIVA de los precios (antes «-25%» a mano) */}
+                            {maxAnnualSavingsPct() ? <span className={styles.discountBadge}>-{maxAnnualSavingsPct()}%</span> : null}
                         </button>
                     </div>
                 </div>
@@ -425,37 +433,25 @@ const Pricing = () => {
                             /* [P3-PRICING-HONEST-COPY · 2026-07-12] Directiva del owner:
                                Gratis accede a TODAS las funciones (por ahora) — los tiers
                                se diferencian solo por creditos; Max no cambia. */
-                            description: 'Empieza con todo: plan completo, recetas, asistente y nevera. Gratis.',
-                            features: [
-                                <>{PLAN_LIMIT} Créditos</>, 'Plan de Comidas con IA',
-                                'Recetas Paso a Paso', 'Lista de Compras PDF',
-                                'Analizador de Macros', 'Asistente IA con Visión',
-                                'Nevera Inteligente', 'Seguimiento de Progreso',
-                                'Todas las funciones incluidas',
-                            ],
+                            /* [P1-PLAN-LOTE-1116 · 2026-11-20] Lo que distingue los planes son los TOPES reales de uso
+                               (los que aplica el servidor), no «créditos»; el contador es gratis para siempre. */
+                            description: 'Para empezar: el contador completo, con fotos y coach todos los días.',
+                            features: [...limitesDe('gratis'), 'Contador y progreso sin límite'],
                             cta: { onClick: handleFreePlanClick },
                         },
                         {
                             tier: 'basic',
                             name: 'Básico',
-                            description: 'Más créditos para regenerar platos y días sin miedo a quedarte corto.',
-                            /* [P2-LADDER-VS-PREDECESSOR · 2026-07-31] Salto contra el
-                               escalon anterior, derivado de TIER_CREDITS. */
-                            features: [
-                                <>{TIER_CREDITS.basic} Créditos al mes</>,
-                                creditsVsPredecessor('basic'), includesPredecessor('basic'),
-                            ],
+                            description: 'Para registrar todo con foto, sin pensarlo dos veces.',
+                            features: limitesDe('basic'),
                             cta: { onClick: () => handleUpgradeClick('basic', NAME_BY_TIER.basic) },
                         },
                         {
                             tier: 'plus',
                             name: 'Plus',
                             popular: true,
-                            description: 'Combustible de sobra: ajusta, regenera y experimenta toda la semana.',
-                            features: [
-                                <>{TIER_CREDITS.plus} Créditos al mes</>,
-                                creditsVsPredecessor('plus'), includesPredecessor('plus'),
-                            ],
+                            description: 'El equilibrio: coach a diario, voz en vivo y planes con IA.',
+                            features: limitesDe('plus'),
                             cta: { primary: true, onClick: () => handleUpgradeClick('plus', NAME_BY_TIER.plus) },
                         },
                         {
@@ -464,18 +460,9 @@ const Pricing = () => {
                             /* [P1-CREDITS-LADDER · 2026-07-31] Max ya NO vende "ilimitado":
                                500/mes acotado (paridad backend). El diferenciador real: el
                                tope mas alto + acceso anticipado + VIP. */
-                            description: 'El tope más alto: para quien ajusta y optimiza su plan todos los días.',
-                            features: [
-                                <>{TIER_CREDITS.ultra} Créditos al mes</>,
-                                creditsVsPredecessor('ultra'),
-                                'Acceso Anticipado a Nuevas Funciones',
-                                'Soporte Prioritario VIP',
-                                includesPredecessor('ultra'),
-                            ],
+                            description: 'Para quien usa la IA a fondo, cada día.',
+                            features: [...limitesDe('ultra'), 'Soporte prioritario'],
                             cta: { onClick: () => handleUpgradeClick('ultra', NAME_BY_TIER.ultra) },
-                            /* [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no tiene plan anual:
-                               con el toggle en "Anual" se aclara que se factura mensual. */
-                            notaAnual: 'Disponible solo en facturación mensual',
                         },
                     ].map((plan) => {
                         const dePago = plan.tier !== 'gratis';

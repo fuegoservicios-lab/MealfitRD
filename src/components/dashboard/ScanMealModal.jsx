@@ -85,6 +85,7 @@ import { isAnalyticsOptedOut } from '../../utils/analytics';
 // la enseña; el servidor sigue sin retenerla, como promete la Política de Privacidad).
 import { guardarFotoDeComida } from '../../utils/fotosDeComidas';
 
+import { codigoDeTope, mensajeDeTope } from '../../utils/topes';   // [P1-PLAN-LOTE-1116]
 // [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal "Escanear comida → registrar macros".
 //
 // Flujo: el usuario toma/elige una foto → se sube a `POST /api/diary/upload`
@@ -947,7 +948,9 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
 
             if (!res.ok || !data?.success) {
                 // [P1-PLAN-LOTE-224] Cada foto dice lo suyo, con el copy del chat para los mismos códigos.
-                if (res.status === 413) fallar(t('La imagen es muy grande (máx. 20 MB).'), false);
+                // [P1-PLAN-LOTE-1116] el tope de fotos del día / del gasto del mes: dice qué sí se puede hacer
+                if (res.status === 402) fallar(mensajeDeTope(codigoDeTope(res), t) || t('No pudimos analizar la imagen. Revisa tu conexión e intenta de nuevo.'), false);
+                else if (res.status === 413) fallar(t('La imagen es muy grande (máx. 20 MB).'), false);
                 else if (res.status === 415) fallar(t('Formato no soportado. Usa una foto JPG, PNG, WebP o HEIC.'), false);
                 else if (res.status === 429) fallar(t('Vas muy rápido escaneando fotos. Espera unos segundos y reintenta.'), true);
                 else fallar(t('No pudimos analizar la imagen. Revisa tu conexión e intenta de nuevo.'), true);

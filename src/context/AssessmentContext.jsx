@@ -769,7 +769,7 @@ export const AssessmentProvider = ({ children }) => {
     const { planCount, creditosServidor, regalosRecientes, consultar: consultarCreditos, reiniciar: reiniciarCreditos } = useCreditosDelServidor();
     // [P1-CREDITS-LADDER · 2026-07-31] 15→10, PARIDAD con backend
     // auth._TIER_LIMITS["gratis"] (test_p1_credits_ladder.py ancla ambos lados).
-    const PLAN_LIMIT = 10; // Límite del plan gratuito
+    const PLAN_LIMIT = 4; // Límite del plan gratuito ([P1-PLAN-LOTE-1116] = auth._TIER_LIMITS["gratis"])
 
     // [P1-GUEST-MODE · 2026-06-15] Estado del modo invitado. `guestFlag` espeja
     // el flag de localStorage (re-render al activar); `guestCreditsUsed` espeja

@@ -1,9 +1,9 @@
 import { useState, useCallback } from "react";
 import { PayPalScriptProvider, PayPalButtons, FUNDING } from "@paypal/react-paypal-js";
-import { X, CreditCard, Lock, Tag, Check, AlertCircle, Loader2, ChevronRight, Zap, User, Calendar, ShieldCheck, TrendingUp, CircleCheck, Rocket, Crown } from "lucide-react";
+import { X, CreditCard, Lock, Tag, Check, AlertCircle, Loader2, ChevronRight, User, Calendar, ShieldCheck, Crown, Camera, MessageCircle, Mic, CalendarRange } from "lucide-react";
 
 // [P1-PLAN-LOTE-1064 · 2026-11-17] Decisión del dueño: los emojis de las ventajas (⚡ 📈 ✅ 🔮 👑) pasan a lucide.
-const ICONOS_DEL_PLAN = { creditos: Zap, mas: TrendingUp, incluye: CircleCheck, anticipado: Rocket, prioritario: Crown };
+const ICONOS_DEL_PLAN = { fotos: Camera, coach: MessageCircle, voz: Mic, planes: CalendarRange, prioritario: Crown };
 const IconoDelPlan = ({ nombre }) => {
     const Icono = ICONOS_DEL_PLAN[nombre];
     return Icono ? <Icono size={16} strokeWidth={2.25} aria-hidden="true" /> : null;
@@ -23,11 +23,11 @@ import { trackEvent } from '../../utils/analytics';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener).
 import { useIsMobile } from '../../hooks/useMediaQuery';
-import { formatCurrency, formatPercent, getLocale, i18nKey, useI18n } from '../../i18n';
+import { formatCurrency, formatNumber, formatPercent, getLocale, i18nKey, useI18n } from '../../i18n';
 import { mensajeDelServidor } from '../../utils/errorCopy';
 // [P1-CHECKOUT-CREDITS-TRUTH · 2026-08-22] SSOT del ladder: las cifras y los
 // múltiplos se derivan, jamás se copian (ver `getPlanFeatures`).
-import { TIER_CREDITS, creditsVsPredecessor, includesPredecessor } from '../../config/plans';
+import { TIER_CREDITS, TIER_LIMITS } from '../../config/plans';
 
 /* ─── Plan Feature Map ─── */
 // [P2-PAYMENT-FEATURES-ALIGN · 2026-05-31] La pantalla de checkout anunciaba como
@@ -68,24 +68,18 @@ const MENSAJES_CUPON = [
     i18nKey('Error validando código'),
 ];
 
+// [P1-PLAN-LOTE-1116 · 2026-11-20] Lo que incluye cada plan = sus TOPES reales (los mismos textos que la página de
+// planes y `TIER_LIMITS`, paridad con backend/topes_por_nivel.py), no «créditos» abstractos.
+const _incluye = (t, tier) => [
+    { icon: "fotos", text: t('{n} fotos analizadas al día', { n: formatNumber(TIER_LIMITS[tier].fotos_dia) }) },
+    { icon: "coach", text: t('{n} mensajes con el coach al mes', { n: formatNumber(TIER_LIMITS[tier].coach_mes) }) },
+    { icon: "voz", text: t('{n} min de voz en vivo al mes', { n: formatNumber(TIER_LIMITS[tier].voz_min_mes) }) },
+    { icon: "planes", text: t('{n} planes con IA al mes (Beta)', { n: formatNumber(TIER_CREDITS[tier]) }) },
+];
 const getPlanFeatures = (t) => ({
-    basic: [
-        { icon: "creditos", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.basic }) },
-        { icon: "mas", text: creditsVsPredecessor('basic', t) },
-        { icon: "incluye", text: includesPredecessor('basic', t) },
-    ],
-    plus: [
-        { icon: "creditos", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.plus }) },
-        { icon: "mas", text: creditsVsPredecessor('plus', t) },
-        { icon: "incluye", text: includesPredecessor('plus', t) },
-    ],
-    ultra: [
-        { icon: "creditos", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.ultra }) },
-        { icon: "mas", text: creditsVsPredecessor('ultra', t) },
-        { icon: "anticipado", text: t("Acceso Anticipado a Funciones") },
-        { icon: "prioritario", text: t("Soporte Prioritario VIP") },
-        { icon: "incluye", text: includesPredecessor('ultra', t) },
-    ]
+    basic: _incluye(t, 'basic'),
+    plus: _incluye(t, 'plus'),
+    ultra: [..._incluye(t, 'ultra'), { icon: "prioritario", text: t('Soporte prioritario') }],
 });
 
 const getPlanDisplay = (t) => ({

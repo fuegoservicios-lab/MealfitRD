@@ -35,13 +35,16 @@ describe('QAppMode - Advertencia de versión Beta para el Plan de comidas', () =
         const planCard = screen.getByText('Plan de comidas con IA');
         fireEvent.click(planCard);
 
-        expect(screen.getByText('Esta función aún está en fase Beta y no está al 100%. Las sugerencias automáticas de recetas y menús pueden requerir ajustes frecuentes.')).toBeInTheDocument();
-        expect(screen.getByText('Usar solo el contador (Recomendado)')).toBeInTheDocument();
-        expect(screen.getByText('Entendido, probar versión Beta')).toBeInTheDocument();
+        // [P1-PLAN-LOTE-1116] el aviso pesa: título de fase de pruebas, seis advertencias y la Beta bloqueada
+        expect(screen.getByText('El plan con IA está en fase de pruebas')).toBeInTheDocument();
+        expect(screen.getByText('Generar un plan tarda varios minutos y a veces falla o se queda a medias.')).toBeInTheDocument();
+        expect(screen.getByText('No sustituye a un nutricionista ni a tu médico.')).toBeInTheDocument();
+        expect(screen.getByText('Usar el contador (recomendado)')).toBeInTheDocument();
+        expect(screen.getByText('Probar el plan Beta de todos modos').closest('button')).toBeDisabled();
         expect(mockOnAutoAdvance).not.toHaveBeenCalled();
     });
 
-    it('elegir "Usar solo el contador (Recomendado)" cambia a tracking y avanza', () => {
+    it('elegir "Usar el contador (recomendado)" cambia a tracking y avanza', () => {
         vi.mocked(useAssessment).mockReturnValue({
             formData: { appMode: 'tracking' },
             updateData: mockUpdateData,
@@ -53,14 +56,14 @@ describe('QAppMode - Advertencia de versión Beta para el Plan de comidas', () =
         const planCard = screen.getByText('Plan de comidas con IA');
         fireEvent.click(planCard);
 
-        const btnTracking = screen.getByText('Usar solo el contador (Recomendado)');
+        const btnTracking = screen.getByText('Usar el contador (recomendado)');
         fireEvent.click(btnTracking);
 
         expect(mockUpdateData).toHaveBeenCalledWith('appMode', 'tracking');
         expect(mockOnAutoAdvance).toHaveBeenCalled();
     });
 
-    it('elegir "Entendido, probar versión Beta" cambia a plan y avanza', () => {
+    it('la Beta solo se puede elegir tras marcar «Entiendo…»; entonces cambia a plan y avanza', () => {
         vi.mocked(useAssessment).mockReturnValue({
             formData: { appMode: 'tracking' },
             updateData: mockUpdateData,
@@ -72,7 +75,10 @@ describe('QAppMode - Advertencia de versión Beta para el Plan de comidas', () =
         const planCard = screen.getByText('Plan de comidas con IA');
         fireEvent.click(planCard);
 
-        const btnPlan = screen.getByText('Entendido, probar versión Beta');
+        const btnPlan = screen.getByText('Probar el plan Beta de todos modos');
+        fireEvent.click(btnPlan);
+        expect(mockUpdateData).not.toHaveBeenCalled();   // sin marcar la casilla no pasa nada
+        fireEvent.click(screen.getByRole('checkbox'));
         fireEvent.click(btnPlan);
 
         expect(mockUpdateData).toHaveBeenCalledWith('appMode', 'plan');

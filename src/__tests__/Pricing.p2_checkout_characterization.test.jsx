@@ -75,9 +75,10 @@ describe('[P2-CHECKOUT-PLANCARD] las cuatro tarjetas y su copy propio', () => {
         // El riesgo concreto de extraer un componente compartido: unificar de más.
         pintar();
         const texto = document.body.textContent;
-        expect(texto).toContain('9.99');
-        expect(texto).toContain('19.99');
-        expect(texto).toContain('49.99');
+        // [P1-PLAN-LOTE-1116] precios nuevos
+        expect(texto).toContain('3.99');
+        expect(texto).toContain('6.99');
+        expect(texto).toContain('11.99');
     });
 
     it('los CTA de los cuatro planes NO son el mismo texto', () => {

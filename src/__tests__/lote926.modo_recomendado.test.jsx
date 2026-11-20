@@ -22,7 +22,7 @@ describe('lote 926 · el contador va primero y el plan con IA dice Beta', () => 
         expect(contador).toBeGreaterThan(0);
         expect(plan).toBeGreaterThan(contador);
         expect(s).toContain("badge={t('Recomendado')}");
-        expect(s).toContain("badge={t('Beta')}");
+        expect(s).toContain("badge={t('Beta · en pruebas')}");   // [P1-PLAN-LOTE-1116]
         expect(s).toContain("t('Plan de comidas con IA')");
     });
 

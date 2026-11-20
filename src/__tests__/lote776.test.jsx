@@ -27,12 +27,12 @@ const tFalso = (k, v = {}) => k.replace(/\{(\w+)\}/g, (_, x) => String(v[x]));
 const tnFalso = (n, uno, varios, v) => tFalso(n === 1 ? uno : varios, v);
 
 describe('[776] el tope y el plan que ve la persona', () => {
-    it('el tope lo dice el servidor; sin él, la tabla de plans.js (Ultra = 500, no «Ilimitado»)', () => {
+    it('el tope lo dice el servidor; sin él, la tabla de plans.js (Ultra = 60 desde el 1116, no «Ilimitado»)', () => {
         expect(limiteDePlanes('plus', { limit: 220 })).toBe(220);
-        expect(limiteDePlanes('ultra', null)).toBe(500);
+        expect(limiteDePlanes('ultra', null)).toBe(60);
         expect(limiteDePlanes('admin', { limit: 999999 })).toBe('Ilimitado');
-        expect(limiteDePlanes('gratis', { limit: 0 })).toBe(10);
-        expect(limiteDePlanes(undefined, null)).toBe(10);
+        expect(limiteDePlanes('gratis', { limit: 0 })).toBe(4);
+        expect(limiteDePlanes(undefined, null)).toBe(4);
     });
 
     it('lo de cobro decide por el plan PAGADO', () => {

@@ -69,7 +69,7 @@ describe('[P1-PRICING-I18N] la capa visible sí se traduce', () => {
         // `Pricing.jsx` (marketing, es-DO) llama sin `t` a propósito: una sola fuente,
         // y decide quien pinta.
         expect(tierDisplayName('gratis')).toBe('Gratis');
-        expect(creditsVsPredecessor('basic')).toBe('5× más créditos que Gratis');
+        expect(creditsVsPredecessor('basic')).toBe('3× más créditos que Gratis');   // [P1-PLAN-LOTE-1116] 12/4
         expect(includesPredecessor('plus')).toBe('Todo lo incluido en Básico');
     });
 
@@ -82,7 +82,7 @@ describe('[P1-PRICING-I18N] la capa visible sí se traduce', () => {
     it('los derivados usan el nombre YA traducido del escalón anterior', () => {
         // El bug que esto evita: traducir la frase y dejar el nombre en español
         // («5× more credits than Gratis»).
-        expect(creditsVsPredecessor('basic', t)).toBe('5× more credits than Free');
+        expect(creditsVsPredecessor('basic', t)).toBe('3× more credits than Free');
         expect(includesPredecessor('basic', t)).toBe('Everything in Free');
         expect(includesPredecessor('plus', t)).toBe('Everything in Basic');
     });
@@ -98,16 +98,16 @@ describe('[P1-PRICING-I18N] la capa visible sí se traduce', () => {
     // 2,5) salía con coma A MANO en los cinco idiomas — y en es-DO lo correcto es «2.5»
     // (convención de EE.UU., la dominicana). El separador lo decide el locale activo.
     it('el separador decimal del múltiplo lo decide el locale, no una coma escrita a mano', async () => {
-        const ratio = TIER_CREDITS.ultra / TIER_CREDITS.plus;
+        const ratio = TIER_CREDITS.plus / TIER_CREDITS.basic;   // [P1-PLAN-LOTE-1116] 30/12 = 2,5 (ultra/plus ya es 2)
         expect(Number.isInteger(ratio), 'el caso necesita un múltiplo no entero; si el ladder cambió, elige otro par').toBe(false);
         await loadLocale('fr-FR');
-        expect(creditsVsPredecessor('ultra', t)).toMatch(/^2,5×/);
+        expect(creditsVsPredecessor('plus', t)).toMatch(/^2,5×/);
         await loadLocale('en-US');
-        expect(creditsVsPredecessor('ultra', t)).toMatch(/^2\.5×/);
+        expect(creditsVsPredecessor('plus', t)).toMatch(/^2\.5×/);
         await loadLocale(DEFAULT_LOCALE);
-        expect(creditsVsPredecessor('ultra', t), 'es-DO formatea 2.5, no 2,5').toMatch(/^2\.5×/);
+        expect(creditsVsPredecessor('plus', t), 'es-DO formatea 2.5, no 2,5').toMatch(/^2\.5×/);
         // Sin `t` (landing es-DO): el punto, no la coma.
-        expect(creditsVsPredecessor('ultra')).toMatch(/^2\.5× más créditos/);
+        expect(creditsVsPredecessor('plus')).toMatch(/^2\.5× más créditos/);
     });
 });
 

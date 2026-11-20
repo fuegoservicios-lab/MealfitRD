@@ -177,6 +177,7 @@ import { useResumenDeHoy, leerResumenDeHoy } from '../hooks/useResumenDeHoy';
 import { saludoDelCoach, franjaDeLaHora, momentoDelDia, actualizarMensajePredeterminado, soloAvisoProactivoVencido } from '../utils/saludoDelCoach';
 import { nativeHidesCommerce } from '../config/platform';
 
+import { codigoDeTope, mensajeDeTope } from '../utils/topes';   // [P1-PLAN-LOTE-1116]
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 const _captureAgentPageException = (err, tags) => {
     try {
@@ -3975,6 +3976,7 @@ const AgentPage = () => {
                             415: t('Una de las fotos no se pudo leer. Usa JPG, PNG o HEIC.'),
                             422: t('No pudimos leer una de las fotos. Vuelve a elegirla antes de enviar.'),
                             429: t('Vas muy rápido escaneando fotos. Espera unos segundos y reintenta.'),
+                            402: mensajeDeTope(codigoDeTope(response), t),   // [P1-PLAN-LOTE-1116]
                         }[response.status];
                         throw error;
                     }
@@ -4687,7 +4689,9 @@ const AgentPage = () => {
                     // [P1-COACH-QUOTA-METER · 2026-09-02] 402 = cuota del coach: decir cuántos
                     // eran y cuándo se renueva (cabeceras del backend), no solo «actualiza».
                     let _quotaMessage;
-                    if (response.status === 402) {
+                    if (response.status === 402 && mensajeDeTope(codigoDeTope(response), t)) {
+                        _quotaMessage = mensajeDeTope(codigoDeTope(response), t);   // [P1-PLAN-LOTE-1116] tope del día o del gasto del mes
+                    } else if (response.status === 402) {
                         const _limit = response.headers.get('X-Coach-Quota-Limit');
                         const _resets = response.headers.get('X-Coach-Quota-Resets-At');
                         const _fecha = _resets ? formatDate(_resets, { day: 'numeric', month: 'long', timeZone: 'UTC' }) : '';

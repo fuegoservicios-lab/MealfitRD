@@ -27,6 +27,9 @@ const MOTIVOS = {
     no_habilitado: i18nKey('La voz en vivo no está disponible'),
     // [P1-PLAN-LOTE-844] 428: `fetchWithAuth` ya abrió la hoja del permiso y repitió; llegar aquí es «Ahora no».
     permiso: i18nKey('Activa la IA para usar esto'),
+    // [P1-PLAN-LOTE-1116] los topes por nivel: la voz de siempre (micrófono del chat) sigue disponible
+    tope_voz_mes: i18nKey('Usaste tus minutos de voz en vivo de este mes. Puedes seguir hablándole al coach con el micrófono del chat.'),
+    tope_mes_usd: i18nKey('Llegaste al uso de IA incluido en tu plan este mes. Se renueva el día 1; el contador y lo que ya registraste siguen funcionando.'),
 };
 
 export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, alError } = {}) {
@@ -196,7 +199,7 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, al
             });
             const d = await r.json().catch(() => ({}));
             if (!r.ok || !d?.sdp) {
-                if (d?.motivo === 'presupuesto') setDisponible(false);
+                if (d?.motivo === 'presupuesto' || d?.motivo === 'tope_voz_mes' || d?.motivo === 'tope_mes_usd') setDisponible(false);
                 throw Object.assign(new Error('sesion'), { motivo: r.status === 428 ? 'permiso' : d?.motivo });
             }
             if (conexionRef.current !== c || !abiertoRef.current) return;   // lo cerraron mientras tanto

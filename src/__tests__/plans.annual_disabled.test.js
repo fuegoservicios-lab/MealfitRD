@@ -53,8 +53,10 @@ describe('P0-ANNUAL-PLANS-MISCONFIGURED · qué tiers ofrecen anual', () => {
         expect(ANNUAL_DISABLED_TIERS.has('plus')).toBe(false);
     });
 
-    it('Max NO ofrece anual: ese plan nunca se recreó en PayPal', () => {
-        expect(ANNUAL_DISABLED_TIERS.has('ultra')).toBe(true);
+    // [P1-PLAN-LOTE-1116 · 2026-11-20] Max Anual se recreó en PayPal con `interval_unit: YEAR` (89.99 USD / 1 YEAR,
+    // P-9VJ46656LL145604DNL76RXY): ya se ofrece. El viejo (que cobraba cada MES) sigue retirado.
+    it('Max SÍ ofrece anual: se recreó en PayPal con YEAR', () => {
+        expect(ANNUAL_DISABLED_TIERS.has('ultra')).toBe(false);
     });
 
     it('el fichero lleva al lado el porqué, con el precio correcto de Max', () => {
@@ -63,7 +65,8 @@ describe('P0-ANNUAL-PLANS-MISCONFIGURED · qué tiers ofrecen anual', () => {
         // parece un cambio de una línea.
         const src = readFileSync(join(SRC, 'config', 'plans.js'), 'utf-8');
         expect(src).toContain('interval_unit');
-        expect(src).toMatch(/449\.91/); // 49.99 × 12 × 0.75
+        expect(src).toMatch(/449\.91/); // 49.99 × 12 × 0.75 — el porqué del plan viejo retirado
+        expect(src).toContain('P-9VJ46656LL145604DNL76RXY'); // el nuevo, verificado con YEAR
     });
 });
 
