@@ -2157,3 +2157,69 @@
     color: var(--text-main);
     font-family: inherit;
 }
+
+
+/* ==========================================================================
+ * [P1-PLAN-LOTE-1124 · 2026-11-20] Índice de Configuración más sobrio («lo veo raro», captura del iPhone).
+ * 1. Iconos en UN tono (tinte índigo + icono índigo) en vez de un color por sección.
+ * 2. Móvil: las secciones en UNA tarjeta agrupada con separadores finos (patrón de ajustes de iOS), en vez de filas
+ *    sueltas flotando sobre el fondo. Selectores con `.wrapper:not(.inDialog)` para ganar a las reglas oscuras de
+ *    móvil (SETTINGS-MOBILE-DARK-BLEND) sin tocar la versión en diálogo.
+ * ==========================================================================*/
+.sidebarIcon {
+    background: color-mix(in srgb, var(--primary, #4F46E5) 12%, transparent);
+    color: var(--primary, #4F46E5);
+}
+
+@media (max-width: 768px) {
+    .wrapper:not(.inDialog) .sidebarNav,
+    :global(html[data-theme="dark"]) .wrapper:not(.inDialog) .sidebarNav,
+    :global(html[data-theme="light"]) .wrapper:not(.inDialog) .sidebarNav {
+        gap: 0;
+        padding: 0.25rem 0;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg, 16px);
+        box-shadow: none;
+        overflow: hidden;
+    }
+
+    .wrapper:not(.inDialog) .sidebarItem,
+    :global(html[data-theme="dark"]) .wrapper:not(.inDialog) .sidebarItem,
+    :global(html[data-theme="light"]) .wrapper:not(.inDialog) .sidebarItem {
+        position: relative;
+        gap: 0.75rem;
+        padding: 0.875rem 1rem;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    /* separador fino que empieza tras el icono, como en iOS */
+    .wrapper:not(.inDialog) .sidebarItem + .sidebarItem::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: calc(1rem + 36px + 0.75rem);
+        right: 0;
+        height: 1px;
+        background: var(--border);
+    }
+
+    .wrapper:not(.inDialog) .sidebarIcon {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-md, 12px);
+    }
+
+    .wrapper:not(.inDialog) .sidebarLabel {
+        font-size: 0.9375rem;
+        font-weight: 600;
+    }
+
+    .wrapper:not(.inDialog) .sidebarDescription {
+        font-size: 0.8125rem;
+        line-height: 1.35;
+    }
+}

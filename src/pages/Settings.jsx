@@ -3067,7 +3067,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         className={`${styles.sidebarItem} ${isActive ? styles.sidebarItemActive : ''}`}
                                         aria-current={isActive ? 'page' : undefined}
                                     >
-                                        <span className={styles.sidebarIcon} style={{ background: s.iconBg, color: s.iconColor }}>
+                                        <span className={styles.sidebarIcon}>{/* [P1-PLAN-LOTE-1124] un solo tono: el arcoíris por sección se veía «raro» */}
                                             <Icon size={18} strokeWidth={2.25} />
                                         </span>
                                         <span className={styles.sidebarText}>
