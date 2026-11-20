@@ -1,218 +1,357 @@
-/* [P1-MICRO-FOCO-PANEL · 2026-06-26] Panel "Foco" de micronutrientes (status panel,
-   no dismissible). Jerarquía: foco en lo que falta (tarjetas), lo cumplido calmado
-   (chips), límites aparte. Tokens del DS (tema-aware). Adaptado del rediseño aprobado. */
+/* [P1-MICRO-FOCO-PANEL · 2026-06-26] Panel "Foco" de micronutrientes (menú plegable minimalista).
+   Jerarquía: cabecera interactiva tipo menú (1 clic para plegar/desplegar), foco en lo que falta
+   (tarjetas limpias), lo cumplido en chips discretos y límites aparte. Tokens del DS Bioboros. */
 
-/* [P1-MICRO-CRISP-SURFACES · 2026-08-12] Las dos variables locales de las que
-   cuelga la nitidez del panel. Medido antes de tocar nada (claro | oscuro):
-   chip vs panel dL* 4,7 | 8,1 · tarjeta vs panel 7,1 | 11,7 · chevron 3,07:1 |
-   5,06:1. O sea: el CLARO vivía a mitad de separación que el oscuro en TODAS
-   las relaciones — no era un color feo, era paridad rota (la lección de
-   P1-NOTEBOOK-MARGIN-LIGHT: cuando el mismo elemento existe en dos temas, la
-   gemela es el anclaje).
-
-   `--mn-sunken` (superficie hundida de chips/límites/resumen) y `--mn-line`
-   (la línea que los recorta) se derivan de tokens con color-mix — cero hex
-   clavados, y cada tema recibe la MISMA separación, no el mismo número. */
 .panel {
   --mn-sunken: color-mix(in srgb, var(--surface-sunken) 92%, var(--text-light));
   --mn-line: color-mix(in srgb, var(--border) 74%, var(--text-light));
-  /* La tinta apagada DENTRO de la tarjeta de atencion. En claro la tarjeta se
-     hunde para emparejar la separacion del oscuro, y sobre ese fondo el
-     --text-muted crudo caia a 4,13:1 — por debajo de AA. Un pelin mas oscura
-     lo devuelve a 4,94:1 sin ensuciar el resto del panel. */
   --mn-ink-soft: color-mix(in srgb, var(--text-muted) 85%, var(--text-main));
-  /* [P1-MICRO-DARK-STAYS-DARK · 2026-08-12] La base sobre la que se tine la
-     tarjeta de atencion. En CLARO es la superficie hundida (la tarjeta se
-     hunde respecto al panel blanco). En OSCURO es el propio panel: hundirla
-     mas seria el marron sucio de agosto, pero apoyarla en el slate del chip
-     la dejaba en L* 21,1 — MAS CLARA que el punto mas claro del degradado
-     anterior (20,0). El dueno lo dijo sin rodeos: «se ve muy claro y eso es
-     lo que no queria, y mas que esta en modo oscuro». */
   --mn-att-base: var(--mn-sunken);
   background:
-    radial-gradient(135% 90% at -5% -10%, rgba(45, 212, 191, .10), transparent 55%),
+    radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 56%),
     var(--bg-card);
   border: 1px solid var(--mn-line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  padding: 18px 18px 16px;
+  border-radius: 20px;
+  box-shadow: var(--shadow-md, 0 8px 24px -10px rgba(0, 0, 0, .18));
+  padding: 16px 18px;
   margin-bottom: 1.5rem;
+  transition: border-color 180ms ease, padding 220ms cubic-bezier(.22, 1, .36, 1);
+}
+.panelCollapsed {
+  padding: 13px 16px;
 }
 :global(html[data-theme="dark"]) .panel {
-  /* [P1-MICRO-DARK-SUNKEN · 2026-08-12] HUNDIDA de verdad, no gris claro.
-     `--surface-sunken` en oscuro (#1E293B) es en realidad una superficie
-     LEVANTADA: L* 16,4 contra los 8,3 del panel. Los tres chips de resumen
-     salían como cajas grises flotando sobre el panel oscuro — «el fondo gris
-     de estos 3 no me gustan, hace que se vea muy claro en el modo oscuro y el
-     contexto de adentro lo opaca» (dueño). Con `--bg-page` la superficie se
-     HUNDE (L* 5,2, −3,1 bajo el panel), que es lo que su nombre promete, y el
-     texto de dentro gana contraste en vez de perderlo: el rótulo pasa de 5,71
-     a 7,34:1 y la cifra teal a 10,12:1. Quien recorta la caja es la línea
-     (dL* 21,2 contra este fondo), no el relleno. */
   --mn-sunken: var(--bg-page);
   --mn-line: color-mix(in srgb, var(--border) 80%, var(--text-light));
-  /* En oscuro el muted crudo ya da 4,95:1 sobre la tarjeta: sin retoque. */
   --mn-ink-soft: var(--text-muted);
-  /* En oscuro, oscuro: la tarjeta se tine sobre el panel, no sobre el chip. */
   --mn-att-base: var(--bg-card);
 }
 
-/* Tonos por estado (se heredan vía --tone).
-   [P1-LIGHT-INK-CONTRACT · 2026-08-10] `--tone` es el RELLENO (barra, tinte,
-   punto) y no cambia. `--tone-ink` es la capa de TEXTO: en claro es el -700 del
-   acento, en oscuro es el mismo vivo. Dos papeles porque un color no puede ser
-   a la vez relleno visible y texto legible sobre blanco. */
+/* Tonos por estado (se heredan vía --tone / --tone-ink). */
 .ok    { --tone: #2DD4BF; --tone-ink: var(--ink-ok); }
 .amber { --tone: #FBBF24; --tone-ink: var(--ink-pantry); }
 .far   { --tone: #FB923C; --tone-ink: var(--ink-warn); }
 .over  { --tone: #FB7185; --tone-ink: var(--ink-proteins); }
 
-/* ---------- Cabecera ---------- */
-.head { display: flex; align-items: flex-start; gap: 12px; }
+/* ---------- Cabecera interactiva tipo menú (1 clic pliega/despliega) ---------- */
+.head { display: flex; align-items: center; gap: 12px; }
+
+.headBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 2px;
+  margin: -2px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: opacity 150ms ease;
+}
+.headBtn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .headBtn:hover .menuToggle {
+    border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+    color: var(--text-main);
+    background: color-mix(in srgb, var(--primary) 12%, var(--mn-sunken));
+  }
+}
+.headBtn:active .menuToggle { transform: scale(.94); }
+
 .badge {
-  flex: none; width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center;
-  color: #04221d; background: linear-gradient(150deg, #2DD4BF, #22D3EE);
-  box-shadow: 0 6px 16px -5px rgba(45, 212, 191, .55);
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, var(--mn-sunken));
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--mn-line));
 }
-.headText { flex: 1; min-width: 0; }
+.badge svg { width: 18px; height: 18px; }
+
+.headText { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .title {
-  margin: 0; font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800;
-  letter-spacing: -.02em; line-height: 1.18; color: var(--text-main);
+  display: block;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+  color: var(--text-main);
 }
-.sub { margin-top: 4px; display: block; font-size: .77rem; font-weight: 600; color: var(--text-muted); }
-.sub b { color: var(--text-main); font-weight: 800; }
+.sub {
+  margin-top: 3px;
+  display: block;
+  font-size: .77rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sub b { color: var(--text-main); font-weight: 700; }
 .warn { color: var(--ink-warn); }
-.warn b { color: var(--ink-warn); }
+.warn b { color: var(--ink-warn); font-weight: 700; }
+
+.headRight {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.compactRatio {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-size: .76rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--tone-ink);
+  background: color-mix(in srgb, var(--tone) 12%, var(--mn-sunken));
+  border: 1px solid color-mix(in srgb, var(--tone) 32%, var(--mn-line));
+}
+
+.menuToggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  background: var(--mn-sunken);
+  border: 1px solid var(--mn-line);
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease, transform 120ms ease;
+}
+.menuChev {
+  transition: transform 240ms cubic-bezier(.22, 1, .36, 1);
+}
+.menuChevOpen { transform: rotate(180deg); }
+
+.bodyWrap { overflow: hidden; }
+.bodyInner { padding-top: 14px; }
 
 /* ---------- Chips de resumen ---------- */
-.stats { display: flex; gap: 9px; margin-top: 15px; flex-wrap: wrap; }
+.stats { display: flex; gap: 8px; margin-top: 0; flex-wrap: wrap; }
 .stat {
-  flex: 1; min-width: 120px; display: flex; align-items: center; gap: 11px; padding: 11px 13px;
-  border-radius: 14px; background: var(--mn-sunken); border: 1px solid var(--mn-line);
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  border-radius: 13px;
+  background: var(--mn-sunken);
+  border: 1px solid var(--mn-line);
+  position: relative;
 }
-.stat .num { font-family: var(--font-heading); font-size: 1.4rem; font-weight: 800; line-height: .9; color: var(--tone-ink); }
-.stat .lbl { font-size: .75rem; font-weight: 600; color: var(--text-muted); line-height: 1.25; }
-.stat .lbl b { display: block; color: var(--text-main); font-weight: 800; font-size: .75rem; }
+.stat::before {
+  content: '';
+  width: 3px;
+  align-self: stretch;
+  border-radius: 99px;
+  background: var(--tone);
+  opacity: .8;
+  flex: none;
+}
+.stat .num {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--tone-ink);
+}
+.stat .lbl { font-size: .74rem; font-weight: 500; color: var(--text-muted); line-height: 1.25; }
+.stat .lbl b { display: block; color: var(--text-main); font-weight: 700; font-size: .75rem; }
 
 /* ---------- Eyebrow / section label ---------- */
 .eye {
-  display: flex; align-items: center; gap: 10px; margin: 17px 2px 10px;
-  font-size: .75rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 2px 9px;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
-.eye .ct { font-weight: 800; color: var(--text-muted); letter-spacing: .02em; }
-.eye .ln { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
+.eye .ct { font-weight: 700; color: var(--text-muted); letter-spacing: .02em; }
+.eye .ln { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); opacity: .75; }
 .eye.hot { color: var(--ink-warn); }
 .eye.allgood { color: var(--ink-good); }
 .eye.allgood svg { width: 13px; height: 13px; }
 .dotpulse {
-  width: 7px; height: 7px; border-radius: 50%; background: #FB923C;
-  box-shadow: 0 0 0 0 rgba(251, 146, 60, .5); animation: mn-pulse 2s infinite;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FB923C;
+  box-shadow: 0 0 0 0 rgba(251, 146, 60, .4);
+  animation: mn-pulse 2.4s infinite;
 }
 @keyframes mn-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(251, 146, 60, .45); }
-  70% { box-shadow: 0 0 0 7px rgba(251, 146, 60, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(251, 146, 60, .38); }
+  70% { box-shadow: 0 0 0 5px rgba(251, 146, 60, 0); }
   100% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0); }
 }
 
 /* ---------- Barra de progreso ---------- */
 .bar {
-  position: relative; height: 8px; border-radius: 99px; overflow: hidden;
+  position: relative;
+  height: 6px;
+  border-radius: 99px;
+  overflow: hidden;
   background: color-mix(in srgb, var(--text-light) 40%, transparent);
 }
 .bar.thin { height: 5px; }
 .bar > i {
-  position: absolute; inset: 0 auto 0 0; height: 100%; border-radius: 99px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 62%, #000), var(--tone));
-  box-shadow: 0 0 12px -3px var(--tone);
-  transition: width .9s cubic-bezier(.16, 1, .3, 1);
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 70%, #000), var(--tone));
+  transition: width .7s cubic-bezier(.22, 1, .36, 1);
 }
 .estim {
-  background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255, 255, 255, .35) 4px, rgba(255, 255, 255, .35) 8px);
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255, 255, 255, .32) 4px, rgba(255, 255, 255, .32) 8px);
 }
 
 /* ---------- Tarjeta "Por mejorar hoy" ---------- */
+.attList { display: flex; flex-direction: column; gap: 9px; }
+
 .att {
-  display: block; width: 100%; text-align: left; font: inherit; color: inherit;
-  /* [P1-MICRO-CRISP-SURFACES] SOLIDA, no gradiente: el degradado moria
-     exactamente en el color del panel (dL* 1,8 en claro y 0,0 en oscuro en su
-     mitad inferior), asi que la tarjeta se DISOLVIA hacia abajo — eso es lo
-     contrario de nitido. Y el borde sube de 36% a 52% de tono: el borde es
-     donde ya vivia el estado (P1-MICRO-TONE-RESTRAINT), asi que definirlo mas
-     no reparte color nuevo por la tarjeta. */
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
   background: color-mix(in srgb, var(--tone) 9%, var(--mn-att-base));
   border: 1px solid color-mix(in srgb, var(--tone) 52%, var(--border));
-  border-radius: 17px; padding: 15px 16px; transition: border-color .16s, transform .16s;
+  border-radius: 15px;
+  padding: 13px 15px;
+  transition: border-color 160ms ease, transform 120ms ease;
 }
-.att + .att { margin-top: 10px; }
+.att + .att { margin-top: 0; }
 .att.clickable { cursor: pointer; }
-.att.clickable:hover { border-color: color-mix(in srgb, var(--tone) 70%, var(--border)); }
-.att.clickable:active { transform: scale(.995); }
-
-.attTop { display: flex; align-items: center; gap: 10px; }
-.attName { font-size: 1.02rem; font-weight: 800; letter-spacing: -.01em; color: var(--text-main); white-space: nowrap; }
-.pill {
-  flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 99px;
-  font-size: .75rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;
-  color: var(--tone-ink); background: color-mix(in srgb, var(--tone) 17%, transparent);
-  border: 1px solid color-mix(in srgb, var(--tone) 36%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .att.clickable:hover { border-color: color-mix(in srgb, var(--tone) 76%, var(--border)); }
+  .att.clickable:hover .improve {
+    background: color-mix(in srgb, var(--tone) 18%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 44%, transparent);
+  }
 }
-.bigPct { margin-left: auto; font-family: var(--font-heading); font-size: 1.55rem; font-weight: 800; color: var(--tone-ink); line-height: .9; }
-.att .bar { margin: 12px 0 9px; }
+.att.clickable:active { transform: scale(.994); }
+.att.clickable:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
-.vals { font-size: .78rem; color: var(--mn-ink-soft); font-variant-numeric: tabular-nums; }
-.vals b { color: var(--text-main); font-weight: 800; }
-/* [P1-MICRO-TONE-RESTRAINT · 2026-08-11] «Faltan 13 mcg» es una CANTIDAD, no un
-   estado: vuelve a tinta normal.
+.attTop { display: flex; align-items: center; gap: 9px; }
+.attName {
+  font-family: var(--font-heading);
+  font-size: .98rem;
+  font-weight: 800;
+  letter-spacing: -.015em;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+.pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--tone-ink);
+  background: color-mix(in srgb, var(--tone) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 32%, transparent);
+}
+.bigPct {
+  margin-left: auto;
+  font-family: var(--font-heading);
+  font-size: 1.38rem;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--tone-ink);
+  line-height: 1;
+}
+.att .bar { margin: 10px 0 8px; }
 
-   El pase de contraste de claro creó `--tone-ink` (la capa de texto del color de
-   estado) y lo repartió por casi toda la tarjeta: la píldora, el porcentaje grande,
-   este dato, la dosis y el número del límite. Con cinco cosas del mismo naranja, el
-   naranja deja de significar «esto va mal» y pasa a ser el color de la tarjeta —
-   señalarlo todo es no señalar nada. Y el desbordamiento se llevó al tema oscuro de
-   regalo, porque ahí `--tone-ink` es el tono vivo.
-
-   El criterio: el color de estado marca el ESTADO (la píldora, «bajo control») y la
-   CIFRA que ese estado califica (el 13 %, los contadores del resumen). Lo demás
-   —cantidades, dosis, instrucciones— es tinta normal. Mismo principio que
-   `--pa-accent` en el landing: marca la cifra, no la pantalla. */
-.miss { color: var(--text-main); font-weight: 800; }
+.vals { font-size: .77rem; color: var(--mn-ink-soft); font-variant-numeric: tabular-nums; }
+.vals b { color: var(--text-main); font-weight: 700; }
+.miss { color: var(--text-main); font-weight: 700; }
 
 .sugg {
-  display: flex; align-items: flex-start; gap: 9px; margin-top: 12px; padding-top: 12px;
-  border-top: 1px dashed color-mix(in srgb, var(--tone) 34%, var(--border));
-  font-size: .77rem; line-height: 1.45; color: var(--mn-ink-soft);
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--tone) 20%, var(--border));
+  font-size: .76rem;
+  line-height: 1.45;
+  color: var(--mn-ink-soft);
 }
 .suggIco {
-  flex: none; width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; margin-top: -1px;
-  color: var(--tone-ink); background: color-mix(in srgb, var(--tone) 15%, transparent);
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  margin-top: 0;
+  color: var(--tone-ink);
+  background: color-mix(in srgb, var(--tone) 13%, transparent);
 }
-/* La línea más larga de la tarjeta («Suplir: 600–800 UI (15–20 mcg)») era también de
-   color de estado: una INSTRUCCIÓN teñida como si fuese la alarma. Ver el criterio en
-   `.miss`. El icono de la sugerencia (`.suggIco`) conserva el tinte: es un acento
-   pequeño que ancla el bloque, no una frase entera. */
-.dose { display: block; margin-top: 5px; font-size: .75rem; font-weight: 700; color: var(--text-main); }
+.dose { display: block; margin-top: 4px; font-size: .75rem; font-weight: 700; color: var(--text-main); }
 
-/* [P1-SUPPLEMENT-CAUTION-UI · 2026-06-26] Precaución por suplemento (UL / interacción / renal). */
 .caution {
-  display: flex; align-items: flex-start; gap: 7px; margin-top: 8px;
-  font-size: .75rem; line-height: 1.4; color: var(--mn-ink-soft);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 7px;
+  font-size: .74rem;
+  line-height: 1.4;
+  color: var(--mn-ink-soft);
 }
-.cautionIco { flex: none; margin-top: 1px; }
+.cautionIco { flex: none; margin-top: 1px; opacity: .85; }
 
 .improve {
-  display: inline-flex; align-items: center; gap: 5px; margin-top: 11px;
-  font-size: .75rem; font-weight: 800; color: var(--tone-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: .74rem;
+  font-weight: 700;
+  color: var(--tone-ink);
+  background: color-mix(in srgb, var(--tone) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 26%, transparent);
+  transition: background-color 150ms ease, border-color 150ms ease;
 }
 
-.disclaimer { margin: 12px 2px 2px; font-size: .75rem; line-height: 1.5; color: var(--text-muted); }
+.disclaimer { margin: 12px 2px 0; font-size: .73rem; line-height: 1.5; color: var(--text-muted); }
 
-/* [P1-MICROS-EMPTY-QUIET · 2026-08-21] Nota del estado compacto (reporte
-   todo-ceros: sin platos que medir). Mismos tokens muted que .disclaimer/.sub
-   — es información de espera, no un aviso. */
+/* Estado compacto vacío (todo-ceros) */
 .emptyNote { margin: 12px 2px 2px; font-size: .82rem; line-height: 1.55; color: var(--text-muted); }
 
-/* [P1-PLAN-LOTE-144 · 2026-09-20] El estado en espera es una FILA, no un panel: sin halo ni sombra, borde
-   discontinuo (hueco que se llenará), insignia en contorno y el estado como píldora junto al título. */
 .panelQuiet {
   background: color-mix(in srgb, var(--surface-sunken) 45%, transparent);
   border-style: dashed;
@@ -236,144 +375,104 @@
   color: var(--text-muted); background: var(--mn-sunken); border: 1px solid var(--mn-line);
 }
 
-/* ---------- Chips "Al día" (expandibles → cantidad exacta) ---------- */
-.grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; align-items: start; }
+/* ---------- Chips "Al día" ---------- */
+.grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; align-items: start; }
 .q {
-  display: flex; flex-direction: column; width: 100%; padding: 10px 11px; border-radius: 12px;
-  background: var(--mn-sunken); border: 1px solid var(--mn-line); min-width: 0;
-  font: inherit; color: inherit; text-align: left; cursor: pointer; -webkit-appearance: none; appearance: none;
-  transition: border-color .16s, background .16s;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--mn-sunken);
+  border: 1px solid var(--mn-line);
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 150ms ease, background-color 150ms ease;
 }
-.q:hover { border-color: color-mix(in srgb, #2DD4BF 40%, var(--border)); }
-.q.qOpen { border-color: color-mix(in srgb, #2DD4BF 48%, var(--border)); }
+.q:hover { border-color: color-mix(in srgb, #2DD4BF 42%, var(--border)); }
+.q.qOpen { border-color: color-mix(in srgb, #2DD4BF 52%, var(--border)); }
+.q:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .qRow { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .chk { flex: none; width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; color: #04221d; background: #2DD4BF; }
-.qName { font-size: .81rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.qPct { margin-left: auto; flex: none; font-size: .75rem; font-weight: 800; color: var(--ink-ok); font-variant-numeric: tabular-nums; }
-/* [P1-MICRO-CRISP-SURFACES] text-light daba 3,07:1 en claro (5,06 en oscuro):
-   otra vez la mitad. Es un control, no una decoracion — pasa a text-muted. */
-.qChev { flex: none; color: var(--text-muted); transition: transform .2s ease; }
+.qName { font-size: .8rem; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qPct { margin-left: auto; flex: none; font-size: .74rem; font-weight: 800; color: var(--ink-ok); font-variant-numeric: tabular-nums; }
+.qChev { flex: none; color: var(--text-muted); transition: transform 200ms ease; }
 .qChevOpen { transform: rotate(180deg); }
 .qVals { overflow: hidden; display: block; }
 .qValsInner {
-  display: block; margin-top: 8px; padding-top: 8px; padding-left: 25px;
-  border-top: 1px dashed var(--border);
-  font-size: .76rem; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  display: block;
+  margin-top: 8px;
+  padding-top: 8px;
+  padding-left: 25px;
+  border-top: 1px solid var(--border);
+  font-size: .75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
-.qValsInner b { color: var(--text-main); font-weight: 800; }
+.qValsInner b { color: var(--text-main); font-weight: 700; }
 .qEst { color: var(--text-muted); }
 
 /* ---------- Límites ---------- */
-.lim2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
-/* [P1-LIGHT-INK-CONTRACT · 2026-08-10] `--tone` ya NO se declara aquí. Declararlo
-   en el cuerpo de `.lim` lo ponía DESPUÉS de `.over` con la misma especificidad
-   (0,1,0), así que un límite excedido se pintaba teal en vez de rosa — en el
-   tema OSCURO, donde nunca hubo override que lo tapara. El override de contraste
-   de julio lo arreglaba en claro por accidente, así que al retirarlo el bug
-   habría reaparecido en los dos temas.
-   El estado normal ahora lo pone `.ok` desde el JSX, igual que en los chips. */
-.lim { padding: 12px 14px; border-radius: 14px; background: var(--mn-sunken); border: 1px solid var(--mn-line); }
+.lim2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lim { padding: 11px 13px; border-radius: 13px; background: var(--mn-sunken); border: 1px solid var(--mn-line); }
 .limTop { display: flex; align-items: center; gap: 8px; }
-.limName { font-size: .87rem; font-weight: 700; color: var(--text-main); }
+.limName { font-size: .85rem; font-weight: 700; color: var(--text-main); }
 .limOk {
-  margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 800;
-  text-transform: uppercase; letter-spacing: .05em; color: var(--tone-ink);
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .71rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--tone-ink);
 }
-.lim .bar { margin: 11px 0 8px; background: color-mix(in srgb, var(--text-light) 34%, transparent); }
-.lim .bar > i { box-shadow: none; background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 55%, transparent), color-mix(in srgb, var(--tone) 80%, transparent)); }
-.limVal { font-size: .75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.limVal b { color: var(--text-main); font-weight: 800; }
-/* Simétrico de `.miss` en la tarjeta de límites: los miligramos son cantidad. El
-   estado de esa tarjeta lo dice `.limOk` («BAJO CONTROL»), que sí conserva el tono. */
+.lim .bar { margin: 9px 0 7px; background: color-mix(in srgb, var(--text-light) 34%, transparent); }
+.lim .bar > i { background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 55%, transparent), color-mix(in srgb, var(--tone) 85%, transparent)); }
+.limVal { font-size: .74rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.limVal b { color: var(--text-main); font-weight: 700; }
 .mg { color: var(--text-main); font-weight: 700; }
-/* [P3-CEILING-WORSTDAY-UI · 2026-07-04] aviso per-día del techo — el promedio "bajo control"
-   escondía días que SÍ se pasan (banner de plan-no-óptimo parecía ilógico junto al panel verde). */
-.limDays { margin-top: 6px; font-size: .75rem; line-height: 1.45; font-weight: 600; color: #b45309; }
+.limDays { margin-top: 6px; font-size: .74rem; line-height: 1.45; font-weight: 600; color: #b45309; }
 :global(html[data-theme="dark"]) .limDays { color: #fcd34d; }
-/* [P3-FLOOR-WORSTDAY-UI · 2026-07-04] simétrico para PISOS: el chip verde delata el día corto. */
-.qDay { font-size: .75rem; font-weight: 800; color: #b45309; white-space: nowrap; }
+.qDay { font-size: .74rem; font-weight: 800; color: #b45309; white-space: nowrap; }
 :global(html[data-theme="dark"]) .qDay { color: #fcd34d; }
 .qDayNote { color: #b45309; font-weight: 600; }
 :global(html[data-theme="dark"]) .qDayNote { color: #fcd34d; }
 
-/* [P1-LIGHT-INK-CONTRACT · 2026-08-10] `.foot` retirada: regla huérfana, cero
-   `styles.foot` en MicronutrientMeter.jsx. El pie que sí se renderiza es
-   `.disclaimer`. Se borra en vez de migrarla porque una regla muerta con un
-   patrón viejo (--text-light + opacity encadenada) es una plantilla esperando
-   a que alguien la copie. */
-
-/* ---------- Tema CLARO: el relleno cálido (P2-MICRO-LIGHT-CONTRAST · 2026-07-12) ----
-   [P1-LIGHT-INK-CONTRACT · 2026-08-10] Este bloque SE CONSERVA, pero cambia lo
-   que significa. Antes era el arreglo de contraste del texto y tenía dos
-   agujeros: solo reasignaba la variable `--tone`, así que no alcanzaba a
-   `.warn`, `.eye.hot` ni `.eye.allgood` —que escriben `color:` literal—, y
-   dejaba escrito que «el teal .ok NO se toca (aceptable)». No lo era: medido
-   1,78:1, y era el color de TODOS los porcentajes de «AL DÍA», de «BAJO
-   CONTROL» y de «margen 788 mg» — justo lo que el dueño reportó como lavado.
-
-   El texto ya no depende de esto: lo resuelve `--tone-ink` en las cuatro clases
-   de estado. Lo que queda aquí es su otro efecto, el bueno: en claro un relleno
-   -600 se lee más rico sobre blanco que un -400. O sea, sigue siendo el RELLENO
-   cálido, no el arreglo de legibilidad.
-
-   ⚠️ Este bloque además tapaba por accidente el bug de cascada de `.lim` (ver
-   arriba). Ese bug ya está arreglado de verdad, así que tocar esto es seguro. */
+/* ---------- Tema CLARO: relleno cálido ---------- */
 :global(html:not([data-theme='dark'])) .amber { --tone: #D97706; }
 :global(html:not([data-theme='dark'])) .far   { --tone: #EA580C; }
 :global(html:not([data-theme='dark'])) .over  { --tone: #E11D48; }
 
-/* ============================================================================
-   [P1-MICRO-DARK-SURFACES · 2026-08-11] Dos inversiones del tema claro heredadas
-   por el oscuro. Ninguna era de contraste —el panel está sano: 14,7:1 el nombre,
-   6,3:1 el texto apagado— sino de qué SUPERFICIE pesa más.
-
-   1. LA PISTA VACÍA BRILLABA MÁS QUE EL DATO. `.bar` se rellena con
-      `color-mix(--text-light 40%, transparent)`. Sobre un fondo claro eso da un
-      gris MÁS OSCURO que la tarjeta: se lee como el surco por recorrer. Sobre el
-      casi-negro da un gris MÁS CLARO — medido: pista L* 30,2 contra tarjeta 12,7.
-      En Vitamina D, al 14%, el resultado es que la franja de «lo que falta» pesa
-      mucho más que la de «lo que llevas»: la barra acaba comunicando lo contrario
-      de lo que mide. Aquí la pista se hunde por debajo de la tarjeta, que es lo
-      que hacía en claro.
-
-   2. EL FONDO DE LA TARJETA SE VOLVÍA MARRÓN. `.att` mezcla su tono al 11% con
-      `--bg-page`. Naranja sobre blanco roto da un melocotón que se lee como
-      «aviso»; naranja sobre #0B1120 da rgb(37,31,35), un marrón apagado que en
-      una paleta de slates fríos se ve sucio, no alarmante. En oscuro la mezcla
-      va sobre `--surface-sunken` (slate) y con la mitad de tono: la tarjeta se
-      queda fría y el estado lo siguen diciendo el borde, la píldora, el
-      porcentaje y el relleno de la barra — que es donde ya vivía.
-
-   Se toca SOLO el tema oscuro: en claro las dos reglas base hacen lo correcto y
-   no hay nada que arreglar. */
+/* ---------- Tema OSCURO: pista de barra hundida ---------- */
 :global(html[data-theme="dark"]) .bar {
   background: rgba(2, 6, 23, 0.55);
 }
 
-/* [P1-MICRO-CRISP-SURFACES · 2026-08-12] El override oscuro de `.att` MURIO: la
-   regla base mezcla sobre `--mn-sunken`, que cada tema define a su manera, asi
-   que una sola declaracion sirve a los dos. Antes eran dos gradientes distintos
-   y AMBOS morian en el color del panel (claro dL* 1,8 abajo, oscuro 0,0): la
-   tarjeta se disolvia por la mitad inferior en los dos temas. */
-
 /* ---------- Responsive ---------- */
 @media (max-width: 560px) {
+  .panel { padding: 14px; border-radius: 18px; }
+  .panelCollapsed { padding: 12px 14px; }
   .grid2 { grid-template-columns: 1fr; }
   .lim2 { grid-template-columns: 1fr; }
-  /* [P2-MOBILE-HERO-FLAT · 2026-09-03] Antes cada contador ocupaba una fila entera
-     (tres tarjetas apiladas para tres números): 3 en una fila, número encima de la
-     etiqueta, que a 390px cabe con holgura (~105px por celda). */
   .stats { gap: 7px; }
   .stat {
     min-width: 0; flex: 1 1 0; flex-direction: column; align-items: flex-start;
     gap: 3px; padding: 10px 11px;
   }
-  .stat .num { font-size: 1.32rem; }
-  .stat .lbl { font-size: .75rem; }
-  .stat .lbl b { font-size: .75rem; }
+  .stat::before { width: 18px; height: 2.5px; align-self: auto; margin-bottom: 2px; }
+  .stat .num { font-size: 1.28rem; }
+  .stat .lbl { font-size: .74rem; }
+  .stat .lbl b { font-size: .74rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bar > i { transition: none; }
+  .bar > i, .menuChev, .qChev, .menuToggle, .panel { transition: none; }
   .dotpulse { animation: none; }
 }

@@ -16,7 +16,7 @@
  * al usuario preguntándose dónde quedó.
  */
 import { describe, it, expect } from 'vitest';
-import { render, screen } from './utils/test-utils';
+import { fireEvent, render, screen, waitFor } from './utils/test-utils';
 import MicronutrientMeter from '../components/dashboard/MicronutrientMeter';
 
 const floor = (nutriente, valor, piso) => ({ nutriente, key: nutriente.toLowerCase(), valor, unidad: 'g', piso, status: valor >= piso ? 'ok' : 'bajo' });
@@ -48,5 +48,26 @@ describe('[P1-MICROS-EMPTY-QUIET] reporte todo-ceros → panel compacto, no muro
         expect(screen.getByText('Por mejorar hoy')).toBeInTheDocument();
         expect(screen.queryByText(/Aún no hay platos que medir/)).not.toBeInTheDocument();
         expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0);
+    });
+
+    it('se pliega y despliega en un clic desde la cabecera estilo menú', async () => {
+        render(
+            <MicronutrientMeter
+                report={{ panel: [floor('Fibra', 40, 38), floor('Vitamina D', 5, 15), ceil('Sodio', 900, 2000)] }}
+                advice={{ items: [] }}
+            />,
+        );
+        const toggle = screen.getByRole('button', { name: /Micronutrientes/i });
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByText('Por mejorar hoy')).toBeInTheDocument();
+
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByText('1/2')).toBeInTheDocument();
+        await waitFor(() => expect(screen.queryByText('Por mejorar hoy')).not.toBeInTheDocument());
+
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(await screen.findByText('Por mejorar hoy')).toBeInTheDocument();
     });
 });

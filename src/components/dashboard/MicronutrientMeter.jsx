@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPercent, useT, useTn } from '../../i18n';
 import styles from './MicronutrientMeter.module.css';
@@ -193,6 +193,8 @@ function ReachedChip({ e, worstDayNum = null }) {
 export default function MicronutrientMeter({ report, advice, onAsk }) {
     const t = useT();
     const tn = useTn();
+    const bodyId = useId();
+    const [menuOpen, setMenuOpen] = useState(true);
     const panel = report?.panel;
     const adviceItems = advice?.items || [];
 
@@ -260,148 +262,171 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
 
     return (
         <motion.section
-            className={styles.panel}
+            className={`${styles.panel} ${menuOpen ? styles.panelOpen : styles.panelCollapsed}`}
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             role="region"
             aria-label={t('Micronutrientes')}
         >
-            <header className={styles.head}>
+            <button
+                type="button"
+                className={styles.headBtn}
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-expanded={menuOpen}
+                aria-controls={bodyId}
+            >
                 <span className={styles.badge} aria-hidden="true"><FlaskIcon /></span>
-                <div className={styles.headText}>
-                    <h3 className={styles.title}>{t('Micronutrientes')}</h3>
+                <span className={styles.headText}>
+                    <span className={styles.title}>{t('Micronutrientes')}</span>
                     <span className={styles.sub}>
                         <b>{nReached}</b> {t('de {total} metas al día', { total: nFloors })}
                         {nAtt > 0 && <> · <span className={styles.warn}><b>{nAtt}</b> {t('por mejorar')}</span></>}
                     </span>
-                </div>
-            </header>
+                </span>
+                <span className={styles.headRight} aria-hidden="true">
+                    {!menuOpen && (
+                        <span className={`${styles.compactRatio} ${nAtt > 0 ? styles.far : styles.ok}`}>
+                            {nReached}/{nFloors}
+                        </span>
+                    )}
+                    <span className={styles.menuToggle}>
+                        <ChevronIcon className={`${styles.menuChev} ${menuOpen ? styles.menuChevOpen : ''}`} />
+                    </span>
+                </span>
+            </button>
 
-            {/* Chips de resumen */}
-            <div className={styles.stats}>
-                <div className={`${styles.stat} ${styles.ok}`}>
-                    <span className={styles.num}>{nReached}</span>
-                    <span className={styles.lbl}>{t('metas')}<b>{t('al día')}</b></span>
-                </div>
-                <div className={`${styles.stat} ${nAtt > 0 ? styles.far : styles.ok}`}>
-                    <span className={styles.num}>{nAtt}</span>
-                    {/* «por» es una preposición suelta partida en dos renglones por
-                        diseño: sin sufijo de contexto el traductor no tiene frase. */}
-                    <span className={styles.lbl}>{t('por|estadística')}<b>{t('mejorar')}</b></span>
-                </div>
-                {limits.length > 0 && (
-                    <div className={`${styles.stat} ${styles.ok}`}>
-                        <span className={styles.num}>{nLimitsOk}</span>
-                        <span className={styles.lbl}>{t('límites')}<b>{t('bajo control')}</b></span>
-                    </div>
-                )}
-            </div>
-
-            {/* Por mejorar hoy */}
-            {attention.length > 0 ? (
-                <>
-                    <div className={`${styles.eye} ${styles.hot}`}>
-                        <span className={styles.dotpulse} aria-hidden="true" />{t('Por mejorar hoy')}<span className={styles.ln} />
-                    </div>
-                    {attention.map((e, i) => (
-                        <AttentionCard
-                            key={`att-${e.key || i}`}
-                            e={e}
-                            adviceItem={findAdvice(e, adviceItems)}
-                            onAsk={onAsk ? () => onAsk(buildQuestion(e, t), e.nutriente) : undefined}
-                        />
-                    ))}
-                </>
-            ) : (
-                <div className={`${styles.eye} ${styles.allgood}`}>
-                    <CheckIcon />{t('Todas tus metas del día están cubiertas')}<span className={styles.ln} />
-                </div>
-            )}
-
-            {/* Al día */}
-            {reached.length > 0 && (
-                <>
-                    <div className={styles.eye}>{t('Al día')} <span className={styles.ct}>· {nReached}</span><span className={styles.ln} /></div>
-                    <div className={styles.grid2}>
-                        {reached.map((e, i) => {
-                            // [P3-FLOOR-WORSTDAY-UI · 2026-07-04] chip delata el peor día si el
-                            // detector per-día de pisos flaggeó este micro (promedio verde ≠ todos
-                            // los días cubiertos).
-                            const _pdf = report?.per_day_floors;
-                            const _low = (_pdf?.flagged && Array.isArray(_pdf?.worst_day?.low)
-                                && _pdf.worst_day.low.includes(e.key))
-                                ? (_pdf.worst_day?.day_index ?? 0) + 1 : null;
-                            return <ReachedChip key={`r-${e.key || i}`} e={e} worstDayNum={_low} />;
-                        })}
-                    </div>
-                </>
-            )}
-
-            {/* Límites */}
-            {limits.length > 0 && (
-                <>
-                    <div className={styles.eye}>{t('Mantener bajo el límite')}<span className={styles.ln} /></div>
-                    <div className={styles.lim2}>
-                        {limits.map((e, i) => {
-                            const s = classifyRow(e, t);
-                            return (
-                                <div key={`l-${e.key || i}`} className={`${styles.lim} ${styles[s.tone]}`}>
-                                    <div className={styles.limTop}>
-                                        <span className={styles.limName}>{etiquetaMicro(e, t)}</span>
-                                        <span className={styles.limOk}>
-                                            <ShieldIcon />{s.over ? t('Sobre el límite') : t('Bajo control')}
-                                        </span>
-                                    </div>
-                                    <div className={`${styles.bar} ${styles.thin}`}>
-                                        <i style={{ width: `${s.fill}%` }} />
-                                    </div>
-                                    <div className={styles.limVal}>
-                                        <b>{_fmtN(s.valor)}</b> / {_fmtN(s.target)} {e.unidad}
-                                        {' · '}<span className={styles.mg}>
-                                            {s.over
-                                                ? t('te pasaste {cantidad} {unidad}', { cantidad: _fmtN(_round1(s.valor - s.target)), unidad: e.unidad })
-                                                : t('margen {cantidad} {unidad}', { cantidad: _fmtN(_round1(s.target - s.valor)), unidad: e.unidad })}
-                                        </span>
-                                    </div>
-                                    {/* [P3-CEILING-WORSTDAY-UI · 2026-07-04] El valor de arriba es el
-                                        PROMEDIO multi-día — con techos (sodio) el promedio esconde días
-                                        que sí se pasan (caso vivo: promedio 1,818 "bajo control" con 2 de
-                                        3 días sobre 2,000 → el banner de plan-no-óptimo parecía ilógico
-                                        junto al panel verde). Si el chequeo per-día del backend flaggeó
-                                        ESTE nutriente, lo decimos aquí mismo. */}
-                                    {(() => {
-                                        const pdc = report?.per_day_ceilings;
-                                        if (!pdc?.flagged) return null;
-                                        const highs = pdc?.worst_day?.high;
-                                        if (!Array.isArray(highs) || !highs.includes(e.key)) return null;
-                                        const _dNum = (pdc.worst_day?.day_index ?? 0) + 1;
-                                        return (
-                                            <div className={styles.limDays}>
-                                                {/* Dos plurales independientes en la misma frase (el
-                                                    sustantivo va con `days_evaluated`, el verbo con
-                                                    `days_above`): la frase entera es UNA clave y cada
-                                                    plural entra interpolado desde su propio `tn`. */}
-                                                {t('⚠ {arriba} de {total} {dias} {verbo} del techo (peor: Día {peor}) — el promedio está bien, pero revisa los enlatados/queso/embutidos de esos días.', {
-                                                    arriba: pdc.days_above,
-                                                    total: pdc.days_evaluated,
-                                                    dias: tn(pdc.days_evaluated, 'día', 'días'),
-                                                    verbo: tn(pdc.days_above, 'se pasa', 'se pasan'),
-                                                    peor: _dNum,
-                                                })}
-                                            </div>
-                                        );
-                                    })()}
+            <AnimatePresence initial={false}>
+                {menuOpen && (
+                    <motion.div
+                        id={bodyId}
+                        className={styles.bodyWrap}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                        <div className={styles.bodyInner}>
+                            {/* Chips de resumen */}
+                            <div className={styles.stats}>
+                                <div className={`${styles.stat} ${styles.ok}`}>
+                                    <span className={styles.num}>{nReached}</span>
+                                    <span className={styles.lbl}>{t('metas')}<b>{t('al día')}</b></span>
                                 </div>
-                            );
-                        })}
-                    </div>
-                </>
-            )}
-            {/* [P1-SUPPLEMENT-DISCLAIMER-UI · 2026-06-26] disclaimer médico global cuando se muestran dosis */}
-            {advice?.disclaimer && adviceItems.length > 0 && (
-                <p className={styles.disclaimer}>{avisoMicro(advice.disclaimer, t)}</p>
-            )}
+                                <div className={`${styles.stat} ${nAtt > 0 ? styles.far : styles.ok}`}>
+                                    <span className={styles.num}>{nAtt}</span>
+                                    {/* «por» es una preposición suelta partida en dos renglones por
+                                        diseño: sin sufijo de contexto el traductor no tiene frase. */}
+                                    <span className={styles.lbl}>{t('por|estadística')}<b>{t('mejorar')}</b></span>
+                                </div>
+                                {limits.length > 0 && (
+                                    <div className={`${styles.stat} ${styles.ok}`}>
+                                        <span className={styles.num}>{nLimitsOk}</span>
+                                        <span className={styles.lbl}>{t('límites')}<b>{t('bajo control')}</b></span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Por mejorar hoy */}
+                            {attention.length > 0 ? (
+                                <>
+                                    <div className={`${styles.eye} ${styles.hot}`}>
+                                        <span className={styles.dotpulse} aria-hidden="true" />{t('Por mejorar hoy')}<span className={styles.ln} />
+                                    </div>
+                                    <div className={styles.attList}>
+                                        {attention.map((e, i) => (
+                                            <AttentionCard
+                                                key={`att-${e.key || i}`}
+                                                e={e}
+                                                adviceItem={findAdvice(e, adviceItems)}
+                                                onAsk={onAsk ? () => onAsk(buildQuestion(e, t), e.nutriente) : undefined}
+                                            />
+                                        ))}
+                                    </div>
+                                </>
+                            ) : (
+                                <div className={`${styles.eye} ${styles.allgood}`}>
+                                    <CheckIcon />{t('Todas tus metas del día están cubiertas')}<span className={styles.ln} />
+                                </div>
+                            )}
+
+                            {/* Al día */}
+                            {reached.length > 0 && (
+                                <>
+                                    <div className={styles.eye}>{t('Al día')} <span className={styles.ct}>· {nReached}</span><span className={styles.ln} /></div>
+                                    <div className={styles.grid2}>
+                                        {reached.map((e, i) => {
+                                            // [P3-FLOOR-WORSTDAY-UI · 2026-07-04] chip delata el peor día si el
+                                            // detector per-día de pisos flaggeó este micro (promedio verde ≠ todos
+                                            // los días cubiertos).
+                                            const _pdf = report?.per_day_floors;
+                                            const _low = (_pdf?.flagged && Array.isArray(_pdf?.worst_day?.low)
+                                                && _pdf.worst_day.low.includes(e.key))
+                                                ? (_pdf.worst_day?.day_index ?? 0) + 1 : null;
+                                            return <ReachedChip key={`r-${e.key || i}`} e={e} worstDayNum={_low} />;
+                                        })}
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Límites */}
+                            {limits.length > 0 && (
+                                <>
+                                    <div className={styles.eye}>{t('Mantener bajo el límite')}<span className={styles.ln} /></div>
+                                    <div className={styles.lim2}>
+                                        {limits.map((e, i) => {
+                                            const s = classifyRow(e, t);
+                                            return (
+                                                <div key={`l-${e.key || i}`} className={`${styles.lim} ${styles[s.tone]}`}>
+                                                    <div className={styles.limTop}>
+                                                        <span className={styles.limName}>{etiquetaMicro(e, t)}</span>
+                                                        <span className={styles.limOk}>
+                                                            <ShieldIcon />{s.over ? t('Sobre el límite') : t('Bajo control')}
+                                                        </span>
+                                                    </div>
+                                                    <div className={`${styles.bar} ${styles.thin}`}>
+                                                        <i style={{ width: `${s.fill}%` }} />
+                                                    </div>
+                                                    <div className={styles.limVal}>
+                                                        <b>{_fmtN(s.valor)}</b> / {_fmtN(s.target)} {e.unidad}
+                                                        {' · '}<span className={styles.mg}>
+                                                            {s.over
+                                                                ? t('te pasaste {cantidad} {unidad}', { cantidad: _fmtN(_round1(s.valor - s.target)), unidad: e.unidad })
+                                                                : t('margen {cantidad} {unidad}', { cantidad: _fmtN(_round1(s.target - s.valor)), unidad: e.unidad })}
+                                                        </span>
+                                                    </div>
+                                                    {(() => {
+                                                        const pdc = report?.per_day_ceilings;
+                                                        if (!pdc?.flagged) return null;
+                                                        const highs = pdc?.worst_day?.high;
+                                                        if (!Array.isArray(highs) || !highs.includes(e.key)) return null;
+                                                        const _dNum = (pdc.worst_day?.day_index ?? 0) + 1;
+                                                        return (
+                                                            <div className={styles.limDays}>
+                                                                {t('⚠ {arriba} de {total} {dias} {verbo} del techo (peor: Día {peor}) — el promedio está bien, pero revisa los enlatados/queso/embutidos de esos días.', {
+                                                                    arriba: pdc.days_above,
+                                                                    total: pdc.days_evaluated,
+                                                                    dias: tn(pdc.days_evaluated, 'día', 'días'),
+                                                                    verbo: tn(pdc.days_above, 'se pasa', 'se pasan'),
+                                                                    peor: _dNum,
+                                                                })}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            )}
+                            {/* [P1-SUPPLEMENT-DISCLAIMER-UI · 2026-06-26] disclaimer médico global cuando se muestran dosis */}
+                            {advice?.disclaimer && adviceItems.length > 0 && (
+                                <p className={styles.disclaimer}>{avisoMicro(advice.disclaimer, t)}</p>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </motion.section>
     );
 }
