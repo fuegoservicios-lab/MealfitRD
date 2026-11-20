@@ -150,6 +150,8 @@ export const QAppMode = ({ onAutoAdvance }) => {
                         </p>
                     </div>
 
+                    {/* [P1-PLAN-LOTE-1122] pie fijo: el texto se desplaza y la casilla + los botones siempre se ven */}
+                    <div className={styles.pie}>
                     <label className={styles.confirmar}>
                         <input
                             type="checkbox"
@@ -166,6 +168,7 @@ export const QAppMode = ({ onAutoAdvance }) => {
                         <Button variant="secondary" block onClick={handleConfirmPlanBeta} disabled={!entendido}>
                             {t('Probar el plan Beta de todos modos')}
                         </Button>
+                    </div>
                     </div>
                 </div>
             </Modal>

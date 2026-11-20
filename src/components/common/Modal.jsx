@@ -222,7 +222,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             borderRadius: isMobile ? '1.5rem 1.5rem 0 0' : '1.25rem',
                             padding: isMobile ? '1.5rem 1.25rem 2rem' : '2rem',
                             width: '100%', maxWidth, position: 'relative', zIndex: 1,
-                            maxHeight: isMobile && !adjustToKeyboard ? 'calc(100% - max(12px, env(safe-area-inset-top)))' : '100%',
+                            maxHeight: isMobile && !adjustToKeyboard ? '88%' : '100%',   // la hoja no sube bajo la barra superior
                             overflowY: 'auto', overscrollBehavior: 'contain',
                             ...(adjustToKeyboard ? { scrollPadding: '1rem' } : {}),
                             boxShadow: isMobile ? '0 -10px 32px rgba(0, 0, 0, 0.28)' : '0 24px 56px -12px rgba(0, 0, 0, 0.5)',

@@ -1375,6 +1375,19 @@ html[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
  * Color violet-600 (#4F46E5) matchea la paleta primary de la app.
  *
  * Tooltip-anchor: P2-MODAL-OUTLINE-A11Y. */
+/* [P1-PLAN-LOTE-1122 · 2026-11-20] Barra de desplazamiento fina y discreta dentro de los modales (la nativa, gruesa y
+ * clara, se pegaba al borde redondeado). */
+.mealfit-modal-content {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 35%, transparent) transparent;
+}
+.mealfit-modal-content::-webkit-scrollbar { width: 6px; }
+.mealfit-modal-content::-webkit-scrollbar-track { background: transparent; margin: 16px 0; }
+.mealfit-modal-content::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-muted) 35%, transparent);
+  border-radius: 999px;
+}
+
 .mealfit-modal-content:focus {
   /* :focus default (incluye mouse click): sin outline para no romper UX
    * de mouse users. El ring solo aparece bajo :focus-visible (keyboard). */
