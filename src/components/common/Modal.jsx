@@ -218,14 +218,15 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                         style={{
                             background: 'var(--bg-card)',
                             border: isMobile ? undefined : '1px solid color-mix(in srgb, var(--text-muted) 22%, var(--border))',
-                            borderTop: isMobile ? '1px solid color-mix(in srgb, var(--text-muted) 22%, var(--border))' : undefined,
                             borderRadius: isMobile ? '1.5rem 1.5rem 0 0' : '1.25rem',
-                            padding: isMobile ? '1.5rem 1.25rem 2rem' : '2rem',
+                            padding: isMobile ? '0.75rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom, 0px))' : '2rem',
                             width: '100%', maxWidth, position: 'relative', zIndex: 1,
-                            maxHeight: isMobile && !adjustToKeyboard ? '88%' : '100%',   // la hoja no sube bajo la barra superior
+                            maxHeight: isMobile && !adjustToKeyboard ? '86%' : '100%',   // la hoja deja aire arriba para que se vea el borde redondeado
                             overflowY: 'auto', overscrollBehavior: 'contain',
                             ...(adjustToKeyboard ? { scrollPadding: '1rem' } : {}),
-                            boxShadow: isMobile ? '0 -10px 32px rgba(0, 0, 0, 0.28)' : '0 24px 56px -12px rgba(0, 0, 0, 0.5)',
+                            boxShadow: isMobile
+                                ? 'inset 0 1px 0 color-mix(in srgb, var(--text-muted) 28%, transparent), 0 -18px 44px rgba(0, 0, 0, 0.52)'
+                                : '0 24px 56px -12px rgba(0, 0, 0, 0.5)',
                             // [P2-MODAL-OUTLINE-A11Y] outline ahora gestionado
                             // por `.mealfit-modal-content:focus-visible` en
                             // index.css — keyboard users SÍ ven el indicador.
@@ -233,8 +234,8 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                     >
                         {/* Drag handle — solo en móvil */}
                         {isMobile && (
-                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                                <div style={{ width: '40px', height: '4px', borderRadius: '99px', background: 'var(--border)' }} />
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+                                <div style={{ width: '36px', height: '4px', borderRadius: '999px', background: 'color-mix(in srgb, var(--text-muted) 38%, transparent)' }} />
                             </div>
                         )}
 
@@ -245,7 +246,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             transition={{ duration: 0.35 }}
                             aria-label={t('Cerrar ventana modal')}
                             aria-disabled={disableClose}
-                            style={{ position: 'absolute', top: isMobile ? '1.25rem' : '1rem', right: isMobile ? '1.25rem' : '1rem', opacity: disableClose ? 0.5 : 1 }}
+                            style={{ position: 'absolute', top: isMobile ? '0.875rem' : '1rem', right: isMobile ? '1rem' : '1rem', opacity: disableClose ? 0.5 : 1 }}
                         >
                             <X size={20} strokeWidth={2.25} aria-hidden="true" />
                         </motion.button>
@@ -256,7 +257,8 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
             )}
         </AnimatePresence>
     );
-    // Escape transformed/scrolling Settings ancestors so viewport coordinates remain valid.
-    return adjustToKeyboard && typeof document !== 'undefined' ? createPortal(content, document.body) : content;
+    // Portal a document.body para escapar cualquier stacking context (p. ej. transform de framer-motion)
+    // y asegurar que el backdrop + modal cubran siempre la barra superior.
+    return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 };
 export default Modal;

@@ -1376,16 +1376,34 @@ html[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
  *
  * Tooltip-anchor: P2-MODAL-OUTLINE-A11Y. */
 /* [P1-PLAN-LOTE-1122 · 2026-11-20] Barra de desplazamiento fina y discreta dentro de los modales (la nativa, gruesa y
- * clara, se pegaba al borde redondeado). */
-.mealfit-modal-content {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--text-muted) 35%, transparent) transparent;
+ * clara, se pegaba al borde redondeado).
+ * Chromium 121+ ignora ::-webkit-scrollbar si el elemento declara scrollbar-width/color, pintando flechas nativas
+ * que invaden el border-radius: reservamos scrollbar-width/color solo para navegadores sin ::-webkit-scrollbar (Firefox). */
+@supports not selector(::-webkit-scrollbar) {
+  .mealfit-modal-content {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--text-muted) 35%, transparent) transparent;
+  }
 }
-.mealfit-modal-content::-webkit-scrollbar { width: 6px; }
-.mealfit-modal-content::-webkit-scrollbar-track { background: transparent; margin: 16px 0; }
+.mealfit-modal-content::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.mealfit-modal-content::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.mealfit-modal-content::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 20px 0;
+}
 .mealfit-modal-content::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--text-muted) 35%, transparent);
   border-radius: 999px;
+}
+.mealfit-modal-content::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-muted) 55%, transparent);
 }
 
 .mealfit-modal-content:focus {

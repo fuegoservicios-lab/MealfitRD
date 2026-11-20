@@ -116,7 +116,7 @@ export const QAppMode = ({ onAutoAdvance }) => {
                 isOpen={showBetaModal}
                 onClose={() => setShowBetaModal(false)}
                 titleId="modal-beta-plan-title"
-                maxWidth="480px"
+                maxWidth="620px"
                 isBottomSheetOnMobile={true}
             >
                 <div className={styles.aviso}>
