@@ -14,20 +14,21 @@
 import PropTypes from 'prop-types';
 import { LogOut } from 'lucide-react';
 import { useT } from '../../i18n';
+import Button from '../ui/Button';
 import styles from './SoloMayoresDeEdad.module.css';
 
 const SoloMayoresDeEdad = ({ onSalir, onCorregir }) => {
     const t = useT();
     return (
         <div className={styles.corte} data-testid="solo-mayores-de-edad">
-            <button type="button" className={styles.salir} onClick={onSalir}>
+            <Button block onClick={onSalir}>
                 <LogOut size={18} aria-hidden="true" />
                 {t('Entendido, salir')}
-            </button>
+            </Button>
             {typeof onCorregir === 'function' && (
-                <button type="button" className="mf-ghost-btn" onClick={onCorregir}>
+                <Button variant="text" block onClick={onCorregir}>
                     {t('Me equivoqué al escribir mi edad')}
-                </button>
+                </Button>
             )}
         </div>
     );

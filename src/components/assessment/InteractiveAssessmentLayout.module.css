@@ -400,6 +400,28 @@
     max-width: 56ch;
 }
 
+/* [P1-PLAN-LOTE-1123 · 2026-11-20] Pantalla de corte (edad de un menor): centrada, con icono y sin el aire de un paso. */
+.titleBloqueo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin: 1rem auto 2rem;
+}
+.titleBloqueo .title { font-size: clamp(1.5rem, 2.6vw, 1.875rem); text-wrap: balance; max-width: 22ch; }
+.titleBloqueo .subtitle { font-size: 0.9375rem; }
+.bloqueoIcono {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    margin-bottom: 1rem;
+    border-radius: var(--radius-full, 999px);
+    color: var(--warning, #f59e0b);
+    background: var(--warning-bg, rgba(245, 158, 11, 0.12));
+    border: 1px solid var(--warning-border, rgba(245, 158, 11, 0.35));
+}
+
 .stepContainer {
     flex: 1;
     display: flex;

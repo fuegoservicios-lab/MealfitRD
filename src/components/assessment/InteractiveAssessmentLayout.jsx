@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
-import { ChevronLeft, LayoutDashboard, LogIn, LogOut, Settings as SettingsIcon } from 'lucide-react';
+import { ChevronLeft, LayoutDashboard, LogIn, LogOut, Settings as SettingsIcon, ShieldAlert } from 'lucide-react';
 import styles from './InteractiveAssessmentLayout.module.css';
 import Wordmark from '../common/Wordmark';
 import LocaleSwitcher from '../common/LocaleSwitcher';
@@ -295,8 +295,10 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.3 }}
-                            className={styles.titleSection}
+                            className={bloqueo ? `${styles.titleSection} ${styles.titleBloqueo}` : styles.titleSection}
                         >
+                            {/* [P1-PLAN-LOTE-1123] la pantalla de corte, centrada y con su icono */}
+                            {bloqueo && <span className={styles.bloqueoIcono} aria-hidden="true"><ShieldAlert size={26} /></span>}
                             {/* [FORM-VISUAL-V2 · 2026-07-02] Kicker de contexto sobre el
                                 título — orienta cuánto falta sin mirar el header. */}
                             {!bloqueo && (
