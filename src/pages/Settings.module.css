@@ -2263,3 +2263,124 @@
         display: block;
     }
 }
+
+
+/* ==========================================================================
+ * [P1-PLAN-LOTE-1159 · 2026-11-21] El índice en el TELÉFONO, también dentro de la ventana («mejora el diseño de esto»,
+ * captura del iPhone). La lista agrupada del lote 1124 solo valía para la página (`.wrapper:not(.inDialog)`), y en la
+ * app Configuración se abre como VENTANA: salían siete renglones sueltos de ~80 px, sin descripción ni flecha.
+ * Ahora: tu tarjeta de perfil arriba + la misma lista agrupada (icono en baldosa, nombre, qué hay dentro, flecha),
+ * en la página y en la ventana. Selectores `.wrapper.inDialog` con prefijo de tema para ganar al aplanado del modo
+ * ventana (P1-SETTINGS-DIALOG-POLISH, 0-3-1).
+ * ==========================================================================*/
+.perfilCard { display: none; }
+
+@media (max-width: 768px) {
+    .perfilCard {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        margin: 4px 0 16px;
+        padding: 14px 14px 14px 12px;
+        border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--border));
+        border-radius: var(--radius-lg, 16px);
+        background:
+            radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 62%),
+            var(--bg-card);
+        color: var(--text-main);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        transition: scale 140ms ease;
+    }
+    .perfilCard:active { scale: 0.98; }
+    .perfilCard:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .perfilAvatar {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: var(--primary-fill);
+        color: rgb(255 255 255);
+        font-family: var(--font-heading);
+        font-size: 20px;
+        font-weight: 800;
+    }
+    .perfilTexto { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .perfilNombre { font-size: 16px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .perfilCorreo { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .perfilFlecha { flex: none; color: var(--text-muted); }
+
+    /* la lista agrupada, también en la ventana (en la página ya la pone el lote 1124) */
+    .wrapper.inDialog .sidebarNav,
+    :global(html[data-theme="dark"]) .wrapper.inDialog .sidebarNav,
+    :global(html[data-theme="light"]) .wrapper.inDialog .sidebarNav {
+        gap: 0;
+        padding: 4px 0;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg, 16px);
+        box-shadow: none;
+        overflow: hidden;
+    }
+    .wrapper.inDialog .sidebarItem,
+    :global(html[data-theme="dark"]) .wrapper.inDialog .sidebarItem,
+    :global(html[data-theme="light"]) .wrapper.inDialog .sidebarItem {
+        position: relative;
+        gap: 12px;
+        padding: 12px 14px 12px 16px;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .wrapper.inDialog .sidebarItem:active,
+    :global(html[data-theme="dark"]) .wrapper.inDialog .sidebarItem:active,
+    :global(html[data-theme="light"]) .wrapper.inDialog .sidebarItem:active {
+        background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+    }
+    .wrapper .sidebarItem + .sidebarItem::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: calc(16px + 34px + 12px);
+        right: 0;
+        height: 1px;
+        background: var(--border);
+    }
+    .wrapper .sidebarIcon,
+    .wrapper.inDialog .sidebarIcon {
+        width: 34px;
+        height: 34px;
+        border-radius: var(--radius-md, 10px);
+        background: color-mix(in srgb, var(--primary, #4F46E5) 14%, transparent);
+        color: var(--primary-light, var(--primary, #4F46E5));
+    }
+    .wrapper .sidebarText { gap: 1px; }
+    .wrapper .sidebarLabel,
+    :global(html[data-theme="dark"]) .wrapper .sidebarLabel {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-main);
+    }
+    .wrapper .sidebarDescription,
+    :global(html[data-theme="dark"]) .wrapper .sidebarDescription {
+        display: block;
+        font-size: 13px;
+        color: var(--text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .wrapper .sidebarChevron,
+    :global(html[data-theme="dark"]) .wrapper .sidebarChevron {
+        display: block;
+        color: var(--text-muted);
+    }
+}

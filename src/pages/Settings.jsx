@@ -3078,6 +3078,21 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
                 <div className={`${styles.layout} ${activeSection ? styles.layoutWithSection : ''}`}>
                     <aside className={styles.sidebar} aria-label={t('Secciones de ajustes')}>
+                        {/* [P1-PLAN-LOTE-1159 · 2026-11-21] «Mejora el diseño de esto» (el índice en el teléfono): arriba, TU
+                            tarjeta (avatar, nombre y correo) que abre General; solo en el teléfono (en PC la lista es una
+                            columna lateral y no hace falta). */}
+                        <button type="button" className={styles.perfilCard} onClick={() => navigateToSection('profile')}>
+                            <span className={styles.perfilAvatar} aria-hidden="true">
+                                {avatarId
+                                    ? <MinimalAvatar id={avatarId} size={48} />
+                                    : (userName ? userName.charAt(0).toUpperCase() : 'U')}
+                            </span>
+                            <span className={styles.perfilTexto}>
+                                <span className={styles.perfilNombre}>{userName || t('Tu perfil')}</span>
+                                <span className={styles.perfilCorreo}>{userProfile?.email || t('Cuenta, apariencia y notificaciones')}</span>
+                            </span>
+                            <ChevronRight size={18} className={styles.perfilFlecha} aria-hidden="true" />
+                        </button>
                         <nav className={styles.sidebarNav}>
                             {sectionsConfig.map(s => {
                                 const isActive = activeSection === s.id;
@@ -3095,6 +3110,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         </span>
                                         <span className={styles.sidebarText}>
                                             <span className={styles.sidebarLabel}>{s.label}</span>
+                                            {/* [1159] qué hay dentro, en el teléfono (en PC va oculta) */}
+                                            <span className={styles.sidebarDescription}>{s.description}</span>
                                         </span>
                                         <ChevronRight size={16} className={styles.sidebarChevron} aria-hidden="true" />
                                     </button>
