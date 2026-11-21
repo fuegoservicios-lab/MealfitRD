@@ -33,6 +33,7 @@ export const CLAVE_CELEBRADAS = 'mealfit_mapa_celebradas';
 const AYUDA_MS = 4500;
 const CELEBRACION_MS = 3600;
 const ANCLA = 0.4;
+const BAJO_EL_MARCADOR = 52;   // alto del marcador flotante (pastillas de 30 px a 10 px del borde) + aire
 
 const ETIQUETA = (t) => ({
     meta: t('En meta'),
@@ -112,20 +113,32 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
     // Al abrir (y al cambiar de día desde fuera, p. ej. «Tu semana»), el día elegido queda centrado en la ventana.
     const yHoy = filas.find((f) => f.tipo === 'dia' && f.dia.esHoy)?.y ?? 0;
     const yElegido = filas.find((f) => f.tipo === 'dia' && f.dia.iso === selected)?.y ?? yHoy;
+    // [P1-PLAN-LOTE-1133] «me debería abrir más arriba» (el dueño): el trofeo de la semana del día quedaba cortado bajo
+    // el marcador. Ahora la ventana arranca con ESE trofeo entero justo bajo el marcador; solo si el día queda muy
+    // abajo (un domingo de una semana larga) manda el día, que nunca pasa del 72 % de la ventana.
+    const topeDe = (iso) => {
+        const dia = filas.find((f) => f.tipo === 'dia' && f.dia.iso === iso);
+        const trofeo = dia && filas.find((f) => f.tipo === 'trofeo' && f.semana === dia.semana);
+        return trofeo ? trofeo.y - trofeo.alto / 2 : null;
+    };
+    const topeElegido = topeDe(selected) ?? topeDe(hoyISO);
+    const topeHoy = topeDe(hoyISO);
     const yaCentradoRef = useRef(false);
-    // El día elegido queda en el TERCIO de arriba (no en el centro): debajo se ve más camino recorrido.
-    const irA = useCallback((y, suave) => {
+    const irA = useCallback((y, suave, tope = null) => {
         const v = ventanaRef.current;
         if (!v) return;
-        const destino = Math.max(0, y - v.clientHeight * ANCLA);
+        const h = v.clientHeight;
+        let destino = tope != null ? tope - BAJO_EL_MARCADOR : y - h * ANCLA;
+        if (y - destino > h * 0.72) destino = y - h * 0.72;
+        destino = Math.max(0, destino);
         if (typeof v.scrollTo === 'function') v.scrollTo({ top: destino, behavior: suave && !sinMovimiento() ? 'smooth' : 'auto' });
         else v.scrollTop = destino;
     }, []);
     useLayoutEffect(() => {
         // la primera vez, al instante (abrir ya en tu día); después, deslizando (sin saltos al tocar)
-        irA(yElegido, yaCentradoRef.current);
+        irA(yElegido, yaCentradoRef.current, topeElegido);
         yaCentradoRef.current = true;
-    }, [yElegido, irA]);
+    }, [yElegido, topeElegido, irA]);
 
     // «Ir a hoy»: aparece cuando hoy queda fuera de la ventana (explorando semanas viejas).
     const [lejosDeHoy, setLejosDeHoy] = useState(false);
@@ -143,7 +156,7 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
     const irAHoy = () => {
         triggerMobileHaptic('light');
         onElegir(hoyISO);
-        irA(yHoy, true);
+        irA(yHoy, true, topeHoy);
     };
 
     // Las pastillas del marcador explican lo que cuentan (una a la vez; se cierra sola o al volver a tocar).
