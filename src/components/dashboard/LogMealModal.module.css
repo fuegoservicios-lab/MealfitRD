@@ -870,12 +870,28 @@
     gap: 4px;
     padding: 2px;
     border-radius: var(--radius-xl);
-    background: linear-gradient(115deg, var(--primary), var(--accent), var(--primary-light), var(--primary));
-    background-size: 300% 100%;
-    animation: lmBrillo 7s linear infinite;
+    /* [P1-PLAN-LOTE-1149] el brillo ya no anima `background-position` (repintaba la caja en CADA fotograma mientras la
+       hoja estaba abierta, también con el teclado subiendo): ahora es una capa que se DESPLAZA (`transform`, la mueve
+       la GPU) y se detiene mientras escribes. */
+    overflow: hidden;
+    flex-shrink: 0;   /* con `overflow: hidden` su alto mínimo pasa a 0 y el cuerpo lleno la aplastaba */
     box-shadow: 0 14px 34px -18px color-mix(in srgb, var(--primary) 85%, transparent);
     isolation: isolate;
 }
+.caja::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 200%;
+    z-index: -2;
+    background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary-light), var(--primary), var(--accent), var(--primary-light), var(--primary));
+    animation: lmBrillo 7s linear infinite;
+    will-change: transform;
+    pointer-events: none;
+}
+.caja:focus-within::after { animation-play-state: paused; }
 .caja::before {
     content: '';
     position: absolute;
@@ -1094,7 +1110,7 @@
 .trocito_primario { background: var(--primary-light); }
 .trocito_acento { background: var(--accent); }
 
-@keyframes lmBrillo { to { background-position: 300% 0; } }
+@keyframes lmBrillo { to { transform: translateX(-50%); } }
 @keyframes lmAsomar { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
 @keyframes lmPop { 0% { scale: 0.6; opacity: 0; } 100% { scale: 1; opacity: 1; } }
 @keyframes lmLatido { 0% { scale: 0.85; } 100% { scale: 1; } }
@@ -1103,6 +1119,6 @@
     100% { opacity: 0; transform: rotate(var(--ang)) translateY(calc(var(--dist) * -1)) rotate(var(--giro)); }
 }
 @media (prefers-reduced-motion: reduce) {
-    .caja, .calcularTodo, .bandeja, .sugerencias, .cuando, .hecho, .hechoCheck, .bandeja .totalKcal { animation: none; }
+    .caja::after, .calcularTodo, .bandeja, .sugerencias, .cuando, .hecho, .hechoCheck, .bandeja .totalKcal { animation: none; }
     .confeti { display: none; }
 }

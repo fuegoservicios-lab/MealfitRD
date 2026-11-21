@@ -90,6 +90,17 @@ export function estadoDeHojaAnunciado(altoTeclado, altoSinTeclado) {
 
 const mismo = (a, b) => a.inset === b.inset && a.abierto === b.abierto && a.alto === b.alto;
 
+/** [P1-PLAN-LOTE-1149] Por debajo de esto, con el teclado abierto antes y después, es ruido del paneo: espera al asiento. */
+export const HISTERESIS_HOJA_PX = 24;
+export const ASIENTO_MS = 350;
+
+/** Pura. ¿Es un retoque que puede esperar al asiento (no abre ni cierra, y mueve menos que la histéresis)? */
+export function cambioPequeno(antes, despues) {
+    if (!antes?.abierto || !despues?.abierto) return false;
+    return Math.abs((antes.inset || 0) - (despues.inset || 0)) < HISTERESIS_HOJA_PX
+        && Math.abs((antes.alto || 0) - (despues.alto || 0)) < HISTERESIS_HOJA_PX;
+}
+
 /**
  * @param {boolean} activo   la hoja está abierta
  * @param {{ cuerpoRef?: { current: HTMLElement|null } }} [opciones]  el cuerpo desplazable de la hoja
@@ -110,7 +121,18 @@ export function useTecladoDeHoja(activo, { cuerpoRef } = {}) {
         // Solo se trae el campo a la vista cuando el teclado APARECE o cambia de alto — nunca en cada paneo, que
         // pelearía con el dedo del usuario desplazando la hoja.
         let visto = { abierto: false, alto: null };
-        const aplicar = (nuevo) => setEstado((prev) => (mismo(prev, nuevo) ? prev : nuevo));
+        // [P1-PLAN-LOTE-1149] Lo último aplicado, sin leer el estado de React. Cada `setEstado` vuelve a pintar la hoja
+        // ENTERA, e iOS emite un evento del visualViewport por fotograma mientras panea: pintar en cada uno competía
+        // con la animación del teclado («no lo siento 100% en rendimiento»). Con el teclado ya puesto, los cambios
+        // pequeños esperan al asiento y se aplican una sola vez.
+        // centinela: la primera medición SIEMPRE se escribe (el estado de React puede venir de una apertura anterior)
+        let actual = { inset: -1, abierto: null, alto: null };
+        let asiento = null;
+        const aplicar = (nuevo) => {
+            if (mismo(actual, nuevo)) return;
+            actual = nuevo;
+            setEstado((prev) => (mismo(prev, nuevo) ? prev : nuevo));
+        };
         const esApertura = (nuevo) => {
             const cambia = nuevo.abierto && (!visto.abierto || Math.abs((nuevo.alto || 0) - (visto.alto || 0)) >= 24);
             visto = { abierto: nuevo.abierto, alto: nuevo.alto };
@@ -124,7 +146,11 @@ export function useTecladoDeHoja(activo, { cuerpoRef } = {}) {
                 const campo = typeof document !== 'undefined' ? document.activeElement : null;
                 if (!cuerpo || !campo || !cuerpo.contains(campo) || !esCampoDeTexto(campo)) return;
                 const d = desplazamientoParaVerCampo(campo.getBoundingClientRect(), cuerpo.getBoundingClientRect());
-                if (Math.abs(d) >= 1) cuerpo.scrollTop += d;
+                // suave: un salto seco del contenido justo después de subir la hoja se sentía «brusco» [1149]
+                if (Math.abs(d) >= 1) {
+                    if (typeof cuerpo.scrollBy === 'function') cuerpo.scrollBy({ top: d, behavior: 'smooth' });
+                    else cuerpo.scrollTop += d;
+                }
             }, espera);
         };
         const msActual = () => Number(safeLocalStorageGet(CLAVE_MS_NATIVO, 0)) || MS_TECLADO_POR_DEFECTO;
@@ -135,6 +161,11 @@ export function useTecladoDeHoja(activo, { cuerpoRef } = {}) {
             if (!forzar && !medida.abierto && Date.now() < anticipadoHasta) return;
             if (medida.abierto) anticipadoHasta = 0;
             const nuevo = estadoDeHojaPorGeometria({ medida, vvHeight: vv.height, vvOffsetTop: vv.offsetTop, iosNativo: ios });
+            if (ios && !forzar && cambioPequeno(actual, nuevo)) {
+                clearTimeout(asiento);
+                asiento = setTimeout(() => medir(true), ASIENTO_MS);
+                return;
+            }
             aplicar(nuevo);
             if (ios && nuevo.abierto && medida.kb >= KB_UMBRAL_PX
                 && String(medida.kb) !== safeLocalStorageGet(CLAVE_INSET_NATIVO, null)) {
@@ -192,6 +223,7 @@ export function useTecladoDeHoja(activo, { cuerpoRef } = {}) {
         return () => {
             clearTimeout(plazo);
             clearTimeout(traer);
+            clearTimeout(asiento);
             vv.removeEventListener('resize', alCambiarVista);
             vv.removeEventListener('scroll', alCambiarVista);
             if (ios) {
