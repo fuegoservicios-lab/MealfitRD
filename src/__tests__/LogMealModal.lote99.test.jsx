@@ -53,11 +53,13 @@ describe('la hoja y sus tres zonas', () => {
         }
     });
 
-    it('«Lo que más registras» es una lista vertical y las etiquetas del selector de vía no parten en dos', () => {
+    // [P1-PLAN-LOTE-1147] las fichas van en rejilla de dos columnas (sigue sin scroll horizontal); el selector de dos
+    // vías se fue (la cámara vive dentro de la caja)
+    it('«Lo que más registras» nunca es una fila con scroll horizontal', () => {
         const css = src('src/components/dashboard/LogMealModal.module.css');
         expect(css).not.toContain('overflow-x: auto');
-        expect(regla(css, '.frequentList')).toContain('flex-direction: column;');
-        expect(regla(css, '.mode > span')).toContain('white-space: nowrap;');
+        expect(regla(css, '.frequentList')).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+        expect(css).not.toContain('\n.mode {');
     });
 });
 
@@ -70,8 +72,14 @@ describe('preguntas con chips en vez de desplegables sin etiqueta', () => {
         fetchWithAuth.mockImplementation(async () => respuesta({ items: [] }));
     });
 
-    it('las tres preguntas están, «Extra» es el tipo por defecto y explica qué es; «Hoy» el día', () => {
+    it('las tres preguntas están, «Extra» es el tipo por defecto y explica qué es; «Hoy» el día', async () => {
+        // [P1-PLAN-LOTE-1147] sin plan la comida se adivina por la hora: de madrugada no toca ninguna → «Extra»
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date(2026, 10, 21, 2, 0));
         render(<LogMealModal onClose={vi.fn()} />);
+        vi.useRealTimers();
+        expect(screen.getByRole('button', { name: /Extra · Hoy/ })).toHaveAttribute('aria-expanded', 'false');
+        await userEvent.setup().click(screen.getByRole('button', { name: /Cambiar/ }));
         expect(screen.getByText('¿Qué comiste?')).toBeInTheDocument();
         expect(screen.getByText('¿Qué comida es?')).toBeInTheDocument();
         expect(screen.getByText('¿Cuándo?')).toBeInTheDocument();
@@ -87,6 +95,7 @@ describe('preguntas con chips en vez de desplegables sin etiqueta', () => {
     it('un toque cambia el tipo y el día, y el registro los manda', async () => {
         const user = userEvent.setup();
         render(<LogMealModal onClose={vi.fn()} />);
+        await user.click(screen.getByRole('button', { name: /Cambiar/ }));   // [1147]
         await user.click(screen.getByRole('button', { name: 'Almuerzo' }));
         await user.click(screen.getByRole('button', { name: 'Ayer' }));
         expect(screen.queryByText('Extra: un antojo o picoteo fuera de tus comidas. Cuenta igual.')).toBeNull();
@@ -102,8 +111,9 @@ describe('preguntas con chips en vez de desplegables sin etiqueta', () => {
         expect(body.days_ago).toBe(1);
     });
 
-    it('«Comí otra cosa» abre en el slot del plato (initialMealType) y no en Extra', () => {
+    it('«Comí otra cosa» abre en el slot del plato (initialMealType) y no en Extra', async () => {
         render(<LogMealModal onClose={vi.fn()} initialMealType="cena" />);
+        await userEvent.setup().click(screen.getByRole('button', { name: /Cambiar/ }));   // [1147]
         expect(screen.getByRole('button', { name: 'Cena' })).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByRole('button', { name: 'Extra' })).toHaveAttribute('aria-pressed', 'false');
     });

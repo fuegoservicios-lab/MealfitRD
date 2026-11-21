@@ -83,8 +83,7 @@ describe('foto desde el componedor', () => {
         const user = userEvent.setup();
         const onScan = vi.fn();
         const { unmount } = render(<LogMealModal onClose={() => {}} onScan={onScan} />);
-        // [P1-PLAN-LOTE-85] las dos vías, una al lado de la otra, dentro del componedor
-        expect(screen.getByRole('button', { name: 'Buscar o escribir' })).toHaveAttribute('aria-pressed', 'true');
+        // [P1-PLAN-LOTE-1147] la cámara vive dentro de la caja (ya no hay pestaña «Buscar o escribir»)
         await user.click(screen.getByLabelText('Escanear con foto'));
         expect(onScan).toHaveBeenCalledTimes(1);
         unmount();
@@ -111,8 +110,9 @@ describe('foto desde el componedor', () => {
         expect(tp).not.toContain("t('Escanear comida con la cámara')");
         expect(tp).toContain("{t('Registrar comida')}");
         const lm = src('src/components/dashboard/LogMealModal.jsx');
-        expect(lm).toContain('className={styles.modes}');
-        expect(lm).toContain("t('Buscar o escribir')");
+        // [P1-PLAN-LOTE-1147] la foto es un botón de la caja, no una pestaña
+        expect(lm).toContain("className={`${styles.cajaBoton} ${styles.cajaCamara}`} onClick={() => onScan({ mealType, daysAgo })}");
+        expect(lm).not.toContain('className={styles.modes}');
         expect(lm).not.toContain("t('Foto')");
     });
 });

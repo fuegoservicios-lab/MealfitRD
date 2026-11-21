@@ -38,7 +38,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import { X, Search, Plus, Trash2, Loader2, Refrigerator, Camera, MessageSquareText, Calculator, History, PenLine, Pencil } from 'lucide-react';
+import { X, Search, Plus, Minus, Check, Trash2, Loader2, Refrigerator, Camera, MessageSquareText, Calculator, History, PenLine, Pencil, Utensils, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 // [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes de estimar por texto.
@@ -63,7 +63,9 @@ import { lineaDeIngredienteVisible } from '../../utils/nombresDeAlimentos';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import { getMealTypes, getMealTypeExtra, clampMacro, lineaDescontable } from './mealLogShared';
 import MacroInput from '../common/MacroInput';
-import { useT, useTn, getLocale } from '../../i18n';
+import { useT, useTn, getLocale, formatNumber } from '../../i18n';
+import { comidaPorHora, pareceFrase, pasoDeCantidad } from '../../utils/registroRapido';
+import { triggerMobileHaptic } from '../../utils/mobileHaptics';
 import styles from './LogMealModal.module.css';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
@@ -86,6 +88,27 @@ const _MACRO_CLASSES = {
 // [P1-PLAN-LOTE-106] `Chips` (los grupos excluyentes de «¿Qué comida es?» y «¿Cuándo?») es componente
 // compartido con el escáner: ./Chips.jsx.
 
+// [P1-PLAN-LOTE-1147 · 2026-11-21] LA HOJA, rehecha otra vez (el dueño: «esto es algo muy utilizado por personas poco
+// experimentadas en tecnología… en diseño visual es horrible… quiero un efecto wow como el mapa»; eligió «una caja
+// que hace las dos cosas»). Spec: docs/superpowers/specs/2026-11-21-registrar-comida-rediseno-design.md.
+//  · La pregunta grande arriba y, debajo, la comida y el día en UNA línea que se toca («Almuerzo · Hoy  Cambiar»).
+//    Sin plan, la comida se adivina por la hora; CON plan sigue «Extra» (decisión 3: adivinar «almuerzo» marcaría como
+//    comido el almuerzo del plan).
+//  · UNA caja luminosa: al escribir sugiere alimentos; si lo escrito es una frase («arroz con pollo») ofrece
+//    «Calcular todo» (estimate-plate). La cámara vive dentro de la caja (ya no es una pestaña).
+//  · El plato aparece justo debajo, con su anillo de macros y botones − / + (nadie teclea números para lo habitual).
+//  · «Lo que más registras» son fichas grandes; siguen RELLENANDO, no guardando.
+//  · Registrar celebra (check + confeti) y cierra.
+const ANILLO_R = 26;
+const ANILLO_LARGO = 2 * Math.PI * ANILLO_R;
+const CELEBRACION_MS = 700;
+const CONFETI = Array.from({ length: 14 }, (_, k) => ({
+    clave: k,
+    tono: ['meta', 'oro', 'primario', 'acento'][k % 4],
+    estilo: { '--ang': `${(k * 360) / 14 + (k % 2 ? 8 : -8)}deg`, '--dist': `${80 + (k % 3) * 28}px`, '--giro': `${k % 2 ? 220 : -180}deg` },
+}));
+const sinMovimiento = () => !!(typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+
 
 const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo = 0, userId = null }) => {
     const t = useT();
@@ -103,8 +126,21 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     const [mealType, setMealType] = useState(() => {
         const wanted = String(initialMealType || '').trim().toLowerCase();
         const known = getMealTypes(t).map((o) => o.value);
-        return wanted && known.includes(wanted) ? wanted : getMealTypeExtra(t).value;
+        if (wanted && known.includes(wanted)) return wanted;
+        // [P1-PLAN-LOTE-1147] sin plan no hay platos que atenuar: la comida que toca a esta hora
+        const conPlan = Array.isArray(planData?.days) && planData.days.length > 0;
+        return (!conPlan && comidaPorHora(new Date())) || getMealTypeExtra(t).value;
     });
+    const [verCuando, setVerCuando] = useState(false);
+    const [hecho, setHecho] = useState(null);
+    // los ejemplos de la caja van cambiando: enseñan qué se puede escribir sin leer instrucciones
+    const ejemplos = [
+        t('Ej.: arroz, pollo guisado, mangú…'),
+        t('Ej.: arroz con habichuelas y pollo'),
+        t('Ej.: un mangú con huevo y queso frito'),
+        t('Ej.: 2 guineítos y un café con leche'),
+    ];
+    const [ejemplo, setEjemplo] = useState(0);
     const [daysAgo, setDaysAgo] = useState(() => Math.max(0, Math.min(7, Number(initialDaysAgo) || 0)));
     const [mealName, setMealName] = useState('');
     const [deductPantry, setDeductPantry] = useState(false);
@@ -176,6 +212,12 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     }, []);
 
     useEffect(() => { load(); }, [load]);
+
+    useEffect(() => {
+        if (query || sinMovimiento()) return undefined;
+        const id = setInterval(() => setEjemplo((n) => n + 1), 3200);
+        return () => clearInterval(id);
+    }, [query]);
 
     // «Lo que más registras» — falla en silencio: es azúcar, no base.
     // [P1-PLAN-LOTE-124] Se sigue pidiendo en cada apertura, pero por DETRÁS de la lista recordada: una respuesta
@@ -283,7 +325,11 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                     items: `${faltan.slice(0, 4).map((l) => lineaDeIngredienteVisible(l, t)).join(', ')}${faltan.length > 4 ? '…' : ''}`,
                 }));
             }
-            onClose();
+            // [P1-PLAN-LOTE-1147] el check con confeti, y se cierra sola (sin animaciones, al momento)
+            if (sinMovimiento()) { onClose(); return; }
+            triggerMobileHaptic('success');
+            setHecho({ kcal: Math.round(data.totals?.kcal ?? totales.kcal) });
+            setTimeout(onClose, CELEBRACION_MS);
         } catch (e) {
             // sin red o tiempo agotado: «Failed to fetch» / «Request timeout tras 30000ms…» no son para el usuario
             toast.error(e?.paraMostrar ? e.message : t('No se pudo registrar. Intenta de nuevo.'));
@@ -335,8 +381,9 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
 
     // [P1-PLAN-LOTE-348 · 2026-09-26] «Descríbelo y lo calculo»: el servidor separa el texto en partes (un plato del
     // catálogo casa y toma SUS macros; lo demás vuelve estimado) y cada parte entra al plato como línea editable.
-    const calcularPlato = async () => {
-        const texto = String(describiendo?.texto || '').trim();
+    // [P1-PLAN-LOTE-1147] también desde la caja: «Calcular todo» le pasa lo escrito (`desdeLaCaja`)
+    const calcularPlato = async (desdeLaCaja) => {
+        const texto = String(typeof desdeLaCaja === 'string' ? desdeLaCaja : describiendo?.texto || '').trim();
         if (texto.length < 3 || calculando) return;
         setCalculando(true);
         try {
@@ -352,6 +399,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
             setLines((prev) => [...prev, ...nuevas]);
             if (!mealName.trim() && data?.name) setMealName(String(data.name).slice(0, 200));
             setDescribiendo(null);
+            if (typeof desdeLaCaja === 'string') setQuery('');
+            triggerMobileHaptic('light');
         } catch {
             toast.error(t('No pudimos calcular tu plato ahora; añade los alimentos a mano o inténtalo de nuevo.'));
         } finally {
@@ -373,7 +422,25 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     };
 
     const buscando = query.trim().length >= 2;
+    const esFrase = buscando && pareceFrase(query);
     const mealTypeOptions = [...getMealTypes(t), getMealTypeExtra(t)];
+    const opcionesDia = _getDayOptionsCon(t, initialDaysAgo);
+    const nombreComida = mealTypeOptions.find((o) => o.value === mealType)?.label || mealType;
+    const nombreDia = opcionesDia.find((o) => o.value === daysAgo)?.label || '';
+    // [P1-PLAN-LOTE-1147] el anillo del plato: cuánto de sus calorías viene de cada macro
+    const anillo = useMemo(() => {
+        const p = totales.protein * 4;
+        const c = totales.carbs * 4;
+        const g = totales.fats * 9;
+        const suma = p + c + g;
+        if (suma <= 0) return [];
+        let desde = 0;
+        return [['p', p], ['c', c], ['g', g]].map(([k, v]) => {
+            const parte = { k, desde, largo: (v / suma) * ANILLO_LARGO };
+            desde += parte.largo;
+            return parte;
+        });
+    }, [totales]);
 
     const cuerpo = (
         <div className={styles.overlay} style={teclado.fondo}>
@@ -394,56 +461,84 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                 <div className={styles.head}>
                     <span className={styles.grip} aria-hidden="true" />
                     <div className={styles.headRow}>
-                        <h2 className={styles.title}>{t('Registrar comida')}</h2>
+                        <h2 className={styles.title}>{t('¿Qué comiste?')}</h2>
                         <button type="button" className={`${styles.close} ui-close`} onClick={onClose} disabled={saving} aria-label={t('Cerrar')}>
                             <X size={20} strokeWidth={2.25} aria-hidden="true" />
                         </button>
                     </div>
-
-                    {/* [P1-PLAN-LOTE-85 · 2026-09-17] Las dos vías de registrar, DENTRO del componedor: la
-                        tarjeta tiene un solo botón. «Buscar o escribir» es este mismo panel (activa);
-                        «Escanear con foto» se lo pide al padre (`onScan`), que cierra esto y abre el escáner. */}
-                    {typeof onScan === 'function' && (
-                        <div className={styles.modes} role="group" aria-label={t('Cómo registrar')}>
-                            <button type="button" className={`${styles.mode} ${styles.modeActive}`} aria-pressed="true">
-                                <Search size={15} strokeWidth={2.25} aria-hidden="true" />
-                                <span>{t('Buscar o escribir')}</span>
-                            </button>
-                            <button type="button" className={styles.mode} onClick={() => onScan({ mealType, daysAgo })} aria-pressed="false" aria-label={t('Escanear con foto')} title={t('Escanear con foto')}>
-                                <Camera size={15} strokeWidth={2.25} aria-hidden="true" />
-                                <span>{t('Escanear con foto')}</span>
-                            </button>
-                        </div>
-                    )}
+                    {/* [P1-PLAN-LOTE-1147] la comida y el día, en UNA línea que se toca para cambiarlos (antes eran dos
+                        preguntas al fondo de la hoja que casi nadie veía) */}
+                    <button type="button" className={styles.resumen} aria-expanded={verCuando} aria-controls="lm-cuando"
+                        onClick={() => setVerCuando((v) => !v)}>
+                        <span className={styles.resumenIcono} aria-hidden="true"><Utensils size={15} strokeWidth={2.25} /></span>
+                        <span className={styles.resumenTexto}><b>{nombreComida}</b> · {nombreDia}</span>
+                        <span className={styles.resumenCambiar}>{t('Cambiar')}</span>
+                        <ChevronDown size={16} strokeWidth={2.5} aria-hidden="true" className={`${styles.resumenFlecha} ${verCuando ? styles.resumenFlechaAbierta : ''}`} />
+                    </button>
                 </div>
 
                 <div ref={bodyRef} className={styles.body}>
-                    {/* ---- ¿Qué comiste? ---- */}
-                    <section className={styles.section} aria-labelledby="lm-que">
-                        <h3 id="lm-que" className={styles.sectionTitle}>{t('¿Qué comiste?')}</h3>
+                    {verCuando && (
+                        <div id="lm-cuando" className={styles.cuando}>
+                            <section className={styles.section} aria-labelledby="lm-cual">
+                                <h3 id="lm-cual" className={styles.sectionTitle}>{t('¿Qué comida es?')}</h3>
+                                <Chips label={t('Tipo de comida')} options={mealTypeOptions} value={mealType} onChange={setMealType} />
+                                {mealType === getMealTypeExtra(t).value && (
+                                    <p className={styles.hint}>{t('Extra: un antojo o picoteo fuera de tus comidas. Cuenta igual.')}</p>
+                                )}
+                            </section>
+                            <section className={styles.section} aria-labelledby="lm-dia">
+                                <h3 id="lm-dia" className={styles.sectionTitle}>{t('¿Cuándo?')}</h3>
+                                <Chips label={t('Día')} options={_getDayOptionsCon(t, initialDaysAgo)} value={daysAgo} onChange={setDaysAgo} />
+                            </section>
+                        </div>
+                    )}
+                    {/* ---- La caja: escribir busca; una frase entera se calcula ---- */}
+                    {loadFailed ? (
+                        <div className={styles.loadError}>
+                            <span>{t('No pudimos cargar el catálogo. Revisa tu conexión.')}</span>
+                            <button type="button" className={styles.retry} onClick={load}>{t('Reintentar')}</button>
+                        </div>
+                    ) : (
+                        <div className={`${styles.caja} ${query ? styles.cajaLlena : ''}`}>
+                            <Search size={20} className={styles.searchIcon} aria-hidden="true" />
+                            <input
+                                ref={inputRef}
+                                className={styles.search}
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' && esFrase && !calculando) { e.preventDefault(); calcularPlato(query); } }}
+                                placeholder={ejemplos[ejemplo % ejemplos.length]}
+                                aria-label={t('Buscar alimento')}
+                                autoComplete="off"
+                                enterKeyHint={esFrase ? 'go' : 'search'}
+                            />
+                            {query ? (
+                                <button type="button" className={styles.cajaBoton} onClick={() => { setQuery(''); inputRef.current?.focus(); }} aria-label={t('Borrar')}>
+                                    <X size={18} strokeWidth={2.5} aria-hidden="true" />
+                                </button>
+                            ) : typeof onScan === 'function' && (
+                                <button type="button" className={`${styles.cajaBoton} ${styles.cajaCamara}`} onClick={() => onScan({ mealType, daysAgo })}
+                                    aria-label={t('Escanear con foto')} title={t('Escanear con foto')}>
+                                    <Camera size={20} strokeWidth={2.25} aria-hidden="true" />
+                                </button>
+                            )}
+                        </div>
+                    )}
 
-                        {loadFailed ? (
-                            <div className={styles.loadError}>
-                                <span>{t('No pudimos cargar el catálogo. Revisa tu conexión.')}</span>
-                                <button type="button" className={styles.retry} onClick={load}>{t('Reintentar')}</button>
-                            </div>
-                        ) : (
-                            <div className={styles.searchWrap}>
-                                <Search size={18} className={styles.searchIcon} aria-hidden="true" />
-                                <input
-                                    ref={inputRef}
-                                    className={styles.search}
-                                    value={query}
-                                    onChange={(e) => setQuery(e.target.value)}
-                                    placeholder={t('Ej.: arroz, pollo guisado, mangú…')}
-                                    aria-label={t('Buscar alimento')}
-                                    autoComplete="off"
-                                    enterKeyHint="search"
-                                />
-                            </div>
-                        )}
-
-                        {buscando && !loadFailed && !customDraft && (
+                    {buscando && !loadFailed && !customDraft && (
+                        <div className={styles.sugerencias}>
+                            {esFrase && (
+                                <button type="button" className={styles.calcularTodo} onClick={() => calcularPlato(query)} disabled={calculando} aria-busy={calculando}>
+                                    <span className={styles.calcularIcono} aria-hidden="true">
+                                        {calculando ? <Loader2 size={20} className={styles.spin} /> : <Calculator size={20} />}
+                                    </span>
+                                    <span className={styles.calcularTexto}>
+                                        <b>{calculando ? t('Calculando…') : t('Calcular todo')}</b>
+                                        <span>{t('Separo tu plato en partes y calculo cada una.')}</span>
+                                    </span>
+                                </button>
+                            )}
                             <ul className={styles.results} role="listbox" aria-label={t('Resultados')}>
                                 {resultados.map((r) => (
                                     <li key={r.ref}>
@@ -452,7 +547,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                                 <span className={styles.resultLabel}>{r.label}</span>
                                                 <span className={styles.resultSub}>{r.sub}</span>
                                             </span>
-                                            <span className={styles.resultAdd} aria-hidden="true"><Plus size={18} strokeWidth={2.5} /></span>
+                                            <span className={styles.resultAdd} aria-hidden="true"><Plus size={20} strokeWidth={2.75} /></span>
                                         </button>
                                     </li>
                                 ))}
@@ -468,158 +563,116 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                             <span className={styles.resultLabel}>{t('Añadir «{nombre}» con macros propias', { nombre: query.trim() })}</span>
                                             <span className={styles.resultSub}>{t('Para lo que el catálogo no conoce')}</span>
                                         </span>
-                                        <span className={styles.resultAdd} aria-hidden="true"><Plus size={18} strokeWidth={2.5} /></span>
+                                        <span className={styles.resultAdd} aria-hidden="true"><Plus size={20} strokeWidth={2.75} /></span>
                                     </button>
                                 </li>
                             </ul>
-                        )}
+                        </div>
+                    )}
 
-                        {customDraft && (
-                            <div className={styles.customBox}>
-                                {/* [P1-PLAN-LOTE-348] el nombre se escribe (macros a mano) o se corrige (editar una línea) */}
-                                <input
-                                    className={styles.customNameInput}
-                                    value={customDraft.name}
-                                    maxLength={120}
-                                    autoFocus={!customDraft.name}
-                                    onChange={(e) => { const v = e.target.value; setCustomDraft((p) => ({ ...p, name: v })); }}
-                                    placeholder={t('Ej.: batida de lechosa')}
-                                    aria-label={t('Nombre del alimento')}
-                                />
-                                <span className={styles.customHint}>
-                                    {t('No está en el catálogo: escribe sus macros o deja que las estimemos.')}
+                    {customDraft && (
+                        <div className={styles.customBox}>
+                            {/* [P1-PLAN-LOTE-348] el nombre se escribe (macros a mano) o se corrige (editar una línea) */}
+                            <input
+                                className={styles.customNameInput}
+                                value={customDraft.name}
+                                maxLength={120}
+                                autoFocus={!customDraft.name}
+                                onChange={(e) => { const v = e.target.value; setCustomDraft((p) => ({ ...p, name: v })); }}
+                                placeholder={t('Ej.: batida de lechosa')}
+                                aria-label={t('Nombre del alimento')}
+                            />
+                            <span className={styles.customHint}>
+                                {t('No está en el catálogo: escribe sus macros o deja que las estimemos.')}
+                            </span>
+                            {customDraft.estimated && (
+                                <span className={styles.customNote} role="status">
+                                    {customDraft.portionNote
+                                        ? t('Estimación aproximada ({porcion}); ajústala si sabes más.', { porcion: customDraft.portionNote })
+                                        : t('Estimación aproximada; ajústala si sabes más.')}
                                 </span>
-                                {customDraft.estimated && (
-                                    <span className={styles.customNote} role="status">
-                                        {customDraft.portionNote
-                                            ? t('Estimación aproximada ({porcion}); ajústala si sabes más.', { porcion: customDraft.portionNote })
-                                            : t('Estimación aproximada; ajústala si sabes más.')}
-                                    </span>
-                                )}
-                                <div className={styles.customGrid}>
-                                    <MacroInput classes={_MACRO_CLASSES} label={t('Calorías')} unit="kcal" value={customDraft.macros.kcal}
-                                        onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, kcal: clampMacro('calories', v) } }))} />
-                                    <MacroInput classes={_MACRO_CLASSES} label={t('Proteína')} unit="g" value={customDraft.macros.protein}
-                                        onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, protein: clampMacro('protein', v) } }))} />
-                                    <MacroInput classes={_MACRO_CLASSES} label={t('Carbs')} unit="g" value={customDraft.macros.carbs}
-                                        onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, carbs: clampMacro('carbs', v) } }))} />
-                                    <MacroInput classes={_MACRO_CLASSES} label={t('Grasas')} unit="g" value={customDraft.macros.fats}
-                                        onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, fats: clampMacro('healthy_fats', v) } }))} />
-                                </div>
-                                <div className={styles.customActions}>
-                                    {/* [P1-PLAN-LOTE-368] una calculadora, no el destello de Gemini; tintado, no un contorno apagado */}
-                                    <button type="button" className={styles.estimateBtn} aria-busy={estimating} disabled={estimating || String(customDraft.name || '').trim().length < 3} onClick={estimarMacros}>
-                                        {estimating
-                                            ? <Loader2 size={16} className={styles.spin} aria-hidden="true" />
-                                            : <Calculator size={16} aria-hidden="true" />}
-                                        {estimating ? t('Estimando…') : t('Estimar macros por mí')}
-                                    </button>
-                                    <button type="button" className={styles.ghostBtn} onClick={() => setCustomDraft(null)}>{t('Cancelar')}</button>
-                                    <button
-                                        type="button"
-                                        className={styles.smallBtn}
-                                        disabled={!String(customDraft.name || '').trim()}
-                                        onClick={guardarBorrador}
-                                    >
-                                        {customDraft.editId ? t('Guardar cambios') : t('Añadir al plato')}
-                                    </button>
-                                </div>
+                            )}
+                            <div className={styles.customGrid}>
+                                <MacroInput classes={_MACRO_CLASSES} label={t('Calorías')} unit="kcal" value={customDraft.macros.kcal}
+                                    onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, kcal: clampMacro('calories', v) } }))} />
+                                <MacroInput classes={_MACRO_CLASSES} label={t('Proteína')} unit="g" value={customDraft.macros.protein}
+                                    onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, protein: clampMacro('protein', v) } }))} />
+                                <MacroInput classes={_MACRO_CLASSES} label={t('Carbs')} unit="g" value={customDraft.macros.carbs}
+                                    onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, carbs: clampMacro('carbs', v) } }))} />
+                                <MacroInput classes={_MACRO_CLASSES} label={t('Grasas')} unit="g" value={customDraft.macros.fats}
+                                    onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, fats: clampMacro('healthy_fats', v) } }))} />
                             </div>
-                        )}
-
-                        {/* [P1-PLAN-LOTE-348] Las formas de armar el plato, A LA VISTA: antes solo se veía el buscador y
-                            «lo que más registras», y parecía que solo se podían repetir comidas. */}
-                        {!buscando && !customDraft && !describiendo && !loadFailed && (
-                            <div className={styles.formas} role="group" aria-label={t('Cómo armar tu plato')}>
-                                <button type="button" className={styles.forma} onClick={() => setDescribiendo({ texto: '' })}>
-                                    {/* [P1-PLAN-LOTE-368] describir con palabras: un globo con texto (no el destello de Gemini) */}
-                                    <span className={styles.formaIcono}><MessageSquareText size={18} aria-hidden="true" /></span>
-                                    <span className={styles.formaText}>
-                                        <span className={styles.formaTitulo}>{t('Descríbelo y lo calculo')}</span>
-                                        <span className={styles.formaSub}>{t('Escribe lo que comiste; lo separamos en partes que puedes corregir.')}</span>
-                                    </span>
+                            <div className={styles.customActions}>
+                                {/* [P1-PLAN-LOTE-368] una calculadora, no el destello de Gemini; tintado, no un contorno apagado */}
+                                <button type="button" className={styles.estimateBtn} aria-busy={estimating} disabled={estimating || String(customDraft.name || '').trim().length < 3} onClick={estimarMacros}>
+                                    {estimating
+                                        ? <Loader2 size={16} className={styles.spin} aria-hidden="true" />
+                                        : <Calculator size={16} aria-hidden="true" />}
+                                    {estimating ? t('Estimando…') : t('Estimar macros por mí')}
                                 </button>
-                                <button type="button" className={styles.forma}
-                                    onClick={() => setCustomDraft({ name: '', macros: { kcal: 0, protein: 0, carbs: 0, fats: 0 } })}>
-                                    <span className={styles.formaIcono}><PenLine size={18} aria-hidden="true" /></span>
-                                    <span className={styles.formaText}>
-                                        <span className={styles.formaTitulo}>{t('Macros a mano')}</span>
-                                        <span className={styles.formaSub}>{t('Si ya sabes sus calorías (una etiqueta, una receta).')}</span>
-                                    </span>
+                                <button type="button" className={styles.ghostBtn} onClick={() => setCustomDraft(null)}>{t('Cancelar')}</button>
+                                <button
+                                    type="button"
+                                    className={styles.smallBtn}
+                                    disabled={!String(customDraft.name || '').trim()}
+                                    onClick={guardarBorrador}
+                                >
+                                    {customDraft.editId ? t('Guardar cambios') : t('Añadir al plato')}
                                 </button>
                             </div>
-                        )}
+                        </div>
+                    )}
 
-                        {describiendo && (
-                            <div className={styles.customBox}>
-                                <textarea
-                                    className={styles.describeInput}
-                                    value={describiendo.texto}
-                                    maxLength={300}
-                                    rows={3}
-                                    autoFocus
-                                    onChange={(e) => { const v = e.target.value; setDescribiendo({ texto: v }); }}
-                                    placeholder={t('Ej.: arroz con habichuelas, pollo guisado y medio aguacate')}
-                                    aria-label={t('Describe lo que comiste')}
-                                />
-                                <div className={styles.customActions}>
-                                    <button type="button" className={styles.ghostBtn} disabled={calculando} onClick={() => setDescribiendo(null)}>{t('Cancelar')}</button>
-                                    <button type="button" className={styles.smallBtn}
-                                        disabled={calculando || describiendo.texto.trim().length < 3} onClick={calcularPlato}>
-                                        {calculando
-                                            ? <><Loader2 size={14} className={styles.spin} aria-hidden="true" /> {t('Calculando…')}</>
-                                            : t('Calcular mi plato')}
-                                    </button>
-                                </div>
+                    {describiendo && (
+                        <div className={styles.customBox}>
+                            <textarea
+                                className={styles.describeInput}
+                                value={describiendo.texto}
+                                maxLength={300}
+                                rows={3}
+                                autoFocus
+                                onChange={(e) => { const v = e.target.value; setDescribiendo({ texto: v }); }}
+                                placeholder={t('Ej.: arroz con habichuelas, pollo guisado y medio aguacate')}
+                                aria-label={t('Describe lo que comiste')}
+                            />
+                            <div className={styles.customActions}>
+                                <button type="button" className={styles.ghostBtn} disabled={calculando} onClick={() => setDescribiendo(null)}>{t('Cancelar')}</button>
+                                <button type="button" className={styles.smallBtn}
+                                    disabled={calculando || describiendo.texto.trim().length < 3} onClick={() => calcularPlato()}>
+                                    {calculando
+                                        ? <><Loader2 size={14} className={styles.spin} aria-hidden="true" /> {t('Calculando…')}</>
+                                        : t('Calcular mi plato')}
+                                </button>
                             </div>
-                        )}
+                        </div>
+                    )}
 
-                        {!buscando && !customDraft && !describiendo && !loadFailed && !lines.length && (frequent.length > 0 ? (
-                            <div className={styles.frequent}>
-                                <span className={styles.subTitle}>
-                                    <History size={14} aria-hidden="true" /> {t('Lo que más registras')}
-                                </span>
-                                <ul className={styles.frequentList}>
-                                    {frequent.map((f) => (
-                                        <li key={f.last_meal_id}>
-                                            <button
-                                                type="button"
-                                                className={styles.result}
-                                                onClick={() => {
-                                                    // RELLENA, no guarda: entra como línea custom con
-                                                    // los promedios del grupo. El usuario revisa y toca
-                                                    // Registrar — el segundo toque es la confirmación.
-                                                    setLines((prev) => [...prev, {
-                                                        id: `freq-${f.last_meal_id}-${prev.length}`, ref: 'custom',
-                                                        name: f.meal_name,
-                                                        macros: { kcal: f.kcal || 0, protein: f.protein || 0, carbs: f.carbs || 0, fats: f.fats || 0 },
-                                                    }]);
-                                                }}
-                                            >
-                                                <span className={styles.resultText}>
-                                                    <span className={styles.resultLabel}>{nombreDeRegistro(f.meal_name, planData, t)}</span>
-                                                    <span className={styles.resultSub}>{tn(f.veces || 0, '{kcal} kcal · lo registraste {n} vez', '{kcal} kcal · lo registraste {n} veces', { kcal: f.kcal, n: f.veces })}</span>
-                                                </span>
-                                                <span className={styles.resultAdd} aria-hidden="true"><Plus size={18} strokeWidth={2.5} /></span>
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ) : (
-                            <p className={styles.hint}>
-                                {t('Escribe lo que comiste y toca el resultado para añadirlo. Puedes juntar varios alimentos en un mismo plato.')}
-                            </p>
-                        ))}
-                    </section>
-
-                    {/* ---- Tu plato ---- */}
+                    {/* ---- Tu plato: justo bajo la caja, para ver al momento lo que se añadió ---- */}
                     {lines.length > 0 && (
-                        <section className={styles.section} aria-labelledby="lm-plato">
-                            <h3 id="lm-plato" className={styles.sectionTitle}>
-                                <span>{t('Tu plato')}</span>
-                                <span className={styles.sectionCount}>{lines.length}</span>
-                            </h3>
+                        <section className={`${styles.section} ${styles.bandeja}`} aria-labelledby="lm-plato">
+                            <div className={styles.bandejaCabeza}>
+                                <svg className={styles.anillo} viewBox="0 0 64 64" aria-hidden="true">
+                                    <circle className={styles.anilloFondo} cx="32" cy="32" r={ANILLO_R} />
+                                    {anillo.map((s) => (
+                                        <circle key={s.k} className={`${styles.anilloParte} ${styles[`anillo_${s.k}`]}`} cx="32" cy="32" r={ANILLO_R}
+                                            strokeDasharray={`${Math.max(0, s.largo - 1.5)} ${ANILLO_LARGO}`} strokeDashoffset={-s.desde} />
+                                    ))}
+                                </svg>
+                                <div className={styles.bandejaCifras}>
+                                    <h3 id="lm-plato" className={styles.sectionTitle}>
+                                        <span>{t('Tu plato')}</span>
+                                        <span className={styles.sectionCount}>{lines.length}</span>
+                                    </h3>
+                                    <span key={Math.round(totales.kcal)} className={styles.totalKcal}>{Math.round(totales.kcal)} <small>kcal</small></span>
+                                </div>
+                            </div>
+                            <div className={styles.barras}>
+                                {[['p', t('proteína'), totales.protein], ['c', t('carbs'), totales.carbs], ['g', t('grasas'), totales.fats]].map(([k, rotulo, g]) => (
+                                    <span key={k} className={`${styles.barra} ${styles[`barra_${k}`]}`}>
+                                        <span className={styles.barraTexto}><b>{Math.round(g)} g</b> {rotulo}</span>
+                                    </span>
+                                ))}
+                            </div>
                             <ul className={styles.plate} aria-label={t('Tu plato')}>
                                 {lines.map((l) => {
                                     if (l.ref === 'custom') {
@@ -644,6 +697,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                         );
                                     }
                                     const pv = previewLine(l.entry, l.qty, l.unit);
+                                    const mover = (dir) => setLines((prev) => prev.map((x) => (x.id === l.id ? { ...x, qty: pasoDeCantidad(x.unit, x.qty, dir) } : x)));
                                     return (
                                         <li key={l.id} className={styles.line}>
                                             <div className={styles.lineTop}>
@@ -654,16 +708,26 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                                 </button>
                                             </div>
                                             <div className={styles.lineBottom}>
-                                                <input
-                                                    type="text" inputMode="decimal" autoComplete="off" enterKeyHint="done"
-                                                    className={styles.lineQty} value={l.qty}
-                                                    aria-label={t('Cantidad de {nombre}', { nombre: l.entry.label })}
-                                                    onChange={(e) => {
-                                                        const qty = cantidadEscrita(e.target.value);   // [P1-PLAN-LOTE-166]
-                                                        if (qty === null) return;
-                                                        setLines((prev) => prev.map((x) => (x.id === l.id ? { ...x, qty } : x)));
-                                                    }}
-                                                />
+                                                <span className={styles.paso}>
+                                                    <button type="button" className={styles.pasoBtn} onClick={() => mover(-1)}
+                                                        aria-label={t('Menos {nombre}', { nombre: l.entry.label })}>
+                                                        <Minus size={18} strokeWidth={2.75} aria-hidden="true" />
+                                                    </button>
+                                                    <input
+                                                        type="text" inputMode="decimal" autoComplete="off" enterKeyHint="done"
+                                                        className={styles.lineQty} value={l.qty}
+                                                        aria-label={t('Cantidad de {nombre}', { nombre: l.entry.label })}
+                                                        onChange={(e) => {
+                                                            const qty = cantidadEscrita(e.target.value);   // [P1-PLAN-LOTE-166]
+                                                            if (qty === null) return;
+                                                            setLines((prev) => prev.map((x) => (x.id === l.id ? { ...x, qty } : x)));
+                                                        }}
+                                                    />
+                                                    <button type="button" className={styles.pasoBtn} onClick={() => mover(1)}
+                                                        aria-label={t('Más {nombre}', { nombre: l.entry.label })}>
+                                                        <Plus size={18} strokeWidth={2.75} aria-hidden="true" />
+                                                    </button>
+                                                </span>
                                                 <select
                                                     className={styles.lineUnit} value={l.unit}
                                                     aria-label={t('Unidad de {nombre}', { nombre: l.entry.label })}
@@ -678,15 +742,6 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                     );
                                 })}
                             </ul>
-
-                            <div className={styles.totals}>
-                                <span className={styles.totalKcal}>{Math.round(totales.kcal)} <small>kcal</small></span>
-                                <span className={styles.totalMacros}>
-                                    <span className={styles.totalMacro}><b>{Math.round(totales.protein)} g</b> {t('proteína')}</span>
-                                    <span className={styles.totalMacro}><b>{Math.round(totales.carbs)} g</b> {t('carbs')}</span>
-                                    <span className={styles.totalMacro}><b>{Math.round(totales.fats)} g</b> {t('grasas')}</span>
-                                </span>
-                            </div>
 
                             <input
                                 className={styles.nameInput}
@@ -715,19 +770,68 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                         </section>
                     )}
 
-                    {/* ---- ¿Qué comida es? / ¿Cuándo? ---- */}
-                    <section className={styles.section} aria-labelledby="lm-cual">
-                        <h3 id="lm-cual" className={styles.sectionTitle}>{t('¿Qué comida es?')}</h3>
-                        <Chips label={t('Tipo de comida')} options={mealTypeOptions} value={mealType} onChange={setMealType} />
-                        {mealType === getMealTypeExtra(t).value && (
-                            <p className={styles.hint}>{t('Extra: un antojo o picoteo fuera de tus comidas. Cuenta igual.')}</p>
-                        )}
-                    </section>
+                    {/* ---- Tus habituales: fichas grandes; tocar AÑADE al plato (no registra) ---- */}
+                    {!buscando && !customDraft && !describiendo && !loadFailed && (frequent.length > 0 ? (
+                        <div className={styles.frequent}>
+                            <span className={styles.subTitle}>
+                                <History size={14} aria-hidden="true" /> {t('Lo que más registras')}
+                            </span>
+                            <ul className={styles.frequentList}>
+                                {frequent.map((f) => (
+                                    <li key={f.last_meal_id}>
+                                        <button
+                                            type="button"
+                                            className={styles.ficha}
+                                            onClick={() => {
+                                                // RELLENA, no guarda: entra como línea custom con
+                                                // los promedios del grupo. El usuario revisa y toca
+                                                // Registrar — el segundo toque es la confirmación.
+                                                triggerMobileHaptic('light');
+                                                setLines((prev) => [...prev, {
+                                                    id: `freq-${f.last_meal_id}-${prev.length}`, ref: 'custom',
+                                                    name: f.meal_name,
+                                                    macros: { kcal: f.kcal || 0, protein: f.protein || 0, carbs: f.carbs || 0, fats: f.fats || 0 },
+                                                }]);
+                                            }}
+                                        >
+                                            <span className={styles.fichaNombre}>{nombreDeRegistro(f.meal_name, planData, t)}</span>
+                                            <span className={styles.fichaPie}>
+                                                <span className={styles.fichaKcal}>{formatNumber(Math.round(f.kcal || 0))} kcal</span>
+                                                <span className={styles.fichaMas} aria-hidden="true"><Plus size={18} strokeWidth={2.75} /></span>
+                                            </span>
+                                            <span className={styles.srOnly}>{tn(f.veces || 0, '{kcal} kcal · lo registraste {n} vez', '{kcal} kcal · lo registraste {n} veces', { kcal: f.kcal, n: f.veces })}</span>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ) : !lines.length && (
+                        <p className={styles.hint}>
+                            {t('Escribe lo que comiste y toca el resultado para añadirlo. Puedes juntar varios alimentos en un mismo plato.')}
+                        </p>
+                    ))}
 
-                    <section className={styles.section} aria-labelledby="lm-cuando">
-                        <h3 id="lm-cuando" className={styles.sectionTitle}>{t('¿Cuándo?')}</h3>
-                        <Chips label={t('Día')} options={_getDayOptionsCon(t, initialDaysAgo)} value={daysAgo} onChange={setDaysAgo} />
-                    </section>
+                    {/* [P1-PLAN-LOTE-348] Las otras formas de armar el plato, a la vista pero en segundo plano */}
+                    {!buscando && !customDraft && !describiendo && !loadFailed && (
+                        <div className={styles.formas} role="group" aria-label={t('Cómo armar tu plato')}>
+                            <button type="button" className={styles.forma} onClick={() => setDescribiendo({ texto: '' })}>
+                                {/* [P1-PLAN-LOTE-368] describir con palabras: un globo con texto (no el destello de Gemini) */}
+                                <span className={styles.formaIcono}><MessageSquareText size={18} aria-hidden="true" /></span>
+                                <span className={styles.formaText}>
+                                    <span className={styles.formaTitulo}>{t('Descríbelo y lo calculo')}</span>
+                                    <span className={styles.formaSub}>{t('Escribe lo que comiste; lo separamos en partes que puedes corregir.')}</span>
+                                </span>
+                            </button>
+                            <button type="button" className={styles.forma}
+                                onClick={() => setCustomDraft({ name: '', macros: { kcal: 0, protein: 0, carbs: 0, fats: 0 } })}>
+                                <span className={styles.formaIcono}><PenLine size={18} aria-hidden="true" /></span>
+                                <span className={styles.formaText}>
+                                    <span className={styles.formaTitulo}>{t('Macros a mano')}</span>
+                                    <span className={styles.formaSub}>{t('Si ya sabes sus calorías (una etiqueta, una receta).')}</span>
+                                </span>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className={styles.footer}>
@@ -747,6 +851,17 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                         {saving ? (<><Loader2 size={16} className={styles.spin} /> {t('Registrando…')}</>) : t('Registrar')}
                     </button>
                 </div>
+
+                {hecho && (
+                    <div className={styles.hecho} role="status">
+                        <span className={styles.confeti} aria-hidden="true">
+                            {CONFETI.map((p) => <span key={p.clave} className={`${styles.trocito} ${styles[`trocito_${p.tono}`]}`} style={p.estilo} />)}
+                        </span>
+                        <span className={styles.hechoCheck} aria-hidden="true"><Check size={40} strokeWidth={3} /></span>
+                        <b>{t('¡Registrado!')}</b>
+                        <span>{t('{kcal} kcal en tu día', { kcal: formatNumber(hecho.kcal) })}</span>
+                    </div>
+                )}
             </div>
         </div>
     );

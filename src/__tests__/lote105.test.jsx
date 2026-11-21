@@ -6,7 +6,7 @@
 //    media de la semana; se refresca cuando el diario cambia desde fuera;
 //  · el componedor añade el chip del día pedido cuando es más atrás que «Antier».
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
 import DiaryHistory from '../components/dashboard/DiaryHistory';
 import LogMealModal from '../components/dashboard/LogMealModal';
@@ -183,6 +183,8 @@ describe('el diario de días anteriores', () => {
         abrir();
         await screen.findByText('Galletas');
         fireEvent.click(screen.getByRole('button', { name: 'Registrar comida' }));
+        // [P1-PLAN-LOTE-1147] la comida y el día viven tras la línea «Almuerzo · Hoy  Cambiar»
+        fireEvent.click(within(await screen.findByRole('dialog', { name: 'Registrar comida' })).getByRole('button', { name: /Cambiar/ }));
         // el componedor real, montado desde el cajón: su chip «Hoy» va marcado
         const hoy = await screen.findByRole('button', { name: 'Hoy', pressed: true });
         expect(hoy).toBeInTheDocument();
@@ -200,6 +202,7 @@ describe('el componedor en el día pedido', () => {
     it('añade el chip del día cuando es más atrás que «Antier» y lo deja marcado', async () => {
         fetchWithAuth.mockImplementation(enrutar());
         render(<LogMealModal onClose={() => {}} initialDaysAgo={5} />);
+        fireEvent.click(screen.getByRole('button', { name: /Cambiar/ }));   // [1147]
         const grupo = await screen.findByRole('group', { name: 'Día' });
         const chips = grupo.querySelectorAll('button');
         expect(chips).toHaveLength(4);
@@ -210,6 +213,7 @@ describe('el componedor en el día pedido', () => {
     it('sin el día pedido (o hasta «Antier») no hay chip de más', async () => {
         fetchWithAuth.mockImplementation(enrutar());
         render(<LogMealModal onClose={() => {}} initialDaysAgo={1} />);
+        fireEvent.click(screen.getByRole('button', { name: /Cambiar/ }));   // [1147]
         const grupo = await screen.findByRole('group', { name: 'Día' });
         expect(grupo.querySelectorAll('button')).toHaveLength(3);
         expect(screen.getByRole('button', { name: 'Ayer' }).getAttribute('aria-pressed')).toBe('true');

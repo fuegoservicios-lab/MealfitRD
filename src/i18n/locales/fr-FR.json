@@ -595,7 +595,6 @@
   "Buscar alimento para agregar a tu Nevera": "Chercher un aliment à ajouter à votre frigo",
   "Buscar alimento para agregar a tus básicos": "Chercher un aliment à ajouter à vos aliments de base",
   "Buscar ingrediente…": "Chercher un ingrédient…",
-  "Buscar o escribir": "Chercher ou écrire",
   "Buscar otra opción": "Chercher une autre option",
   "Buscar planes por nombre": "Chercher des plans par nom",
   "Buscar planes…": "Chercher des plans…",
@@ -721,7 +720,6 @@
   "Con el tiempo que marcaste (unos {budget} min por comida), al menos {n} de las comidas revisadas piden más: hasta {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarlas con “Cambiar plato”.": "Avec le temps que vous avez indiqué (environ {budget} min par repas), au moins {n} des repas examinés demandent plus : jusqu’à {max} min. Nous n’avons pas encore assez de plats aussi rapides ; vous pouvez les remplacer avec « Changer de plat ».",
   "Con el tiempo que marcaste (unos {budget} min por comida), una de las comidas revisadas pide más: {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarla con “Cambiar plato”.": "Avec le temps que vous avez indiqué (environ {budget} min par repas), un des repas examinés demande plus : {max} min. Nous n’avons pas encore assez de plats aussi rapides ; vous pouvez le remplacer avec « Changer de plat ».",
   "Con el tiempo que marcaste (unos {budget} min por comida), {n} de las comidas revisadas piden más: hasta {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarlas con “Cambiar plato”.": "Avec le temps que vous avez indiqué (environ {budget} min par repas), {n} des repas examinés demandent plus : jusqu’à {max} min. Nous n’avons pas encore assez de plats aussi rapides ; vous pouvez les remplacer avec « Changer de plat ».",
-  "Cómo registrar": "Comment enregistrer",
   "Mostrar la barra de navegación": "Afficher la barre de navigation",
   "Ocultar la barra de navegación": "Masquer la barre de navigation",
   "Platos de cualquier cocina que venda tu mercado, sin sesgo": "Des plats de n'importe quelle cuisine que vend votre marché, sans parti pris",
@@ -4362,5 +4360,12 @@
   "Seguir en mi {dia}": "Rester sur mon {dia}",
   "Tu día termina a las {h}:00 a. m.": "Votre journée se termine à {h} h",
   "Tu día termina a las": "Votre journée se termine à",
-  "Hasta esa hora de la mañana, lo que comas cuenta en el día anterior. Si no has dormido, tu día sigue solo hasta que duermas.": "Jusqu’à cette heure du matin, ce que vous mangez compte pour la veille. Si vous n’avez pas dormi, votre journée continue d’elle-même jusqu’à ce que vous dormiez."
+  "Hasta esa hora de la mañana, lo que comas cuenta en el día anterior. Si no has dormido, tu día sigue solo hasta que duermas.": "Jusqu’à cette heure du matin, ce que vous mangez compte pour la veille. Si vous n’avez pas dormi, votre journée continue d’elle-même jusqu’à ce que vous dormiez.",
+  "Calcular todo": "Tout calculer",
+  "Separo tu plato en partes y calculo cada una.": "Je sépare votre assiette en parties et calcule chacune.",
+  "¡Registrado!": "Enregistré !",
+  "{kcal} kcal en tu día": "{kcal} kcal dans votre journée",
+  "Ej.: arroz con habichuelas y pollo": "Ex. : riz aux haricots et poulet",
+  "Ej.: un mangú con huevo y queso frito": "Ex. : un mangú avec œuf et fromage frit",
+  "Ej.: 2 guineítos y un café con leche": "Ex. : 2 bananes vertes et un café au lait"
 }

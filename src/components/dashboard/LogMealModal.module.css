@@ -116,7 +116,7 @@
 
 .title {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 24px;
     font-weight: 800;
     letter-spacing: -0.02em;
     color: var(--text-main, #0F172A);
@@ -137,68 +137,10 @@
 
 .close:hover { background: color-mix(in srgb, var(--primary, #4F46E5) 10%, transparent); }
 
-/* [P1-PLAN-LOTE-85 · 2026-09-17] Las dos vías de registrar como selector de dos opciones (sustituye al chip
-   «Foto» de la cabecera): la tarjeta tiene un solo botón y aquí se elige.
-   [P1-PLAN-LOTE-99] Etiquetas en UNA línea: a 392px partían en dos («Buscar o / escribir»). Por debajo de 360px
-   el icono cede su sitio al texto. */
-.modes {
-    display: flex;
-    gap: 4px;
-    padding: 4px;
-    border-radius: 12px;
-    border: 1px solid var(--border, #E2E8F0);
-    background: var(--bg-muted, #F1F5F9);
-}
-
-.mode {
-    flex: 1 1 0;
-    min-width: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    min-height: 40px;
-    padding: 0 8px;
-    border-radius: 9px;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--text-muted, #5B6A7D);
-    font: inherit;
-    font-size: 0.86rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.mode > svg { flex-shrink: 0; }
-
-.mode > span {
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
+/* [P1-PLAN-LOTE-1147] El selector de dos vías (.modes) se fue: la cámara vive dentro de la caja. */
 @media (max-width: 360px) {
-    .mode > svg { display: none; }
-    .mode { font-size: 0.8rem; padding: 0 6px; }
     .footerInfo { font-size: 0.8rem; }
     .primaryBtn { min-width: 118px; padding: 0 1rem; }
-}
-
-.mode:hover { color: var(--text-main, #0F172A); }
-
-.modeActive {
-    background: var(--bg-card, #ffffff);
-    color: var(--primary, #4F46E5);
-    border-color: var(--border, #E2E8F0);
-    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
-    cursor: default;
-}
-
-.mode:focus-visible {
-    outline: 3px solid rgba(79, 70, 229, 0.5);
-    outline-offset: 2px;
 }
 
 /* ---- Cuerpo desplazable ---- */
@@ -301,8 +243,7 @@
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
 }
 
-.results,
-.frequentList {
+.results {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -401,6 +342,16 @@
 }
 
 .frequent { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* [P1-PLAN-LOTE-1147] fichas grandes en dos columnas (una lista vertical, nunca una fila con scroll horizontal) */
+.frequentList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
 
 /* ---- Chips (¿Qué comida es? / ¿Cuándo?) ---- */
 /* [P1-PLAN-LOTE-106] los chips viven en Chips.module.css (compartidos con el escáner) */
@@ -808,12 +759,6 @@
     border-color: rgba(148, 163, 184, 0.18);
 }
 
-:global(html[data-theme="dark"]) .modeActive {
-    background: var(--bg-card, #0F172A);
-    color: var(--text-main, #E2E8F0);
-    border-color: rgba(148, 163, 184, 0.25);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-}
 
 /* [P1-LOGMEAL-SELECT-DARK] `background-color` y NO el atajo `background`: el atajo resetea `background-image`
    y borraría la flecha propia. El `color-scheme` es lo que hace que la lista abra oscura. */
@@ -862,3 +807,300 @@
 }
 .customNameInput { font-weight: 700; }
 
+
+/* ═══════════════════════ [P1-PLAN-LOTE-1147 · 2026-11-21] La hoja rehecha: «una caja que hace las dos cosas» ═══════
+   El dueño: «esto es algo muy utilizado por personas poco experimentadas en tecnología… quiero un efecto wow como el
+   mapa». Una pregunta grande, la comida y el día en una línea que se toca, UNA caja luminosa (escribir busca; una frase
+   se calcula entera), el plato con su anillo justo debajo y los habituales como fichas grandes. Al registrar, un check
+   con confeti. Tokens del tema; radios con token; letra en la escala de ESTILO.md. */
+
+/* ---- la línea «Almuerzo · Hoy  Cambiar ▾» ---- */
+.resumen {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 6px 12px 6px 6px;
+    border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--primary) 8%, var(--bg-card));
+    color: var(--text-main);
+    font: inherit;
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 150ms ease, scale 150ms ease;
+}
+.resumen:active { scale: 0.98; }
+.resumen:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 2px; }
+.resumenIcono {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary-fill);
+    color: rgb(255 255 255);
+}
+.resumenTexto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
+.resumenTexto b { color: var(--text-main); font-weight: 800; }
+.resumenCambiar { flex: none; font-size: 13px; font-weight: 700; color: var(--primary); }
+.resumenFlecha { flex: none; color: var(--primary); transition: rotate 200ms ease; }
+.resumenFlechaAbierta { rotate: 180deg; }
+.cuando {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-muted);
+    animation: lmAsomar 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---- la caja luminosa ---- */
+.caja {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(115deg, var(--primary), var(--accent), var(--primary-light), var(--primary));
+    background-size: 300% 100%;
+    animation: lmBrillo 7s linear infinite;
+    box-shadow: 0 14px 34px -18px color-mix(in srgb, var(--primary) 85%, transparent);
+    isolation: isolate;
+}
+.caja::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    z-index: -1;
+    border-radius: calc(var(--radius-xl) - 2px);
+    background: var(--bg-card);
+}
+.caja:focus-within { box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 22%, transparent), 0 18px 40px -18px color-mix(in srgb, var(--primary) 90%, transparent); }
+.caja .searchIcon { position: static; transform: none; margin-left: 14px; color: var(--primary); flex: none; }
+.caja .search {
+    flex: 1;
+    min-width: 0;
+    min-height: 60px;
+    border: 0;
+    background: transparent;
+    padding: 0 6px;
+    font-size: 18px;
+    box-shadow: none;
+}
+.caja .search:focus { box-shadow: none; }
+.cajaBoton {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 46px;
+    height: 46px;
+    margin-right: 6px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--bg-muted);
+    color: var(--text-muted);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.cajaCamara { background: var(--primary-fill); color: rgb(255 255 255); box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--primary) 90%, transparent); }
+.cajaBoton:active { scale: 0.94; }
+.cajaBoton:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 2px; }
+
+/* ---- sugerencias y «Calcular todo» ---- */
+.sugerencias { display: flex; flex-direction: column; gap: 8px; animation: lmAsomar 0.2s ease; }
+.calcularTodo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 64px;
+    padding: 10px 14px 10px 10px;
+    border: 0;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(120deg, var(--primary-fill), color-mix(in srgb, var(--primary-fill) 70%, var(--accent)));
+    color: rgb(255 255 255);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 12px 26px -14px color-mix(in srgb, var(--primary) 90%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.2);
+    animation: lmPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.calcularTodo:active { scale: 0.98; }
+.calcularTodo:disabled { cursor: wait; opacity: 0.85; }
+.calcularIcono { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 50%; background: rgb(255 255 255 / 0.18); }
+.calcularTexto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.calcularTexto b { font-size: 16px; font-weight: 800; }
+.calcularTexto span { font-size: 13px; opacity: 0.88; }
+
+/* ---- tu plato (la bandeja) ---- */
+.bandeja {
+    gap: 12px;
+    padding: 14px;
+    border-radius: var(--radius-xl);
+    background:
+        radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 60%),
+        var(--bg-card);
+    border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+    box-shadow: 0 16px 36px -24px color-mix(in srgb, var(--primary) 80%, transparent);
+    animation: lmAsomar 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bandejaCabeza { display: flex; align-items: center; gap: 14px; }
+.anillo { flex: none; width: 64px; height: 64px; rotate: -90deg; }
+.anilloFondo { fill: none; stroke: var(--bg-muted); stroke-width: 8; }
+.anilloParte { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dasharray 400ms ease, stroke-dashoffset 400ms ease; }
+.anillo_p { stroke: var(--success); }
+.anillo_c { stroke: var(--warning); }
+.anillo_g { stroke: var(--accent); }
+.bandejaCifras { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bandeja .totalKcal { font-size: 30px; line-height: 1; animation: lmLatido 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.barras { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.barra {
+    --b: var(--success);
+    display: flex;
+    justify-content: center;
+    padding: 6px 4px;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--b) 13%, transparent);
+    box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--b) 70%, transparent);
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.barra_c { --b: var(--warning); }
+.barra_g { --b: var(--accent); }
+.barraTexto b { color: var(--text-main); font-weight: 800; }
+.paso { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.pasoBtn {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.pasoBtn:active { scale: 0.92; background: color-mix(in srgb, var(--primary) 24%, transparent); }
+.pasoBtn:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 2px; }
+.paso .lineQty { width: 56px; }
+/* con los − / + la fila no cabe en 340 px: la unidad conserva su ancho y gramos·kcal bajan si hace falta */
+.bandeja .lineBottom { flex-wrap: wrap; row-gap: 6px; }
+.bandeja .lineUnit { flex: 0 1 auto; min-width: 96px; }
+
+/* ---- tus habituales: fichas grandes ---- */
+.ficha {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    height: 100%;
+    min-height: 104px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background:
+        radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 65%),
+        var(--bg-card);
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 150ms ease, scale 150ms ease, box-shadow 150ms ease;
+}
+@media (hover: hover) { .ficha:hover { border-color: color-mix(in srgb, var(--primary) 55%, var(--border)); box-shadow: 0 10px 24px -18px color-mix(in srgb, var(--primary) 90%, transparent); } }
+.ficha:active { scale: 0.97; }
+.ficha:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 2px; }
+.fichaNombre {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+.fichaPie { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.fichaKcal { font-size: 13px; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.fichaMas {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary-fill);
+    color: rgb(255 255 255);
+    box-shadow: 0 6px 14px -8px color-mix(in srgb, var(--primary) 90%, transparent);
+}
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- ¡Registrado! ---- */
+.hecho {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+    -webkit-backdrop-filter: blur(6px);
+            backdrop-filter: blur(6px);
+    color: var(--text-main);
+    text-align: center;
+    animation: lmFadeIn 0.18s ease;
+}
+.hecho b { font-size: 24px; font-weight: 800; margin-top: 8px; }
+.hecho > span:last-child { font-size: 15px; color: var(--text-muted); }
+.hechoCheck {
+    display: grid;
+    place-items: center;
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 30%, color-mix(in srgb, var(--success) 70%, white), var(--success) 70%);
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--success) 16%, transparent), 0 18px 40px -14px color-mix(in srgb, var(--success) 90%, transparent);
+    color: rgb(255 255 255);
+    animation: lmPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.confeti { position: absolute; left: 50%; top: 50%; width: 0; height: 0; margin-top: -40px; pointer-events: none; }
+.trocito {
+    position: absolute;
+    width: 8px;
+    height: 12px;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    animation: lmEstallar 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+}
+.trocito_meta { background: var(--success); }
+.trocito_oro { background: var(--warning); }
+.trocito_primario { background: var(--primary-light); }
+.trocito_acento { background: var(--accent); }
+
+@keyframes lmBrillo { to { background-position: 300% 0; } }
+@keyframes lmAsomar { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+@keyframes lmPop { 0% { scale: 0.6; opacity: 0; } 100% { scale: 1; opacity: 1; } }
+@keyframes lmLatido { 0% { scale: 0.85; } 100% { scale: 1; } }
+@keyframes lmEstallar {
+    0% { opacity: 1; transform: rotate(var(--ang)) translateY(0) rotate(0deg); }
+    100% { opacity: 0; transform: rotate(var(--ang)) translateY(calc(var(--dist) * -1)) rotate(var(--giro)); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .caja, .calcularTodo, .bandeja, .sugerencias, .cuando, .hecho, .hechoCheck, .bandeja .totalKcal { animation: none; }
+    .confeti { display: none; }
+}

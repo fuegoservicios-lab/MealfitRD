@@ -103,8 +103,13 @@ describe('[P1-MANUAL-FOOD-LOG] el componedor', () => {
     });
 
     it("meal_type por defecto es 'extra': no secuestra el plan", async () => {
+        // [P1-PLAN-LOTE-1147] sin plan se adivina por la hora (con plan sigue «extra»: lote1147.registro_rapido.test.jsx);
+        // de madrugada no toca ninguna comida, así que aquí el defecto vuelve a ser «extra»
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date(2026, 10, 21, 2, 0));
         const user = userEvent.setup();
         render(<LogMealModal onClose={vi.fn()} />);
+        vi.useRealTimers();
         await user.type(screen.getByLabelText('Buscar alimento'), 'arroz');
         await user.click(await screen.findByText('Arroz blanco'));
         await user.click(screen.getByRole('button', { name: 'Registrar' }));

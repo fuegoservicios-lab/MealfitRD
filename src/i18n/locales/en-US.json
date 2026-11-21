@@ -595,7 +595,6 @@
   "Buscar alimento para agregar a tu Nevera": "Search for a food to add to your Fridge",
   "Buscar alimento para agregar a tus básicos": "Search for a food to add to your staples",
   "Buscar ingrediente…": "Search ingredient…",
-  "Buscar o escribir": "Search or type",
   "Buscar otra opción": "Find another option",
   "Buscar planes por nombre": "Search plans by name",
   "Buscar planes…": "Search plans…",
@@ -721,7 +720,6 @@
   "Con el tiempo que marcaste (unos {budget} min por comida), al menos {n} de las comidas revisadas piden más: hasta {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarlas con “Cambiar plato”.": "With the time you chose (about {budget} min per meal), at least {n} of the reviewed meals need more: up to {max} min. We don't have enough dishes that quick yet; you can swap them with “Swap meal”.",
   "Con el tiempo que marcaste (unos {budget} min por comida), una de las comidas revisadas pide más: {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarla con “Cambiar plato”.": "With the time you chose (about {budget} min per meal), one of the reviewed meals needs more: {max} min. We don't have enough dishes that quick yet; you can swap it with “Swap meal”.",
   "Con el tiempo que marcaste (unos {budget} min por comida), {n} de las comidas revisadas piden más: hasta {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarlas con “Cambiar plato”.": "With the time you chose (about {budget} min per meal), {n} of the reviewed meals need more: up to {max} min. We don't have enough dishes that quick yet; you can swap them with “Swap meal”.",
-  "Cómo registrar": "How to log",
   "Mostrar la barra de navegación": "Show the navigation bar",
   "Ocultar la barra de navegación": "Hide the navigation bar",
   "Platos de cualquier cocina que venda tu mercado, sin sesgo": "Dishes from any cuisine your market sells, no bias",
@@ -4362,5 +4360,12 @@
   "Seguir en mi {dia}": "Stay on my {dia}",
   "Tu día termina a las {h}:00 a. m.": "Your day ends at {h}:00 a.m.",
   "Tu día termina a las": "Your day ends at",
-  "Hasta esa hora de la mañana, lo que comas cuenta en el día anterior. Si no has dormido, tu día sigue solo hasta que duermas.": "Until that time in the morning, what you eat counts toward the previous day. If you haven't slept, your day keeps going on its own until you sleep."
+  "Hasta esa hora de la mañana, lo que comas cuenta en el día anterior. Si no has dormido, tu día sigue solo hasta que duermas.": "Until that time in the morning, what you eat counts toward the previous day. If you haven't slept, your day keeps going on its own until you sleep.",
+  "Calcular todo": "Calculate it all",
+  "Separo tu plato en partes y calculo cada una.": "I split your plate into parts and calculate each one.",
+  "¡Registrado!": "Logged!",
+  "{kcal} kcal en tu día": "{kcal} kcal in your day",
+  "Ej.: arroz con habichuelas y pollo": "E.g.: rice with beans and chicken",
+  "Ej.: un mangú con huevo y queso frito": "E.g.: mangú with egg and fried cheese",
+  "Ej.: 2 guineítos y un café con leche": "E.g.: 2 green bananas and a coffee with milk"
 }
