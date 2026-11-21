@@ -13,14 +13,24 @@
 //  · «Faltan N ★» solo en el SIGUIENTE rango (en los cinco se repetía); los lejanos dicen desde cuántas estrellas;
 //  · el camino es una tarjeta «Camino a Plata» con dos renglones, sin el «—» suelto cuando aún no hay ritmo;
 //  · la barra vacía ya no pinta un punto gris, y debajo lleva sus extremos en estrellas.
-import { useRef } from 'react';
+// [P1-PLAN-LOTE-1157 · 2026-11-21] El dueño: «mejora esto en general; en PC no se puede scrollear para abajo».
+//  · en PC la hoja no cabía (en un portátil de 768 px quedaba media escalera fuera) y el cuerpo escondía su barra de
+//    desplazamiento: sin rueda no había forma de bajar, y nada decía que había más. Ahora, en pantallas anchas, DOS
+//    columnas (tu rango y el camino | la escalera) que caben sin desplazar; barra fina visible con ratón, y un fundido
+//    sobre el pie mientras queda algo debajo;
+//  · «3 semanas perfectas / 81 semanas a tu ritmo» se leía como un dato tuyo y desanimaba (1 estrella en 9 semanas
+//    cerradas da 81). El camino es ahora un plan con los TRES ritmos que dan estrellas (7, 5 y 3 días en meta → cuántas
+//    semanas cada uno); «a tu ritmo» solo si es una cifra razonable (≤ 52 semanas). Las reglas de las estrellas quedan
+//    dentro de ese plan (eran una tarjeta aparte que repetía lo mismo); en la cima siguen solas.
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { CalendarCheck, Check, Lock, Star, Trophy, X } from 'lucide-react';
+import { Check, Lock, Star, Trophy, X } from 'lucide-react';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { Button } from '../ui/Button';
 import { formatNumber, useT, useTn } from '../../i18n';
+import { semanasPorRitmo, RITMO_PROPIO_MAX_SEMANAS } from '../../utils/caminoDeRangos';   // [1157]
 import styles from './EscaleraDeRangos.module.css';
 
 export const ESCALERA = [
@@ -52,6 +62,7 @@ export function semanasHasta(faltan, { estrellas = 0, semanasCerradas = 0 } = {}
     return { perfectas, aTuRitmo: ritmo > 0 ? Math.ceil(faltan / ritmo) : null };
 }
 
+
 /** La hoja abierta: existe solo mientras se ve, así `useBottomSheet` recuerda y restaura el scroll del fondo. */
 function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
     const t = useT();
@@ -59,12 +70,25 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose: onCerrar });
     const bodyRef = useRef(null);
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose: onCerrar });
+    // [1157] ¿queda contenido debajo? (fundido sobre el pie: se ve que la hoja sigue)
+    const [masAbajo, setMasAbajo] = useState(false);
+    useEffect(() => {
+        const el = bodyRef.current;
+        if (!el) return undefined;
+        const medir = () => setMasAbajo(el.scrollTop + el.clientHeight < el.scrollHeight - 8);
+        const id = requestAnimationFrame(medir);
+        el.addEventListener('scroll', medir, { passive: true });
+        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(medir) : null;
+        ro?.observe(el);
+        return () => { cancelAnimationFrame(id); el.removeEventListener('scroll', medir); ro?.disconnect(); };
+    }, []);
 
     const nombre = (clave) => ({
         bronce: t('Bronce'), plata: t('Plata'), oro: t('Oro'), platino: t('Platino'), diamante: t('Diamante'),
     })[clave] || '';
     const pos = posicionEnLaEscalera(estrellas);
     const camino = semanasHasta(pos.faltan, { estrellas: pos.total, semanasCerradas });
+    const ritmos = semanasPorRitmo(pos.faltan);
     // Relleno del raíl: tramos completos + lo avanzado en el actual, contado desde arriba (Bronce).
     const tramos = ESCALERA.length - 1;
     const relleno = Math.min(1, (pos.indice + (pos.siguiente ? pos.avance : 0)) / tramos);
@@ -76,6 +100,7 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
             <div
                 ref={containerRef}
                 className={styles.sheet}
+                data-mas={masAbajo ? 'si' : undefined}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="escalera-rangos-titulo"
@@ -92,7 +117,8 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
                     </button>
                 </div>
 
-                <div ref={bodyRef} className={styles.body} style={{ '--avance': pos.avance, '--relleno': relleno }}>
+                <div ref={bodyRef} className={styles.body} tabIndex={0} style={{ '--avance': pos.avance, '--relleno': relleno }}>
+                    <div className={styles.columna}>
                     <header className={styles.cabecera}>
                         <span className={`${styles.gema} ${styles.gemaGrande} ${styles[`metal_${pos.actual.clave}`]}`} aria-hidden="true">
                             <Trophy size={30} strokeWidth={2.25} />
@@ -130,44 +156,37 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
                                 <span>{estrellasTexto(pos.siguiente.desde)}</span>
                             </div>
 
-                            <ul className={styles.camino}>
-                                <li className={styles.caminoDato}>
-                                    <span className={styles.caminoNumero}>{camino.perfectas}</span>
-                                    <span className={styles.caminoTexto}>
-                                        <strong>{tn(camino.perfectas, 'semana perfecta', 'semanas perfectas', { n: camino.perfectas })}</strong>
-                                        <span>{t('con los 7 días en meta')}</span>
-                                    </span>
-                                </li>
-                                <li className={styles.caminoDato}>
-                                    {camino.aTuRitmo == null ? (
-                                        <>
-                                            <span className={`${styles.caminoNumero} ${styles.caminoIcono}`} aria-hidden="true">
-                                                <CalendarCheck size={20} strokeWidth={2.25} />
-                                            </span>
-                                            <span className={styles.caminoTexto}>
-                                                <span>
-                                                    {semanasCerradas > 0
-                                                        // Semanas cerradas pero sin estrellas: no hay ritmo que proyectar; lo útil es la primera.
-                                                        ? t('con 3 días en meta en una semana ganas la primera')
-                                                        : t('cierra tu primera semana para ver tu ritmo')}
-                                                </span>
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className={styles.caminoNumero}>{camino.aTuRitmo}</span>
-                                            <span className={styles.caminoTexto}>
-                                                <strong>{tn(camino.aTuRitmo, 'semana a tu ritmo', 'semanas a tu ritmo', { n: camino.aTuRitmo })}</strong>
-                                                <span>{t('según tus semanas cerradas')}</span>
-                                            </span>
-                                        </>
-                                    )}
-                                </li>
+                            <h4 className={styles.planTitulo}>{t('Cómo llegar')}</h4>
+                            <ul className={styles.plan}>
+                                {ritmos.map((r) => (
+                                    <li key={r.dias} className={styles.planFila}>
+                                        <span className={styles.reglaEstrellas} aria-hidden="true">
+                                            {Array.from({ length: 3 }, (_, k) => (
+                                                <Star key={k} size={14} className={k < r.estrellas ? styles.estrellaLlena : styles.estrellaVacia} />
+                                            ))}
+                                        </span>
+                                        <span className={styles.planDias}>{tn(r.dias, '{n} día en meta por semana', '{n} días en meta por semana', { n: r.dias })}</span>
+                                        <strong className={styles.planSemanas}>{tn(r.semanas, 'en {n} semana', 'en {n} semanas', { n: r.semanas })}</strong>
+                                    </li>
+                                ))}
                             </ul>
+                            <p className={styles.planNota}>
+                                {camino.aTuRitmo != null && camino.aTuRitmo <= RITMO_PROPIO_MAX_SEMANAS
+                                    ? tn(camino.aTuRitmo, 'A tu ritmo de ahora: unas {n} semana.', 'A tu ritmo de ahora: unas {n} semanas.', { n: camino.aTuRitmo })
+                                    : camino.aTuRitmo == null && semanasCerradas === 0
+                                        ? t('cierra tu primera semana para ver tu ritmo')
+                                        : camino.aTuRitmo == null
+                                            // Semanas cerradas pero sin estrellas: no hay ritmo que proyectar; lo útil es la primera.
+                                            ? t('con 3 días en meta en una semana ganas la primera')
+                                            : t('Las estrellas no se pierden: un día flojo solo deja de sumar.')}
+                            </p>
                         </section>
                     ) : (
                         <p className={styles.cima}>{t('Estás en la cima: llegaste a Diamante.')}</p>
                     )}
+                    </div>
+
+                    <div className={styles.columna}>
 
                     <ol className={styles.escalera} aria-label={t('Los rangos')}>
                         {ESCALERA.map((r, i) => {
@@ -200,6 +219,8 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
                         })}
                     </ol>
 
+                    {/* [1157] con un rango por delante, las reglas ya van en «Cómo llegar»; en la cima, aquí */}
+                    {!pos.siguiente && (
                     <section className={styles.reglas} aria-labelledby="escalera-reglas">
                         <h3 id="escalera-reglas" className={styles.reglasTitulo}>{t('Cómo se ganan las estrellas')}</h3>
                         <p className={styles.reglasTexto}>{t('Cada semana, según los días que cierras dentro de tu meta:')}</p>
@@ -217,6 +238,8 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
                         </ul>
                         <p className={styles.reglasNota}>{t('Las estrellas no se pierden: un día flojo solo deja de sumar.')}</p>
                     </section>
+                    )}
+                    </div>
                 </div>
 
                 <div className={styles.pie}>

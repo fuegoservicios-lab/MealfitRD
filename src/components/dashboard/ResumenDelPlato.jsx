@@ -7,23 +7,8 @@
 // ingredientes, porque lee las mismas macros que se van a registrar (`macrosDelPlato`).
 import PropTypes from 'prop-types';
 import { useT, formatNumber } from '../../i18n';
+import { tramosDelAnillo, R, LARGO } from '../../utils/anilloDelPlato';
 import styles from './ResumenDelPlato.module.css';
-
-const R = 30;
-const LARGO = 2 * Math.PI * R;
-
-/** Pura. Los tramos del anillo: kcal de cada macro (4/4/9) repartidas sobre la circunferencia. */
-export function tramosDelAnillo({ protein = 0, carbs = 0, healthy_fats = 0 } = {}) {
-    const partes = [['p', Math.max(0, protein) * 4], ['c', Math.max(0, carbs) * 4], ['g', Math.max(0, healthy_fats) * 9]];
-    const suma = partes.reduce((s, [, v]) => s + v, 0);
-    if (suma <= 0) return [];
-    let desde = 0;
-    return partes.filter(([, v]) => v > 0).map(([k, v]) => {
-        const tramo = { k, desde, largo: (v / suma) * LARGO };
-        desde += tramo.largo;
-        return tramo;
-    });
-}
 
 export default function ResumenDelPlato({ macros }) {
     const t = useT();

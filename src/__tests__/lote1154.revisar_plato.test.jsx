@@ -4,7 +4,8 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import ResumenDelPlato, { tramosDelAnillo } from '../components/dashboard/ResumenDelPlato';
+import ResumenDelPlato from '../components/dashboard/ResumenDelPlato';
+import { tramosDelAnillo } from '../utils/anilloDelPlato';
 
 const leer = (rel) => fs.readFileSync(rel, 'utf-8').replace(/\r\n/g, '\n');
 

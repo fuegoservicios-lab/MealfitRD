@@ -3457,6 +3457,19 @@
   "Revisa esto antes de registrar:": "Confira isto antes de registrar:",
   "Cambiar: {x}": "Alterar: {x}",
   "Cambiar": "Alterar",
+  "{n} días en meta por semana": {
+    "one": "{n} dia na meta por semana",
+    "other": "{n} dias na meta por semana"
+  },
+  "A tu ritmo de ahora: unas {n} semanas.": {
+    "one": "No seu ritmo atual: umas {n} semana.",
+    "other": "No seu ritmo atual: umas {n} semanas."
+  },
+  "en {n} semanas": {
+    "one": "em {n} semana",
+    "other": "em {n} semanas"
+  },
+  "Cómo llegar": "Como chegar",
   "Permitir hora exacta": "Permitir hora exata",
   "Para que suenen a su hora exacta, permite «Alarmas y recordatorios».": "Para que toquem na hora exata, permita “Alarmes e lembretes”.",
   "Está tardando más de la cuenta. Si ya diste el permiso, toca «Activar» otra vez.": "Está demorando mais que o normal. Se você já deu a permissão, toque em “Ativar” de novo.",
@@ -4115,14 +4128,6 @@
   },
   "Avance hacia {rango}": "Progresso até {rango}",
   "Estás en la cima: llegaste a Diamante.": "Você está no topo: chegou ao Diamante.",
-  "semanas perfectas": {
-    "one": "semana perfeita",
-    "other": "semanas perfeitas"
-  },
-  "semanas a tu ritmo": {
-    "one": "semana no seu ritmo",
-    "other": "semanas no seu ritmo"
-  },
   "cierra tu primera semana para ver tu ritmo": "feche sua primeira semana para ver seu ritmo",
   "Los rangos": "Os níveis",
   "Tu punto de partida": "Seu ponto de partida",
@@ -4159,8 +4164,6 @@
   "Listo en segundos para compartir en PDF.": "Pronto em segundos para compartilhar em PDF.",
   "Nuevo informe": "Novo relatório",
   "Camino a {rango}": "Caminho para {rango}",
-  "con los 7 días en meta": "com os 7 dias na meta",
-  "según tus semanas cerradas": "segundo suas semanas fechadas",
   "¿Y tú, cómo va tu semana?": "E você, como vai sua semana?",
   "🏆 Mi semana en {app} · Semana {n}": "🏆 Minha semana no {app} · Semana {n}",
   "✅ {n} de {total} días en meta": "✅ {n} de {total} dias na meta",

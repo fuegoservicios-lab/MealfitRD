@@ -3457,6 +3457,19 @@
   "Revisa esto antes de registrar:": "Check this before logging:",
   "Cambiar: {x}": "Change: {x}",
   "Cambiar": "Change",
+  "{n} días en meta por semana": {
+    "one": "{n} day on goal per week",
+    "other": "{n} days on goal per week"
+  },
+  "A tu ritmo de ahora: unas {n} semanas.": {
+    "one": "At your current pace: about {n} week.",
+    "other": "At your current pace: about {n} weeks."
+  },
+  "en {n} semanas": {
+    "one": "in {n} week",
+    "other": "in {n} weeks"
+  },
+  "Cómo llegar": "How to get there",
   "Permitir hora exacta": "Allow exact time",
   "Para que suenen a su hora exacta, permite «Alarmas y recordatorios».": "To have them ring at the exact time, allow “Alarms & reminders”.",
   "Está tardando más de la cuenta. Si ya diste el permiso, toca «Activar» otra vez.": "This is taking longer than expected. If you already allowed it, tap “Turn on” again.",
@@ -4115,14 +4128,6 @@
   },
   "Avance hacia {rango}": "Progress toward {rango}",
   "Estás en la cima: llegaste a Diamante.": "You're at the top: you reached Diamond.",
-  "semanas perfectas": {
-    "one": "perfect week",
-    "other": "perfect weeks"
-  },
-  "semanas a tu ritmo": {
-    "one": "week at your pace",
-    "other": "weeks at your pace"
-  },
   "cierra tu primera semana para ver tu ritmo": "finish your first week to see your pace",
   "Los rangos": "The ranks",
   "Tu punto de partida": "Your starting point",
@@ -4159,8 +4164,6 @@
   "Listo en segundos para compartir en PDF.": "Ready in seconds to share as a PDF.",
   "Nuevo informe": "New report",
   "Camino a {rango}": "Road to {rango}",
-  "con los 7 días en meta": "with all 7 days on goal",
-  "según tus semanas cerradas": "based on your completed weeks",
   "¿Y tú, cómo va tu semana?": "How’s your week going?",
   "🏆 Mi semana en {app} · Semana {n}": "🏆 My week on {app} · Week {n}",
   "✅ {n} de {total} días en meta": "✅ {n} of {total} days on goal",

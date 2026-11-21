@@ -3457,6 +3457,19 @@
   "Revisa esto antes de registrar:": "Controlla questo prima di registrare:",
   "Cambiar: {x}": "Cambia: {x}",
   "Cambiar": "Cambia",
+  "{n} días en meta por semana": {
+    "one": "{n} giorno in obiettivo a settimana",
+    "other": "{n} giorni in obiettivo a settimana"
+  },
+  "A tu ritmo de ahora: unas {n} semanas.": {
+    "one": "Al tuo ritmo attuale: circa {n} settimana.",
+    "other": "Al tuo ritmo attuale: circa {n} settimane."
+  },
+  "en {n} semanas": {
+    "one": "in {n} settimana",
+    "other": "in {n} settimane"
+  },
+  "Cómo llegar": "Come arrivarci",
   "Permitir hora exacta": "Consenti ora esatta",
   "Para que suenen a su hora exacta, permite «Alarmas y recordatorios».": "Perché suonino all’ora esatta, consenti «Sveglie e promemoria».",
   "Está tardando más de la cuenta. Si ya diste el permiso, toca «Activar» otra vez.": "Ci sta mettendo più del previsto. Se hai già dato il permesso, tocca «Attiva» di nuovo.",
@@ -4115,14 +4128,6 @@
   },
   "Avance hacia {rango}": "Avanzamento verso {rango}",
   "Estás en la cima: llegaste a Diamante.": "Sei in cima: hai raggiunto Diamante.",
-  "semanas perfectas": {
-    "one": "settimana perfetta",
-    "other": "settimane perfette"
-  },
-  "semanas a tu ritmo": {
-    "one": "settimana al tuo ritmo",
-    "other": "settimane al tuo ritmo"
-  },
   "cierra tu primera semana para ver tu ritmo": "chiudi la tua prima settimana per vedere il tuo ritmo",
   "Los rangos": "I ranghi",
   "Tu punto de partida": "Il tuo punto di partenza",
@@ -4159,8 +4164,6 @@
   "Listo en segundos para compartir en PDF.": "Pronto in pochi secondi da condividere in PDF.",
   "Nuevo informe": "Nuovo report",
   "Camino a {rango}": "Verso {rango}",
-  "con los 7 días en meta": "con tutti i 7 giorni nell’obiettivo",
-  "según tus semanas cerradas": "in base alle tue settimane chiuse",
   "¿Y tú, cómo va tu semana?": "E tu, come va la tua settimana?",
   "🏆 Mi semana en {app} · Semana {n}": "🏆 La mia settimana su {app} · Settimana {n}",
   "✅ {n} de {total} días en meta": "✅ {n} giorni su {total} nell’obiettivo",

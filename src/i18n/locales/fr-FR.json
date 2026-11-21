@@ -3457,6 +3457,19 @@
   "Revisa esto antes de registrar:": "Vérifiez ceci avant d’enregistrer :",
   "Cambiar: {x}": "Modifier : {x}",
   "Cambiar": "Modifier",
+  "{n} días en meta por semana": {
+    "one": "{n} jour dans l’objectif par semaine",
+    "other": "{n} jours dans l’objectif par semaine"
+  },
+  "A tu ritmo de ahora: unas {n} semanas.": {
+    "one": "À votre rythme actuel : environ {n} semaine.",
+    "other": "À votre rythme actuel : environ {n} semaines."
+  },
+  "en {n} semanas": {
+    "one": "en {n} semaine",
+    "other": "en {n} semaines"
+  },
+  "Cómo llegar": "Comment y arriver",
   "Permitir hora exacta": "Autoriser l’heure exacte",
   "Para que suenen a su hora exacta, permite «Alarmas y recordatorios».": "Pour qu’ils sonnent à l’heure exacte, autorisez « Alarmes et rappels ».",
   "Está tardando más de la cuenta. Si ya diste el permiso, toca «Activar» otra vez.": "Cela prend plus de temps que prévu. Si vous avez déjà donné l’autorisation, touchez « Activer » à nouveau.",
@@ -4115,14 +4128,6 @@
   },
   "Avance hacia {rango}": "Progression vers {rango}",
   "Estás en la cima: llegaste a Diamante.": "Vous êtes au sommet : vous avez atteint Diamant.",
-  "semanas perfectas": {
-    "one": "semaine parfaite",
-    "other": "semaines parfaites"
-  },
-  "semanas a tu ritmo": {
-    "one": "semaine à votre rythme",
-    "other": "semaines à votre rythme"
-  },
   "cierra tu primera semana para ver tu ritmo": "terminez votre première semaine pour voir votre rythme",
   "Los rangos": "Les rangs",
   "Tu punto de partida": "Votre point de départ",
@@ -4159,8 +4164,6 @@
   "Listo en segundos para compartir en PDF.": "Prêt en quelques secondes, à partager en PDF.",
   "Nuevo informe": "Nouveau rapport",
   "Camino a {rango}": "En route vers {rango}",
-  "con los 7 días en meta": "avec les 7 jours dans l’objectif",
-  "según tus semanas cerradas": "d’après vos semaines terminées",
   "¿Y tú, cómo va tu semana?": "Et vous, comment se passe votre semaine ?",
   "🏆 Mi semana en {app} · Semana {n}": "🏆 Ma semaine sur {app} · Semaine {n}",
   "✅ {n} de {total} días en meta": "✅ {n} jours sur {total} dans l’objectif",

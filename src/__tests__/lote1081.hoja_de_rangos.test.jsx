@@ -42,10 +42,10 @@ describe('[1081] se lee mejor', () => {
         expect(screen.getByRole('progressbar').children).toHaveLength(0);
     });
 
-    it('con ritmo dice las dos cuentas', () => {
+    // [P1-PLAN-LOTE-1157] las «dos cuentas» son ahora «Cómo llegar» (tres ritmos) + tu ritmo si es razonable
+    it('con ritmo dice cómo llegar y su ritmo', () => {
         render(<EscaleraDeRangos abierta onCerrar={() => {}} estrellas={6} semanasCerradas={4} />);
-        expect(screen.getByText('semanas perfectas')).toBeTruthy();
-        expect(screen.getByText('semanas a tu ritmo')).toBeTruthy();
-        expect(screen.getByText('según tus semanas cerradas')).toBeTruthy();
+        expect(screen.getByText('Cómo llegar')).toBeTruthy();
+        expect(screen.getByText('A tu ritmo de ahora: unas 3 semanas.')).toBeTruthy();
     });
 });
