@@ -427,7 +427,7 @@
 @media (prefers-reduced-motion: reduce) { .fotoCta { transition: none; } }
 
 /* [P1-PLAN-LOTE-1090] los ajustes, en filas del mismo ancho: rótulo a la izquierda y el control llenando el resto */
-.conFoto { display: flex; flex-direction: column; align-items: stretch; gap: 0.6rem; }
+.conFoto { display: flex; flex-direction: column; align-items: stretch; gap: 0.75rem; }
 .fila { display: flex; align-items: center; gap: 0.75rem; width: 100%; min-width: 0; }
 .filaRotulo {
     flex: 0 0 3.75rem;
@@ -439,39 +439,70 @@
 .capas.estilos { flex: 1 1 auto; width: auto; margin-top: 0; grid-template-columns: repeat(3, 1fr); }
 .conFoto .formatos { margin-bottom: 0; }
 
-.fotoAcciones { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem; }
+.fotoAcciones { flex: 1 1 auto; min-width: 0; display: flex; gap: 0.4rem; }
+/* [1144] Cambiar / Quitar la foto: píldoras de la misma familia que las de «Textos», con su icono */
+.fotoBoton {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 40px;
+    padding: 0 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.fotoBoton svg { color: var(--primary); }
+.fotoBoton:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.fotoBoton:active { transform: scale(0.97); }
+.fotoBoton:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.fotoBotonQuitar svg { color: var(--text-muted); }
 
 /* [P1-PLAN-LOTE-1078] «Foto · Tus cifras»: qué mueve el deslizador (el gesto mueve lo que toques). Dos mitades iguales,
    con icono: es una herramienta, no un estilo más (los estilos van en píldoras). */
 .capas {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.25rem;
+    gap: 4px;
     width: 100%;
-    padding: 0.2rem;
-    border-radius: var(--radius-md);
-    background: color-mix(in srgb, var(--text-main) 6%, var(--bg-card));
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    background: var(--bg-muted);
 }
 .capa {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
-    min-height: 38px;
+    min-height: 40px;
     min-width: 0;
+    padding: 0 0.6rem;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-full);
     background: transparent;
     color: var(--text-muted);
     font: inherit;
     font-size: 0.875rem;
     font-weight: 700;
+    white-space: nowrap;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, color 0.15s ease;
 }
+/* [P1-PLAN-LOTE-1144] «este sombreado se ve raro» (el dueño): la activa era `--bg-card` con sombra, y en oscuro la
+   tarjeta es MÁS oscura que el riel (`--bg-muted`): salía hundida. Ahora es la misma píldora teñida que el diseño
+   elegido y los textos visibles, igual en claro y en oscuro. */
 .capaActiva {
-    background: var(--bg-card);
+    background: color-mix(in srgb, var(--primary) 16%, var(--bg-card));
     color: var(--primary);
-    box-shadow: 0 1px 3px rgba(2, 6, 23, 0.18);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 45%, transparent);
 }
 .capa:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 1px; }
 

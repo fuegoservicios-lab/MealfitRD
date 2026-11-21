@@ -24,7 +24,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images, Image as ImageIcon, Type, RotateCcw, Eye, EyeOff, ChevronRight, Undo2, Redo2, Maximize2, Hand, Minus, Plus } from 'lucide-react';
+import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images, Image as ImageIcon, Type, RotateCcw, Eye, EyeOff, ChevronRight, Undo2, Redo2, Maximize2, Hand, Minus, Plus, Trash2 } from 'lucide-react';
 import { crearHistorial, apuntar, deshacer, rehacer, mismoEstado, puedeDeshacer, puedeRehacer, VISTA_INICIAL, VISTA_MAX, acotarVista, vistaConZoom, pasoDeVista } from '../../utils/historialDeEdicion';
 import { chooseNativeGalleryImage, takeNativeChatPhoto, isNativePickerCancellation } from '../../utils/nativeChatImagePicker';
 import { toast } from 'sonner';
@@ -734,13 +734,15 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                             <div className={styles.fila}>
                             <span className={styles.filaRotulo} aria-hidden="true">{t('Mover')}</span>
                             <div className={`${styles.capas} ${styles.capasFila}`} role="radiogroup" aria-label={t('Qué ajustas')}>
-                                {[['foto', t('Foto de fondo'), ImageIcon], ['cifras', segun(t('Resumen de la semana'), t('Resumen del mes'), t('Resumen del camino'), t('Resumen del día')), Type]].map(([clave, rotulo, Icono]) => (
+                                {/* [P1-PLAN-LOTE-1144] a la vista, la palabra corta con su icono (la larga no cabía en un teléfono y se
+                                    comía el icono); el nombre completo sigue para el lector de pantalla */}
+                                {[['foto', t('Foto'), t('Foto de fondo'), ImageIcon], ['cifras', t('Resumen'), segun(t('Resumen de la semana'), t('Resumen del mes'), t('Resumen del camino'), t('Resumen del día')), Type]].map(([clave, corto, rotulo, Icono]) => (
                                     <button
-                                        key={clave} type="button" role="radio" aria-checked={capa === clave}
+                                        key={clave} type="button" role="radio" aria-checked={capa === clave} aria-label={rotulo}
                                         className={capa === clave ? `${styles.capa} ${styles.capaActiva}` : styles.capa}
                                         onClick={() => { setCapa(clave); if (clave === 'cifras') verGuia(900); }}
                                     >
-                                        <Icono size={16} aria-hidden="true" />{rotulo}
+                                        <Icono size={16} aria-hidden="true" />{corto}
                                     </button>
                                 ))}
                             </div>
@@ -757,9 +759,17 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                                 {botonRestablecer}
                             </div>
                             {selectorDePiezas}
-                            <div className={styles.fotoAcciones}>
-                                <button type="button" className={styles.enlace} onClick={pedirFoto}>{t('Cambiar foto')}</button>
-                                <button type="button" className={styles.enlace} onClick={() => setFoto(null)}>{t('Quitar foto')}</button>
+                            {/* [P1-PLAN-LOTE-1144] la foto es una fila más (rótulo + píldoras), no dos enlaces sueltos */}
+                            <div className={styles.fila}>
+                                <span className={styles.filaRotulo} aria-hidden="true">{t('Foto')}</span>
+                                <div className={styles.fotoAcciones}>
+                                    <button type="button" className={styles.fotoBoton} onClick={pedirFoto} aria-label={t('Cambiar foto')}>
+                                        <Images size={16} aria-hidden="true" />{t('Cambiar')}
+                                    </button>
+                                    <button type="button" className={`${styles.fotoBoton} ${styles.fotoBotonQuitar}`} onClick={() => setFoto(null)} aria-label={t('Quitar foto')}>
+                                        <Trash2 size={16} aria-hidden="true" />{t('Quitar')}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ) : (
