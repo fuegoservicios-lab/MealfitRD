@@ -863,7 +863,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
     });
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose, disabled: isBusy });
     // [P1-PLAN-LOTE-165 · 2026-09-22] En el iPhone el teclado tapaba el pie de la revisión: la hoja sube por encima.
-    const teclado = estilosDeHojaConTeclado(useTecladoDeHoja(isOpen));
+    const teclado = estilosDeHojaConTeclado(useTecladoDeHoja(isOpen, { cuerpoRef: bodyRef }));
 
     // Reset completo al cerrar para no arrastrar estado entre registros (el modal vive montado en el panel). El estado
     // se reajusta DURANTE el render al ver el cambio de `isOpen` (el patrón de React para estado derivado de una prop);

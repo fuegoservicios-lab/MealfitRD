@@ -61,6 +61,11 @@ export function useBottomSheet({ containerRef, bodyRef, onClose, disabled = fals
         if (!el) return;
         el.style.transition = animar ? 'transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none';
         el.style.transform = y ? `translateY(${y}px)` : '';
+        // [P1-PLAN-LOTE-1148] en reposo el panel vuelve a su `transition` del CSS (el `max-height` que acompaña al teclado)
+        if (!y) {
+            if (!animar) el.style.transition = '';
+            else setTimeout(() => { if (!el.style.transform) el.style.transition = ''; }, 240);
+        }
     };
     const onTouchStart = (e) => {
         if (!enTelefono() || disabled || cerrandoRef.current) return;

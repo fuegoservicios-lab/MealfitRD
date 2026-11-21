@@ -135,10 +135,10 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     const [hecho, setHecho] = useState(null);
     // los ejemplos de la caja van cambiando: enseñan qué se puede escribir sin leer instrucciones
     const ejemplos = [
-        t('Ej.: arroz, pollo guisado, mangú…'),
-        t('Ej.: arroz con habichuelas y pollo'),
-        t('Ej.: un mangú con huevo y queso frito'),
-        t('Ej.: 2 guineítos y un café con leche'),
+        t('Ej.: arroz, pollo, mangú'),
+        t('Ej.: arroz con pollo'),
+        t('Ej.: mangú con huevo'),
+        t('Ej.: 2 guineítos y café'),
     ];
     const [ejemplo, setEjemplo] = useState(0);
     const [daysAgo, setDaysAgo] = useState(() => Math.max(0, Math.min(7, Number(initialDaysAgo) || 0)));
@@ -180,7 +180,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     // restauración del scroll al cerrar viven en `useBottomSheet`, compartido con el escáner de fotos.
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose, disabled: saving });
     // [P1-PLAN-LOTE-165 · 2026-09-22] En el iPhone el teclado tapaba el pie («Registrar»): la hoja sube por encima.
-    const teclado = estilosDeHojaConTeclado(useTecladoDeHoja(true));
+    const teclado = estilosDeHojaConTeclado(useTecladoDeHoja(true, { cuerpoRef: bodyRef }));
 
     // Catálogo + platos: cache 24 h; si falta, un fetch. FAIL-CLOSED como los paneles
     // de Ajustes: sin catálogo no hay búsqueda que ofrecer, y un buscador vacío que

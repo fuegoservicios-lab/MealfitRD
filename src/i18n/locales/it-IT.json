@@ -3233,7 +3233,6 @@
   "Sí, seguir con esta": "Sì, continua con questo",
   "No, salir": "No, esci",
   "¿Qué comiste?": "Cosa hai mangiato?",
-  "Ej.: arroz, pollo guisado, mangú…": "Es.: riso, pollo in umido, mangú…",
   "Resultados": "Risultati",
   "No está en el catálogo: escribe sus macros o deja que las estimemos.": "Non è nel catalogo: scrivi i suoi macro o lascia che li stimiamo noi.",
   "{kcal} kcal · lo registraste {n} veces": {
@@ -4365,7 +4364,8 @@
   "Separo tu plato en partes y calculo cada una.": "Divido il tuo piatto in parti e calcolo ciascuna.",
   "¡Registrado!": "Registrato!",
   "{kcal} kcal en tu día": "{kcal} kcal nella tua giornata",
-  "Ej.: arroz con habichuelas y pollo": "Es.: riso con fagioli e pollo",
-  "Ej.: un mangú con huevo y queso frito": "Es.: un mangú con uovo e formaggio fritto",
-  "Ej.: 2 guineítos y un café con leche": "Es.: 2 banane verdi e un caffellatte"
+  "Ej.: arroz con pollo": "Es.: riso con pollo",
+  "Ej.: mangú con huevo": "Es.: mangú con uovo",
+  "Ej.: 2 guineítos y café": "Es.: 2 banane verdi e caffè",
+  "Ej.: arroz, pollo, mangú": "Es.: riso, pollo, mangú"
 }

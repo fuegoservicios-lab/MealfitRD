@@ -136,11 +136,11 @@ describe('lote 165 · el teclado en la parte web', () => {
 
     it('las dos hojas lo aplican al fondo y al panel', () => {
         const l = leer('src/components/dashboard/LogMealModal.jsx');
-        expect(l).toContain('const teclado = estilosDeHojaConTeclado(useTecladoDeHoja(true));');
+        expect(l).toContain('const teclado = estilosDeHojaConTeclado(useTecladoDeHoja(true, { cuerpoRef: bodyRef }));');
         expect(l).toContain('<div className={styles.overlay} style={teclado.fondo}>');
         expect(l).toContain('style={teclado.panel}');
         const s = leer('src/components/dashboard/ScanMealModal.jsx');
-        expect(s).toContain('const teclado = estilosDeHojaConTeclado(useTecladoDeHoja(isOpen));');
+        expect(s).toContain('const teclado = estilosDeHojaConTeclado(useTecladoDeHoja(isOpen, { cuerpoRef: bodyRef }));');
         expect(s).toContain('style={teclado.fondo}');
         expect(s).toContain('style={teclado.panel}');
     });

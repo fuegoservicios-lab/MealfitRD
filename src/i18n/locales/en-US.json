@@ -3233,7 +3233,6 @@
   "Sí, seguir con esta": "Yes, continue with this one",
   "No, salir": "No, sign out",
   "¿Qué comiste?": "What did you eat?",
-  "Ej.: arroz, pollo guisado, mangú…": "E.g. rice, stewed chicken, mangú…",
   "Resultados": "Results",
   "No está en el catálogo: escribe sus macros o deja que las estimemos.": "Not in the catalog: type its macros or let us estimate them.",
   "{kcal} kcal · lo registraste {n} veces": {
@@ -4365,7 +4364,8 @@
   "Separo tu plato en partes y calculo cada una.": "I split your plate into parts and calculate each one.",
   "¡Registrado!": "Logged!",
   "{kcal} kcal en tu día": "{kcal} kcal in your day",
-  "Ej.: arroz con habichuelas y pollo": "E.g.: rice with beans and chicken",
-  "Ej.: un mangú con huevo y queso frito": "E.g.: mangú with egg and fried cheese",
-  "Ej.: 2 guineítos y un café con leche": "E.g.: 2 green bananas and a coffee with milk"
+  "Ej.: arroz con pollo": "E.g.: rice with chicken",
+  "Ej.: mangú con huevo": "E.g.: mangú with egg",
+  "Ej.: 2 guineítos y café": "E.g.: 2 green bananas and coffee",
+  "Ej.: arroz, pollo, mangú": "E.g.: rice, chicken, mangú"
 }
