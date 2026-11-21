@@ -3089,7 +3089,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             </span>
                             <span className={styles.perfilTexto}>
                                 <span className={styles.perfilNombre}>{userName || t('Tu perfil')}</span>
-                                <span className={styles.perfilCorreo}>{userProfile?.email || t('Cuenta, apariencia y notificaciones')}</span>
+                                {userProfile?.email && <span className={styles.perfilCorreo}>{userProfile.email}</span>}
+                                {/* [1159b] la tarjeta ES «General» en el teléfono (la fila se oculta): dice qué hay dentro */}
+                                <span className={styles.perfilQue}>{t('Cuenta, apariencia y notificaciones')}</span>
                             </span>
                             <ChevronRight size={18} className={styles.perfilFlecha} aria-hidden="true" />
                         </button>
@@ -3102,7 +3104,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         key={s.id}
                                         type="button"
                                         onClick={() => navigateToSection(s.id)}
-                                        className={`${styles.sidebarItem} ${isActive ? styles.sidebarItemActive : ''}`}
+                                        className={`${styles.sidebarItem} ${isActive ? styles.sidebarItemActive : ''} ${s.id === 'profile' ? styles.sidebarItemPerfil : ''}`}
                                         aria-current={isActive ? 'page' : undefined}
                                     >
                                         <span className={styles.sidebarIcon}>

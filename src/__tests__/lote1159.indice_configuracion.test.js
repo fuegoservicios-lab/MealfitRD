@@ -16,6 +16,13 @@ describe('[1159] índice de Configuración en el teléfono', () => {
         expect(JSX).toContain("<button type=\"button\" className={styles.perfilCard} onClick={() => navigateToSection('profile')}>");
         expect(JSX).toContain('<span className={styles.sidebarDescription}>{s.description}</span>');
     });
+    // [1159b] el dueño: «general y lo de mi cuenta abren lo mismo» → en el teléfono la tarjeta ES General
+    it('en el teléfono la fila «General» se oculta (la tarjeta la sustituye) y dice qué hay dentro', () => {
+        expect(JSX).toContain("${s.id === 'profile' ? styles.sidebarItemPerfil : ''}");
+        expect(JSX).toContain("<span className={styles.perfilQue}>{t('Cuenta, apariencia y notificaciones')}</span>");
+        expect(BLOQUE).toMatch(/:global\(html\[data-theme="light"\]\) \.wrapper\.inDialog \.sidebarItemPerfil \{ display: none; \}/);
+        expect(BLOQUE).toContain('.wrapper.inDialog .sidebarItemPerfil + .sidebarItem::before { display: none; }');
+    });
     it('la tarjeta solo en el teléfono; en PC no existe', () => {
         expect(BLOQUE).toContain('.perfilCard { display: none; }');
         expect(BLOQUE).toMatch(/@media \(max-width: 768px\) \{\s*\.perfilCard \{\s*display: flex;/);

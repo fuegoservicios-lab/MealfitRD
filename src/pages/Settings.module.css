@@ -2315,6 +2315,15 @@
     .perfilNombre { font-size: 16px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .perfilCorreo { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .perfilFlecha { flex: none; color: var(--text-muted); }
+    .perfilQue { font-size: 12px; font-weight: 600; color: var(--primary-light, var(--primary)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* [1159b] «General» y la tarjeta abrían lo mismo (el dueño): en el teléfono la fila se oculta y la tarjeta la
+       sustituye; la siguiente fila pasa a ser la primera (sin separador encima) */
+    .wrapper .sidebarItemPerfil,
+    :global(html[data-theme="dark"]) .wrapper .sidebarItemPerfil,
+    :global(html[data-theme="dark"]) .wrapper.inDialog .sidebarItemPerfil,
+    :global(html[data-theme="light"]) .wrapper.inDialog .sidebarItemPerfil { display: none; }
+    .wrapper:not(.inDialog) .sidebarItemPerfil + .sidebarItem::before,
+    .wrapper.inDialog .sidebarItemPerfil + .sidebarItem::before { display: none; }
 
     /* la lista agrupada, también en la ventana (en la página ya la pone el lote 1124) */
     .wrapper.inDialog .sidebarNav,
