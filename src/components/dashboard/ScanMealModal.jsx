@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import {
     Camera, Image as ImageIcon, Layers, Loader2, Check, X, AlertTriangle, ChevronRight, ChevronDown, Trash2, RotateCcw,
-    Refrigerator, Pencil, Plus,
+    Refrigerator, Pencil, Plus, HelpCircle,
 } from 'lucide-react';
-import BroteChispa from '../common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
+import BroteChispa from '../common/BroteChispa';
+import ResumenDelPlato from './ResumenDelPlato';   // [P1-PLAN-LOTE-1154]   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 // [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes de mandar la foto o un texto a la IA.
@@ -267,17 +268,6 @@ const FilaComponente = ({ c, idCasilla, bloqueado, onAlternar, onCantidad, edita
                     <label htmlFor={idCasilla} className={styles.componentName}>{nombreVisible}</label>
                     {kcal !== null && c.checked && <span className={styles.componentKcal}>{formatNumber(kcal)} kcal</span>}
                 </div>
-                {onEditar && !editando && !calculando && (
-                    <button
-                        type="button"
-                        className={styles.componentCambiar}
-                        disabled={bloqueado}
-                        onClick={onEditar}
-                        aria-label={t('Cambiar {nombre}', { nombre: nombreVisible })}
-                    >
-                        {t('Cambiar')}
-                    </button>
-                )}
                 {editando && (
                     <CorregirConTexto
                         etiqueta={t('¿Qué era {nombre}?', { nombre: nombreVisible })}
@@ -300,6 +290,18 @@ const FilaComponente = ({ c, idCasilla, bloqueado, onAlternar, onCantidad, edita
                     />
                     {/* [P1-PLAN-LOTE-165] la unidad del escáner se glosa (el nombre no: es del motor); con su plural */}
                     <span className={styles.componentUnit}>{glossUnitWord(unidadParaCantidad(c.unit, c.qty), t)}</span>
+                    {/* [P1-PLAN-LOTE-1154] «Cambiar» en la línea de la cantidad: cada ingrediente, dos líneas (eran tres) */}
+                    {onEditar && !editando && !calculando && (
+                        <button
+                            type="button"
+                            className={styles.componentCambiar}
+                            disabled={bloqueado}
+                            onClick={onEditar}
+                            aria-label={t('Cambiar {nombre}', { nombre: nombreVisible })}
+                        >
+                            <Pencil size={13} aria-hidden="true" /> {t('Cambiar')}
+                        </button>
+                    )}
                 </div>
             </div>
         </li>
@@ -526,10 +528,14 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
     const ids = `scan-${plato.id}`;
     return (
         <>
+            {/* [P1-PLAN-LOTE-1154] lo primero, el total: antes vivía en el primero de cuatro campos de texto */}
+            <ResumenDelPlato macros={m} />
             {/* [P1-PLAN-LOTE-305] Lo que la foto no deja saber, a la vista antes de registrar. */}
             {Array.isArray(plato.dudas) && plato.dudas.length > 0 && (
                 <div role="note" className={styles.dudas}>
-                    <strong>{t('Revisa esto antes de registrar:')}</strong>
+                    <strong className={styles.dudasTitulo}>
+                        <HelpCircle size={16} aria-hidden="true" /> {t('Revisa esto antes de registrar:')}
+                    </strong>
                     {/* [P1-PLAN-LOTE-322] Respuestas de un toque: la opción mueve las macros al instante. */}
                     <DudasDeLaFoto
                         dudas={plato.dudas}

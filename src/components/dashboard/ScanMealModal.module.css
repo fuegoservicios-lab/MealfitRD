@@ -314,9 +314,18 @@
    4:3 completo (~345px) forzaba scroll para llegar a "Registrar comida". */
 .previewCompact {
     aspect-ratio: unset;
-    height: 120px;
-    margin-bottom: 0.85rem;
+    height: 168px;   /* [P1-PLAN-LOTE-1154] la foto se reconoce (a 120 px era una franja) */
+    margin-bottom: 16px;
+    border-radius: var(--radius-xl);
 }
+.previewCompact::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(transparent 55%, rgb(0 0 0 / 0.45));
+}
+.previewCompact .previewRetake { z-index: 1; }
 
 .scanningOverlay {
     position: absolute;
@@ -1149,14 +1158,16 @@
 
 /* [P1-PLAN-LOTE-305] Dudas de la foto: nota ámbar sobre «¿Qué es?». */
 .dudas {
-    margin: 0 0 0.9rem;
-    padding: 0.7rem 0.9rem;
-    border-radius: 0.75rem;
-    border: 1px solid color-mix(in srgb, var(--warning, #F59E0B) 45%, transparent);
-    background: color-mix(in srgb, var(--warning, #F59E0B) 10%, transparent);
+    /* [P1-PLAN-LOTE-1154] índigo, como el resto de la hoja (era un amarillo de advertencia que parecía un error) */
+    margin: 0 0 16px;
+    padding: 14px 16px;
+    border-radius: var(--radius-xl);
+    border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+    background: color-mix(in srgb, var(--primary) 9%, transparent);
     color: var(--text-main);
-    font-size: 0.86rem;
+    font-size: 14px;
 }
+.dudasTitulo { display: flex; align-items: center; gap: 8px; color: var(--primary); }
 /* [P1-PLAN-LOTE-322] la lista de dudas la pinta DudasDeLaFoto (con sus propios márgenes) */
 
 /* [P1-PLAN-LOTE-365] corregir por texto: «Cambiar» un ingrediente y «¿No es esto? Descríbelo» */
@@ -1166,6 +1177,19 @@
 }
 .corregirPlato { margin-top: 0.5rem; }
 .componentCambiar:disabled, .corregirPlato:disabled { opacity: 0.5; cursor: default; }
+/* [P1-PLAN-LOTE-1154] en la línea de la cantidad, a la derecha y como ficha (era una tercera línea suelta) */
+.componentQtyRow .componentCambiar {
+    margin-left: auto;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 36px;
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    font-size: 13px;
+}
 .corregirCampo { display: flex; gap: 0.5rem; align-items: stretch; margin-top: 0.5rem; }
 .corregirCampo .textInput { flex: 1; min-width: 0; }
 .corregirAplicar {

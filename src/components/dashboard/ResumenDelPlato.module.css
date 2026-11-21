@@ -1,0 +1,55 @@
+/* [P1-PLAN-LOTE-1154] El total del plato escaneado: anillo + número grande + tres cifras (como «Tu plato», lote 1147). */
+.resumen {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 0 0 16px;
+    padding: 16px;
+    border-radius: var(--radius-xl);
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+    background:
+        radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 60%),
+        var(--bg-page);
+}
+
+.anilloCaja { flex: none; display: grid; place-items: center; }
+.anillo { width: 72px; height: 72px; rotate: -90deg; }
+.fondo { fill: none; stroke: var(--bg-muted); stroke-width: 9; }
+.parte {
+    fill: none;
+    stroke-width: 9;
+    stroke-linecap: round;
+    transition: stroke-dasharray 400ms ease, stroke-dashoffset 400ms ease;
+}
+.parte_p { stroke: var(--success); }
+.parte_c { stroke: var(--warning); }
+.parte_g { stroke: var(--accent); }
+
+.cifras { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.etiqueta {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.kcal { font-size: 16px; font-weight: 600; color: var(--text-muted); line-height: 1.1; }
+.kcal b { font-size: 30px; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em; }
+
+.macros { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.macro {
+    --m: var(--success);
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--m) 14%, transparent);
+    color: var(--text-muted);
+    font-size: 13px;
+    white-space: nowrap;
+}
+.macro b { color: var(--text-main); font-weight: 800; }
+.macro_c { --m: var(--warning); }
+.macro_g { --m: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+    .parte { transition: none; }
+}
