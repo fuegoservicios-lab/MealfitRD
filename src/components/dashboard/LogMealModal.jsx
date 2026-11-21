@@ -110,7 +110,9 @@ const CONFETI = Array.from({ length: 14 }, (_, k) => ({
 const sinMovimiento = () => !!(typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
 
 
-const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo = 0, userId = null }) => {
+// [P1-PLAN-LOTE-1152] `initialBorrador`: el plato que había al ir a la cámara. El componedor se desmonta mientras el
+// escáner está abierto; al volver (la X del escáner, o tras registrar la foto con el plato a medias) nace con él.
+const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo = 0, initialBorrador = null, userId = null }) => {
     const t = useT();
     const tn = useTn();
     // [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada no hay inventario que descontar: el interruptor
@@ -122,7 +124,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     const [dishes, setDishes] = useState(() => getCachedDishes() || []);
     const [loadFailed, setLoadFailed] = useState(false);
     const [query, setQuery] = useState('');
-    const [lines, setLines] = useState([]);
+    const [lines, setLines] = useState(() => (Array.isArray(initialBorrador?.lines) ? initialBorrador.lines : []));
     const [mealType, setMealType] = useState(() => {
         const wanted = String(initialMealType || '').trim().toLowerCase();
         const known = getMealTypes(t).map((o) => o.value);
@@ -142,8 +144,10 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     ];
     const [ejemplo, setEjemplo] = useState(0);
     const [daysAgo, setDaysAgo] = useState(() => Math.max(0, Math.min(7, Number(initialDaysAgo) || 0)));
-    const [mealName, setMealName] = useState('');
-    const [deductPantry, setDeductPantry] = useState(false);
+    const [mealName, setMealName] = useState(() => initialBorrador?.mealName || '');
+    const [deductPantry, setDeductPantry] = useState(() => Boolean(initialBorrador?.deductPantry));
+    // lo que viaja al escáner y vuelve: solo si hay algo en el plato
+    const borradorActual = () => (lines.length ? { lines, mealName, deductPantry } : null);
     // [P1-PLAN-LOTE-124] De quién es la lista recordada: el padre puede decirlo (`userId`); si no, el usuario que la
     // app ya recuerda al iniciar sesión (`mealfit_user_id`, que el logout borra). Un invitado no tiene lista propia.
     const uid = useMemo(() => {
@@ -518,7 +522,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                     <X size={18} strokeWidth={2.5} aria-hidden="true" />
                                 </button>
                             ) : typeof onScan === 'function' && (
-                                <button type="button" className={`${styles.cajaBoton} ${styles.cajaCamara}`} onClick={() => onScan({ mealType, daysAgo })}
+                                <button type="button" className={`${styles.cajaBoton} ${styles.cajaCamara}`} onClick={() => onScan({ mealType, daysAgo, borrador: borradorActual() })}
                                     aria-label={t('Escanear con foto')} title={t('Escanear con foto')}>
                                     <Camera size={20} strokeWidth={2.25} aria-hidden="true" />
                                 </button>
@@ -873,6 +877,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
 
 LogMealModal.propTypes = {
     onScan: PropTypes.func,
+    initialBorrador: PropTypes.shape({ lines: PropTypes.array, mealName: PropTypes.string, deductPantry: PropTypes.bool }),
     userId: PropTypes.string,
     initialMealType: PropTypes.string,
     // [P1-PLAN-LOTE-105] el día en que se abre (0 = hoy … 7): lo pasa el diario de días anteriores

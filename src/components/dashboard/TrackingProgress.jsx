@@ -197,7 +197,11 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // o un re-render de Dashboard) re-ejecutaba el effect del hook: re-armaba el
     // focusTimeout que hace containerRef.focus() → ROBABA el foco del input a media
     // escritura. Misma clase que P2-HIST-MODALS-A11Y (onClose memoizado con useCallback).
-    const handleScanClose = useCallback(() => setScanOpen(false), []);
+    // [P1-PLAN-LOTE-1152] registrada la foto, si el componedor tenía un plato a medias se vuelve a él: no se pierde
+    const handleScanClose = useCallback(() => {
+        setScanOpen(false);
+        if (scanOpen?.borrador?.lines?.length) setLogOpen(scanOpen);
+    }, [scanOpen]);
     const handleLogClose = useCallback(() => setLogOpen(false), []);
     const handleShareClose = useCallback(() => setShareOpen(false), []);
     // [P1-DIARY-FREETEXT-ESTIMATE] «Foto» desde el componedor: cierra el composedor y abre el escáner
@@ -930,7 +934,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         modal hace fetch del catálogo al montar: montarlo cerrado sería
                         pagar ese fetch en cada visita al dashboard. */}
                     {logOpen && (
-                        <LogMealModal onClose={handleLogClose} onScan={handleLogToScan} initialMealType={logOpen?.mealType || null} initialDaysAgo={logOpen?.daysAgo || 0} />
+                        <LogMealModal onClose={handleLogClose} onScan={handleLogToScan} initialMealType={logOpen?.mealType || null} initialDaysAgo={logOpen?.daysAgo || 0} initialBorrador={logOpen?.borrador || null} />
                     )}
                     {fichaMeal && (
                         <Suspense fallback={null}>

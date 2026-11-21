@@ -693,7 +693,11 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
 
     const cerrarComponedor = useCallback(() => setRegistrando(false), []);
     const pasarAlEscaner = useCallback((d) => { setRegistrando(false); setEscaneando(d || true); }, []);
-    const cerrarEscaner = useCallback(() => setEscaneando(false), []);
+    // [P1-PLAN-LOTE-1152] registrada la foto, si el componedor tenía un plato a medias se vuelve a él
+    const cerrarEscaner = useCallback(() => {
+        setEscaneando(false);
+        if (escaneando?.borrador?.lines?.length) setRegistrando(escaneando);
+    }, [escaneando]);
     // [P1-PLAN-LOTE-1151] la X del escáner vuelve al componedor, con la comida y el día que tenía
     const volverAlComponedor = useCallback(() => {
         setEscaneando(false);
@@ -1292,7 +1296,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             </motion.aside>
 
             {registrando && (
-                <LogMealModal onClose={cerrarComponedor} onScan={pasarAlEscaner} initialMealType={registrando?.mealType || null} initialDaysAgo={registrando?.daysAgo ?? atras} userId={userId} />
+                <LogMealModal onClose={cerrarComponedor} onScan={pasarAlEscaner} initialMealType={registrando?.mealType || null} initialDaysAgo={registrando?.daysAgo ?? atras} initialBorrador={registrando?.borrador || null} userId={userId} />
             )}
             {escaneando && (
                 <Suspense fallback={null}>

@@ -10011,10 +10011,10 @@ const DashboardInner = () => {
                     onClose={() => setEatSheet(null)}
                 />
             )}
-            {logMealOpen && <LogMealModal initialMealType={logMealOpen.mealType} initialDaysAgo={logMealOpen.daysAgo || 0} onClose={() => setLogMealOpen(false)} onScan={(d) => { setLogMealOpen(false); setScanMealOpen(d || true); }} />}
+            {logMealOpen && <LogMealModal initialMealType={logMealOpen.mealType} initialDaysAgo={logMealOpen.daysAgo || 0} initialBorrador={logMealOpen.borrador || null} onClose={() => setLogMealOpen(false)} onScan={(d) => { setLogMealOpen(false); setScanMealOpen(d || true); }} />}
             {scanMealOpen && (
                 <Suspense fallback={null}>
-                    <ScanMealModal isOpen={!!scanMealOpen} onClose={() => setScanMealOpen(false)} onBack={() => { const d = scanMealOpen; setScanMealOpen(false); setLogMealOpen(d && typeof d === 'object' ? d : true); }} userId={session?.user?.id || userProfile?.id || 'guest'}
+                    <ScanMealModal isOpen={!!scanMealOpen} onClose={() => { const d = scanMealOpen; setScanMealOpen(false); if (d?.borrador?.lines?.length) setLogMealOpen(d); }} onBack={() => { const d = scanMealOpen; setScanMealOpen(false); setLogMealOpen(d && typeof d === 'object' ? d : true); }} userId={session?.user?.id || userProfile?.id || 'guest'}
                         initialMealType={scanMealOpen?.mealType} initialDaysAgo={scanMealOpen?.daysAgo || 0} />
                 </Suspense>
             )}

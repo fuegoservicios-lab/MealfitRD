@@ -106,7 +106,7 @@ describe('[382] el escáner', () => {
 describe('[382] el componedor le pasa su comida y su día al escáner', () => {
     it('onScan lleva mealType y daysAgo; los dos padres los usan', () => {
         const lm = leer('components/dashboard/LogMealModal.jsx');
-        expect(lm).toContain('onClick={() => onScan({ mealType, daysAgo })}');
+        expect(lm).toContain('onClick={() => onScan({ mealType, daysAgo, borrador: borradorActual() })}');   // [1152] y el plato
         const dash = leer('pages/Dashboard.jsx');
         expect(dash).toContain('onScan={(d) => { setLogMealOpen(false); setScanMealOpen(d || true); }}');
         expect(dash).toContain('initialMealType={scanMealOpen?.mealType}');

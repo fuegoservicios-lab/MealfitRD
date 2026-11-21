@@ -105,7 +105,7 @@ describe('el escáner desde «Ver días anteriores»', () => {
     it('el diario le da `onScan` al componedor y monta el escáner en el día que se mira', () => {
         const dh = leer('components/dashboard/DiaryHistory.jsx');
         // [P1-PLAN-LOTE-1151] el día (y la comida) viajan con la ida y la vuelta del escáner; sin ellos, el día que se mira
-        expect(dh).toContain('<LogMealModal onClose={cerrarComponedor} onScan={pasarAlEscaner} initialMealType={registrando?.mealType || null} initialDaysAgo={registrando?.daysAgo ?? atras} userId={userId} />');
+        expect(dh).toContain('<LogMealModal onClose={cerrarComponedor} onScan={pasarAlEscaner} initialMealType={registrando?.mealType || null} initialDaysAgo={registrando?.daysAgo ?? atras} initialBorrador={registrando?.borrador || null} userId={userId} />');
         expect(dh).toContain("<ScanMealModal isOpen onClose={cerrarEscaner} onBack={volverAlComponedor} userId={userId || 'guest'} initialDaysAgo={escaneando?.daysAgo ?? atras} initialMealType={escaneando?.mealType || null} />");
         expect(dh).toContain('const pasarAlEscaner = useCallback((d) => { setRegistrando(false); setEscaneando(d || true); }, []);');
         // con cualquiera de las dos hojas encima, las teclas son suyas

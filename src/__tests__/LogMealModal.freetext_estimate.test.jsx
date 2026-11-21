@@ -95,12 +95,12 @@ describe('foto desde el componedor', () => {
         const tp = src('src/components/dashboard/TrackingProgress.jsx');
         // [P1-PLAN-LOTE-382] …y le pasa la comida y el día del componedor
         expect(tp).toContain('const handleLogToScan = useCallback((d) => { setLogOpen(false); setScanOpen(d || true); }, []);');
-        expect(tp).toContain('<LogMealModal onClose={handleLogClose} onScan={handleLogToScan} initialMealType={logOpen?.mealType || null} initialDaysAgo={logOpen?.daysAgo || 0} />');   // [1151] al volver del escáner
+        expect(tp).toContain('<LogMealModal onClose={handleLogClose} onScan={handleLogToScan} initialMealType={logOpen?.mealType || null} initialDaysAgo={logOpen?.daysAgo || 0} initialBorrador={logOpen?.borrador || null} />');   // [1151] al volver del escáner
         const dash = src('src/pages/Dashboard.jsx');
         expect(dash).toContain("onScan={(d) => { setLogMealOpen(false); setScanMealOpen(d || true); }}");
         // [P1-PLAN-LOTE-224] el escáner es perezoso: se monta al pedirlo, dentro de su propio Suspense
         expect(dash).toContain('{scanMealOpen && (');
-        expect(dash).toContain('<ScanMealModal isOpen={!!scanMealOpen} onClose={() => setScanMealOpen(false)}');
+        expect(dash).toContain('<ScanMealModal isOpen={!!scanMealOpen} onClose={() => { const d = scanMealOpen; setScanMealOpen(false); if (d?.borrador?.lines?.length) setLogMealOpen(d); }}');   // [1152]
         expect(dash).toContain("const ScanMealModal = lazy(() => import('../components/dashboard/ScanMealModal'));");
     });
 
@@ -111,7 +111,7 @@ describe('foto desde el componedor', () => {
         expect(tp).toContain("{t('Registrar comida')}");
         const lm = src('src/components/dashboard/LogMealModal.jsx');
         // [P1-PLAN-LOTE-1147] la foto es un botón de la caja, no una pestaña
-        expect(lm).toContain("className={`${styles.cajaBoton} ${styles.cajaCamara}`} onClick={() => onScan({ mealType, daysAgo })}");
+        expect(lm).toContain("className={`${styles.cajaBoton} ${styles.cajaCamara}`} onClick={() => onScan({ mealType, daysAgo, borrador: borradorActual() })}");
         expect(lm).not.toContain('className={styles.modes}');
         expect(lm).not.toContain("t('Foto')");
     });
