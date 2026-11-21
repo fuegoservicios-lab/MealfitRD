@@ -606,4 +606,9 @@
 /* [P1-PLAN-LOTE-1099] «Compartir este día» va encima de «Ver este día», con el mismo cuerpo pero relleno (es la acción) */
 .compartirDia { gap: 0.45rem; background: var(--primary-fill, var(--primary)); border-color: transparent; color: white; }
 .compartirDia:disabled { opacity: 0.7; cursor: default; }
+/* [P1-PLAN-LOTE-1137] «el sombreado es horrible» (el dueño): heredaba el hover TRANSLÚCIDO de `.verDia` y el índigo
+   sólido se lavaba a gris. Su propio hover: el índigo más oscuro, como el botón principal de la app. */
+@media (hover: hover) {
+    .verDia.compartirDia:hover:not(:disabled) { background: var(--primary-dark); }
+}
 .compartirDia + .verDia { margin-top: 0.5rem; }
