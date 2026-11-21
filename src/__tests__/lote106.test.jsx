@@ -107,6 +107,8 @@ describe('la revisión como cuatro preguntas', TOPE_TEST, () => {
     it('sin desplegables: tipo de comida y día son chips, y «Hoy» va marcado por defecto', async () => {
         render(<ScanMealModal isOpen onClose={vi.fn()} userId="u1" />);
         await llegarARevision();
+        expect(screen.getByRole('button', { name: /^.+ · .+ Cambiar$/ })).toHaveTextContent('· Hoy');
+        fireEvent.click(screen.getByRole('button', { name: /^.+ · .+ Cambiar$/ }));   // [P1-PLAN-LOTE-1155] comida y día: una línea que se abre
         for (const q of ['¿Qué es?', '¿Cuánto comiste?', '¿Qué comida es?', '¿Cuándo?']) {
             expect(screen.getByText(q)).toBeInTheDocument();
         }
@@ -119,8 +121,10 @@ describe('la revisión como cuatro preguntas', TOPE_TEST, () => {
     it('«Ayer» manda days_ago=1 y el aviso dice que quedó en el diario de ayer', async () => {
         render(<ScanMealModal isOpen onClose={vi.fn()} userId="u1" />);
         await llegarARevision();
+        fireEvent.click(screen.getByRole('button', { name: /^.+ · .+ Cambiar$/ }));   // [P1-PLAN-LOTE-1155] comida y día: una línea que se abre
         fireEvent.click(screen.getByRole('button', { name: 'Ayer' }));
         fireEvent.click(screen.getByRole('button', { name: 'Cena' }));
+        expect(screen.getByRole('button', { name: /^.+ · .+ Cambiar$/ })).toHaveTextContent('Cena · Ayer');
         fireEvent.click(screen.getByRole('button', { name: /Registrar comida/ }));
         await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/diary/consumed', expect.objectContaining({ method: 'POST' })), ESPERA);
         const body = JSON.parse(fetchWithAuth.mock.calls.find((c) => c[0] === '/api/diary/consumed')[1].body);

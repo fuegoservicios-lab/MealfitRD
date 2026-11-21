@@ -193,3 +193,28 @@ export function celebracionPendiente(mapa, yaVistas) {
     }
     return null;
 }
+
+/**
+ * [P1-PLAN-LOTE-1155 · 2026-11-21] El paisaje a los lados del camino (el dueño: «mejoremos el mapa en general, el
+ * diseño»): la ventana era un cielo liso con el camino solo. Cada dos días, un adorno (planeta con anillo, luna,
+ * destello o cometa) en el lado CONTRARIO al nivel, donde la curva deja hueco; nunca junto a tarjetas ni puertas.
+ * Determinista por posición (es un dibujo: no cambia al repintar ni al desplazarse).
+ * Devuelve `[{ clave, tipo, x, y, tam, mundo }]` (x en %, y en px, tam en px).
+ */
+export const TIPOS_DE_ADORNO = ['planeta', 'luna', 'destello', 'cometa', 'destello'];
+export function adornosDelMapa(filas) {
+    const adornos = [];
+    let k = 0;
+    (filas || []).forEach((f) => {
+        if (f.tipo !== 'dia') return;
+        k += 1;
+        if (f.dia?.esHoy || k % 2) return;
+        const n = Math.floor(k / 2);
+        const tipo = TIPOS_DE_ADORNO[n % TIPOS_DE_ADORNO.length];
+        const lado = f.x >= 50 ? 1 : -1;               // el nivel a la derecha (o al centro) → adorno a la izquierda
+        const x = 50 - lado * (31 + (n % 3) * 4);       // 19-27 % o 73-81 %
+        const tam = tipo === 'destello' ? 14 + (n % 2) * 6 : tipo === 'cometa' ? 44 : 26 + (n % 3) * 6;
+        adornos.push({ clave: `a-${f.clave}`, tipo, x, y: f.y - 14 + (n % 3) * 10, tam, mundo: f.mundo || 0 });
+    });
+    return adornos;
+}

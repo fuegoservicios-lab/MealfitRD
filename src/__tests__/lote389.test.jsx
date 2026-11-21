@@ -76,6 +76,7 @@ describe('[389] un solo sitio para la comida y el día', () => {
         render(<ScanMealModal isOpen onClose={vi.fn()} userId="u1" />);
         elegir(1);
         await screen.findByRole('button', { name: /Registrar comida/ });
+        fireEvent.click(screen.getByRole('button', { name: /^.+ · .+ Cambiar$/ }));   // [P1-PLAN-LOTE-1155] comida y día: una línea que se abre
         expect(screen.getByRole('group', { name: 'Tipo de comida' })).toBeInTheDocument();
         expect(screen.getByRole('group', { name: 'Día' })).toBeInTheDocument();
     });

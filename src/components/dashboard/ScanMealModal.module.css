@@ -1439,3 +1439,57 @@
 @media (prefers-reduced-motion: reduce) {
     .optionHero .optionIco::after { animation: none; opacity: 0.5; }
 }
+
+/* [P1-PLAN-LOTE-1155] la comida y el día en una línea (como «Registrar comida»); los chips se abren al tocarla */
+.cuandoResumen {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    margin: 0 0 12px;
+    padding: 6px 12px 6px 6px;
+    border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--primary) 8%, var(--bg-card));
+    color: var(--text-main);
+    font: inherit;
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: scale 150ms ease;
+}
+.cuandoResumen:active:not(:disabled) { scale: 0.98; }
+.cuandoResumen:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 2px; }
+.cuandoResumen:disabled { opacity: 0.6; cursor: not-allowed; }
+.cuandoIcono {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary-fill);
+    color: rgb(255 255 255);
+}
+.cuandoTexto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
+.cuandoTexto b { color: var(--text-main); font-weight: 800; }
+.cuandoCambiar { flex: none; font-size: 13px; font-weight: 700; color: var(--primary); }
+.cuandoFlecha { flex: none; color: var(--primary); transition: rotate 200ms ease; }
+.cuandoFlechaAbierta { rotate: 180deg; }
+.cuandoCaja {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0 0 12px;
+    padding: 14px 14px 2px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-muted);
+    animation: smCuandoAsomar 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes smCuandoAsomar { from { opacity: 0; translate: 0 -6px; } to { opacity: 1; translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+    .cuandoCaja { animation: none; }
+    .cuandoFlecha { transition: none; }
+}

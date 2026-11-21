@@ -38,6 +38,19 @@
     z-index: 3;
 }
 
+/* [1155] abajo el camino se funde en la noche (antes los niveles se cortaban en seco contra el borde) */
+.ventanaMarco::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 56px;
+    z-index: 2;
+    background: linear-gradient(180deg, transparent, rgb(11 16 38 / 0.85));
+    pointer-events: none;
+}
+
 /* ─────────────────────────────── marcador (HUD) flotante ─────────────────────────────── */
 .hud {
     position: absolute;
@@ -165,7 +178,7 @@
 /* ─────────────────────────────── la ventana con scroll ─────────────────────────────── */
 .ventana {
     position: relative;
-    height: clamp(320px, 52vh, 520px);
+    height: clamp(360px, 58vh, 580px);   /* [1155] más camino a la vista en el teléfono (eran 3 niveles) */
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: none;
@@ -224,6 +237,64 @@
     animation: titilar 6.2s ease-in-out -2s infinite;
 }
 
+/* ─────────────────────────────── [1155] el paisaje: planetas, lunas, destellos y cometas ─────────────────────── */
+.adorno {
+    --a: color-mix(in srgb, var(--m) 55%, var(--primary-light));
+    position: absolute;
+    width: var(--tam);
+    height: var(--tam);
+    translate: -50% -50%;
+    pointer-events: none;
+    opacity: 0.85;
+}
+.adorno_planeta {
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, color-mix(in srgb, var(--a) 45%, white), var(--a) 55%, color-mix(in srgb, var(--a) 45%, black));
+    box-shadow: inset -4px -3px 0 rgb(0 0 0 / 0.22), 0 0 22px -4px var(--a);
+}
+.adorno_planeta::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 170%;
+    height: 36%;
+    border-radius: 50%;
+    border: 2px solid color-mix(in srgb, var(--a) 60%, white);
+    opacity: 0.7;
+    translate: -50% -50%;
+    rotate: -18deg;
+}
+.adorno_luna {
+    border-radius: 50%;
+    box-shadow: inset calc(var(--tam) * -0.3) calc(var(--tam) * -0.1) 0 0 color-mix(in srgb, var(--a) 35%, white);
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--a) 70%, transparent));
+    rotate: 20deg;
+}
+.adorno_destello {
+    background: color-mix(in srgb, var(--a) 30%, white);
+    clip-path: polygon(50% 0, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0 50%, 42% 42%);
+    animation: titilar 3.2s ease-in-out infinite;
+}
+.adorno_cometa {
+    height: 3px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--a) 40%, white));
+    rotate: -28deg;
+}
+.adorno_cometa::after {
+    content: '';
+    position: absolute;
+    right: -3px;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgb(255 255 255);
+    box-shadow: 0 0 10px 2px color-mix(in srgb, var(--a) 70%, white);
+    translate: 0 -50%;
+}
+
 /* ─────────────────────────────── el camino ─────────────────────────────── */
 .camino {
     position: absolute;
@@ -257,6 +328,15 @@
     stroke-width: 18px;
     stroke-linecap: round;
 }
+.caminoPuntos {
+    fill: none;
+    stroke: rgb(255 255 255 / 0.7);
+    stroke-width: 3px;
+    stroke-linecap: round;
+    stroke-dasharray: 0.1 11;
+    opacity: 0;
+    animation: asomarPuntos 0.6s ease 1.2s forwards;
+}
 .caminoPorVenir {
     fill: none;
     stroke: color-mix(in srgb, var(--primary-light) 40%, transparent);
@@ -278,10 +358,28 @@
     transform: translate(-50%, -50%);
 }
 .nivelFila { width: 84px; }
+/* [1155] la sombra en el suelo: el nivel flota sobre el camino, no está pegado encima */
+.nivelFila::before {
+    content: '';
+    position: absolute;
+    top: 42px;
+    left: 50%;
+    width: 46px;
+    height: 12px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(2 6 23 / 0.7), transparent);
+    translate: -50% 0;
+    pointer-events: none;
+}
+.nivelFila:has(.nivelHoy)::before { top: 52px; width: 58px; }
+.nivelFila:has(.nivel_futuro)::before { top: 36px; width: 38px; opacity: 0.6; }
+.mapaGrande .nivelFila::before { top: 48px; width: 52px; }
+.mapaGrande .nivelFila:has(.nivelHoy)::before { top: 58px; width: 64px; }
 /* [1138] lo que entra al desplazarte aparece ya quieto (la entrada con salto es solo al abrir) */
 .lienzoQuieto .nivel:not(.nivelCelebrado),
 .lienzoQuieto .trofeo,
 .lienzoQuieto .puerta { animation: none; opacity: 1; }
+.lienzoQuieto .caminoPuntos { animation: none; opacity: 1; }
 .trofeoFila { width: min(88%, 300px); }
 .puertaFila { width: min(70%, 220px); }
 
@@ -324,6 +422,29 @@
 @media (hover: hover) { .nivel:hover:not(:disabled) { filter: brightness(1.08) saturate(1.08); } }
 .nivelCara { display: grid; place-items: center; line-height: 1; }
 .nivelCara svg { width: 22px; height: 22px; filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.25)); }
+
+/* [1155] la insignia del estado (arriba a la derecha): ✓ meta, ↓ bajo, ↑ sobre */
+.insignia {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgb(255 255 255);
+    color: color-mix(in srgb, var(--c) 80%, black);
+    box-shadow: 0 2px 6px -1px rgb(0 0 0 / 0.5), 0 0 0 2px color-mix(in srgb, var(--c) 70%, black);
+}
+.insignia svg { width: 13px; height: 13px; filter: none; }
+/* la insignia lleva su propio color (también fuera del nivel, p. ej. en la leyenda) */
+.insignia_meta { --c: var(--success); }
+.insignia_bajo { --c: var(--warning); }
+.insignia_sobre { --c: var(--danger); }
+.nivelHoy .insignia { width: 24px; height: 24px; top: -3px; right: -5px; }
+.nivelHoy .insignia svg { width: 15px; height: 15px; }
 
 .nivel_meta { --c: var(--success); }
 .nivel_bajo { --c: var(--warning); }
@@ -643,11 +764,12 @@
     white-space: nowrap;
 }
 .leyenda li { display: inline-flex; align-items: center; gap: 5px; }
-.leyendaPunto { width: 8px; height: 8px; border-radius: 50%; }
+.leyendaPunto { display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; color: rgb(255 255 255); }
+.leyendaPunto svg { width: 10px; height: 10px; }   /* [1155] las mismas insignias que los niveles */
 .punto_meta { background: var(--success); }
 .punto_bajo { background: var(--warning); }
 .punto_sobre { background: var(--danger); }
-.punto_vacio { box-shadow: inset 0 0 0 1.5px var(--text-light); }
+.punto_vacio { box-shadow: inset 0 0 0 1.5px var(--text-light); width: 12px; height: 12px; }
 .compartir { gap: 0.5rem; }
 
 .srOnly {
@@ -670,6 +792,7 @@
     40% { translate: 0 -10px; }
 }
 @keyframes dibujar { to { stroke-dashoffset: 0; } }
+@keyframes asomarPuntos { to { opacity: 1; } }
 @keyframes fluir { to { stroke-dashoffset: -14; } }
 @keyframes halo {
     0% { opacity: 0.9; transform: scale(0.85); }
@@ -710,6 +833,8 @@
 @media (prefers-reduced-motion: reduce) {
     .nivel, .trofeo, .puerta, .nivelCelebrado { animation: none; opacity: 1; }
     .caminoBrillo { animation: none; stroke-dashoffset: 0; }
+    .caminoPuntos { animation: none; opacity: 1; }
+    .adorno_destello { animation: none; }
     .caminoPorVenir, .cielo, .cielo::after, .nivelHoy::before, .cartel, .trofeoPerfecto .trofeoIcono, .hudRachaViva svg, .irAHoy { animation: none; }
     .celebracion, .mapaGrande { animation: none; }
     .confeti { display: none; }

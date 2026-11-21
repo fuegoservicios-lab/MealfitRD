@@ -67,6 +67,7 @@ describe('[382] el escáner', () => {
         render(<ScanMealModal isOpen onClose={vi.fn()} userId="u1" initialMealType="almuerzo" />);
         elegirFoto();
         const registrar = await screen.findByRole('button', { name: /Registrar comida/ });
+        fireEvent.click(screen.getByRole('button', { name: /^.+ · .+ Cambiar$/ }));   // [P1-PLAN-LOTE-1155] comida y día: una línea que se abre
         const tipos = within(screen.getByRole('group', { name: 'Tipo de comida' }));
         expect(tipos.getByRole('button', { name: 'Almuerzo' })).toHaveAttribute('aria-pressed', 'true');
         fireEvent.click(tipos.getByRole('button', { name: 'Extra' }));

@@ -19,10 +19,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { ArrowUp, Check, Maximize2, Minimize2, Crown, Flag, Flame, Gem, Gift, Lock, MapPin, Medal, PartyPopper, Share, Star, Trophy } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Maximize2, Minimize2, Crown, Flag, Flame, Gem, Gift, Lock, MapPin, Medal, PartyPopper, Share, Star, Trophy } from 'lucide-react';
 import { formatDate, formatNumber, useT, useTn } from '../../i18n';
 import { DIAS_DE_LA_SEMANA, ESTRELLAS_MAX, estrellasDeLaSemana, mediodiaDe } from '../../utils/progresoDeLosDias';
-import { armarMapa, celebracionPendiente, filasDelMapa, trazo } from '../../utils/mapaDeNiveles';
+import { adornosDelMapa, armarMapa, celebracionPendiente, filasDelMapa, trazo } from '../../utils/mapaDeNiveles';
 import { triggerMobileHaptic } from '../../utils/mobileHaptics';
 import { ESCALERA, posicionEnLaEscalera } from './EscaleraDeRangos';
 import { Button } from '../ui/Button';
@@ -65,6 +65,13 @@ const CONFETI = Array.from({ length: 16 }, (_, k) => ({
     tono: ['meta', 'oro', 'primario', 'acento'][k % 4],
     estilo: { '--ang': `${(k * 360) / 16 + (k % 2 ? 9 : -9)}deg`, '--dist': `${70 + (k % 3) * 26}px`, '--giro': `${k % 2 ? 220 : -180}deg` },
 }));
+
+// [P1-PLAN-LOTE-1155] la insignia de estado de cada nivel
+const INSIGNIA = {
+    meta: <Check strokeWidth={3.5} />,
+    bajo: <ArrowDown strokeWidth={3.25} />,
+    sobre: <ArrowUp strokeWidth={3.25} />,
+};
 
 function Estrellas({ n }) {
     return (
@@ -147,6 +154,8 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
 
     const mapa = useMemo(() => armarMapa({ inicioISO, hoyISO, estadoDe, umbrales: UMBRALES }), [inicioISO, hoyISO, estadoDe]);
     const { filas, alto, zonas } = useMemo(() => filasDelMapa(mapa.semanas), [mapa]);
+    // [P1-PLAN-LOTE-1155] el paisaje a los lados del camino (planetas, lunas, destellos, cometas)
+    const adornos = useMemo(() => adornosDelMapa(filas), [filas]);
     const claveMundo = (i) => ESCALERA[i]?.clave || 'bronce';
     const escalera = posicionEnLaEscalera(mapa.estrellas);
 
@@ -252,6 +261,7 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
     // El tramo que se pinta: lo visible ± una pantalla larga (antes del primer scroll, alrededor de donde abre).
     const rango = vista || { top: Math.max(0, (topeElegido ?? yElegido) - BAJO_EL_MARCADOR - 480), h: 1200 };
     const filasVisibles = filas.map((f, idx) => [f, idx]).filter(([f]) => f.y >= rango.top - 1000 && f.y <= rango.top + rango.h + 1000);
+    const adornosVisibles = adornos.filter((a) => a.y >= rango.top - 1000 && a.y <= rango.top + rango.h + 1000);
     const fechaLarga = (iso) => formatDate(mediodiaDe(iso), { weekday: 'long', day: 'numeric', month: 'long' });
 
     const compartir = () => {
@@ -297,6 +307,11 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                         {zonasEstilo.map((z) => (
                             <span key={`z-${z.y0}`} className={`${styles.zona} ${styles[`zona_${claveMundo(z.mundo)}`]}`} style={z.estilo} aria-hidden="true" />
                         ))}
+                        {adornosVisibles.map((a) => (
+                            <span key={a.clave}
+                                className={`${styles.adorno} ${styles[`adorno_${a.tipo}`]} ${styles[`zona_${claveMundo(a.mundo)}`]}`}
+                                style={{ left: `${a.x}%`, top: `${a.y}px`, '--tam': `${a.tam}px` }} aria-hidden="true" />
+                        ))}
                         <svg className={styles.camino} viewBox={`0 0 ${ancho} ${alto}`} aria-hidden="true">
                             <defs>
                                 <linearGradient id="mapaRecorrido" x1="0" y1="1" x2="0" y2="0" gradientUnits="objectBoundingBox">
@@ -308,6 +323,8 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                             <path d={recorrido} className={styles.caminoBase} />
                             <path d={recorrido} className={styles.caminoHalo} />
                             <path d={recorrido} className={styles.caminoBrillo} stroke="url(#mapaRecorrido)" pathLength="1" />
+                            {/* [1155] la línea central del camino recorrido: una fila de puntos, como un sendero */}
+                            <path d={recorrido} className={styles.caminoPuntos} />
                         </svg>
 
                         <ol className={styles.niveles}>
@@ -383,12 +400,19 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                             aria-label={`${fechaLarga(d.iso)} · ${t('Día {n}', { n: d.nivel })} · ${etiquetas[d.estado]}${detalle}`}
                                             onClick={() => { if (!bloqueado) { triggerMobileHaptic('light'); onElegir(d.iso); } }}
                                         >
+                                            {/* [1155] el número del día SIEMPRE a la vista; el estado, en una insignia (✓ en meta, ↓ bajo,
+                                                ↑ sobre): se distingue también sin color, y el pie ya no repite la fecha */}
                                             <span className={styles.nivelCara} aria-hidden="true">
-                                                {bloqueado ? <Lock /> : d.estado === 'meta' ? <Check strokeWidth={3.25} /> : fecha.getDate()}
+                                                {bloqueado ? <Lock /> : fecha.getDate()}
                                             </span>
+                                            {INSIGNIA[d.estado] && (
+                                                <span className={`${styles.insignia} ${styles[`insignia_${d.estado}`]}`} aria-hidden="true">
+                                                    {INSIGNIA[d.estado]}
+                                                </span>
+                                            )}
                                         </button>
                                         <span className={`${styles.nivelPie} ${d.esHoy ? styles.nivelPieHoy : ''}`} aria-hidden="true">
-                                            {d.esHoy ? t('Hoy') : `${formatDate(fecha, { weekday: 'short' })} ${fecha.getDate()}`}
+                                            {d.esHoy ? t('Hoy') : formatDate(fecha, { weekday: 'short' })}
                                         </span>
                                     </li>
                                 );
@@ -428,7 +452,7 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
 
             <ul className={styles.leyenda} aria-label={t('Leyenda')}>
                 {[['meta', t('En meta')], ['bajo', t('Bajo')], ['sobre', t('Sobre')], ['vacio', t('Sin registro')]].map(([e, rotulo]) => (
-                    <li key={e}><span className={`${styles.leyendaPunto} ${styles[`punto_${e}`]}`} aria-hidden="true" />{rotulo}</li>
+                    <li key={e}><span className={`${styles.leyendaPunto} ${styles[`punto_${e}`]}`} aria-hidden="true">{INSIGNIA[e]}</span>{rotulo}</li>
                 ))}
             </ul>
 

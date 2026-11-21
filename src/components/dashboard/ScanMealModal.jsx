@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import {
     Camera, Image as ImageIcon, Layers, Loader2, Check, X, AlertTriangle, ChevronRight, ChevronDown, Trash2, RotateCcw,
-    Refrigerator, Pencil, Plus, HelpCircle,
+    Refrigerator, Pencil, Plus, HelpCircle, Utensils,
 } from 'lucide-react';
-import BroteChispa from '../common/BroteChispa';
-import ResumenDelPlato from './ResumenDelPlato';   // [P1-PLAN-LOTE-1154]   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
+import BroteChispa from '../common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
+import ResumenDelPlato from './ResumenDelPlato';   // [P1-PLAN-LOTE-1154]
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 // [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes de mandar la foto o un texto a la IA.
@@ -793,6 +793,8 @@ const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo 
     const [mealType, setMealType] = useState(comidaInicial);
     // [P1-PLAN-LOTE-106] el día de la comida: 0 = hoy · 1 = ayer · 2 = antier
     const [daysAgo, setDaysAgo] = useState(() => normalizarDiasAtras(initialDaysAgo));
+    // [P1-PLAN-LOTE-1155] la comida y el día en UNA línea («Cena · Hoy — Cambiar»); los chips, al tocarla
+    const [verCuando, setVerCuando] = useState(false);
     // [P1-PLAN-LOTE-224] El interruptor de la Nevera, encendido como siempre: lo marcado se descuenta.
     const [descontarNevera, setDescontarNevera] = useState(true);
     // [P1-PLAN-LOTE-380] platos con una corrección calculándose («Otra…», «Cambiar», «Descríbelo»)
@@ -1645,7 +1647,21 @@ const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo 
                             <>
                                 {/* [P1-PLAN-LOTE-389] con varios platos, la comida y el día están en cada tarjeta: aquí sobraban
                                     (dos sitios para lo mismo). Con uno, aquí, como siempre. */}
+                                {/* [P1-PLAN-LOTE-1155] como en «Registrar comida»: la comida y el día en UNA línea que se toca
+                                    para cambiarlos (eran dos preguntas con sus chips al fondo, que casi siempre ya estaban bien) */}
                                 {unSolo && (<>
+                                <button type="button" className={styles.cuandoResumen} aria-expanded={verCuando} aria-controls="scan-cuando"
+                                    disabled={guardando} onClick={() => setVerCuando((v) => !v)}>
+                                    <span className={styles.cuandoIcono} aria-hidden="true"><Utensils size={15} strokeWidth={2.25} /></span>
+                                    <span className={styles.cuandoTexto}>
+                                        <b>{_getMealTypes(t).find((o) => o.value === mealType)?.label || t('Elige la comida')}</b>
+                                        {' · '}{_getDayOptionsCon(t, initialDaysAgo).find((o) => o.value === daysAgo)?.label || nombreDelDiaAtras(t, daysAgo)}
+                                    </span>
+                                    {' '}<span className={styles.cuandoCambiar}>{t('Cambiar')}</span>
+                                    <ChevronDown size={16} strokeWidth={2.5} aria-hidden="true" className={`${styles.cuandoFlecha} ${verCuando ? styles.cuandoFlechaAbierta : ''}`} />
+                                </button>
+                                {verCuando && (
+                                <div id="scan-cuando" className={styles.cuandoCaja}>
                                 <section className={styles.section} aria-labelledby="scan-q-tipo">
                                     <h3 id="scan-q-tipo" className={styles.sectionTitle}>{t('¿Qué comida es?')}</h3>
                                     <Chips
@@ -1661,6 +1677,8 @@ const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo 
                                     <h3 id="scan-q-cuando" className={styles.sectionTitle}>{t('¿Cuándo?')}</h3>
                                     <Chips label={t('Día')} options={_getDayOptionsCon(t, initialDaysAgo)} value={daysAgo} onChange={setDaysAgo} disabled={guardando} />
                                 </section>
+                                </div>
+                                )}
                                 </>)}
 
                                 {/* [P1-PLAN-LOTE-224] El mismo interruptor que el componedor. Solo con la Nevera en uso

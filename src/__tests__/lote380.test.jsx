@@ -109,6 +109,8 @@ describe('[380] al quedar un plato, su comida y su día pasan a los de abajo', (
         fireEvent.click(within(screen.getByRole('region', { name: '¿Qué comida es este plato?' })).getByRole('button', { name: 'Ayer' }));
         fireEvent.click(screen.getByRole('button', { name: 'Quitar Sándwich' }));
         const registrar = await screen.findByRole('button', { name: /Registrar comida/ });
+        expect(screen.getByRole('button', { name: /^.+ · .+ Cambiar$/ })).toHaveTextContent('Desayuno · Ayer');
+        fireEvent.click(screen.getByRole('button', { name: /^.+ · .+ Cambiar$/ }));   // [P1-PLAN-LOTE-1155] comida y día: una línea que se abre
         expect(abajo('Tipo de comida').getByRole('button', { name: 'Desayuno' })).toHaveAttribute('aria-pressed', 'true');
         expect(abajo('Día').getByRole('button', { name: 'Ayer' })).toHaveAttribute('aria-pressed', 'true');
         fireEvent.click(registrar);
