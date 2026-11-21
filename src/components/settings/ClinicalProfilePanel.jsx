@@ -661,20 +661,20 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
                     {t('Con tipo y horario, la IA coloca los carbohidratos y la proteína alrededor de tu entreno.')}
                 </p>
                 <div className={styles.row}>
-                    <div style={{ flex: 1, minWidth: 180 }}>
-                        <label className={styles.hint} htmlFor="tr-type" style={{ display: 'block', marginBottom: '0.25rem' }}>{t('Tipo')}</label>
+                    <div style={{ minWidth: 0 }}>
+                        <label className={styles.hint} htmlFor="tr-type" style={{ display: 'block', marginBottom: '0.3rem' }}>{t('Tipo')}</label>
                         <select id="tr-type" className={styles.select} value={cp.training.type} onChange={(e) => setTr('type', e.target.value)} aria-invalid={invalido('training.type') || undefined}>
                             {getTrainingTypes(t).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                     </div>
-                    <div style={{ flex: 1, minWidth: 140 }}>
-                        <label className={styles.hint} htmlFor="tr-time" style={{ display: 'block', marginBottom: '0.25rem' }}>{t('Horario habitual')}</label>
+                    <div style={{ minWidth: 0 }}>
+                        <label className={styles.hint} htmlFor="tr-time" style={{ display: 'block', marginBottom: '0.3rem' }}>{t('Horario habitual')}</label>
                         <select id="tr-time" className={styles.select} value={cp.training.timeOfDay} onChange={(e) => setTr('timeOfDay', e.target.value)} aria-invalid={invalido('training.timeOfDay') || undefined}>
                             {getTrainingTimes(t).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                     </div>
-                    <div style={{ flex: 1, minWidth: 140 }}>
-                        <label className={styles.hint} htmlFor="tr-days" style={{ display: 'block', marginBottom: '0.25rem' }}>{t('Días por semana')}</label>
+                    <div style={{ minWidth: 0 }}>
+                        <label className={styles.hint} htmlFor="tr-days" style={{ display: 'block', marginBottom: '0.3rem' }}>{t('Días por semana')}</label>
                         <select id="tr-days" className={styles.select} value={String(cp.training.daysPerWeek || 0)} onChange={(e) => setTr('daysPerWeek', Number(e.target.value))} aria-invalid={invalido('training.daysPerWeek') || undefined}>
                             {[0, 1, 2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n}>{n === 0 ? '—' : n}</option>)}
                         </select>

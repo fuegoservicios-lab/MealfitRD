@@ -19,7 +19,7 @@ describe('lote 136 · lo que en modo contador no hace nada, no se pinta', () => 
         const antes = st.slice(i - 1400, i);
         expect(antes).toContain('{!enModoContador && (');
         // y la descripción de la sección deja de anunciarlo
-        expect(st).toContain("isTrackingMode(userProfile) ? t('Generador de planes, memoria y datos del agente') : t('Modo automático, memoria y datos del agente')");
+        expect(st).toContain("isTrackingMode(userProfile) ? t('Planes y memoria del coach') : t('Modo automático y memoria')");
     });
 });
 

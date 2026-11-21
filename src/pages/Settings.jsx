@@ -6,7 +6,7 @@ import { isTrackingMode } from '../config/dashboardNav';
 import { reanudarPlanes } from '../utils/planModeResume';
 import { LAUNCH_OFFER, PRICING, TIER_CREDITS, TIER_RANK, isLaunchOfferActive, periodLabel, tierDisplayName } from '../config/plans';
 import {
-    User, Shield, ChevronRight, ArrowLeft,
+    User, Shield, ChevronRight, ChevronDown, ArrowLeft,
     LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, GlassWater, Cog, Fingerprint,
     Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon, Stethoscope, ShieldCheck, Download, ExternalLink, CalendarDays, Refrigerator,
     HeartPulse
@@ -1472,13 +1472,13 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         { id: 'profile', label: t('General'), description: t('Cuenta, apariencia y notificaciones'), Icon: Cog, iconBg: _settingsDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF', iconColor: _settingsDark ? '#60A5FA' : '#3B82F6' },
         // [P1-PLAN-LOTE-719 · 2026-09-28] El coach manda aquí a quitar una alergia («cámbialo desde Configuración») y
         // la pantalla no existía.
-        { id: 'health', label: t('Alergias y dieta'), description: t('Alergias, condiciones médicas y tipo de dieta'), Icon: HeartPulse, iconBg: _settingsDark ? 'rgba(244, 63, 94, 0.16)' : '#FFE4E6', iconColor: _settingsDark ? '#FB7185' : '#BE123C' },
-        { id: 'preferences', label: t('Capacidades'), description: isTrackingMode(userProfile) ? t('Generador de planes, memoria y datos del agente') : t('Modo automático, memoria y datos del agente'), Icon: SlidersHorizontal, iconBg: _settingsDark ? 'rgba(219, 39, 119, 0.18)' : '#FCE7F3', iconColor: _settingsDark ? '#F472B6' : '#DB2777' },
+        { id: 'health', label: t('Alergias y dieta'), description: t('Restricciones y salud'), Icon: HeartPulse, iconBg: _settingsDark ? 'rgba(244, 63, 94, 0.16)' : '#FFE4E6', iconColor: _settingsDark ? '#FB7185' : '#BE123C' },
+        { id: 'preferences', label: t('Capacidades'), description: isTrackingMode(userProfile) ? t('Planes y memoria del coach') : t('Modo automático y memoria'), Icon: SlidersHorizontal, iconBg: _settingsDark ? 'rgba(219, 39, 119, 0.18)' : '#FCE7F3', iconColor: _settingsDark ? '#F472B6' : '#DB2777' },
         // [P2-PRIVACY-SETTINGS · 2026-07-04] Privacidad va DEBAJO de Capacidades
         // (a pedido del owner): políticas, memoria y export de datos.
         { id: 'privacy', label: t('Privacidad'), description: t('Tus datos, memoria y políticas'), Icon: ShieldCheck, iconBg: _settingsDark ? 'rgba(20, 184, 166, 0.18)' : '#CCFBF1', iconColor: _settingsDark ? '#2DD4BF' : '#0F766E' },
-        { id: 'superpers', label: t('Súper Personalización'), description: t('Gustos, cocina, equipo y más para mejores planes'), Icon: Fingerprint, iconBg: _settingsDark ? 'rgba(245, 158, 11, 0.18)' : '#FEF3C7', iconColor: _settingsDark ? '#FBBF24' : '#D97706' },
-        { id: 'clinical', label: t('Perfil Clínico Avanzado'), description: t('Laboratorios, historial de peso, digestión y entrenamiento'), Icon: Stethoscope, iconBg: _settingsDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2', iconColor: _settingsDark ? '#F87171' : '#DC2626' },
+        { id: 'superpers', label: t('Súper Personalización'), description: t('Gustos, cocina y equipo'), Icon: Fingerprint, iconBg: _settingsDark ? 'rgba(245, 158, 11, 0.18)' : '#FEF3C7', iconColor: _settingsDark ? '#FBBF24' : '#D97706' },
+        { id: 'clinical', label: t('Perfil Clínico Avanzado'), description: t('Laboratorios, peso y entreno'), Icon: Stethoscope, iconBg: _settingsDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2', iconColor: _settingsDark ? '#F87171' : '#DC2626' },
         { id: 'plan', label: t('Plan & Objetivo'), description: t('Meta principal y calorías'), Icon: Trophy, iconBg: _settingsDark ? 'rgba(16, 185, 129, 0.18)' : '#DCFCE7', iconColor: _settingsDark ? '#34D399' : '#166534' },
         { id: 'subscription', label: t('Suscripción'), description: t('Tu plan y pagos'), Icon: CreditCard, iconBg: _settingsDark ? 'rgba(99, 102, 241, 0.18)' : '#E0E7FF', iconColor: _settingsDark ? '#A5B4FC' : '#4F46E5' },
     ].filter(s => SECTION_IDS.includes(s.id));
@@ -3067,12 +3067,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         className={`${styles.sidebarItem} ${isActive ? styles.sidebarItemActive : ''}`}
                                         aria-current={isActive ? 'page' : undefined}
                                     >
-                                        <span className={styles.sidebarIcon}>{/* [P1-PLAN-LOTE-1124] un solo tono: el arcoíris por sección se veía «raro» */}
-                                            <Icon size={18} strokeWidth={2.25} />
+                                        <span className={styles.sidebarIcon}>
+                                            <Icon size={17} strokeWidth={2} />
                                         </span>
                                         <span className={styles.sidebarText}>
                                             <span className={styles.sidebarLabel}>{s.label}</span>
-                                            <span className={styles.sidebarDescription}>{s.description}</span>
                                         </span>
                                         <ChevronRight size={16} className={styles.sidebarChevron} aria-hidden="true" />
                                     </button>
@@ -3872,18 +3871,21 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     <div className={styles.pesoTitulo}>{t('Pedirme el peso')}</div>
                                     <div className={styles.pesoSub}>{t('Por la mañana, en ayunas: el coach te pregunta y anota tu tendencia.')}</div>
                                 </div>
-                                <select
-                                    aria-label={t('Pedirme el peso')}
-                                    value={String(avisoPesoDias)}
-                                    disabled={guardandoPrefAviso}
-                                    onChange={(e) => cambiarFrecuenciaPeso(Number(e.target.value))}
-                                    className={styles.pesoSelect}
-                                >
-                                    <option value="7">{t('Cada semana')}</option>
-                                    <option value="14">{t('Cada 2 semanas')}</option>
-                                    <option value="30">{t('Cada mes')}</option>
-                                    <option value="0">{t('Nunca')}</option>
-                                </select>
+                                <div className={styles.pesoSelectWrap}>
+                                    <select
+                                        aria-label={t('Pedirme el peso')}
+                                        value={String(avisoPesoDias)}
+                                        disabled={guardandoPrefAviso}
+                                        onChange={(e) => cambiarFrecuenciaPeso(Number(e.target.value))}
+                                        className={styles.pesoSelect}
+                                    >
+                                        <option value="7">{t('Cada semana')}</option>
+                                        <option value="14">{t('Cada 2 semanas')}</option>
+                                        <option value="30">{t('Cada mes')}</option>
+                                        <option value="0">{t('Nunca')}</option>
+                                    </select>
+                                    <ChevronDown size={15} strokeWidth={2} className={styles.pesoSelectChevron} aria-hidden="true" />
+                                </div>
                             </div>
 
                         </section>

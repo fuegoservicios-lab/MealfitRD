@@ -582,39 +582,40 @@
 .sidebarItem {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.65rem;
     width: 100%;
-    padding: 0.7rem 0.75rem;
+    padding: 0.55rem 0.7rem;
     border: none;
     background: transparent;
-    border-radius: 0.85rem;
+    border-radius: 0.65rem;
     text-align: left;
     cursor: pointer;
     font-family: inherit;
-    transition: none;
+    transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
 
 .sidebarItem:hover {
-    background: rgba(79, 70, 229, 0.05);
+    background: color-mix(in srgb, var(--text-muted) 10%, transparent);
 }
 
 .sidebarItemActive {
-    background: linear-gradient(135deg, rgba(79, 70, 229, 0.10) 0%, rgba(99, 102, 241, 0.06) 100%);
-    box-shadow: inset 3px 0 0 var(--primary, #4F46E5);
+    background: color-mix(in srgb, var(--primary, #4F46E5) 10%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary, #4F46E5) 22%, transparent);
 }
 
 .sidebarItemActive:hover {
-    background: linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(99, 102, 241, 0.08) 100%);
+    background: color-mix(in srgb, var(--primary, #4F46E5) 14%, transparent);
 }
 
 .sidebarIcon {
     flex-shrink: 0;
-    width: 36px;
-    height: 36px;
-    border-radius: 0.65rem;
+    width: 30px;
+    height: 30px;
+    border-radius: 0.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background-color 140ms ease, color 140ms ease;
 }
 
 .sidebarText {
@@ -622,26 +623,31 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.1rem;
 }
 
 .sidebarLabel {
-    font-size: 0.93rem;
-    font-weight: 700;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #475569;
+    line-height: 1.3;
+    transition: color 140ms ease;
+}
+
+.sidebarItem:hover .sidebarLabel {
     color: #0F172A;
-    line-height: 1.2;
+}
+
+.sidebarItemActive .sidebarLabel {
+    font-weight: 600;
+    color: #0F172A;
 }
 
 .sidebarDescription {
-    font-size: 0.75rem;
-    color: #64748B;
-    line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: none;
 }
 
 .sidebarChevron {
+    display: none;
     flex-shrink: 0;
     /* [SETTINGS-CHEVRON-CONTRAST · 2026-05-28] Era #CBD5E1 (slate-300):
        casi invisible sobre la tarjeta blanca del listado. Slate-400 lo hace
@@ -1922,13 +1928,18 @@
     box-shadow: var(--shadow-lg);
 }
 :global(html[data-theme="dark"]) .sidebarItem:hover {
-    background: rgba(129, 140, 248, 0.1);
+    background: rgba(255, 255, 255, 0.05);
 }
 :global(html[data-theme="dark"]) .sidebarItemActive,
 :global(html[data-theme="dark"]) .sidebarItemActive:hover {
-    background: linear-gradient(135deg, rgba(129, 140, 248, 0.16) 0%, rgba(129, 140, 248, 0.08) 100%);
+    background: color-mix(in srgb, var(--primary, #6366F1) 16%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary, #6366F1) 28%, transparent);
 }
 :global(html[data-theme="dark"]) .sidebarLabel {
+    color: var(--text-muted);
+}
+:global(html[data-theme="dark"]) .sidebarItem:hover .sidebarLabel,
+:global(html[data-theme="dark"]) .sidebarItemActive .sidebarLabel {
     color: var(--text-main);
 }
 :global(html[data-theme="dark"]) .sidebarDescription {
@@ -2147,15 +2158,78 @@
 .pesoTexto { flex: 1; min-width: 0; }
 .pesoTitulo { font-weight: 600; font-size: 0.875rem; color: var(--text-main); }
 .pesoSub { font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin-top: 0.15rem; }
-.pesoSelect {
+.pesoSelectWrap {
+    position: relative;
     flex-shrink: 0;
-    font-size: 0.8125rem;
-    padding: 0.4rem 0.6rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-    background: var(--bg-muted);
+    display: inline-flex;
+    align-items: center;
+}
+
+.pesoSelect {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 38px;
+    padding: 0 2.2rem 0 0.875rem;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--text-muted) 22%, var(--border));
+    background: color-mix(in srgb, var(--bg-muted) 70%, var(--bg-card));
     color: var(--text-main);
     font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.pesoSelect:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--primary, #4F46E5) 45%, var(--border));
+    background: color-mix(in srgb, var(--bg-muted) 90%, var(--bg-card));
+}
+
+.pesoSelect:focus-visible {
+    outline: none;
+    border-color: var(--primary, #4F46E5);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #4F46E5) 20%, transparent);
+}
+
+.pesoSelect:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.pesoSelect option {
+    background: var(--bg-card);
+    color: var(--text-main);
+}
+
+.pesoSelectChevron {
+    position: absolute;
+    right: 0.7rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--text-muted);
+    transition: color 140ms ease;
+}
+
+.pesoSelectWrap:hover .pesoSelectChevron {
+    color: var(--text-main);
+}
+
+@media (max-width: 480px) {
+    .pesoFila {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.65rem;
+    }
+
+    .pesoSelectWrap,
+    .pesoSelect {
+        width: 100%;
+        height: 42px;
+    }
 }
 
 
@@ -2167,8 +2241,17 @@
  *    móvil (SETTINGS-MOBILE-DARK-BLEND) sin tocar la versión en diálogo.
  * ==========================================================================*/
 .sidebarIcon {
-    background: color-mix(in srgb, var(--primary, #4F46E5) 12%, transparent);
-    color: var(--primary, #4F46E5);
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.sidebarItem:hover .sidebarIcon {
+    color: var(--text-main);
+}
+
+.sidebarItemActive .sidebarIcon {
+    background: color-mix(in srgb, var(--primary, #4F46E5) 16%, transparent);
+    color: var(--primary-light, var(--primary, #4F46E5));
 }
 
 @media (max-width: 768px) {
@@ -2189,11 +2272,18 @@
     :global(html[data-theme="light"]) .wrapper:not(.inDialog) .sidebarItem {
         position: relative;
         gap: 0.75rem;
-        padding: 0.875rem 1rem;
+        padding: 0.85rem 1rem;
         background: transparent;
         border: none;
         border-radius: 0;
         box-shadow: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .wrapper:not(.inDialog) .sidebarItem:active,
+    :global(html[data-theme="dark"]) .wrapper:not(.inDialog) .sidebarItem:active,
+    :global(html[data-theme="light"]) .wrapper:not(.inDialog) .sidebarItem:active {
+        background: color-mix(in srgb, var(--text-muted) 10%, transparent);
     }
 
     /* separador fino que empieza tras el icono, como en iOS */
@@ -2201,25 +2291,27 @@
         content: '';
         position: absolute;
         top: 0;
-        left: calc(1rem + 36px + 0.75rem);
+        left: calc(1rem + 32px + 0.75rem);
         right: 0;
         height: 1px;
         background: var(--border);
     }
 
     .wrapper:not(.inDialog) .sidebarIcon {
-        width: 36px;
-        height: 36px;
-        border-radius: var(--radius-md, 12px);
+        width: 32px;
+        height: 32px;
+        border-radius: 0.55rem;
+        background: color-mix(in srgb, var(--primary, #4F46E5) 12%, transparent);
+        color: var(--primary-light, var(--primary, #4F46E5));
     }
 
     .wrapper:not(.inDialog) .sidebarLabel {
         font-size: 0.9375rem;
-        font-weight: 600;
+        font-weight: 500;
+        color: var(--text-main);
     }
 
-    .wrapper:not(.inDialog) .sidebarDescription {
-        font-size: 0.8125rem;
-        line-height: 1.35;
+    .wrapper:not(.inDialog) .sidebarChevron {
+        display: block;
     }
 }

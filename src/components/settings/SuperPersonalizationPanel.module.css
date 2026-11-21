@@ -155,6 +155,7 @@
     gap: 0.5rem;
 }
 .chip {
+    min-height: 38px;
     padding: 0.45rem 0.85rem;
     border-radius: 99px;
     font-size: 0.84rem;
@@ -163,6 +164,7 @@
     color: var(--text-muted);
     background: var(--bg-muted, #F1F5F9);
     border: 1px solid var(--border);
+    -webkit-tap-highlight-color: transparent;
     transition: all 0.15s ease;
 }
 .chip:hover {
@@ -177,17 +179,41 @@
 /* ---- Select ---- */
 .select {
     width: 100%;
-    padding: 0.65rem 0.75rem;
+    min-height: 42px;
+    padding: 0.6rem 0.85rem;
     border-radius: 0.7rem;
-    border: 1px solid var(--border);
-    background: var(--bg-input, var(--bg-card, #fff));
+    border: 1px solid color-mix(in srgb, var(--text-muted) 22%, var(--border));
+    background-color: var(--bg-input, var(--bg-card, #fff));
     color: var(--text-main);
+    font-family: inherit;
     font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.3;
     cursor: pointer;
     outline: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
 }
+select.select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2.35rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px 16px;
+}
+select.select option {
+    background: var(--bg-card, #111827);
+    color: var(--text-main, #F8FAFC);
+}
+.select:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--primary, #4F46E5) 45%, var(--border));
+}
+.select:focus-visible,
 .select:focus {
     border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #4F46E5) 18%, transparent);
 }
 /* [P1-PLAN-LOTE-718 · 2026-09-28] Campo que no se pudo guardar (Perfil Clínico): el borde lo
    señala y el mensaje de debajo dice por qué. */
