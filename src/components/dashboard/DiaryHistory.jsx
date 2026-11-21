@@ -364,6 +364,10 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const [aCompartir, setACompartir] = useState(null);
     // [P1-PLAN-LOTE-1100] compartir el MES que se mira en el calendario
     const [mesACompartir, setMesACompartir] = useState(null);
+    // [P1-PLAN-LOTE-1132] compartir el CAMINO del mapa de niveles (lo que el mapa ya tiene pintado)
+    const [caminoACompartir, setCaminoACompartir] = useState(null);
+    // el detalle del día elegido (calorías, comidas): tocar un nivel lo trae a la vista si quedó debajo
+    const detalleRef = useRef(null);
     // [P1-PLAN-LOTE-721] la comida cuya ficha está abierta, o null
     const [fichaMeal, setFichaMeal] = useState(null);
     const idsConFoto = useIdsConFoto(userId);
@@ -617,7 +621,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             // [P1-COMPARTIR-DIA-PASADO] con la hoja de compartir, igual: Escape (y el «atrás» de Android, que lo
             // simula) la cierra a ella, y las flechas no cambian el día que hay debajo
             // [P1-PLAN-LOTE-721] y con la ficha de un plato abierta, lo mismo
-            if (aCompartir || mesACompartir || fichaMeal) return;
+            if (aCompartir || mesACompartir || caminoACompartir || fichaMeal) return;
             if (e.key === 'Escape') { e.preventDefault(); onClose?.(); }
             else if (e.key === 'ArrowLeft') { e.preventDefault(); moverDia(-1); }
             else if (e.key === 'ArrowRight') { e.preventDefault(); moverDia(1); }
@@ -629,9 +633,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         // checkpoint de microtasks a mitad del dispatch). En captura este handler corre ANTES que nadie, con el
         // estado de antes de la tecla.
         window.addEventListener('keydown', onKey, true);
-        if (!registrando && !escaneando && !aCompartir && !mesACompartir && !fichaMeal) cierreRef.current?.focus({ preventScroll: true });
+        if (!registrando && !escaneando && !aCompartir && !mesACompartir && !caminoACompartir && !fichaMeal) cierreRef.current?.focus({ preventScroll: true });
         return () => window.removeEventListener('keydown', onKey, true);
-    }, [open, onClose, moverDia, registrando, escaneando, aCompartir, mesACompartir, fichaMeal]);
+    }, [open, onClose, moverDia, registrando, escaneando, aCompartir, mesACompartir, caminoACompartir, fichaMeal]);
 
     // [P1-PLAN-LOTE-105] Borrar desde cualquier día: el mismo DELETE (filtrado por user_id) que la papelera de la
     // tarjeta de hoy. Tras borrar se vuelve a pedir el día y la tira, y se avisa a la tarjeta (si era hoy, sus
@@ -681,6 +685,22 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     // memoizado: `onClose` va en las deps de `useModalAccessibility` y uno nuevo por render le robaría el foco
     const cerrarCompartir = useCallback(() => setACompartir(null), []);
     const cerrarCompartirMes = useCallback(() => setMesACompartir(null), []);
+    const cerrarCompartirCamino = useCallback(() => setCaminoACompartir(null), []);
+    // [P1-PLAN-LOTE-1132] Tocar un nivel elige el día; si su detalle quedó debajo (o tocas OTRA VEZ el mismo día), el
+    // cajón baja lo justo para que se vea entero.
+    const elegirDesdeMapa = useCallback((iso) => {
+        const repetido = iso === selected;
+        setSelected(iso);
+        requestAnimationFrame(() => {
+            const el = detalleRef.current;
+            const cuerpo = bodyScrollRef.current;
+            if (!el || !cuerpo || typeof el.scrollIntoView !== 'function') return;
+            const fuera = el.getBoundingClientRect().top > cuerpo.getBoundingClientRect().bottom - 96;
+            if (!repetido && !fuera) return;
+            const quieto = !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+            el.scrollIntoView({ behavior: quieto ? 'auto' : 'smooth', block: 'nearest' });
+        });
+    }, [selected]);
     // [P1-PLAN-LOTE-1100] el mes tal como lo pinta el calendario: verde = en meta, ámbar = bajo, naranja = sobre
     const abrirCompartirMes = () => {
         const ESTADO = { green: 'meta', under: 'bajo', over: 'pasado' };
@@ -871,7 +891,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         </div>
                     </div>
                     <div className={styles.headTitleRow}>
-                        <div>
+                        {/* [P1-PLAN-LOTE-1132] «Hoy»/«Ayer» como pastilla junto al título (era una línea entera aparte) */}
+                        <div className={styles.dateLine}>
                             <h2 className={styles.dateTitle}>
                                 {t('{diaSemana} {dia} de {mes}', {
                                     diaSemana: getDiasLargo(t)[fecha.getDay()],
@@ -880,7 +901,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                 })}
                             </h2>
                             {(esHoyCalendario || esAyerCalendario) && (
-                                <div className={styles.dateRelative}>{esHoyCalendario ? t('Hoy') : t('Ayer')}</div>
+                                <span className={styles.dateRelative}>{esHoyCalendario ? t('Hoy') : t('Ayer')}</span>
                             )}
                         </div>
                     </div>
@@ -914,9 +935,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     selected={selected}
                                     estadoDe={estadoDe}
                                     porFecha={porFecha}
-                                    onElegir={setSelected}
+                                    onElegir={elegirDesdeMapa}
+                                    onCompartir={setCaminoACompartir}
                                 />
-                                <BotonInformeMedico />
                             </div>
                         ) : (
                         <div
@@ -1077,7 +1098,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     const maxVerde = Math.round(num(selectedTargetCal) * band.hi);
                     const deficitFuerte = !esHoy && conComidas && isStrongDeficit(kcalDia, selectedTargetCal, selectedMainGoal);
                     return (
-                        <div className={styles.quota}>
+                        <div ref={detalleRef} className={styles.quota}>
                             <div className={styles.quotaTop}>
                                 <div className={styles.quotaNumbers}>
                                     <span className={styles.quotaNum}>{kcalDia}</span>
@@ -1243,6 +1264,11 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                             <MicrosList micros={totales.micros || null} coverage={coberturaMicros} metas={targetMicros} compact showNotes={false} />
                         </section>
                     )}
+                    {/* [P1-PLAN-LOTE-1132] en el mapa, el informe para el médico va al PIE: entre el mapa y el día empujaba
+                        el detalle del día fuera de la pantalla */}
+                    {vista === 'mapa' && (
+                        <div className={styles.informePie}><BotonInformeMedico /></div>
+                    )}
                 </div>
                 </div>
             </motion.aside>
@@ -1276,6 +1302,11 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             {mesACompartir && (
                 <Suspense fallback={null}>
                     <ShareDaySheet onClose={cerrarCompartirMes} mes={mesACompartir} />
+                </Suspense>
+            )}
+            {caminoACompartir && (
+                <Suspense fallback={null}>
+                    <ShareDaySheet onClose={cerrarCompartirCamino} mapa={caminoACompartir} />
                 </Suspense>
             )}
             {aCompartir && (

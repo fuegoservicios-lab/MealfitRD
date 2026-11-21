@@ -4299,5 +4299,43 @@
   "¿Qué pasa si llego a un tope del día?": "What happens if I reach a daily limit?",
   "Mapa": "Map",
   "Mapa de niveles": "Level map",
-  "Leyenda": "Legend"
+  "Leyenda": "Legend",
+  "+1 estrella para tu semana": "+1 star for your week",
+  "Cada semana da hasta 3 estrellas: con 3, 5 y 7 días en meta.": "Each week gives up to 3 stars: at 3, 5 and 7 days on goal.",
+  "Camino": "Journey",
+  "Compartir mi camino": "Share my journey",
+  "Compartir tu camino": "Share your journey",
+  "Día del camino": "Day of your journey",
+  "Día {n} de tu camino: cuenta desde tu primer día.": "Day {n} of your journey: counted from your first day.",
+  "Días seguidos en meta. Hoy no la corta mientras el día no termine.": "Days in a row on goal. Today won’t break it until the day is over.",
+  "Faltan {n} días en meta para tu primera estrella": {
+    "one": "{n} more day on goal for your first star",
+    "other": "{n} more days on goal for your first star"
+  },
+  "Inicio": "Start",
+  "Ir a hoy": "Go to today",
+  "Llegaste al último mundo: Diamante.": "You reached the last world: Diamond.",
+  "Mi camino": "My journey",
+  "Mi camino: tu historia": "My journey: your story",
+  "Mundo": "World",
+  "Mundo {nombre}": "{nombre} world",
+  "Resumen del camino": "Journey summary",
+  "Sobre": "Above",
+  "Tu camino sigue en un paisaje nuevo": "Your journey continues in a new landscape",
+  "Tu rango es tu mundo. Te faltan {n} estrellas para {siguiente}.": {
+    "one": "Your rank is your world. {n} star left to reach {siguiente}.",
+    "other": "Your rank is your world. {n} stars left to reach {siguiente}."
+  },
+  "Un día más en meta": "One more day on goal",
+  "¡Ayer cerraste en meta!": "You closed yesterday on goal!",
+  "¡Mundo {nombre} desbloqueado!": "{nombre} world unlocked!",
+  "¡Nivel superado!": "Level complete!",
+  "¿Y tú, cómo va tu camino?": "How’s your journey going?",
+  "¿Y tú, cómo va tu camino? 💪": "How’s your journey going? 💪",
+  "⭐ {n} estrellas": {
+    "one": "⭐ {n} star",
+    "other": "⭐ {n} stars"
+  },
+  "🏅 Mundo {nombre}": "🏅 {nombre} world",
+  "🗺️ Mi camino en {app} · Día {n}": "🗺️ My journey on {app} · Day {n}"
 }

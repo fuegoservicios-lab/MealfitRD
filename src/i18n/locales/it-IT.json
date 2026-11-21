@@ -4299,5 +4299,43 @@
   "¿Qué pasa si llego a un tope del día?": "Cosa succede se raggiungo un limite del giorno?",
   "Mapa": "Mappa",
   "Mapa de niveles": "Mappa dei livelli",
-  "Leyenda": "Legenda"
+  "Leyenda": "Legenda",
+  "+1 estrella para tu semana": "+1 stella per la tua settimana",
+  "Cada semana da hasta 3 estrellas: con 3, 5 y 7 días en meta.": "Ogni settimana dà fino a 3 stelle: con 3, 5 e 7 giorni in obiettivo.",
+  "Camino": "Percorso",
+  "Compartir mi camino": "Condividi il mio percorso",
+  "Compartir tu camino": "Condividi il tuo percorso",
+  "Día del camino": "Giorno del percorso",
+  "Día {n} de tu camino: cuenta desde tu primer día.": "Giorno {n} del tuo percorso: si conta dal tuo primo giorno.",
+  "Días seguidos en meta. Hoy no la corta mientras el día no termine.": "Giorni di fila in obiettivo. Oggi non la interrompe finché la giornata non finisce.",
+  "Faltan {n} días en meta para tu primera estrella": {
+    "one": "Manca {n} giorno in obiettivo per la tua prima stella",
+    "other": "Mancano {n} giorni in obiettivo per la tua prima stella"
+  },
+  "Inicio": "Partenza",
+  "Ir a hoy": "Vai a oggi",
+  "Llegaste al último mundo: Diamante.": "Sei arrivato all’ultimo mondo: Diamante.",
+  "Mi camino": "Il mio percorso",
+  "Mi camino: tu historia": "Il mio percorso: la tua storia",
+  "Mundo": "Mondo",
+  "Mundo {nombre}": "Mondo {nombre}",
+  "Resumen del camino": "Riepilogo del percorso",
+  "Sobre": "Sopra",
+  "Tu camino sigue en un paisaje nuevo": "Il tuo percorso continua in un nuovo paesaggio",
+  "Tu rango es tu mundo. Te faltan {n} estrellas para {siguiente}.": {
+    "one": "Il tuo grado è il tuo mondo. Manca {n} stella per {siguiente}.",
+    "other": "Il tuo grado è il tuo mondo. Mancano {n} stelle per {siguiente}."
+  },
+  "Un día más en meta": "Un giorno in più in obiettivo",
+  "¡Ayer cerraste en meta!": "Ieri hai chiuso in obiettivo!",
+  "¡Mundo {nombre} desbloqueado!": "Mondo {nombre} sbloccato!",
+  "¡Nivel superado!": "Livello superato!",
+  "¿Y tú, cómo va tu camino?": "E tu, come va il tuo percorso?",
+  "¿Y tú, cómo va tu camino? 💪": "E tu, come va il tuo percorso? 💪",
+  "⭐ {n} estrellas": {
+    "one": "⭐ {n} stella",
+    "other": "⭐ {n} stelle"
+  },
+  "🏅 Mundo {nombre}": "🏅 Mondo {nombre}",
+  "🗺️ Mi camino en {app} · Día {n}": "🗺️ Il mio percorso su {app} · Giorno {n}"
 }
