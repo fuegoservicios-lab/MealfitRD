@@ -72,7 +72,7 @@ describe('[P1-CHECKOUT-CREDITS-TRUTH] el checkout dice la verdad del ladder', ()
         (tier) => {
             renderModal(tier);
             const l = TIER_LIMITS[tier];
-            const texto = document.body.textContent.replace(/[  ,.]/g, '');
+            const texto = document.body.textContent.replace(/[\u00a0\u202f,.]/g, '');
             expect(texto).toContain(`${l.fotos_dia} fotos analizadas al día`);
             expect(texto).toContain(`${l.coach_mes} mensajes con el coach al mes`);
             expect(texto).toContain(`${l.voz_min_mes} min de voz en vivo al mes`);

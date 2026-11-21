@@ -32,7 +32,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
     // gesto de arrastrar para cerrar se apaga SOLO cuando hay que desplazarse (arrastrar se comería el scroll).
     const [desborda, setDesborda] = useState(false);
     useEffect(() => {
-        if (!isOpen) { setDesborda(false); return undefined; }
+        if (!isOpen) return undefined;   // [1158] cerrado no desborda: se deriva abajo (`isOpen && desborda`), sin setState aquí
         const medir = () => {
             const el = modalRef.current;
             if (el) setDesborda(el.scrollHeight > el.clientHeight + 1);
@@ -207,7 +207,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             if (modalRef.current?.contains(active) && active !== modalRef.current && active !== initialFocusRef?.current) return;
                             initialFocusRef?.current?.focus({ preventScroll: true });
                         }}
-                        drag={isMobile && !desborda && !(adjustToKeyboard && visibleViewport && document.activeElement?.matches('input, textarea')) ? "y" : false}
+                        drag={isMobile && !(isOpen && desborda) && !(adjustToKeyboard && visibleViewport && document.activeElement?.matches('input, textarea')) ? "y" : false}
                         dragConstraints={{ top: 0, bottom: 0 }}
                         dragElastic={{ top: 0, bottom: 1 }}
                         onDragEnd={(event, info) => {

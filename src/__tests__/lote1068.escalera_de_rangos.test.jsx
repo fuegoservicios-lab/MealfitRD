@@ -7,7 +7,8 @@ import { render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { ESCALERA, EscaleraDeRangos, posicionEnLaEscalera, semanasHasta } from '../components/dashboard/EscaleraDeRangos';
+import { EscaleraDeRangos } from '../components/dashboard/EscaleraDeRangos';
+import { ESCALERA, posicionEnLaEscalera, semanasHasta } from '../utils/caminoDeRangos';
 
 describe('[1068] las cuentas de la escalera', () => {
     it('los umbrales son EXACTAMENTE los del servidor (progreso_semanas.RANGOS)', () => {

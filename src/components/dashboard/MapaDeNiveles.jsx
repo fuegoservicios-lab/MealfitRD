@@ -24,7 +24,7 @@ import { formatDate, formatNumber, useT, useTn } from '../../i18n';
 import { DIAS_DE_LA_SEMANA, ESTRELLAS_MAX, estrellasDeLaSemana, mediodiaDe } from '../../utils/progresoDeLosDias';
 import { adornosDelMapa, armarMapa, celebracionPendiente, filasDelMapa, trazo } from '../../utils/mapaDeNiveles';
 import { triggerMobileHaptic } from '../../utils/mobileHaptics';
-import { ESCALERA, posicionEnLaEscalera } from './EscaleraDeRangos';
+import { ESCALERA, posicionEnLaEscalera } from '../../utils/caminoDeRangos';
 import { Button } from '../ui/Button';
 import styles from './MapaDeNiveles.module.css';
 

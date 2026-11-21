@@ -30,38 +30,8 @@ import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { Button } from '../ui/Button';
 import { formatNumber, useT, useTn } from '../../i18n';
-import { semanasPorRitmo, RITMO_PROPIO_MAX_SEMANAS } from '../../utils/caminoDeRangos';   // [1157]
+import { ESCALERA, posicionEnLaEscalera, semanasHasta, semanasPorRitmo, RITMO_PROPIO_MAX_SEMANAS } from '../../utils/caminoDeRangos';   // [1157] [1158]
 import styles from './EscaleraDeRangos.module.css';
-
-export const ESCALERA = [
-    { clave: 'bronce', desde: 0 },
-    { clave: 'plata', desde: 10 },
-    { clave: 'oro', desde: 25 },
-    { clave: 'platino', desde: 50 },
-    { clave: 'diamante', desde: 100 },
-];
-const ESTRELLAS_POR_SEMANA_MAX = 3;
-
-/** Dónde estás en la escalera: rango actual, siguiente y avance (0-1) dentro del tramo. Puro, para el test. */
-export function posicionEnLaEscalera(estrellas) {
-    const total = Math.max(0, Number(estrellas) || 0);
-    let i = 0;
-    for (let k = 0; k < ESCALERA.length; k++) if (total >= ESCALERA[k].desde) i = k;
-    const actual = ESCALERA[i];
-    const siguiente = ESCALERA[i + 1] || null;
-    const faltan = siguiente ? siguiente.desde - total : 0;
-    const avance = siguiente ? (total - actual.desde) / (siguiente.desde - actual.desde) : 1;
-    return { indice: i, actual, siguiente, faltan, avance: Math.min(1, Math.max(0, avance)), total };
-}
-
-/** Semanas para juntar `faltan` estrellas: con semanas perfectas y a tu ritmo (estrellas por semana cerrada). */
-export function semanasHasta(faltan, { estrellas = 0, semanasCerradas = 0 } = {}) {
-    if (!(faltan > 0)) return { perfectas: 0, aTuRitmo: null };
-    const perfectas = Math.ceil(faltan / ESTRELLAS_POR_SEMANA_MAX);
-    const ritmo = semanasCerradas > 0 ? estrellas / semanasCerradas : 0;
-    return { perfectas, aTuRitmo: ritmo > 0 ? Math.ceil(faltan / ritmo) : null };
-}
-
 
 /** La hoja abierta: existe solo mientras se ve, así `useBottomSheet` recuerda y restaura el scroll del fondo. */
 function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
