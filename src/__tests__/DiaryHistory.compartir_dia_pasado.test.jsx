@@ -85,6 +85,8 @@ const irAAyer = async () => {
 const textoCompartido = () => decodeURIComponent(screen.getByRole('link', { name: /whatsapp/i }).getAttribute('href'));
 
 beforeEach(() => {
+    // [P1-PLAN-LOTE-1131] el cajón abre en el MAPA; estas pruebas son de la vista de calendario
+    try { window.localStorage.setItem('mealfit_registro_vista', 'calendario'); } catch { /* jsdom */ }
     fetchWithAuth.mockReset();
 });
 

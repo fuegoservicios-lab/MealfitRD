@@ -74,6 +74,8 @@ beforeEach(() => {
     fetchWithAuth.mockReset();
     confirmToast.mockReset();
     try { window.localStorage.clear(); } catch { /* jsdom */ }
+    // [P1-PLAN-LOTE-1131] el cajón abre en el MAPA; la media de la semana vive en la vista de calendario
+    try { window.localStorage.setItem('mealfit_registro_vista', 'calendario'); } catch { /* jsdom */ }
 });
 
 describe('la tarjeta fusionada', () => {
@@ -131,7 +133,8 @@ describe('el diario de días anteriores', () => {
         // [CALENDARIO-SOLO-MES] el cajón abre en el mes: pide 90 días de una vez y resume el mes (ya no hay tira ni «+14»)
         expect(screen.getByText('Este mes: media de 700 kcal en 1 día con registro')).toBeInTheDocument();
         expect(fetchWithAuth.mock.calls.some((c) => String(c[0]).includes('/api/diary/consumed-range/u1?days=90'))).toBe(true);
-        expect(screen.queryByRole('tab')).toBeNull();
+        // [P1-PLAN-LOTE-1131] las únicas pestañas son «Mapa» y «Calendario» (la de «Semana» sigue sin volver)
+        expect(screen.getAllByRole('tab').map((b) => b.textContent)).toEqual(['Mapa', 'Calendario']);
         expect(screen.queryByRole('button', { name: 'Semana' })).toBeNull();
     });
 

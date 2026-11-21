@@ -41,7 +41,7 @@ import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useS
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, ChevronRight, ChevronLeft, Trash2, Loader2, Plus, FlaskConical, Share, Check, TrendingUp, Star } from 'lucide-react';
+import { X, CalendarDays, ChevronRight, ChevronLeft, Trash2, Loader2, Plus, FlaskConical, Share, Check, TrendingUp, Star, Map as MapIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { confirmToast } from '../../utils/confirmToast';
@@ -57,9 +57,10 @@ import { useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/use
 import MiniaturaDeComida from './MiniaturaDeComida';
 import { getBiologicalDate, getBiologicalDateStr, getCalendarDateStr } from '../../utils/diaBiologico';
 import { getCalorieGoalBand, getCalorieGoalState, isStrongDeficit, resolveMainGoal } from '../../utils/calorieGoalStatus';
-import { ESTRELLAS_MAX, domingoDe, estrellasDeLaSemana, inicioDeLaSemana1, numeroDeSemana } from '../../utils/progresoDeLosDias';
+import { ESTRELLAS_MAX, domingoDe, estrellasDeLaSemana, inicioDeLaSemana1, inicioDelViaje, numeroDeSemana } from '../../utils/progresoDeLosDias';
 import { diaUnoDelServidor, invalidarCacheSemanas } from '../../utils/progresoServidor';
 import VitrinaDeSemanas from './VitrinaDeSemanas';
+import MapaDeNiveles from './MapaDeNiveles';   // [P1-PLAN-LOTE-1131] el mapa de niveles, vista principal
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import styles from './DiaryHistory.module.css';
 import BotonInformeMedico from '../common/BotonInformeMedico';   // [P1-PLAN-LOTE-1034]
@@ -82,6 +83,7 @@ const _diaEnFrase = (dia) => (String(getLocale() || '').startsWith('en') ? Strin
 const CAL_ANILLO = 2 * Math.PI * 15;   // el anillo de cada día del mes
 // Tope del endpoint (`/consumed-range` clampa a 90) y del retrodatado (`days_ago` ≤ 7 en el backend).
 const DIAS_MAX = 90;
+const CLAVE_VISTA = 'mealfit_registro_vista';   // [P1-PLAN-LOTE-1131] 'mapa' (por defecto) | 'calendario'
 const DIAS_ATRAS_REGISTRO = 7;
 
 // [P1-I18N-DASHBOARD · 2026-08-15] Las tablas de copy son FUNCIONES: evaluadas
@@ -293,6 +295,10 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         }
     }, [open, diaInicial]);
     const [maxDias, setMaxDias] = useState(DIAS_MAX);
+    // [P1-PLAN-LOTE-1131 · 2026-11-20] Dos vistas: el MAPA de niveles (principal, cada día es un nivel) y el calendario
+    // del mes. La elección se recuerda en este dispositivo.
+    const [vista, setVistaEstado] = useState(() => (safeLocalStorageGet(CLAVE_VISTA, 'mapa') === 'calendario' ? 'calendario' : 'mapa'));
+    const setVista = useCallback((v) => { setVistaEstado(v); safeLocalStorageSet(CLAVE_VISTA, v); }, []);
 
     const cambiarMes = useCallback((delta) => {
         setCalDate((actual) => {
@@ -451,6 +457,18 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         }
         return out;
     }, [calDias, resumen, hoyISO, userId, estadoDe]);
+
+    // [P1-PLAN-LOTE-1131] el día 1 del camino: el del SERVIDOR manda (el mismo en cualquier teléfono); sin él, el registro
+    // más antiguo cargado. El mapa necesita el historial desde ahí: se pide hasta el tope del endpoint (365).
+    const inicioViaje = useMemo(() => {
+        const delServidor = userId ? diaUnoDelServidor(userId) : null;
+        return delServidor && delServidor <= hoyISO ? delServidor : inicioDelViaje(resumen, hoyISO, null);
+    }, [userId, resumen, hoyISO]);
+    useEffect(() => {
+        if (!open || vista !== 'mapa') return;
+        const necesarios = Math.min(365, diasAtras(inicioViaje, hoyISO) + 1);
+        if (necesarios > maxDias) setMaxDias(necesarios);
+    }, [open, vista, inicioViaje, hoyISO, maxDias]);
 
     const diaTargets = dia?.iso === selected ? dia?.targets : null;
     const selectedRow = porFecha.get(selected);
@@ -871,6 +889,36 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                 <div ref={bodyScrollRef} className={styles.drawerBody}>
 
                     <>
+                        {/* [P1-PLAN-LOTE-1131] Mapa | Calendario */}
+                        <div className={styles.vistasZona}>
+                        <div className={styles.vistas} role="tablist" aria-label={t('Registro por día')}>
+                            <button type="button" role="tab" aria-selected={vista === 'mapa'}
+                                className={`${styles.vistaBtn} ${vista === 'mapa' ? styles.vistaBtnActiva : ''}`}
+                                onClick={() => setVista('mapa')}>
+                                <MapIcon size={16} strokeWidth={2.25} aria-hidden="true" />
+                                {t('Mapa')}
+                            </button>
+                            <button type="button" role="tab" aria-selected={vista === 'calendario'}
+                                className={`${styles.vistaBtn} ${vista === 'calendario' ? styles.vistaBtnActiva : ''}`}
+                                onClick={() => setVista('calendario')}>
+                                <CalendarDays size={16} strokeWidth={2.25} aria-hidden="true" />
+                                {t('Calendario')}
+                            </button>
+                        </div>
+                        </div>
+                        {vista === 'mapa' ? (
+                            <div className={styles.mapaZona}>
+                                <MapaDeNiveles
+                                    inicioISO={inicioViaje}
+                                    hoyISO={hoyISO}
+                                    selected={selected}
+                                    estadoDe={estadoDe}
+                                    porFecha={porFecha}
+                                    onElegir={setSelected}
+                                />
+                                <BotonInformeMedico />
+                            </div>
+                        ) : (
                         <div
                             className={styles.calendarContainer}
                             onTouchStart={handleCalTouchStart}
@@ -1015,6 +1063,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                             </div>
                             {renderResumenDelMes()}
                         </div>
+                        )}
                     </>
 
                 {(() => {

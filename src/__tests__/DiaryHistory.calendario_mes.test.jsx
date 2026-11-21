@@ -55,6 +55,8 @@ const DIA_AYER_INCOMPLETO = {
 
 describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', () => {
     beforeEach(() => {
+        // [P1-PLAN-LOTE-1131] el cajón abre en el MAPA; estas pruebas son de la vista de calendario
+        try { window.localStorage.setItem('mealfit_registro_vista', 'calendario'); } catch { /* jsdom */ }
         vi.clearAllMocks();
         fetchWithAuth.mockImplementation(async (url) => {
             if (url.includes('/api/diary/consumed-range')) return respuesta(RESUMEN_MOCK);
