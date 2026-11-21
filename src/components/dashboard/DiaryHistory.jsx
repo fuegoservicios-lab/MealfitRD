@@ -366,6 +366,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const [mesACompartir, setMesACompartir] = useState(null);
     // [P1-PLAN-LOTE-1132] compartir el CAMINO del mapa de niveles (lo que el mapa ya tiene pintado)
     const [caminoACompartir, setCaminoACompartir] = useState(null);
+    // [P1-PLAN-LOTE-1135] el mapa en grande: su Escape lo cierra a él, no al cajón
+    const [mapaGrande, setMapaGrande] = useState(false);
     // el detalle del día elegido (calorías, comidas): tocar un nivel lo trae a la vista si quedó debajo
     const detalleRef = useRef(null);
     // [P1-PLAN-LOTE-1134] «hay dos [scroll] y quitaste uno… era el otro que tenía al lado» (el dueño, en PC): con el
@@ -631,7 +633,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             // [P1-COMPARTIR-DIA-PASADO] con la hoja de compartir, igual: Escape (y el «atrás» de Android, que lo
             // simula) la cierra a ella, y las flechas no cambian el día que hay debajo
             // [P1-PLAN-LOTE-721] y con la ficha de un plato abierta, lo mismo
-            if (aCompartir || mesACompartir || caminoACompartir || fichaMeal) return;
+            if (aCompartir || mesACompartir || caminoACompartir || fichaMeal || mapaGrande) return;
             if (e.key === 'Escape') { e.preventDefault(); onClose?.(); }
             else if (e.key === 'ArrowLeft') { e.preventDefault(); moverDia(-1); }
             else if (e.key === 'ArrowRight') { e.preventDefault(); moverDia(1); }
@@ -643,9 +645,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         // checkpoint de microtasks a mitad del dispatch). En captura este handler corre ANTES que nadie, con el
         // estado de antes de la tecla.
         window.addEventListener('keydown', onKey, true);
-        if (!registrando && !escaneando && !aCompartir && !mesACompartir && !caminoACompartir && !fichaMeal) cierreRef.current?.focus({ preventScroll: true });
+        if (!registrando && !escaneando && !aCompartir && !mesACompartir && !caminoACompartir && !fichaMeal && !mapaGrande) cierreRef.current?.focus({ preventScroll: true });
         return () => window.removeEventListener('keydown', onKey, true);
-    }, [open, onClose, moverDia, registrando, escaneando, aCompartir, mesACompartir, caminoACompartir, fichaMeal]);
+    }, [open, onClose, moverDia, registrando, escaneando, aCompartir, mesACompartir, caminoACompartir, fichaMeal, mapaGrande]);
 
     // [P1-PLAN-LOTE-105] Borrar desde cualquier día: el mismo DELETE (filtrado por user_id) que la papelera de la
     // tarjeta de hoy. Tras borrar se vuelve a pedir el día y la tira, y se avisa a la tarjeta (si era hoy, sus
@@ -947,6 +949,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     porFecha={porFecha}
                                     onElegir={elegirDesdeMapa}
                                     onCompartir={setCaminoACompartir}
+                                    onGrande={setMapaGrande}
                                 />
                             </div>
                         ) : (

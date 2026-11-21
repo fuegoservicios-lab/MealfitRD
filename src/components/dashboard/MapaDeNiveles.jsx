@@ -17,8 +17,9 @@
 //  · CELEBRACIÓN al cerrar un día en meta (o al abrir un mundo), una vez por cosa y solo lo reciente;
 //  · «Ir a hoy» cuando te alejas, háptica al tocar y «Compartir mi camino» como historia.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { ArrowUp, Check, Crown, Flag, Flame, Gem, Gift, Lock, MapPin, Medal, PartyPopper, Share, Star, Trophy } from 'lucide-react';
+import { ArrowUp, Check, Maximize2, Minimize2, Crown, Flag, Flame, Gem, Gift, Lock, MapPin, Medal, PartyPopper, Share, Star, Trophy } from 'lucide-react';
 import { formatDate, formatNumber, useT, useTn } from '../../i18n';
 import { ESTRELLAS_MAX, mediodiaDe } from '../../utils/progresoDeLosDias';
 import { armarMapa, celebracionPendiente, filasDelMapa, trazo } from '../../utils/mapaDeNiveles';
@@ -76,8 +77,24 @@ function Estrellas({ n }) {
 }
 Estrellas.propTypes = { n: PropTypes.number.isRequired };
 
-export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, porFecha, onElegir, onCompartir }) {
+export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, porFecha, onElegir, onCompartir, onGrande }) {
     const t = useT();
+    // [P1-PLAN-LOTE-1135] «En grande» (el dueño: «en pc que se pueda poner en grande para ver todo… la gente de pc no
+    // tiene forma de scrollear desde afuera»): el mapa a pantalla completa, en PC y en móvil. Escape o el botón lo
+    // devuelven al cajón; el cajón lo sabe (`onGrande`) para que su Escape no lo cierre a él.
+    const [grande, setGrande] = useState(false);
+    const cambiarGrande = useCallback((v) => {
+        setGrande(v);
+        onGrande?.(v);
+        triggerMobileHaptic('light');
+    }, [onGrande]);
+    useEffect(() => {
+        if (!grande) return undefined;
+        const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); cambiarGrande(false); } };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [grande, cambiarGrande]);
+    useEffect(() => () => { if (grande) onGrande?.(false); }, [grande, onGrande]);
     const tn = useTn();
     const ventanaRef = useRef(null);
     const lienzoRef = useRef(null);
@@ -93,7 +110,8 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
         const ro = new ResizeObserver(medir);
         ro.observe(el);
         return () => ro.disconnect();
-    }, []);
+    // [1135] al pasar a/desde «en grande» el lienzo es OTRO nodo (vive en el portal): hay que medir el nuevo
+    }, [grande]);
     const etiquetas = ETIQUETA(t);
     const nombres = NOMBRE_MUNDO(t);
 
@@ -138,7 +156,7 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
         // la primera vez, al instante (abrir ya en tu día); después, deslizando (sin saltos al tocar)
         irA(yElegido, yaCentradoRef.current, topeElegido);
         yaCentradoRef.current = true;
-    }, [yElegido, topeElegido, irA]);
+    }, [yElegido, topeElegido, irA, grande]);
 
     // «Ir a hoy»: aparece cuando hoy queda fuera de la ventana (explorando semanas viejas).
     const [lejosDeHoy, setLejosDeHoy] = useState(false);
@@ -208,11 +226,17 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
         </button>
     );
 
-    return (
-        <section className={styles.mapa} aria-label={t('Mapa de niveles')} data-testid="mapa-de-niveles">
+    const seccion = (
+        <section className={`${styles.mapa} ${grande ? styles.mapaGrande : ''}`} aria-label={t('Mapa de niveles')} data-testid="mapa-de-niveles">
             <div className={styles.ventanaMarco}>
                 <div className={styles.hud}>
                     <span className={styles.hudLado}>
+                        <button type="button" className={`${styles.hudChip} ${styles.hudGrande}`}
+                            onClick={() => cambiarGrande(!grande)}
+                            aria-label={grande ? t('Salir de la vista grande') : t('Ver el mapa en grande')}
+                            title={grande ? t('Salir de la vista grande') : t('Ver el mapa en grande')}>
+                            {grande ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+                        </button>
                         {chip('dia', '', <><MapPin aria-hidden="true" />{t('Día {n}', { n: formatNumber(mapa.nivelHoy) })}</>, t('Día del camino'))}
                         {chip('mundo', styles.hudMundo, <><span className={`${styles.hudMedalla} ${styles[`medalla_${mundoHoy}`]}`} aria-hidden="true" />{nombres[mundoHoy]}</>, t('Mundo'))}
                     </span>
@@ -372,6 +396,15 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
             )}
         </section>
     );
+
+    if (!grande) return seccion;
+    return createPortal(
+        <div className={styles.capaGrande} role="dialog" aria-modal="true" aria-label={t('Mapa de niveles')}>
+            <button type="button" className={styles.veloGrande} onClick={() => cambiarGrande(false)} aria-label={t('Salir de la vista grande')} tabIndex={-1} />
+            {seccion}
+        </div>,
+        document.body,
+    );
 }
 
 MapaDeNiveles.propTypes = {
@@ -382,4 +415,5 @@ MapaDeNiveles.propTypes = {
     porFecha: PropTypes.instanceOf(Map),
     onElegir: PropTypes.func.isRequired,
     onCompartir: PropTypes.func,
+    onGrande: PropTypes.func,
 };

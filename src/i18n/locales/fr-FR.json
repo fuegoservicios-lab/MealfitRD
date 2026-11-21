@@ -4337,5 +4337,7 @@
     "other": "⭐ {n} étoiles"
   },
   "🏅 Mundo {nombre}": "🏅 Monde {nombre}",
-  "🗺️ Mi camino en {app} · Día {n}": "🗺️ Mon parcours sur {app} · Jour {n}"
+  "🗺️ Mi camino en {app} · Día {n}": "🗺️ Mon parcours sur {app} · Jour {n}",
+  "Ver el mapa en grande": "Voir la carte en grand",
+  "Salir de la vista grande": "Quitter la vue en grand"
 }

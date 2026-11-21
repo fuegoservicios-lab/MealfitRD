@@ -177,3 +177,18 @@ describe('compartir el camino', () => {
         expect(resumenDeMapa({ mundo: 'xx', dias: [] }).mundo.clave).toBe('bronce');
     });
 });
+
+describe('[1135] el mapa en grande', () => {
+    it('el botón de la izquierda lo abre a pantalla completa; Escape lo devuelve y avisa al cajón', () => {
+        const onGrande = vi.fn();
+        render(<MapaDeNiveles inicioISO="2026-11-08" hoyISO={HOY} selected={HOY} estadoDe={() => null} porFecha={new Map()} onElegir={vi.fn()} onGrande={onGrande} />);
+        expect(screen.queryByRole('dialog')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Ver el mapa en grande' }));
+        expect(screen.getByRole('dialog', { name: 'Mapa de niveles' })).toContainElement(screen.getByTestId('mapa-de-niveles'));
+        expect(onGrande).toHaveBeenLastCalledWith(true);
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(onGrande).toHaveBeenLastCalledWith(false);
+        expect(screen.getByTestId('mapa-de-niveles')).toBeInTheDocument();
+    });
+});
