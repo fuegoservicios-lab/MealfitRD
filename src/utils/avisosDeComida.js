@@ -391,6 +391,7 @@ export async function estadoDeAvisos() {
 // arranque), en vez de apagar todo y decir «no se pudieron activar» por un servidor lento.
 const _TOPE_PERMISO_MS = 2500;
 const _TOPE_DIALOGO_MS = 60 * 1000;
+const _SONDEO_PERMISO_MS = 1000;
 const _TOPE_PRIMERA_SINCRONIZACION_MS = 5000;
 const _conTope = (promesa, ms, siVence) => Promise.race([
     Promise.resolve(promesa),
@@ -414,7 +415,19 @@ async function _pedirPermiso(LN) {
             }, 600);
         };
         document.addEventListener('visibilitychange', mirar);
-        quitar = () => { clearTimeout(id); document.removeEventListener('visibilitychange', mirar); };
+        // [1158] Medido en el emulador (Android 17): el diálogo de permiso del sistema NO dispara `visibilitychange`
+        // (la actividad de la app no se oculta). Si `requestPermissions` no contestara, solo quedaba el tope de 60 s:
+        // ahora además se mira el permiso cada segundo mientras se espera (`checkPermissions` contesta al instante).
+        let ocupado = false;
+        const sondeo = setInterval(async () => {
+            if (ocupado) return;
+            ocupado = true;
+            try {
+                const p = await _leerPermiso(LN);
+                if (p === 'granted' || p === 'denied') resolve(p);
+            } finally { ocupado = false; }
+        }, _SONDEO_PERMISO_MS);
+        quitar = () => { clearTimeout(id); clearInterval(sondeo); document.removeEventListener('visibilitychange', mirar); };
     });
     try {
         const pedido = Promise.resolve().then(() => LN.requestPermissions()).then((r) => r?.display || 'prompt', () => 'prompt');

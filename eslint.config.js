@@ -57,7 +57,9 @@ export default defineConfig([
   // desarrollador veía 182. Un techo de warnings sólo sirve si las dos orillas
   // cuentan lo mismo; si no, cada recalibración nace desfasada.
   // [P1-IOS-NATIVE-SHELL] 'ios' es el proyecto Xcode generado por Capacitor: no es JS nuestro.
-  globalIgnores(['dist', 'dev-dist', 'scratch', 'tmp', 'ds-bundle', 'coverage', 'ios']),
+  // [P1-PLAN-LOTE-1158] 'android' como 'ios': una compilación nativa deja copias minificadas del bundle
+  // (app/build, assets/public) y `lint:count --gate` las contaba como ~2.900 avisos nuevos.
+  globalIgnores(['dist', 'dev-dist', 'scratch', 'tmp', 'ds-bundle', 'coverage', 'ios', 'android']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

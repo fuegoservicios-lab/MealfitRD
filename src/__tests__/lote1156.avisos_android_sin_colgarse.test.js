@@ -50,6 +50,20 @@ describe('lote 1156 · encender los avisos en Android nunca se queda girando', (
         expect(localStorage.getItem(CLAVE_AVISOS_LOCALES)).toBe('1');
     });
 
+    // [P1-PLAN-LOTE-1158] medido en el emulador: en Android el diálogo del sistema NO dispara `visibilitychange`
+    it('sin ningún evento de la página, el permiso concedido se detecta en ~1 s', async () => {
+        metodos.requestPermissions = () => colgada();
+        const t0 = Date.now();
+        const p = activarAvisos();
+        await new Promise((r) => setTimeout(r, 50));
+        permiso = 'granted';                       // tocó «Permitir»; la página no se enteró de nada
+        const r = await p;
+        expect(r.ok).toBe(true);
+        // ~1 s de sondeo + la primera programación (en este doble `createChannel` no contesta: su tope es 1,5 s);
+        // lo que importa: no espera el tope de 60 s del diálogo
+        expect(Date.now() - t0).toBeLessThan(5000);
+    });
+
     it('si al volver el permiso quedó denegado, lo dice (no se queda esperando)', async () => {
         metodos.requestPermissions = () => colgada();
         const p = activarAvisos();
