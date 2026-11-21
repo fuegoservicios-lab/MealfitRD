@@ -83,8 +83,22 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
     // tiene forma de scrollear desde afuera»): el mapa a pantalla completa, en PC y en móvil. Escape o el botón lo
     // devuelven al cajón; el cajón lo sabe (`onGrande`) para que su Escape no lo cierre a él.
     const [grande, setGrande] = useState(false);
+    // [P1-PLAN-LOTE-1138] RENDIMIENTO («no lo siento tan rápido», sobre todo abrir en grande): solo se pintan las filas
+    // cerca de lo que se ve (± una pantalla); con 371 niveles, abrir pintaba los 371 con sus animaciones y sombras.
+    // `vista` = { top, h } de la ventana, en tramos de 160 px para no repintar en cada píxel del scroll.
+    const [vista, setVista] = useState(null);
+    // Las entradas animadas (niveles que «saltan» al abrir) solo al ABRIR: lo que entra luego al desplazarte aparece
+    // ya quieto (si no, cada fila nueva hacía su salto con retraso y el scroll se sentía lento).
+    const [entrando, setEntrando] = useState(true);
+    useEffect(() => {
+        if (!entrando) return undefined;
+        const id = setTimeout(() => setEntrando(false), 1100);
+        return () => clearTimeout(id);
+    }, [entrando]);
     const cambiarGrande = useCallback((v) => {
         setGrande(v);
+        setVista(null);
+        setEntrando(true);         // la ventana nueva arranca en su sitio: el tramo pintado se recalcula desde ahí
         onGrande?.(v);
         triggerMobileHaptic('light');
     }, [onGrande]);
@@ -157,6 +171,11 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
         irA(yElegido, yaCentradoRef.current, topeElegido);
         yaCentradoRef.current = true;
     }, [yElegido, topeElegido, irA, grande]);
+    // en grande, la ventana toma el foco: rueda, flechas, Re Pág/Av Pág y espacio la desplazan sin tocar nada más
+    const enfocarVentana = useCallback(() => { ventanaRef.current?.focus?.({ preventScroll: true }); }, []);
+    useEffect(() => {
+        if (grande) enfocarVentana();
+    }, [grande, enfocarVentana]);
 
     // «Ir a hoy»: aparece cuando hoy queda fuera de la ventana (explorando semanas viejas).
     const [lejosDeHoy, setLejosDeHoy] = useState(false);
@@ -168,6 +187,9 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
             const v = ventanaRef.current;
             if (!v) return;
             setLejosDeHoy(Math.abs(v.scrollTop + v.clientHeight * ANCLA - yHoy) > v.clientHeight * 0.55);
+            const top = Math.round(v.scrollTop / 160) * 160;
+            const h = v.clientHeight;
+            setVista((a) => (a && a.top === top && a.h === h ? a : { top, h }));
         });
     }, [yHoy]);
     useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
@@ -211,6 +233,9 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
     const lienzoEstilo = useMemo(() => ({ height: `${alto}px` }), [alto]);
     const zonasEstilo = useMemo(() => zonas.map((z) => ({ ...z, estilo: { top: `${z.y0}px`, height: `${z.y1 - z.y0}px` } })), [zonas]);
     const iElegido = Math.max(0, filas.findIndex((f) => f.y === yElegido));
+    // El tramo que se pinta: lo visible ± una pantalla larga (antes del primer scroll, alrededor de donde abre).
+    const rango = vista || { top: Math.max(0, (topeElegido ?? yElegido) - BAJO_EL_MARCADOR - 480), h: 1200 };
+    const filasVisibles = filas.map((f, idx) => [f, idx]).filter(([f]) => f.y >= rango.top - 1000 && f.y <= rango.top + rango.h + 1000);
     const fechaLarga = (iso) => formatDate(mediodiaDe(iso), { weekday: 'long', day: 'numeric', month: 'long' });
 
     const compartir = () => {
@@ -249,12 +274,13 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                     {ayuda ? textoAyuda[ayuda] : ''}
                 </p>
 
-                <div ref={ventanaRef} className={styles.ventana} onScroll={onScroll}>
-                    <div ref={lienzoRef} className={styles.lienzo} style={lienzoEstilo}>
+                {/* el cielo va en el MARCO (del tamaño de la pantalla), no en el lienzo de miles de px que se desplaza */}
+                <span className={styles.cielo} aria-hidden="true" />
+                <div ref={ventanaRef} className={styles.ventana} onScroll={onScroll} tabIndex={grande ? 0 : undefined}>
+                    <div ref={lienzoRef} className={`${styles.lienzo} ${entrando ? '' : styles.lienzoQuieto}`} style={lienzoEstilo}>
                         {zonasEstilo.map((z) => (
                             <span key={`z-${z.y0}`} className={`${styles.zona} ${styles[`zona_${claveMundo(z.mundo)}`]}`} style={z.estilo} aria-hidden="true" />
                         ))}
-                        <span className={styles.cielo} aria-hidden="true" />
                         <svg className={styles.camino} viewBox={`0 0 ${ancho} ${alto}`} aria-hidden="true">
                             <defs>
                                 <linearGradient id="mapaRecorrido" x1="0" y1="1" x2="0" y2="0" gradientUnits="objectBoundingBox">
@@ -264,11 +290,12 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                             </defs>
                             {porVenir && <path d={porVenir} className={styles.caminoPorVenir} />}
                             <path d={recorrido} className={styles.caminoBase} />
+                            <path d={recorrido} className={styles.caminoHalo} />
                             <path d={recorrido} className={styles.caminoBrillo} stroke="url(#mapaRecorrido)" pathLength="1" />
                         </svg>
 
                         <ol className={styles.niveles}>
-                            {filas.map((f, idx) => {
+                            {filasVisibles.map(([f, idx]) => {
                                 const pos = { left: `${f.x}%`, top: `${f.y}px`, '--orden': Math.min(14, Math.abs(idx - iElegido)) };
                                 if (f.tipo === 'puerta' || f.tipo === 'inicio') {
                                     const clave = claveMundo(f.mundo);

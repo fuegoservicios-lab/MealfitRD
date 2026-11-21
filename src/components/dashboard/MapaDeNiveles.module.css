@@ -169,11 +169,15 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: none;
-    /* se desvanece arriba y abajo (el borde lo pinta el marco: la máscara ya no lo borra) */
-    -webkit-mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0) 28px, rgb(0 0 0) calc(100% - 28px), transparent 100%);
-            mask-image: linear-gradient(180deg, transparent 0, rgb(0 0 0) 28px, rgb(0 0 0) calc(100% - 28px), transparent 100%);
+    outline: none;
+    /* [1138] sin `mask-image` (enmascarar un contenedor que se desplaza recompone TODO en cada fotograma): arriba
+       funde la franja del marcador y abajo la sombra interior del marco */
 }
-.ventana::-webkit-scrollbar { display: none; }
+@media (pointer: coarse) { .ventana::-webkit-scrollbar { display: none; } }
+/* [1138] en PC una barra fina que se puede ARRASTRAR (con el ratón no había forma de bajar sin rueda) */
+@media (hover: hover) and (pointer: fine) {
+    .ventana { scrollbar-width: thin; scrollbar-color: rgb(165 180 252 / 0.45) transparent; }
+}
 
 .lienzo { position: relative; width: 100%; }
 
@@ -243,8 +247,15 @@
     stroke-linecap: round;
     stroke-dasharray: 1;
     stroke-dashoffset: 1;
-    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--primary-light) 65%, transparent));
     animation: dibujar 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+}
+.caminoHalo {
+    /* [1138] el resplandor del camino: un trazo ancho translúcido (un `filter: drop-shadow` sobre un trazo de miles de
+       px de alto se rasterizaba entero en cada repintado) */
+    fill: none;
+    stroke: color-mix(in srgb, var(--primary-light) 22%, transparent);
+    stroke-width: 18px;
+    stroke-linecap: round;
 }
 .caminoPorVenir {
     fill: none;
@@ -267,6 +278,10 @@
     transform: translate(-50%, -50%);
 }
 .nivelFila { width: 84px; }
+/* [1138] lo que entra al desplazarte aparece ya quieto (la entrada con salto es solo al abrir) */
+.lienzoQuieto .nivel:not(.nivelCelebrado),
+.lienzoQuieto .trofeo,
+.lienzoQuieto .puerta { animation: none; opacity: 1; }
 .trofeoFila { width: min(88%, 300px); }
 .puertaFila { width: min(70%, 220px); }
 
@@ -297,7 +312,7 @@
         0 3px 0 color-mix(in srgb, var(--c) 55%, black),
         0 8px 18px -6px color-mix(in srgb, var(--c) 60%, transparent);
     opacity: 0;
-    animation: aparecer 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--orden, 0) * 45ms + 0.2s) forwards;
+    animation: aparecer 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--orden, 0) * 28ms + 0.1s) forwards;
     -webkit-tap-highlight-color: transparent;
     transition: transform 150ms ease, filter 150ms ease;
 }
@@ -421,7 +436,7 @@
         0 10px 22px -12px rgb(0 0 0 / 0.7);
     color: var(--tinta);
     opacity: 0;
-    animation: aparecer 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--orden, 0) * 45ms + 0.2s) forwards;
+    animation: aparecer 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--orden, 0) * 28ms + 0.1s) forwards;
 }
 .trofeoIcono {
     display: grid;
@@ -472,13 +487,11 @@
     width: 100%;
     padding: 6px 12px 6px 6px;
     border-radius: var(--radius-full);
-    background: rgb(2 6 23 / 0.6);
-    -webkit-backdrop-filter: blur(6px);
-            backdrop-filter: blur(6px);
+    background: rgb(11 16 38 / 0.86);
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 0 0 1px rgb(255 255 255 / 0.16), 0 10px 22px -12px rgb(0 0 0 / 0.7);
     color: var(--tinta);
     opacity: 0;
-    animation: aparecer 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--orden, 0) * 45ms + 0.2s) forwards;
+    animation: aparecer 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--orden, 0) * 28ms + 0.1s) forwards;
 }
 .puertaInicio { background: rgb(2 6 23 / 0.45); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12); }
 .medalla {
