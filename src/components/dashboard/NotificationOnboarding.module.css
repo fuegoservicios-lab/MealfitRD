@@ -46,6 +46,7 @@
     text-wrap: balance;
 }
 .card .error { margin-top: 12px; color: var(--danger, #f87171); font-size: .8125rem; }
+.card .nota { margin-top: 12px; color: var(--text-muted); font-size: 13px; }   /* [1156] hora exacta (Android) */
 .actions { display: grid; gap: 4px; margin-top: 20px; }
 .spinner { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

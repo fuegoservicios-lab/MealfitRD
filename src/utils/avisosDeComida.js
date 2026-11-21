@@ -294,12 +294,15 @@ export function avisosDeAguaAProgramar(respuesta, ahora = new Date()) {
 }
 
 let _sincronizando = null;
+const _TOPE_SINCRONIZACION_MS = 20000;
 
 /** Reprograma los avisos locales contra lo que dice el servidor. No hace nada si el interruptor está apagado. */
 export async function sincronizarAvisosLocales() {
     if (!isNativeApp() || safeLocalStorageGet(CLAVE_AVISOS_LOCALES, null) !== '1') return { ok: false, code: 'apagado' };
     if (_sincronizando) return _sincronizando;
-    _sincronizando = (async () => {
+    // [P1-PLAN-LOTE-1156] con tope: una llamada nativa que no contesta dejaba esta promesa «en curso» PARA SIEMPRE y
+    // todas las sincronizaciones siguientes la devolvían a ella (los avisos no se reprogramaban hasta reiniciar)
+    const trabajo = (async () => {
         try {
             const LN = (await _pluginLocal())?.LN;
             if (!LN) return { ok: false, code: 'nativa-actualizar' };
@@ -326,11 +329,14 @@ export async function sincronizarAvisosLocales() {
             return { ok: true, programadas: notifications.length, motivo: datos?.reason || null };
         } catch (e) {
             return { ok: false, code: 'error', error: e?.message || String(e) };
-        } finally {
-            _sincronizando = null;
         }
     })();
-    return _sincronizando;
+    const esta = Promise.race([
+        trabajo,
+        new Promise((resolve) => setTimeout(() => resolve({ ok: false, code: 'tarda' }), _TOPE_SINCRONIZACION_MS)),
+    ]).finally(() => { if (_sincronizando === esta) _sincronizando = null; });
+    _sincronizando = esta;
+    return esta;
 }
 
 /** ¿Está encendido AHORA, en este dispositivo? `{ canal, activo, bloqueado }`. */
@@ -376,12 +382,55 @@ export async function estadoDeAvisos() {
  * mandaba a la persona a desbloquear en los ajustes algo que no estaba bloqueado. El `code` se queda igual a
  * propósito: el aviso de bienvenida del Dashboard ya trata `permiso_denegado` como «omitidas», que vale para los dos.
  */
+// [P1-PLAN-LOTE-1156 · 2026-11-21] ANDROID: «Activando…» PARA SIEMPRE (captura del dueño: un usuario de Android
+// «no lo siente tan bien»). Activar encadenaba, sin tope ninguno, cinco llamadas al lado nativo y una al servidor; si
+// UNA no contestaba (el diálogo de permiso de Android 13+ que vuelve a la app sin resolver la promesa, un `schedule`
+// lento en un teléfono con ahorro agresivo de batería, la red), el botón giraba sin fin y «Ahora no» seguía bloqueado.
+// Ahora cada paso tiene su tope, el permiso se vuelve a mirar al VOLVER a la app (el diálogo es otra actividad) y,
+// con el permiso dado, encender ES encender: la primera programación sigue en segundo plano (y se repite en cada
+// arranque), en vez de apagar todo y decir «no se pudieron activar» por un servidor lento.
+const _TOPE_PERMISO_MS = 2500;
+const _TOPE_DIALOGO_MS = 60 * 1000;
+const _TOPE_PRIMERA_SINCRONIZACION_MS = 5000;
+const _conTope = (promesa, ms, siVence) => Promise.race([
+    Promise.resolve(promesa),
+    new Promise((resolve) => setTimeout(() => resolve(siVence), ms)),
+]);
+async function _leerPermiso(LN) {
+    try { return (await _conTope(LN.checkPermissions(), _TOPE_PERMISO_MS, null))?.display || 'prompt'; } catch { return 'prompt'; }
+}
+/** Pide el permiso y espera la respuesta… o la vuelta a la app con el permiso ya decidido (lo que llegue antes). */
+async function _pedirPermiso(LN) {
+    let quitar = () => {};
+    const alVolver = new Promise((resolve) => {
+        if (typeof document === 'undefined') return;
+        let id = null;
+        const mirar = () => {
+            if (document.visibilityState !== 'visible') return;
+            clearTimeout(id);
+            id = setTimeout(async () => {
+                const p = await _leerPermiso(LN);
+                if (p !== 'prompt' && p !== 'prompt-with-rationale') resolve(p);
+            }, 600);
+        };
+        document.addEventListener('visibilitychange', mirar);
+        quitar = () => { clearTimeout(id); document.removeEventListener('visibilitychange', mirar); };
+    });
+    try {
+        const pedido = Promise.resolve().then(() => LN.requestPermissions()).then((r) => r?.display || 'prompt', () => 'prompt');
+        return await _conTope(Promise.race([pedido, alVolver]), _TOPE_DIALOGO_MS, 'prompt');
+    } finally {
+        quitar();
+    }
+}
+
 export async function activarAvisos() {
     const canal = await canalDeEsteDispositivo();
     if (canal === 'local') {
         const LN = (await _pluginLocal())?.LN;
-        let permiso = (await LN.checkPermissions())?.display;
-        if (permiso !== 'granted') permiso = (await LN.requestPermissions())?.display;
+        if (!LN) return { ok: false, canal, code: 'local_error' };
+        let permiso = await _leerPermiso(LN);
+        if (permiso !== 'granted') permiso = await _pedirPermiso(LN);
         if (permiso !== 'granted') {
             return { ok: false, canal, code: 'permiso_denegado', reason: permiso === 'denied' ? 'denied' : 'dismissed' };
         }
@@ -391,12 +440,13 @@ export async function activarAvisos() {
         import('../native/pushNativa').then((m) => m.permitirPushNativa()).catch(() => {});
         // [P1-PLAN-LOTE-280] con el permiso recién dado, el teléfono se registra también para la push nativa (FCM)
         import('../native/pushNativa').then((m) => m.registrarSiHayPermiso()).catch(() => {});
-        const r = await sincronizarAvisosLocales();
-        if (!r.ok) {
+        // [1156] la primera programación, con tope: si tarda, sigue sola (y cada arranque la repite)
+        const r = await _conTope(sincronizarAvisosLocales(), _TOPE_PRIMERA_SINCRONIZACION_MS, { ok: false, code: 'tarda' });
+        if (!r.ok && r.code === 'nativa-actualizar') {
             safeLocalStorageSet(CLAVE_AVISOS_LOCALES, '0');
-            return { ok: false, canal, code: r.code === 'servidor' ? 'server_error' : 'local_error', status: r.status, error: r.error };
+            return { ok: false, canal, code: 'local_error' };
         }
-        return { ok: true, canal, programadas: r.programadas, motivo: r.motivo };
+        return { ok: true, canal, programadas: r.programadas ?? null, motivo: r.motivo ?? null, ...(r.ok ? {} : { pendiente: r.code }) };
     }
     if (canal === 'web-push') {
         const permiso = await pedirPermisoDeNotificaciones();

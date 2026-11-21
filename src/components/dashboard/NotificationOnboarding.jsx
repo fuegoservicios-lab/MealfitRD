@@ -4,7 +4,8 @@ import { Bell, Check, Loader2 } from 'lucide-react';
 import { useAssessment } from '../../context/AssessmentContext';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useLatestRef } from '../../hooks/useLatestRef';
-import { estadoDeAvisos, activarAvisos } from '../../utils/avisosDeComida';
+import { estadoDeAvisos, activarAvisos, alarmaExactaPendiente, pedirAlarmaExacta } from '../../utils/avisosDeComida';
+import { nativePlatform } from '../../config/platform';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import { useT } from '../../i18n';
 import Button from '../ui/Button';
@@ -14,6 +15,8 @@ import styles from './NotificationOnboarding.module.css';
 // La decisión pertenece a esta cuenta en este dispositivo. El antiguo flag global
 // se marcaba al mostrar, aunque el usuario nunca hubiera elegido una opción.
 const notificationDecisionKey = (userId) => `mealfit_notification_welcome_v2:${userId}`;
+// [P1-PLAN-LOTE-1156] más que esto girando = algo no contestó: se libera la tarjeta (la activación sigue detrás)
+export const ESPERA_MAXIMA_MS = 15000;
 
 export default function NotificationOnboarding() {
     const { session, userProfile, loadingData, isGuest } = useAssessment();
@@ -24,6 +27,11 @@ export default function NotificationOnboarding() {
     const [enabling, setEnabling] = useState(false);
     const [error, setError] = useState(false);
     const [enabled, setEnabled] = useState(false);
+    // [P1-PLAN-LOTE-1156] Android: tras encender, si los avisos saldrían «con margen» (sin permiso de hora exacta),
+    // un segundo paso lo ofrece aquí mismo; antes solo vivía, escondido, en Configuración.
+    const [faltaHoraExacta, setFaltaHoraExacta] = useState(false);
+    // si la activación tarda demasiado, «Ahora no» se libera y se puede reintentar (antes giraba sin fin)
+    const [tarda, setTarda] = useState(false);
     const currentUser = useLatestRef(userId);
     const activationLock = useRef(false);
     const isOpen = ready && owner === userId;
@@ -66,6 +74,13 @@ export default function NotificationOnboarding() {
         activationLock.current = true;
         setEnabling(true);
         setError(false);
+        setTarda(false);
+        const vigia = setTimeout(() => {
+            if (currentUser.current !== userId) return;
+            activationLock.current = false;
+            setEnabling(false);
+            setTarda(true);
+        }, ESPERA_MAXIMA_MS);
         try {
             // Único punto que pide permiso: una acción explícita de la persona.
             const result = await activarAvisos();
@@ -73,6 +88,11 @@ export default function NotificationOnboarding() {
             if (result.ok) {
                 safeLocalStorageSet(notificationDecisionKey(userId), 'enabled');
                 setEnabled(true);
+                setTarda(false);
+                setError(false);
+                if (nativePlatform() === 'android') {
+                    alarmaExactaPendiente().then((v) => { if (currentUser.current === userId) setFaltaHoraExacta(v === true); }).catch(() => {});
+                }
             } else if (result.code === 'permiso_denegado') {
                 safeLocalStorageSet(notificationDecisionKey(userId), 'later');
                 setOwner(null);
@@ -82,11 +102,16 @@ export default function NotificationOnboarding() {
         } catch {
             if (currentUser.current === userId) setError(true);
         } finally {
+            clearTimeout(vigia);
             if (currentUser.current === userId) {
                 activationLock.current = false;
                 setEnabling(false);
             }
         }
+    };
+    const permitirHoraExacta = async () => {
+        const ok = await pedirAlarmaExacta().catch(() => false);
+        if (currentUser.current === userId) setFaltaHoraExacta(!ok);
     };
 
     if (!isOpen) return null;
@@ -102,8 +127,17 @@ export default function NotificationOnboarding() {
                     ? t('Puedes ajustar tus recordatorios cuando quieras en Configuración.')
                     : t('Recibe avisos para registrar tus comidas y seguir tu progreso.')}</p>
                 {error && <p className={styles.error} role="alert">{t('No se pudieron activar. Prueba otra vez.')}</p>}
+                {tarda && !enabled && !error && (
+                    <p className={styles.error} role="alert">{t('Está tardando más de la cuenta. Si ya diste el permiso, toca «Activar» otra vez.')}</p>
+                )}
+                {enabled && faltaHoraExacta && (
+                    <p className={styles.nota}>{t('Para que suenen a su hora exacta, permite «Alarmas y recordatorios».')}</p>
+                )}
                 <div className={styles.actions}>
-                    <Button block disabled={enabling} onClick={enabled ? dismiss : enable}>
+                    {enabled && faltaHoraExacta && (
+                        <Button block onClick={permitirHoraExacta}>{t('Permitir hora exacta')}</Button>
+                    )}
+                    <Button block variant={enabled && faltaHoraExacta ? 'text' : undefined} disabled={enabling} onClick={enabled ? dismiss : enable}>
                         {enabling && <Loader2 size={18} className={styles.spinner} aria-hidden="true" />}
                         {enabled ? t('Continuar') : enabling ? t('Activando...') : t('Activar notificaciones')}
                     </Button>

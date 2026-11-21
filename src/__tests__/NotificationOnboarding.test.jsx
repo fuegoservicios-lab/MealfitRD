@@ -150,6 +150,20 @@ describe('bienvenida de notificaciones después del formulario', () => {
         await act(async () => { resolve({ ok: true }); });
         expect(screen.getByText('Notificaciones activadas')).toBeInTheDocument();
     });
+    // [P1-PLAN-LOTE-1156] Android: una activación que no contesta ya no deja la tarjeta girando para siempre
+    it('si activar no contesta en 15 s, libera «Ahora no» y avisa; un éxito tardío se respeta', async () => {
+        let resolve;
+        mocks.activate.mockReturnValue(new Promise((r) => { resolve = r; }));
+        render(<NotificationOnboarding />);
+        await settle();
+        fireEvent.click(screen.getByRole('button', { name: 'Activar notificaciones' }));
+        expect(screen.getByRole('button', { name: 'Ahora no' })).toBeDisabled();
+        await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+        expect(screen.getByRole('button', { name: 'Ahora no' })).not.toBeDisabled();
+        expect(screen.getByRole('alert')).toHaveTextContent('Está tardando');
+        await act(async () => { resolve({ ok: true }); });
+        expect(screen.getByText('Notificaciones activadas')).toBeInTheDocument();
+    });
     it('ignora el resultado tardío de la cuenta anterior', async () => {
         let resolve;
         mocks.status.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
