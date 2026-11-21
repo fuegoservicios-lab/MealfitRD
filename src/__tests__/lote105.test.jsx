@@ -81,7 +81,7 @@ describe('la tarjeta fusionada', () => {
         fetchWithAuth.mockImplementation(enrutar());
         confirmToast.mockResolvedValue(true);
         render(<TrackingProgress planData={{ calories: 2000, macros: { protein: 150, carbs: 200, fats: 60 } }} userId="u1" microTargets={METAS} />);
-        expect(screen.getByText('Tus macros y micros de hoy')).toBeInTheDocument();
+        expect(screen.getByText('Tus macros y micros')).toBeInTheDocument();
         await screen.findByText('Con datos de 1 de 2 comidas');
         const fibra = screen.getByRole('progressbar', { name: 'Fibra' });
         expect(fibra.getAttribute('aria-valuenow')).toBe('10');

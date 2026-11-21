@@ -295,8 +295,8 @@ export function eatenClaimForSlot(consumedTodayMeals, slotMealType, cta = 'unloc
     platos: namesLabel, kcal: kcalPart, slot: slotNoun,
   });
   if (cta === 'none') return base;
-  // [P1-PLAN-LOTE-102] la sección se llama «Tus macros y micros de hoy» (TrackingProgress.jsx); mismo literal aquí
-  const seccion = t('Tus macros y micros de hoy');
+  // [P1-PLAN-LOTE-102] la sección se llama «Tus macros y micros» (TrackingProgress.jsx); mismo literal aquí
+  const seccion = t('Tus macros y micros');
   const suffix = cta === 'info'
     ? ' ' + t('Corrígelo en «{seccion}» si no es lo que comiste.', { seccion })
     : ' ' + t('Bórralo en «{seccion}» para desbloquear.', { seccion });

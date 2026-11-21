@@ -101,7 +101,7 @@ const _FOUR_MEALS_TODAY = [
 // plan (`_FOUR_MEALS_TODAY[0].name` = "Mangú con los tres golpes"). Mismo
 // string en la card, el chip y los 2 botones bloqueados (SSOT real —
 // `eatenClaimForSlot(consumedTodayMeals, meal.meal, 'unlock')`).
-const _EATEN_CLAIM = 'Registraste «Mangú (registrado hoy)» (~500 kcal) como tu desayuno de hoy. Bórralo en «Tus macros y micros de hoy» para desbloquear.';
+const _EATEN_CLAIM = 'Registraste «Mangú (registrado hoy)» (~500 kcal) como tu desayuno de hoy. Bórralo en «Tus macros y micros» para desbloquear.';
 
 const _todayIso = () => new Date().toISOString();
 
@@ -181,7 +181,7 @@ describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en «Tus macros y mic
         expect(screen.getByText(/Te quedan/)).toBeInTheDocument();
         expect(swapBtn).toHaveAttribute('title', _EATEN_CLAIM);
         expect(likeBtn).toHaveAttribute('title', _EATEN_CLAIM);
-        expect(_EATEN_CLAIM).toContain('Tus macros y micros de hoy');
+        expect(_EATEN_CLAIM).toContain('Tus macros y micros');
         expect(_EATEN_CLAIM).toContain('Mangú (registrado hoy)');
         expect(_EATEN_CLAIM).not.toContain('con los tres golpes');
         // el contador ya no vive aquí: ni su botón de borrar ni su subtítulo

@@ -573,7 +573,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         <Activity size={24} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h2 className={styles.title}>{t('Tus macros y micros de hoy')}</h2>
+                        <h2 className={styles.title}>{t('Tus macros y micros')}</h2>
                         <p className={styles.subtitle}>
                             {loading
                                 ? t('Cargando registros...')

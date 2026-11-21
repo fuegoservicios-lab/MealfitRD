@@ -22,10 +22,10 @@ describe('un solo icono de cámara', () => {
 });
 
 describe('los nombres que ve el usuario', () => {
-    it('pestaña «Progreso» en modo contador, sección «Tus macros y micros de hoy», y el aviso y el coach dicen lo mismo', () => {
+    it('pestaña «Progreso» en modo contador, sección «Tus macros y micros», y el aviso y el coach dicen lo mismo', () => {
         expect(src('src/config/dashboardNav.js')).toContain("trackingMode ? t('Progreso') : t('Plan|nav')");
-        expect(src('src/components/dashboard/TrackingProgress.jsx')).toContain("t('Tus macros y micros de hoy')");
-        expect(src('src/utils/todayRemaining.js')).toContain("const seccion = t('Tus macros y micros de hoy');");
+        expect(src('src/components/dashboard/TrackingProgress.jsx')).toContain("t('Tus macros y micros')");
+        expect(src('src/utils/todayRemaining.js')).toContain("const seccion = t('Tus macros y micros');");
         for (const f of ['src/components/dashboard/TrackingProgress.jsx', 'src/utils/todayRemaining.js', 'src/config/dashboardNav.js']) {
             const code = src(f).split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
             expect(code, f).not.toContain("t('Progreso en Tiempo Real')");
