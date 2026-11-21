@@ -125,19 +125,16 @@ const getThemeOptions = (t) => [
         value: 'system',
         label: t('Sistema'),
         Icon: Monitor,
-        iconBg: 'linear-gradient(135deg, #64748B 0%, #475569 100%)',
     },
     {
         value: 'light',
         label: t('Claro'),
         Icon: Sun,
-        iconBg: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
     },
     {
         value: 'dark',
         label: t('Oscuro'),
         Icon: Moon,
-        iconBg: 'linear-gradient(135deg, #4F46E5 0%, #1E293B 100%)',
     },
 ];
 
@@ -3477,21 +3474,24 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         un bloque debajo del Perfil, separado por un borde
                         superior sutil. La elección persiste en mealfit_theme y
                         se aplica en vivo (html[data-theme] → variables CSS). */}
-                    <section className={styles.section} style={{ borderTop: '1px solid var(--border)' }}>
+                    <section className={`${styles.section} ${styles.sectionDivided}`}>
                         <h2 className={styles.sectionTitle}>
                             {t('Apariencia')}
                         </h2>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                        <p className={styles.sectionDesc}>
                             {t('Elige el tema de la aplicación. Usa “Sistema” para seguir la configuración de tu dispositivo.')}
                         </p>
 
+                        {/* [SETTINGS-LIMPIO · 2026-11-21] Un control segmentado: tres opciones de un toque no
+                            necesitan tres tarjetas de 85 px. El paso del mouse solo aclara el texto — antes
+                            pintaba el borde morado y parecía una SEGUNDA opción elegida. */}
                         <div
-                            className={styles.themeGroup}
+                            className={styles.segmented}
                             {...rgTema.propsGrupo}
                             aria-label={t('Tema de la aplicación')}
                         >
                             {getThemeOptions(t).map((opt) => {
-                                const { value, label, iconBg } = opt;
+                                const { value, label } = opt;
                                 const Icon = opt.Icon;
                                 const selected = themePreference === value;
                                 return (
@@ -3500,19 +3500,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         type="button"
                                         {...rgTema.propsRadio(value)}
                                         onClick={() => handleSelectTheme(value)}
-                                        className={`${styles.themeOption} ${selected ? styles.themeOptionActive : ''}`}
+                                        className={`${styles.segment} ${selected ? styles.segmentActive : ''}`}
                                     >
-                                        <span className={styles.themeOptionIcon} style={{ background: iconBg }}>
-                                            <Icon size={20} color="#FFFFFF" strokeWidth={2.25} />
-                                        </span>
-                                        <span className={styles.themeOptionText}>
-                                            <span className={styles.themeOptionTitle}>{label}</span>
-                                        </span>
-                                        {selected && (
-                                            <span className={styles.themeCheck} aria-hidden="true">
-                                                <Check size={16} strokeWidth={3} />
-                                            </span>
-                                        )}
+                                        <Icon size={18} strokeWidth={2.25} aria-hidden="true" />
+                                        <span>{label}</span>
                                     </button>
                                 );
                             })}
@@ -3528,16 +3519,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         escaneando, que es como se busca esto.
                         Va inmediatamente después porque ambas son preferencias
                         de presentación y viven en el panel «General». */}
-                    <section className={styles.section} style={{ borderTop: '1px solid var(--border)' }}>
+                    <section className={`${styles.section} ${styles.sectionDivided}`}>
                         <h2 className={styles.sectionTitle}>
                             {t('Idioma')}
                         </h2>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                        <p className={styles.sectionDesc}>
                             {t('Cambia el idioma de la app. Tu plan, tus recetas, la Nevera y el coach te llegan traducidos; en las recetas, cada alimento lleva además su nombre en español entre paréntesis, que es como lo identifica el motor.')}
                         </p>
 
                         <div
-                            className={styles.themeGroup}
+                            className={styles.optionList}
                             {...rgIdioma.propsGrupo}
                             aria-label={t('Idioma de la interfaz')}
                         >
@@ -3554,15 +3545,15 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         type="button"
                                         {...rgIdioma.propsRadio(opt.code)}
                                         onClick={() => handleSelectLocale(opt.code)}
-                                        className={`${styles.themeOption} ${selected ? styles.themeOptionActive : ''}`}
+                                        className={`${styles.optionRow} ${selected ? styles.optionRowActive : ''}`}
                                     >
                                         <span
-                                            className={`${styles.langBadge} ${selected ? styles.langBadgeActive : ''}`}
+                                            className={`${styles.optionBadge} ${selected ? styles.optionBadgeActive : ''}`}
                                             aria-hidden="true"
                                         >
                                             {subtag}
                                         </span>
-                                        <span className={styles.themeOptionText}>
+                                        <span className={styles.optionText}>
                                             {/* `lang` por fila: sin él un lector de
                                                 pantalla en español pronuncia
                                                 «Français» con fonética española y el
@@ -3573,9 +3564,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             </span>
                                         </span>
                                         {selected && (
-                                            <span className={styles.themeCheck} aria-hidden="true">
-                                                <Check size={16} strokeWidth={3} />
-                                            </span>
+                                            <Check className={styles.optionCheck} size={18} strokeWidth={2.75} aria-hidden="true" />
                                         )}
                                     </button>
                                 );
@@ -3594,18 +3583,18 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         Va justo después de Idioma: ambas son "cómo el usuario
                         LEE la app", esta además decide catálogo/medidas. */}
                     {COUNTRY_SYSTEM_UI && (
-                    <section className={styles.section} style={{ borderTop: '1px solid var(--border)' }}>
+                    <section className={`${styles.section} ${styles.sectionDivided}`}>
                         <h2 className={styles.sectionTitle}>
                             {t('País')}
                         </h2>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                        <p className={styles.sectionDesc}>
                             {enModoContador
                                 ? t('Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.')
                                 : t('Define tu cocina local y, donde ya está listo, los precios del súper. Aplica a tus próximos planes.')}
                         </p>
 
                         <div
-                            className={styles.themeGroup}
+                            className={styles.optionList}
                             {...rgPais.propsGrupo}
                             aria-label={t('País de compra')}
                         >
@@ -3617,29 +3606,27 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         type="button"
                                         {...rgPais.propsRadio(c.code)}
                                         onClick={() => elegirPais(c.code)}
-                                        className={`${styles.themeOption} ${selected ? styles.themeOptionActive : ''}`}
+                                        className={`${styles.optionRow} ${selected ? styles.optionRowActive : ''}`}
                                     >
                                         {/* Insignia = código ISO, no bandera: mismo
                                             criterio que la insignia de Idioma
-                                            (reutiliza langBadge — una clase paralela
+                                            (reutiliza optionBadge — una clase paralela
                                             solo para país habría que mantenerla en
                                             los dos temas). */}
                                         <span
-                                            className={`${styles.langBadge} ${selected ? styles.langBadgeActive : ''}`}
+                                            className={`${styles.optionBadge} ${selected ? styles.optionBadgeActive : ''}`}
                                             aria-hidden="true"
                                         >
                                             {c.code}
                                         </span>
-                                        <span className={styles.themeOptionText}>
+                                        <span className={styles.optionText}>
                                             <span className={styles.langNative}>
                                                 {getCountryLabel(c.code, t)}
                                                 {c.beta ? ` · ${t('Beta')}` : ''}
                                             </span>
                                         </span>
                                         {selected && (
-                                            <span className={styles.themeCheck} aria-hidden="true">
-                                                <Check size={16} strokeWidth={3} />
-                                            </span>
+                                            <Check className={styles.optionCheck} size={18} strokeWidth={2.75} aria-hidden="true" />
                                         )}
                                     </button>
                                 );
@@ -3657,7 +3644,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         flex-column, así que aparece apilada debajo de Apariencia.
                         Ya NO es pestaña propia del sidebar. */}
                     {activeSection === 'profile' && (
-                        <section className={styles.section} style={{ borderTop: '1px solid var(--border)' }}>
+                        <section className={`${styles.section} ${styles.sectionDivided}`}>
                             <h2 className={styles.sectionTitle}>
                                 {t('Notificaciones')}
                             </h2>
@@ -3900,7 +3887,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <h2 className={styles.sectionTitle}>
                                 {t('Comportamiento del agente')}
                             </h2>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                            <p className={styles.sectionDesc}>
                                 {t('Ajusta cómo el agente registra tus comidas y aprende de ti.')}
                             </p>
 
@@ -4436,7 +4423,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <h2 className={styles.sectionTitle}>
                                 {t('Tus gustos y preferencias')}
                             </h2>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                            <p className={styles.sectionDesc}>
                                 {t('Dale a la IA más contexto sobre ti para planes clínicos y respuestas más precisas.')}
                             </p>
                             <SuperPersonalizationPanel onEstado={reportarEstado('superpers')} />
@@ -4457,7 +4444,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <h2 className={styles.sectionTitle}>
                                 {t('Perfil Clínico Avanzado')}
                             </h2>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                            <p className={styles.sectionDesc}>
                                 {t('Los datos que un nutriólogo pediría en consulta. Opcionales — cada uno que completes afina tu plan.')}
                             </p>
                             <ClinicalProfilePanel onEstado={reportarEstado('clinico')} />
@@ -4473,7 +4460,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     {activeSection === 'privacy' && (
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>{t('Privacidad')}</h2>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.55 }}>
+                            <p className={styles.sectionDesc}>
                                 {t('En {app} creemos en prácticas transparentes de datos: tu información se usa para generar y mejorar TU plan, nunca se vende. Conoce el detalle en nuestra', { app: BRAND })}{' '}
                                 <a href={apexUrl('/privacy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('Política de Privacidad')}</a>.
                             </p>

@@ -1250,194 +1250,150 @@
     }
 }
 
-/* [APPEARANCE-THEME · 2026-05-28] Selector de Apariencia (Sistema/Básico/
-   Oscuro) de la sección "Preferencias". Radio-group de 3 tarjetas mutuamente
-   excluyentes; reusa el lenguaje visual de .preferenceCard (border 1.5px,
-   radius 1.25rem, hover lift, accent stripe activo). Aplica el tema en vivo
-   (ver handleSelectTheme → applyThemePref). */
-.themeGroup {
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
+/* [SETTINGS-LIMPIO · 2026-11-21] Ajustes de un toque, compactos y con UN solo lenguaje visual.
+   Antes: cada opción era una tarjeta de ~85 px con icono en degradado, franja de acento y sombra; el paso del mouse
+   pintaba el borde morado y parecía una SEGUNDA opción elegida. Ahora:
+   · Apariencia = control segmentado (3 opciones en una fila).
+   · Idioma y País = lista agrupada en una sola tarjeta, filas de 52 px, insignia gris y check índigo a la derecha.
+   Todo con tokens: el tema oscuro sale solo, sin overrides propios. */
+.sectionDivided {
+    border-top: 1px solid var(--border);
 }
 
-.themeOption {
-    display: flex;
-    align-items: center;
-    gap: 1.05rem;
-    width: 100%;
-    text-align: left;
-    padding: 1.25rem 1.4rem;
-    border-radius: 1.25rem;
-    background: #FFFFFF;
-    border: 1.5px solid #E2E8F0;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    font-family: inherit;
-    transition: transform 0.2s ease, box-shadow 0.25s ease, border-color 0.2s ease;
-}
-
-.themeOption:hover {
-    box-shadow: 0 8px 24px -8px rgba(15, 23, 42, 0.1);
-    border-color: #C7D2FE;
-}
-
-.themeOptionActive {
-    border-color: #4F46E5;
-    background: linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 75%);
-    box-shadow:
-        0 4px 14px -6px rgba(79, 70, 229, 0.25),
-        inset 0 0 0 0.5px rgba(255, 255, 255, 0.4);
-}
-
-.themeOptionActive:hover {
-    box-shadow:
-        0 10px 28px -8px rgba(79, 70, 229, 0.3),
-        inset 0 0 0 0.5px rgba(255, 255, 255, 0.4);
-}
-
-/* Accent stripe a la izquierda cuando está seleccionado */
-.themeOptionActive::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 3px;
-    background: linear-gradient(180deg, #6366F1, #4F46E5);
-}
-
-.themeOptionIcon {
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 0.85rem;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #FFFFFF;
-    box-shadow:
-        0 4px 12px -2px rgba(15, 23, 42, 0.22),
-        inset 0 0 0 0.5px rgba(255, 255, 255, 0.35);
-}
-
-.themeOptionText {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.themeOptionTitle {
-    font-weight: 700;
-    color: var(--text-main);
-    font-size: 1rem;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-}
-
-.themeOptionDesc {
-    font-size: 0.82rem;
+.sectionDesc {
     color: var(--text-muted);
-    line-height: 1.5;
-    margin-top: 0.3rem;
+    font-size: 14px;
+    line-height: 1.55;
+    margin: -0.75rem 0 1.25rem;
+    max-width: 62ch;
 }
 
-.themeCheck {
-    flex-shrink: 0;
-    width: 1.6rem;
-    height: 1.6rem;
-    border-radius: 50%;
+.segmented {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+    background: var(--bg-muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.segment {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #4F46E5;
-    color: #FFFFFF;
-    box-shadow: 0 2px 6px -1px rgba(79, 70, 229, 0.5);
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-@media (max-width: 600px) {
-    .themeOption {
-        padding: 1.05rem 1.15rem;
-        gap: 0.85rem;
-    }
-    .themeOptionIcon {
-        width: 2.4rem;
-        height: 2.4rem;
-        border-radius: 0.75rem;
-    }
-    .themeOptionTitle {
-        font-size: 0.92rem;
-    }
-    .themeOptionDesc {
-        font-size: 0.78rem;
+@media (hover: hover) {
+    .segment:hover:not(.segmentActive) {
+        color: var(--text-main);
     }
 }
 
-/* ============================================================================
-   [P1-I18N-DASHBOARD · 2026-08-15] Selector de idioma
-   ============================================================================
-   Reutiliza .themeGroup / .themeOption / .themeOptionActive / .themeCheck tal
-   cual: misma sección, misma forma de pregunta ("elige uno de N") y, sobre
-   todo, hereda los overrides de `html[data-theme="dark"]` que ya existen para
-   esas clases. Una clase paralela habría que mantenerla en dos temas.
+.segment:focus-visible,
+.optionRow:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+}
 
-   Lo único propio es la insignia: donde el tema pinta un icono, el idioma pinta
-   su subtag (ES/EN/PT/FR/IT).
+.segmentActive {
+    background: var(--bg-card);
+    color: var(--text-main);
+    box-shadow: var(--shadow-sm);
+}
 
-   SIN BANDERAS, y es deliberado: una bandera es un país, no un idioma. El
-   francés no es de Francia como el español no es de España — y aquí el idioma
-   base es es-DO justamente porque esa distinción importa. Un usuario mexicano
-   que ve la bandera de España sobre "Español" lee que ese no es su idioma. El
-   subtag no tiene ese problema y además es lo que el usuario ve en cualquier
-   otro producto (`en-US`, `pt-BR`). */
-.langBadge {
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 0.85rem;
+.segmentActive svg {
+    color: var(--primary);
+}
+
+.optionList {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.optionRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 52px;
+    padding: 8px 16px;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.optionRow:last-child {
+    border-bottom: 0;
+}
+
+@media (hover: hover) {
+    .optionRow:hover:not(.optionRowActive) {
+        background: var(--bg-muted);
+    }
+}
+
+.optionRowActive {
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.optionBadge {
+    width: 32px;
+    height: 32px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.78rem;
+    border-radius: var(--radius-sm);
+    background: var(--bg-muted);
+    color: var(--text-muted);
+    font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.04em;
-    color: #FFFFFF;
-    background: linear-gradient(135deg, #64748B 0%, #334155 100%);
-    box-shadow:
-        0 4px 12px -2px rgba(15, 23, 42, 0.22),
-        inset 0 0 0 0.5px rgba(255, 255, 255, 0.35);
 }
 
-/* El idioma activo gana la tinta de marca; el resto quedan en gris pizarra.
-   Así la fila seleccionada se lee de un vistazo sin depender solo del check. */
-.langBadgeActive {
-    background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+.optionBadgeActive {
+    background: var(--primary);
+    color: white;
 }
 
-/* La etiqueta va en su propio idioma («Français», no «Francés»): quien busca su
-   idioma en una lista no sabe leer la que tiene delante. Por eso el atributo
-   `lang` de cada fila también importa — sin él, un lector de pantalla en
-   español pronuncia "Français" con fonética española. */
+.optionText {
+    flex: 1;
+    min-width: 0;
+}
+
+/* La etiqueta va en su propio idioma («Français», no «Francés»): quien busca su idioma en una lista no sabe leer la
+   que tiene delante. Por eso el atributo `lang` de cada fila también importa. Sin banderas: una bandera es un país. */
 .langNative {
-    font-weight: 700;
+    font-weight: 600;
     color: var(--text-main);
-    font-size: 1rem;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
+    font-size: 15px;
+    line-height: 1.3;
 }
 
-@media (max-width: 600px) {
-    .langBadge {
-        width: 2.4rem;
-        height: 2.4rem;
-        border-radius: 0.75rem;
-        font-size: 0.75rem;
-    }
-    .langNative {
-        font-size: 0.92rem;
-    }
+.optionCheck {
+    flex-shrink: 0;
+    color: var(--primary);
 }
 
 /* Base button animations */
@@ -2010,27 +1966,15 @@
 
 /* Preference cards + theme options: base oscura; el gradient activo terminaba
    en #FFFFFF hardcodeado → re-pintar la base a slate, conservando el accent. */
-:global(html[data-theme="dark"]) .preferenceCard,
-:global(html[data-theme="dark"]) .themeOption {
+:global(html[data-theme="dark"]) .preferenceCard {
     background: var(--bg-muted);
     border-color: var(--border);
-}
-/* [2026-05-29] preferenceCard EXCLUIDA del hover (estática por petición del
-   usuario); solo las themeOption (Sistema/Básico/Oscuro) conservan el feedback. */
-:global(html[data-theme="dark"]) .themeOption:hover {
-    box-shadow: var(--shadow-lg);
-    border-color: var(--primary-dark);
 }
 :global(html[data-theme="dark"]) .preferenceCardActive {
     background: linear-gradient(135deg, color-mix(in srgb, var(--pcard-accent-start) 18%, var(--bg-card)) 0%, var(--bg-card) 75%);
     border-color: var(--pcard-border);
 }
-:global(html[data-theme="dark"]) .themeOptionActive {
-    border-color: var(--primary);
-    background: linear-gradient(135deg, rgba(129, 140, 248, 0.16) 0%, var(--bg-card) 75%);
-}
-:global(html[data-theme="dark"]) .preferenceCardDesc,
-:global(html[data-theme="dark"]) .themeOptionDesc {
+:global(html[data-theme="dark"]) .preferenceCardDesc {
     color: var(--text-muted);
 }
 
@@ -2091,8 +2035,7 @@
     :global(html[data-theme="dark"]) .factItem {
         border: none;
     }
-    :global(html[data-theme="dark"]) .preferenceCard:not(.preferenceCardActive),
-    :global(html[data-theme="dark"]) .themeOption:not(.themeOptionActive) {
+    :global(html[data-theme="dark"]) .preferenceCard:not(.preferenceCardActive) {
         border-color: transparent;
     }
 }
