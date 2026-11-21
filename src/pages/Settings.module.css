@@ -1373,7 +1373,7 @@
 }
 
 .optionBadgeActive {
-    background: var(--primary);
+    background: var(--primary-fill);
     color: white;
 }
 
