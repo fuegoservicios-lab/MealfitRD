@@ -546,7 +546,7 @@
 .sheetFoto .img:not(.lienzo) { max-height: calc(100cqh - 0.5rem); }
 .capas.formatosDia { margin-top: 0; }
 .formatoDia { flex-direction: column; gap: 0; min-height: 48px; line-height: 1.15; }
-.lienzo { height: 46vh; height: 46dvh; height: calc(100cqh - 3rem); width: auto; max-width: 100%; aspect-ratio: 9 / 16; }
+.lienzo { height: 46vh; height: 46dvh; height: calc(100cqh - 3.5rem); width: auto; max-width: 100%; aspect-ratio: 9 / 16; }
 
 /* [P1-PLAN-LOTE-1049] el formato dice qué es: «4:5 · chats y feed» bajo «Publicación» */
 .formato { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.15; }
@@ -709,3 +709,132 @@
 .muestra_marea { background: linear-gradient(135deg, rgb(34, 211, 238), rgb(13, 148, 136)); }
 .muestra_neon { background: linear-gradient(135deg, rgb(217, 70, 239), rgb(79, 70, 229)); }
 .muestra_eclipse { background: linear-gradient(135deg, rgb(248, 250, 252), rgb(23, 23, 28)); }
+
+/* [P1-PLAN-LOTE-1143 · 2026-11-21] Bajo la imagen: deshacer · rehacer, la pista y la pantalla completa. */
+.herramientas { flex: 0 0 auto; display: flex; align-items: center; gap: 0.375rem; margin-top: 0.5rem; }
+.herramientas .pista { flex: 1 1 auto; min-width: 0; margin: 0; white-space: normal; line-height: 1.25; }
+.herramienta {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    background: var(--bg-card);
+    color: var(--primary);
+    cursor: pointer;
+}
+.herramienta:disabled { color: var(--text-muted); opacity: 0.45; cursor: default; }
+.herramienta:focus-visible,
+.editorBoton:focus-visible,
+.editorListo:focus-visible,
+.editorPorcentaje:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 2px; }
+
+/* El editor a pantalla completa: fondo casi negro (la imagen manda), barra arriba, controles abajo. Va sobre la hoja,
+   dentro del mismo velo (que ya es su propio apilamiento). */
+.editor {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-raised-2);
+    display: flex;
+    flex-direction: column;
+    background: rgb(2 6 23);
+    color: rgb(255 255 255 / 0.92);
+    padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
+    animation: sdFadeIn 0.18s ease;
+    outline: none;
+}
+.editorBarra, .editorControles { display: flex; align-items: center; gap: 0.5rem; }
+.editorBarra { flex: 0 0 auto; padding: 0.75rem 1rem 0.5rem; }
+.editorHueco { flex: 1 1 auto; }
+.editorBoton {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid rgb(255 255 255 / 0.16);
+    border-radius: var(--radius-full);
+    background: rgb(255 255 255 / 0.08);
+    color: inherit;
+    cursor: pointer;
+}
+.editorBoton:disabled { opacity: 0.35; cursor: default; }
+.editorBotonActivo { background: var(--primary-fill); border-color: var(--primary-fill); color: rgb(255 255 255); }
+.editorListo {
+    min-height: 44px;
+    padding: 0 1.25rem;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--primary-fill);
+    color: rgb(255 255 255);
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+/* La vista mide el hueco (unidades de contenedor) y la escena es la imagen 9:16 más grande que cabe en él. */
+.editorVista {
+    flex: 1 1 auto;
+    min-height: 0;
+    container-type: size;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.editorEscena {
+    flex: 0 0 auto;
+    height: min(100cqh, calc(100cqw * 16 / 9));
+    aspect-ratio: 9 / 16;
+    transform-origin: center;
+    will-change: transform;
+}
+.lienzoCompleto {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 0.1);
+    touch-action: none;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.lienzoCompleto:active { cursor: grabbing; }
+.editorVistaMano, .editorVistaMano .lienzoCompleto { cursor: move; }
+.editorPie { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem 0.875rem; }
+.editorPista { margin: 0; font-size: 0.75rem; font-weight: 600; color: rgb(255 255 255 / 0.65); text-align: center; }
+.editorZoom {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: var(--radius-full);
+    background: rgb(255 255 255 / 0.06);
+}
+.editorZoom .editorBoton { border-color: transparent; background: transparent; }
+.editorPorcentaje {
+    min-width: 4.25rem;
+    min-height: 44px;
+    padding: 0 0.5rem;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) { .editor { animation: none; } }

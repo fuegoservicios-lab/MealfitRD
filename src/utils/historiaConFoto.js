@@ -452,8 +452,13 @@ const _veloDelBloque = (ctx, c, a) => {
 };
 
 /** Solo en la vista previa, mientras se mueven las cifras: su contorno y, centradas, la línea del centro. */
-const _guia = (ctx, c, centrado, radio = 28) => {
+// [P1-PLAN-LOTE-1143] `linea`: la x de la guía a la que se pegó un texto (centro o margen seguro), de arriba abajo.
+const _guia = (ctx, c, centrado, radio = 28, linea = null) => {
     ctx.save();
+    if (Number.isFinite(linea)) {
+        ctx.strokeStyle = 'rgba(165, 180, 252, 0.95)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(linea, 0); ctx.lineTo(linea, ALTO); ctx.stroke();
+    }
     ctx.setLineDash?.([18, 12]);
     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'; ctx.shadowBlur = 8;
@@ -520,7 +525,7 @@ export function pintarHistoria(canvas, r, { foto = null, estilo = 'titular', enc
         ctx.restore();
         pintarPiezas(ctx, defs, piezas);
         const guiada = guia?.pieza ? defs.find((d) => d.id === guia.pieza) : null;
-        if (guiada) _guia(ctx, cajaDePieza(guiada, piezas), false, 18);
+        if (guiada) _guia(ctx, cajaDePieza(guiada, piezas), false, 18, guia.linea);
         else if (guia) _guia(ctx, movida, !!guia.centrado && Math.abs(b.dx) < 0.5);
         return true;
     } catch { return false; }

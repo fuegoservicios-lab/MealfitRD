@@ -4339,5 +4339,14 @@
   "🏅 Mundo {nombre}": "🏅 Mondo {nombre}",
   "🗺️ Mi camino en {app} · Día {n}": "🗺️ Il mio percorso su {app} · Giorno {n}",
   "Ver el mapa en grande": "Vedi la mappa a schermo intero",
-  "Salir de la vista grande": "Esci dalla vista a schermo intero"
+  "Salir de la vista grande": "Esci dalla vista a schermo intero",
+  "Rehacer": "Ripeti",
+  "Pantalla completa": "Schermo intero",
+  "Editar imagen": "Modifica immagine",
+  "Arrastra para recorrer · pellizca para acercar la vista": "Trascina per spostarti · pizzica per ingrandire la vista",
+  "Mano: mover la vista": "Mano: sposta la vista",
+  "Tamaño de la vista": "Dimensione della vista",
+  "Alejar": "Riduci",
+  "Ver al 100 %": "Vedi al 100%",
+  "Acercar": "Ingrandisci"
 }

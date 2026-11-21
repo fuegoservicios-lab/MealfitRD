@@ -80,6 +80,30 @@ export function moverPieza(piezas, def, { dx = 0, dy = 0 } = {}, ancho = 1080, a
     return { ...(piezas || {}), [def.id]: { ...p, dx: nx, dy: ny } };
 }
 
+// [P1-PLAN-LOTE-1143] Guías de los textos: como las cifras (`bloqueDeCifras.imantar`), un texto que pasa cerca del
+// centro horizontal o del margen seguro se queda pegado ahí y sale la línea que lo dice. Se imanta la posición CRUDA
+// (la del dedo): imantar lo ya imantado no dejaría salir con un arrastre lento.
+export const IMAN_PIEZA_PX = 22;
+
+/** `{ piezas, linea }`: `piezas` con la pieza `def` pegada a la guía más cercana (centro o márgenes) si está a menos
+ *  de `iman` px; `linea` = la x de esa guía en el lienzo, o null. */
+export function imantarPieza(piezas, def, { ancho = 1080, margen = 72, iman = IMAN_PIEZA_PX } = {}) {
+    const p = estadoDePieza(piezas, def.id);
+    const c = def.caja;
+    const guias = [
+        { linea: ancho / 2, dx: ancho / 2 - c.w / 2 - c.x },
+        { linea: margen, dx: margen - c.x },
+        { linea: ancho - margen, dx: ancho - margen - c.w - c.x },
+    ];
+    let mejor = null;
+    for (const g of guias) {
+        const d = Math.abs(g.dx - p.dx);
+        if (d < iman && (!mejor || d < mejor.d)) mejor = { ...g, d };
+    }
+    if (!mejor) return { piezas, linea: null };
+    return { piezas: { ...(piezas || {}), [def.id]: { ...p, dx: mejor.dx } }, linea: mejor.linea };
+}
+
 /** `piezas` con la pieza `id` mostrada u oculta. */
 export const alternarPieza = (piezas, id) => {
     const p = estadoDePieza(piezas, id);

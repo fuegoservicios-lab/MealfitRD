@@ -4339,5 +4339,14 @@
   "🏅 Mundo {nombre}": "🏅 {nombre} world",
   "🗺️ Mi camino en {app} · Día {n}": "🗺️ My journey on {app} · Day {n}",
   "Ver el mapa en grande": "View the map full size",
-  "Salir de la vista grande": "Exit full size view"
+  "Salir de la vista grande": "Exit full size view",
+  "Rehacer": "Redo",
+  "Pantalla completa": "Full screen",
+  "Editar imagen": "Edit image",
+  "Arrastra para recorrer · pellizca para acercar la vista": "Drag to look around · pinch to zoom the view",
+  "Mano: mover la vista": "Hand: move the view",
+  "Tamaño de la vista": "View size",
+  "Alejar": "Zoom out",
+  "Ver al 100 %": "View at 100%",
+  "Acercar": "Zoom in"
 }

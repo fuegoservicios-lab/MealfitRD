@@ -16,10 +16,16 @@
 // siempre la historia 9:16 en lienzo (con tu foto o con el fondo de la app), con los tres estilos y las cifras como
 // sticker; sin formatos ni «Incluir lo que comí» (la semana no lleva kcal ni comidas). Resumen y dibujo:
 // `utils/compartirSemana.js`, en este mismo trozo perezoso.
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+//
+// [P1-PLAN-LOTE-1143 · 2026-11-21] Editor completo (el dueño: «pantalla completa, agrandar y reducir… como CapCut, y
+// algo para dar para atrás y para alante»): deshacer/rehacer (`utils/historialDeEdicion.js`, un paso por gesto), la
+// imagen a pantalla completa con zoom de VISTA (botones, rueda, pellizco con la Mano; doble toque = 100 %) y guías
+// que imantan los textos al centro o al margen seguro.
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images, Image as ImageIcon, Type, RotateCcw, Eye, EyeOff, ChevronRight } from 'lucide-react';
+import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images, Image as ImageIcon, Type, RotateCcw, Eye, EyeOff, ChevronRight, Undo2, Redo2, Maximize2, Hand, Minus, Plus } from 'lucide-react';
+import { crearHistorial, apuntar, deshacer, rehacer, mismoEstado, puedeDeshacer, puedeRehacer, VISTA_INICIAL, VISTA_MAX, acotarVista, vistaConZoom, pasoDeVista } from '../../utils/historialDeEdicion';
 import { chooseNativeGalleryImage, takeNativeChatPhoto, isNativePickerCancellation } from '../../utils/nativeChatImagePicker';
 import { toast } from 'sonner';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -32,9 +38,9 @@ import { resumenDeMes, textoDeMes } from '../../utils/compartirMes';
 import { resumenDeMapa, textoDeMapa } from '../../utils/compartirMapa';
 import { SITIO, resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, sabeCompartirImagenes, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
-import { piezaEn, moverPieza, alternarPieza, piezasEnSuSitio, piezasMovidas, estadoDePieza } from '../../utils/piezasDeHistoria';
+import { piezaEn, moverPieza, imantarPieza, alternarPieza, piezasEnSuSitio, piezasMovidas, estadoDePieza } from '../../utils/piezasDeHistoria';
 import { BRAND } from '../../data/routeMeta';
-import { piezasDeLaHistoria, cargarFoto, cargarFuentes, dibujarHistoriaConFoto, pintarHistoria, moverEncuadre, cajaDeCifras, ENCUADRE_INICIAL, ZOOM_MAX, LIMITES_CIFRAS, ANCHO as ANCHO_HISTORIA, ALTO as ALTO_HISTORIA } from '../../utils/historiaConFoto';
+import { piezasDeLaHistoria, cargarFoto, cargarFuentes, dibujarHistoriaConFoto, pintarHistoria, moverEncuadre, cajaDeCifras, PINCEL, ENCUADRE_INICIAL, ZOOM_MAX, LIMITES_CIFRAS, ANCHO as ANCHO_HISTORIA, ALTO as ALTO_HISTORIA } from '../../utils/historiaConFoto';
 import { BLOQUE_INICIAL, ESCALA_MIN, acotarBloque, moverBloque, imantar, escalaMax, tocaLasCifras, esInicial } from '../../utils/bloqueDeCifras';
 import { useAssessment } from '../../context/AssessmentContext';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
@@ -51,7 +57,11 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     const esPeriodo = esSemana || esMes || esMapa;
     // El texto de cada puerta: [semana, mes, camino, día].
     const segun = (sem, me, ma, di) => (esSemana ? sem : esMes ? me : esMapa ? ma : di);
-    const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
+    // [1143] con el editor a pantalla completa abierto, ESC y el Tab son suyos (la hoja espera debajo)
+    const { containerRef } = useModalAccessibility({
+        isOpen: true, onClose,
+        isTopmost: () => typeof document === 'undefined' || !document.querySelector('[data-editor-completo]'),
+    });
     const bodyRef = useRef(null);
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose });
     const [incluirComidas, setIncluirComidas] = useState(false);
@@ -126,6 +136,47 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
         return () => { vivo = false; };
     }, []);
 
+    // [1143] Deshacer / rehacer. Lo editable se apunta cuando se asienta (350 ms sin cambios y sin dedos encima): un
+    // arrastre o un deslizador es UN paso. Los botones se derivan de `pasos` (estado) y del cambio aún sin apuntar.
+    const editable = useMemo(() => ({ encuadre, bloque, piezas, estilo, foto }), [encuadre, bloque, piezas, estilo, foto]);
+    const [historialInicial] = useState(() => crearHistorial(editable));
+    const historial = useRef(historialInicial);
+    const editableRef = useRef(editable);
+    const manoPunteros = useRef(new Map());
+    const [pantalla, setPantalla] = useState(false);      // [1143] el editor a pantalla completa
+    const [pasos, setPasos] = useState(() => ({ atras: false, adelante: false, presente: editable }));
+    const fijarHistorial = useCallback((h) => {
+        historial.current = h;
+        setPasos({ atras: puedeDeshacer(h), adelante: puedeRehacer(h), presente: h.presente });
+    }, []);
+    useEffect(() => {
+        editableRef.current = editable;
+        if (mismoEstado(historial.current.presente, editable)) return undefined;
+        let tope;
+        const asentar = () => {
+            if (punteros.current.size > 0) { tope = setTimeout(asentar, 200); return; }
+            fijarHistorial(apuntar(historial.current, editableRef.current));
+        };
+        tope = setTimeout(asentar, 350);
+        return () => clearTimeout(tope);
+    }, [editable, fijarHistorial]);
+    const sinApuntar = !mismoEstado(pasos.presente, editable);
+    const puedeAtras = pasos.atras || sinApuntar;
+    const puedeAdelante = pasos.adelante && !sinApuntar;
+    const aplicarPaso = useCallback((e) => {
+        setEncuadre(e.encuadre); setBloque(e.bloque); setPiezas(e.piezas); setEstilo(e.estilo); setFoto(e.foto);
+        gesto.current = { ...gesto.current, crudo: e.bloque, crudoPiezas: e.piezas };
+        clearTimeout(guiaTope.current);
+        setGuia(null);
+    }, []);
+    const moverEnHistorial = useCallback((dir) => {
+        if (punteros.current.size > 0) return;            // a mitad de un gesto, no
+        const h = apuntar(historial.current, editableRef.current);
+        const nuevo = dir < 0 ? deshacer(h) : rehacer(h);
+        fijarHistorial(nuevo);
+        if (nuevo !== h) aplicarPaso(nuevo.presente);
+    }, [aplicarPaso, fijarHistorial]);
+
     // La tarjeta pasa `metas` como objeto literal, nuevo en CADA render suyo: se fija por sus cuatro números, o
     // cualquier re-render del panel con la hoja abierta y los mismos datos redibujaría la imagen y apagaría
     // «Compartir» mientras tanto. (Si cambia `consumed` —un refetch— sí se redibuja: puede traer otra comida.)
@@ -180,12 +231,13 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
         return () => { vivo = false; clearTimeout(tope); };
     }, [resumen, formato, foto, estilo, encuadre, bloque, enLienzo, piezas]);
 
-    // La vista previa en vivo: un fotograma por cambio.
+    // La vista previa en vivo: un fotograma por cambio. [1143] `pantalla`: el lienzo se muda (hoja ↔ pantalla completa)
+    // y el nuevo nace en blanco.
     useEffect(() => {
         if (!enLienzo) return undefined;
         const id = requestAnimationFrame(() => pintarHistoria(lienzoRef.current, resumen, { foto, estilo, encuadre, bloque, guia, piezas }));
         return () => cancelAnimationFrame(id);
-    }, [enLienzo, foto, resumen, estilo, encuadre, bloque, guia, piezas, fuentesListas]);
+    }, [enLienzo, foto, resumen, estilo, encuadre, bloque, guia, piezas, fuentesListas, pantalla]);
     useEffect(() => () => clearTimeout(guiaTope.current), []);
     // El contorno de las cifras se ve mientras las mueves (y un momento después de soltar el deslizador); nunca en el JPEG.
     const verGuia = useCallback((ms = 0, que = { centrado: true }) => {
@@ -228,7 +280,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
             const { x, y, k } = aLienzo(e.clientX, e.clientY);
             const pieza = piezaEn(defsPiezas, piezas, x, y, 22 * k);
             if (pieza) {
-                gesto.current = { capa: 'pieza', pieza, crudo: bloqueVisto, pellizco: null, elegida: capaVista };
+                gesto.current = { capa: 'pieza', pieza, crudo: bloqueVisto, crudoPiezas: piezas, linea: null, pellizco: null, elegida: capaVista };
                 verGuia(0, { pieza });
                 return;
             }
@@ -270,7 +322,14 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
         const dy = (e.clientY - previo.y) * k;
         if (g.capa === 'pieza') {
             const def = defsPiezas.find((d) => d.id === g.pieza);
-            if (def) setPiezas((ps) => moverPieza(ps, def, { dx, dy }, ANCHO_HISTORIA, ALTO_HISTORIA));
+            if (def) {
+                // [1143] se mueve la posición cruda (la del dedo) y se ve la imantada a la guía, con su línea
+                g.crudoPiezas = moverPieza(g.crudoPiezas, def, { dx, dy }, ANCHO_HISTORIA, ALTO_HISTORIA);
+                const im = imantarPieza(g.crudoPiezas, def, { ancho: ANCHO_HISTORIA, margen: PINCEL.M });
+                g.linea = im.linea;
+                setPiezas(im.piezas);
+                setGuia({ pieza: g.pieza, linea: im.linea });
+            }
         } else if (g.capa === 'cifras') moverCifras({ dx, dy });
         else setEncuadre((en) => moverEncuadre(en, foto, { dx, dy }));
     }, [foto, enLienzo, moverCifras, aLienzo, caja, defsPiezas]);
@@ -280,7 +339,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
         // al levantar un dedo del pellizco, el otro sigue arrastrando desde donde está
         if (p.size < 2) gesto.current.pellizco = null;
         if (p.size === 0 && gesto.current.capa === 'cifras') verGuia(700);
-        if (p.size === 0 && gesto.current.capa === 'pieza') verGuia(600, { pieza: gesto.current.pieza });
+        if (p.size === 0 && gesto.current.capa === 'pieza') verGuia(600, { pieza: gesto.current.pieza, linea: gesto.current.linea });
     }, [verGuia]);
     const restablecer = useCallback(() => {
         // [1084] «Restablecer» de las cifras también devuelve los textos a su sitio (los quitados siguen quitados)
@@ -289,6 +348,82 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     const sinCambios = capaVista === 'cifras' ? (esInicial(bloqueVisto) && !piezasMovidas(piezas)) : (encuadre.zoom === 1 && encuadre.x === 0 && encuadre.y === 0);
     // El arrastre de la foto no es el gesto de cerrar la hoja (useBottomSheet escucha el toque en el diálogo).
     const pararToque = useCallback((e) => e.stopPropagation(), []);
+
+    // [1143] Ctrl+Z / Ctrl+Mayús+Z / Ctrl+Y en la computadora, con la hoja abierta.
+    useEffect(() => {
+        if (!enLienzo || typeof document === 'undefined') return undefined;
+        const onTecla = (e) => {
+            if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+            const k = String(e.key || '').toLowerCase();
+            if (k === 'z' && !e.shiftKey) { e.preventDefault(); moverEnHistorial(-1); } else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); moverEnHistorial(1); }
+        };
+        document.addEventListener('keydown', onTecla);
+        return () => document.removeEventListener('keydown', onTecla);
+    }, [enLienzo, moverEnHistorial]);
+
+    // [1143] Pantalla completa: la MISMA imagen (el mismo lienzo, que se muda), con zoom de VISTA. La vista no toca la
+    // imagen: agranda para colocar con precisión. Sin la Mano, el dedo edita como en la hoja; con la Mano, el dedo
+    // recorre la vista y el pellizco la agranda (el pellizco sin Mano sigue siendo de la foto o de las cifras).
+    const [vista, setVista] = useState(VISTA_INICIAL);
+    const [mano, setMano] = useState(false);
+    const cerrarPantalla = useCallback(() => {
+        setPantalla(false); setVista(VISTA_INICIAL); setMano(false);
+        manoPunteros.current.clear();
+    }, []);
+    const editor = useModalAccessibility({ isOpen: pantalla, onClose: cerrarPantalla });
+    const escenaRef = useRef(null);
+    useLayoutEffect(() => {
+        const el = escenaRef.current;
+        if (el) el.style.transform = vista.zoom === 1 && !vista.x && !vista.y ? '' : `translate(${vista.x}px, ${vista.y}px) scale(${vista.zoom})`;
+    }, [vista, pantalla]);
+    const medidaEscena = useCallback(() => [escenaRef.current?.offsetWidth || 0, escenaRef.current?.offsetHeight || 0], []);
+    const zoomDeVista = useCallback((z) => {
+        const [w, h] = medidaEscena();
+        setVista((v) => vistaConZoom(v, typeof z === 'function' ? z(v.zoom) : z, w, h));
+    }, [medidaEscena]);
+    const manoPellizco = useRef(null);
+    const toque = useRef(null);
+    const onVistaAbajo = useCallback((e) => {
+        toque.current = { ...(toque.current || {}), x0: e.clientX, y0: e.clientY, t0: Date.now(), varios: punteros.current.size + manoPunteros.current.size > 0 };
+        if (!mano) { onPunteroAbajo(e); return; }
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        const p = manoPunteros.current;
+        p.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (p.size === 2) {
+            const [a, b] = [...p.values()];
+            manoPellizco.current = { d0: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), zoom0: vista.zoom };
+        }
+    }, [mano, onPunteroAbajo, vista.zoom]);
+    const onVistaMovida = useCallback((e) => {
+        if (!mano) { onPunteroMovido(e); return; }
+        const p = manoPunteros.current;
+        const previo = p.get(e.pointerId);
+        if (!previo) return;
+        p.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (p.size >= 2 && manoPellizco.current) {
+            const [a, b] = [...p.values()];
+            const { d0, zoom0 } = manoPellizco.current;
+            zoomDeVista(zoom0 * (Math.hypot(a.x - b.x, a.y - b.y) / d0));
+            return;
+        }
+        const [w, h] = medidaEscena();
+        const dx = e.clientX - previo.x;
+        const dy = e.clientY - previo.y;
+        setVista((v) => acotarVista({ ...v, x: v.x + dx, y: v.y + dy }, w, h));
+    }, [mano, onPunteroMovido, zoomDeVista, medidaEscena]);
+    const onVistaArriba = useCallback((e) => {
+        // doble toque (dos toques cortos y quietos seguidos): la vista vuelve al 100 %
+        const tq = toque.current;
+        const ahora = Date.now();
+        if (tq && !tq.varios && ahora - tq.t0 < 250 && Math.hypot(e.clientX - tq.x0, e.clientY - tq.y0) < 12) {
+            const u = tq.ultimo;
+            if (u && ahora - u.t < 350 && Math.hypot(e.clientX - u.x, e.clientY - u.y) < 40) { setVista(VISTA_INICIAL); toque.current = null; } else toque.current = { ultimo: { t: ahora, x: e.clientX, y: e.clientY } };
+        } else toque.current = null;
+        if (!mano || !manoPunteros.current.has(e.pointerId)) { onPunteroArriba(e); return; }
+        manoPunteros.current.delete(e.pointerId);
+        if (manoPunteros.current.size < 2) manoPellizco.current = null;
+    }, [mano, onPunteroArriba]);
+    const onVistaRueda = useCallback((e) => zoomDeVista((z) => z * Math.exp(-e.deltaY * 0.0015)), [zoomDeVista]);
 
     // La URL en pantalla se revoca cuando otra YA la sustituyó (la limpieza de este efecto corre tras el commit de la
     // nueva) o al cerrar la hoja; antes se revocaba al EMPEZAR cada redibujo, con la imagen vieja aún en el <img>.
@@ -437,6 +572,67 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
         </button>
     );
 
+    // [1143] Lo que comparten la hoja y el editor a pantalla completa.
+    const lienzo = (clase) => (
+        <canvas
+            ref={lienzoRef} width={ANCHO_HISTORIA} height={1920}
+            role="img" aria-label={segun(t('Mi semana: tu historia'), t('Mi mes: tu historia'), t('Mi camino: tu historia'), t('Mi día: tu historia con tu foto'))}
+            className={clase}
+        />
+    );
+    const pista = foto && capa === 'foto'
+        ? t('Arrastra para encuadrar · pellizca para acercar')
+        : t('Arrastra para mover · pellizca para el tamaño');
+    const botonesDeHistorial = (clase) => (
+        <>
+            <button type="button" className={clase} onClick={() => moverEnHistorial(-1)} disabled={!puedeAtras} aria-label={t('Deshacer')} title={t('Deshacer')}>
+                <Undo2 size={18} aria-hidden="true" />
+            </button>
+            <button type="button" className={clase} onClick={() => moverEnHistorial(1)} disabled={!puedeAdelante} aria-label={t('Rehacer')} title={t('Rehacer')}>
+                <Redo2 size={18} aria-hidden="true" />
+            </button>
+        </>
+    );
+    const editorCompleto = pantalla && enLienzo && (
+        <div ref={editor.containerRef} className={styles.editor} role="dialog" aria-modal="true" aria-label={t('Editar imagen')} tabIndex={-1} data-editor-completo="">
+            <div className={styles.editorBarra}>
+                {botonesDeHistorial(styles.editorBoton)}
+                <span className={styles.editorHueco} />
+                <button type="button" className={styles.editorListo} onClick={cerrarPantalla}>{t('Listo')}</button>
+            </div>
+            <div
+                className={mano ? `${styles.editorVista} ${styles.editorVistaMano}` : styles.editorVista}
+                onPointerDown={onVistaAbajo} onPointerMove={onVistaMovida} onPointerUp={onVistaArriba} onPointerCancel={onVistaArriba}
+                onWheel={onVistaRueda}
+            >
+                <div ref={escenaRef} className={styles.editorEscena}>{lienzo(styles.lienzoCompleto)}</div>
+            </div>
+            <div className={styles.editorPie}>
+                <p className={styles.editorPista}>{mano ? t('Arrastra para recorrer · pellizca para acercar la vista') : pista}</p>
+                <div className={styles.editorControles}>
+                    <button
+                        type="button" aria-pressed={mano} onClick={() => setMano((m) => !m)}
+                        className={mano ? `${styles.editorBoton} ${styles.editorBotonActivo}` : styles.editorBoton}
+                        aria-label={t('Mano: mover la vista')} title={t('Mano: mover la vista')}
+                    >
+                        <Hand size={18} aria-hidden="true" />
+                    </button>
+                    <div className={styles.editorZoom} role="group" aria-label={t('Tamaño de la vista')}>
+                        <button type="button" className={styles.editorBoton} onClick={() => zoomDeVista((z) => pasoDeVista(z, -1))} disabled={vista.zoom <= 1} aria-label={t('Alejar')} title={t('Alejar')}>
+                            <Minus size={18} aria-hidden="true" />
+                        </button>
+                        <button type="button" className={styles.editorPorcentaje} onClick={() => setVista(VISTA_INICIAL)} aria-label={t('Ver al 100 %')} title={t('Ver al 100 %')}>
+                            {`${Math.round(vista.zoom * 100)} %`}
+                        </button>
+                        <button type="button" className={styles.editorBoton} onClick={() => zoomDeVista((z) => pasoDeVista(z, 1))} disabled={vista.zoom >= VISTA_MAX} aria-label={t('Acercar')} title={t('Acercar')}>
+                            <Plus size={18} aria-hidden="true" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     const cuerpo = (
         <div className={styles.overlay}>
             <button type="button" className={styles.backdrop} aria-hidden="true" tabIndex={-1} onClick={onClose} />
@@ -487,11 +683,8 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                         } : {})}
                     >
                         {enLienzo ? (
-                            <canvas
-                                ref={lienzoRef} width={ANCHO_HISTORIA} height={1920}
-                                role="img" aria-label={segun(t('Mi semana: tu historia'), t('Mi mes: tu historia'), t('Mi camino: tu historia'), t('Mi día: tu historia con tu foto'))}
-                                className={`${styles.img} ${styles.lienzo}`}
-                            />
+                            // [1143] con el editor abierto el lienzo vive allí; aquí queda su hueco (la hoja no salta)
+                            pantalla ? <div className={`${styles.img} ${styles.lienzo}`} aria-hidden="true" /> : lienzo(`${styles.img} ${styles.lienzo}`)
                         ) : imagen.url
                             ? <img src={imagen.url} alt={t('Mi día: calorías, macros y micros')} className={styles.img} />
                             : dibujando
@@ -499,12 +692,15 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                                 : <pre className={styles.textoPlano}>{texto}</pre>}
                     </div>
                     {/* [1090] cómo se usa la imagen, UNA vez y bajo la imagen (antes, una frase por cada control del pie) */}
+                    {/* [1143] deshacer · rehacer a la izquierda, la pista en medio y la pantalla completa a la derecha */}
                     {enLienzo && (
-                        <p className={styles.pista}>
-                            {foto && capa === 'foto'
-                                ? t('Arrastra para encuadrar · pellizca para acercar')
-                                : t('Arrastra para mover · pellizca para el tamaño')}
-                        </p>
+                        <div className={styles.herramientas}>
+                            {botonesDeHistorial(styles.herramienta)}
+                            <p className={styles.pista}>{pista}</p>
+                            <button type="button" className={styles.herramienta} onClick={() => setPantalla(true)} aria-label={t('Pantalla completa')} title={t('Pantalla completa')}>
+                                <Maximize2 size={18} aria-hidden="true" />
+                            </button>
+                        </div>
                     )}
                 </div>
 
@@ -638,6 +834,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                     </div>
                 </div>
             </div>
+            {editorCompleto}
         </div>
     );
 
