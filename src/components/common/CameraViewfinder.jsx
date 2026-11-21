@@ -33,13 +33,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { Camera, Loader2, X } from 'lucide-react';
+import { CameraOff, Image as ImageIcon, Loader2, X } from 'lucide-react';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useT } from '../../i18n';
 import { nativePlatform } from '../../config/platform';
 import { startCameraCanvasPreview } from '../../utils/cameraCanvasPreview';
 import Button from '../ui/Button';
+import styles from './CameraViewfinder.module.css';
 
 // Captura el frame actual del <video> a un <canvas> en sus dimensiones REALES
 // (video.videoWidth/videoHeight — nunca el tamaño CSS del elemento). Produce el
@@ -63,10 +64,10 @@ const captureVideoFrame = (video, fileName = 'captura.jpg') => new Promise((reso
 
 // Cuatro esquinas en L de la retícula — posición/orientación por esquina.
 const _VF_CORNERS = [
-    { top: 0, left: 0, borderTop: '3px solid', borderLeft: '3px solid', borderTopLeftRadius: 8 },
-    { top: 0, right: 0, borderTop: '3px solid', borderRight: '3px solid', borderTopRightRadius: 8 },
-    { bottom: 0, left: 0, borderBottom: '3px solid', borderLeft: '3px solid', borderBottomLeftRadius: 8 },
-    { bottom: 0, right: 0, borderBottom: '3px solid', borderRight: '3px solid', borderBottomRightRadius: 8 },
+    { top: 0, left: 0, borderTopStyle: 'solid', borderLeftStyle: 'solid', borderTopLeftRadius: 'var(--radius-lg)' },
+    { top: 0, right: 0, borderTopStyle: 'solid', borderRightStyle: 'solid', borderTopRightRadius: 'var(--radius-lg)' },
+    { bottom: 0, left: 0, borderBottomStyle: 'solid', borderLeftStyle: 'solid', borderBottomLeftRadius: 'var(--radius-lg)' },
+    { bottom: 0, right: 0, borderBottomStyle: 'solid', borderRightStyle: 'solid', borderBottomRightRadius: 'var(--radius-lg)' },
 ];
 
 /**
@@ -290,18 +291,13 @@ export default function CameraViewfinder({
     const showControls = !capturedPreviewUrl && phase !== 'denied';
 
     // Una página animada/transformada no debe convertirse en el viewport del visor.
+    // [P1-PLAN-LOTE-1153 · 2026-11-21] «Mejora el diseño de esto» (el dueño, con el visor abierto). Era una tarjeta
+    // 3:4 dentro de un fondo azul, con el disparador y un enlace subrayado debajo: un formulario con un vídeo dentro.
+    // Ahora es la cámara del teléfono: la imagen a pantalla completa, una guía cuadrada para el plato con el resto
+    // oscurecido, la cabecera y los controles flotando sobre degradados, un obturador de cámara de verdad y la
+    // galería como botón redondo a su lado. La lógica de la cámara (adquirir, encajar, capturar, soltar) no cambia.
     return createPortal(
-        <div style={{
-            // 1200 y no 1000: el visor puede abrirse DESDE otro modal (el de
-            // «Escanear comida» ya ocupa 1000). A igualdad de z-index solo
-            // desempata el orden del DOM, y confiar en eso es frágil — el mismo
-            // modo de fallo que P1-MODAL-ABOVE-HEADER.
-            position: 'fixed', inset: 0, zIndex: 1200,
-            background: '#0f172a',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 'max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px))',
-            boxSizing: 'border-box',
-        }}>
+        <div className={styles.fondo}>
             <style>{`
                 @keyframes mfvf-spin { to { transform: rotate(360deg); } }
                 @keyframes mfvf-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
@@ -326,26 +322,10 @@ export default function CameraViewfinder({
                 aria-modal="true"
                 aria-labelledby="mfvf-title"
                 tabIndex={-1}
-                style={{
-                    width: '100%', maxWidth: '460px', maxHeight: '100%',
-                    display: 'flex', flexDirection: 'column', gap: '0.85rem',
-                    outline: 'none',
-                }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h2 id="mfvf-title" style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: '#fff' }}>
-                        {title}
-                    </h2>
-                    <button type="button" onClick={onClose} aria-label={t('Cerrar')}
-                        className="mfvf-focusable ui-close">
-                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
-                    </button>
-                </div>
+                className={styles.visor}>
 
-                {/* Marco: video en vivo o foto congelada + retícula + barrido. */}
-                <div ref={frameRef} style={{
-                    position: 'relative', width: '100%', aspectRatio: '3 / 4', maxHeight: '68svh', minHeight: 0,
-                    borderRadius: '1.1rem', overflow: 'hidden', background: '#000',
-                }}>
+                {/* Marco: video en vivo o foto congelada + guía + barrido, a pantalla completa. */}
+                <div ref={frameRef} className={styles.marco}>
                     {!capturedPreviewUrl && phase !== 'denied' && (
                         <video
                             ref={videoRef}
@@ -353,11 +333,9 @@ export default function CameraViewfinder({
                             playsInline
                             autoPlay
                             aria-hidden="true"
+                            className={styles.video}
                             style={{
-                                position: 'absolute', left: '50%', top: '50%',
                                 width: videoBounds?.width ?? '100%', height: videoBounds?.height ?? '100%',
-                                maxWidth: 'none', maxHeight: 'none',
-                                transform: 'translate(-50%, -50%)', display: 'block',
                                 visibility: phase === 'live' ? 'visible' : 'hidden',
                                 ...(useCanvasPreview ? {
                                     opacity: 0, pointerEvents: 'none',
@@ -367,34 +345,24 @@ export default function CameraViewfinder({
                     )}
 
                     {useCanvasPreview && !capturedPreviewUrl && phase !== 'denied' && (
-                        <canvas ref={previewCanvasRef} aria-hidden="true" style={{
-                            position: 'absolute', inset: 0, width: '100%', height: '100%',
-                            display: 'block', visibility: canvasReady ? 'visible' : 'hidden',
-                        }} />
+                        <canvas ref={previewCanvasRef} aria-hidden="true" className={styles.lienzo}
+                            data-listo={canvasReady ? 'si' : 'no'} />
                     )}
 
                     {capturedPreviewUrl && (
-                        <img src={capturedPreviewUrl} alt={t('Foto capturada')}
-                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        <img src={capturedPreviewUrl} alt={t('Foto capturada')} className={styles.foto} />
                     )}
 
                     {(phase === 'starting' || (phase === 'live' && useCanvasPreview && !canvasReady)) && !capturedPreviewUrl && (
-                        <div style={{
-                            position: 'absolute', inset: 0, display: 'flex',
-                            alignItems: 'center', justifyContent: 'center',
-                        }}>
-                            <Loader2 size={26} color="rgba(255,255,255,0.75)"
-                                style={{ animation: 'mfvf-spin 1s linear infinite' }} />
+                        <div className={styles.cargando}>
+                            <Loader2 size={28} className={styles.girando} aria-hidden="true" />
                         </div>
                     )}
 
                     {phase === 'denied' && (
-                        <div style={{
-                            position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
-                            alignItems: 'center', justifyContent: 'center', gap: '1rem',
-                            padding: '1.75rem', textAlign: 'center',
-                        }}>
-                            <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.9rem' }}>
+                        <div className={styles.denegado}>
+                            <span className={styles.denegadoIco} aria-hidden="true"><CameraOff size={28} /></span>
+                            <span className={styles.denegadoTxt}>
                                 {t('No pudimos abrir la cámara.')}
                                 {onFallbackToFile ? ` ${t('Puedes subir una foto en su lugar.')}` : ''}
                             </span>
@@ -407,27 +375,22 @@ export default function CameraViewfinder({
                         </div>
                     )}
 
-                    {/* Retícula indigo (var(--primary) — NO scanner-green) + barrido.
-                        No se dibujan cajas de detección: la API no devuelve coordenadas
-                        — el barrido es movimiento ambiental honesto. */}
+                    {/* Guía cuadrada (var(--primary-light) — NO scanner-green) + barrido; lo de fuera se oscurece.
+                        No se dibujan cajas de detección: la API no devuelve coordenadas — el barrido es movimiento
+                        ambiental honesto. */}
                     {phase !== 'denied' && !hideReticle && (
-                        <div aria-hidden="true" style={{ position: 'absolute', inset: '9%', pointerEvents: 'none' }}>
+                        <div aria-hidden="true" className={styles.guia} data-congelada={capturedPreviewUrl ? 'si' : 'no'}>
                             {/* Las clases no pintan nada: son el ancla por la que los
                                 tests distinguen retícula de barrido. Sin ellas, un
                                 renombre de animación pasaría sin que nada avisara. */}
                             {_VF_CORNERS.map((c, i) => (
-                                <span key={i} className="mfvf-corner" style={{
-                                    position: 'absolute', width: 28, height: 28,
-                                    borderColor: 'var(--primary)',
+                                <span key={i} className={`mfvf-corner ${styles.esquina}`} style={{
                                     animation: reducedMotion ? 'mfvf-pulse 2.4s ease-in-out infinite' : 'none',
                                     ...c,
                                 }} />
                             ))}
                             {!reducedMotion && (
-                                <span className="mfvf-sweep" style={{
-                                    position: 'absolute', left: 0, right: 0, height: 2,
-                                    background: 'linear-gradient(90deg, transparent, var(--primary), transparent)',
-                                    boxShadow: '0 0 10px var(--primary)',
+                                <span className={`mfvf-sweep ${styles.barrido}`} style={{
                                     animation: 'mfvf-sweep 1.6s ease-in-out infinite',
                                 }} />
                             )}
@@ -437,45 +400,46 @@ export default function CameraViewfinder({
                     {children}
                 </div>
 
-                {/* Caption de estado. */}
-                {phase !== 'denied' && !hideReticle && (
-                    <p role="status" aria-live="polite" style={{
-                        margin: 0, textAlign: 'center', color: 'rgba(255,255,255,0.88)', fontSize: '0.88rem',
-                    }}>
-                        {capturedPreviewUrl
-                            ? (longBusy
-                                ? (busyHintLong ?? t('Todavía analizando — la foto tenía mucho detalle'))
-                                : (busyHint ?? t('Analizando…')))
-                            : hint}
-                    </p>
-                )}
+                {/* Cabecera flotante. */}
+                <div className={styles.arriba}>
+                    <h2 id="mfvf-title" className={styles.titulo}>{title}</h2>
+                    <button type="button" onClick={onClose} aria-label={t('Cerrar')}
+                        className={`mfvf-focusable ui-close ${styles.redondo}`}>
+                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
+                    </button>
+                </div>
 
-                {/* Disparador + fallback discreto. */}
-                {showControls && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.8rem' }}>
-                        <button type="button" onClick={handleShutter}
-                            disabled={phase !== 'live' || (useCanvasPreview && !canvasReady)}
-                            aria-label={t('Tomar foto')}
-                            className="mfvf-focusable"
-                            style={{
-                                width: 64, height: 64, borderRadius: '50%',
-                                border: '3px solid #fff', background: 'var(--primary)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: phase === 'live' ? 'pointer' : 'not-allowed',
-                                opacity: phase === 'live' ? 1 : 0.5,
-                            }}>
-                            <Camera size={26} color="#fff" />
-                        </button>
-                        {onFallbackToFile && (
-                            <button type="button" onClick={onFallbackToFile}
-                                className="mfvf-focusable"
-                                style={{
-                                    background: 'none', border: 'none', color: 'rgba(255,255,255,0.78)',
-                                    fontSize: '0.82rem', textDecoration: 'underline', cursor: 'pointer',
-                                    padding: '0.25rem',
-                                }}>
-                                {t('Subir una foto en su lugar')}
-                            </button>
+                {/* Pie flotante: qué encuadrar (o «Analizando…») y los controles. */}
+                {(showControls || (phase !== 'denied' && !hideReticle)) && (
+                    <div className={styles.abajo}>
+                        {phase !== 'denied' && !hideReticle && (
+                            <p role="status" aria-live="polite" className={styles.pista}>
+                                {capturedPreviewUrl
+                                    ? (longBusy
+                                        ? (busyHintLong ?? t('Todavía analizando — la foto tenía mucho detalle'))
+                                        : (busyHint ?? t('Analizando…')))
+                                    : hint}
+                            </p>
+                        )}
+
+                        {showControls && (
+                            <div className={styles.controles}>
+                                {onFallbackToFile ? (
+                                    <button type="button" onClick={onFallbackToFile}
+                                        aria-label={t('Subir una foto en su lugar')}
+                                        className={`mfvf-focusable ${styles.lateral}`}>
+                                        <span className={styles.redondo} aria-hidden="true"><ImageIcon size={22} /></span>
+                                        <span className={styles.lateralTxt} aria-hidden="true">{t('Galería')}</span>
+                                    </button>
+                                ) : <span className={styles.lateral} aria-hidden="true" />}
+                                <button type="button" onClick={handleShutter}
+                                    disabled={phase !== 'live' || (useCanvasPreview && !canvasReady)}
+                                    aria-label={t('Tomar foto')}
+                                    className={`mfvf-focusable ${styles.obturador}`}>
+                                    <span className={styles.obturadorDisco} aria-hidden="true" />
+                                </button>
+                                <span className={styles.lateral} aria-hidden="true" />
+                            </div>
                         )}
                     </div>
                 )}

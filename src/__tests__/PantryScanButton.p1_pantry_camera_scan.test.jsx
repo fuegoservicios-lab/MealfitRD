@@ -180,8 +180,9 @@ describe('[P1-PANTRY-CAMERA-SCAN] PantryScanButton — visor de cámara en vivo'
         expect(parseFloat(video.style.width)).toBeCloseTo(855.1111);
         expect(parseFloat(video.style.height)).toBe(481);
         expect(parseFloat(video.style.width) / parseFloat(video.style.height)).toBeCloseTo(1920 / 1080);
+        // [P1-PLAN-LOTE-1153] el fondo del visor ya no es inline (#0f172a): es negro de cámara, en su módulo CSS
         const overlay = screen.getByRole('dialog').parentElement;
-        expect(overlay).toHaveStyle({ background: '#0f172a' });
+        expect(overlay.className).toMatch(/fondo/);
     });
 
     it('en iPhone presenta un canvas, espera su primer dibujo y cancela el loop al cerrar', async () => {
