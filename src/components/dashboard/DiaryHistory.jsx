@@ -692,8 +692,13 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     }, [_quitarComidaDeDia, borrandoId, selected, t, userId]);
 
     const cerrarComponedor = useCallback(() => setRegistrando(false), []);
-    const pasarAlEscaner = useCallback(() => { setRegistrando(false); setEscaneando(true); }, []);
+    const pasarAlEscaner = useCallback((d) => { setRegistrando(false); setEscaneando(d || true); }, []);
     const cerrarEscaner = useCallback(() => setEscaneando(false), []);
+    // [P1-PLAN-LOTE-1151] la X del escáner vuelve al componedor, con la comida y el día que tenía
+    const volverAlComponedor = useCallback(() => {
+        setEscaneando(false);
+        setRegistrando(escaneando && typeof escaneando === 'object' ? escaneando : true);
+    }, [escaneando]);
     // memoizado: `onClose` va en las deps de `useModalAccessibility` y uno nuevo por render le robaría el foco
     const cerrarCompartir = useCallback(() => setACompartir(null), []);
     const cerrarCompartirMes = useCallback(() => setMesACompartir(null), []);
@@ -1287,11 +1292,11 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             </motion.aside>
 
             {registrando && (
-                <LogMealModal onClose={cerrarComponedor} onScan={pasarAlEscaner} initialDaysAgo={atras} userId={userId} />
+                <LogMealModal onClose={cerrarComponedor} onScan={pasarAlEscaner} initialMealType={registrando?.mealType || null} initialDaysAgo={registrando?.daysAgo ?? atras} userId={userId} />
             )}
             {escaneando && (
                 <Suspense fallback={null}>
-                    <ScanMealModal isOpen onClose={cerrarEscaner} userId={userId || 'guest'} initialDaysAgo={atras} />
+                    <ScanMealModal isOpen onClose={cerrarEscaner} onBack={volverAlComponedor} userId={userId || 'guest'} initialDaysAgo={escaneando?.daysAgo ?? atras} initialMealType={escaneando?.mealType || null} />
                 </Suspense>
             )}
             {fichaMeal && (

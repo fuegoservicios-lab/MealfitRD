@@ -84,7 +84,7 @@ describe('la hoja del escáner', TOPE_TEST, () => {
         // el ancla de P1-MEAL-SCAN-POLISH sigue: las acciones en fila, ahora dentro del pie
         expect(regla(css, '.actions')).toContain('flex-direction: row;');
         const jsx = src('src/components/dashboard/ScanMealModal.jsx');
-        expect(jsx).toContain('const hoja = useBottomSheet({ containerRef, bodyRef, onClose, disabled: isBusy });');
+        expect(jsx).toContain('const hoja = useBottomSheet({ containerRef, bodyRef, onClose: salir, disabled: isBusy });');   // [1151] deslizar vuelve al componedor si vino de él
         for (const h of ['onTouchStart={hoja.onTouchStart}', 'onTouchMove={hoja.onTouchMove}', 'onTouchEnd={hoja.onTouchEnd}', 'onTouchCancel={hoja.onTouchEnd}']) {
             expect(jsx).toContain(h);
         }

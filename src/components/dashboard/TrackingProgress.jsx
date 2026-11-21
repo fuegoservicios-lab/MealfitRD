@@ -203,6 +203,11 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // [P1-DIARY-FREETEXT-ESTIMATE] «Foto» desde el componedor: cierra el composedor y abre el escáner
     // [P1-PLAN-LOTE-382] …con la comida y el día del componedor
     const handleLogToScan = useCallback((d) => { setLogOpen(false); setScanOpen(d || true); }, []);
+    // [P1-PLAN-LOTE-1151] la X del escáner vuelve al componedor, con la comida y el día que tenía
+    const handleScanBack = useCallback(() => {
+        setScanOpen(false);
+        setLogOpen(scanOpen && typeof scanOpen === 'object' ? scanOpen : true);
+    }, [scanOpen]);
 
     // [P1-DIARY-EDITABLE · 2026-07-28] Estado de la lista de comidas de hoy.
     // `mealsExpanded` levanta el cap de `_MEALS_VISIBLE_CAP` filas visibles.
@@ -925,7 +930,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         modal hace fetch del catálogo al montar: montarlo cerrado sería
                         pagar ese fetch en cada visita al dashboard. */}
                     {logOpen && (
-                        <LogMealModal onClose={handleLogClose} onScan={handleLogToScan} />
+                        <LogMealModal onClose={handleLogClose} onScan={handleLogToScan} initialMealType={logOpen?.mealType || null} initialDaysAgo={logOpen?.daysAgo || 0} />
                     )}
                     {fichaMeal && (
                         <Suspense fallback={null}>
@@ -955,6 +960,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                             <ScanMealModal
                                 isOpen={!!scanOpen}
                                 onClose={handleScanClose}
+                                onBack={handleScanBack}
                                 userId={userId}
                                 initialMealType={scanOpen?.mealType}
                                 initialDaysAgo={scanOpen?.daysAgo || 0}

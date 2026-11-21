@@ -104,9 +104,10 @@ describe('«Lo que más registras» al abrir la hoja', () => {
 describe('el escáner desde «Ver días anteriores»', () => {
     it('el diario le da `onScan` al componedor y monta el escáner en el día que se mira', () => {
         const dh = leer('components/dashboard/DiaryHistory.jsx');
-        expect(dh).toContain('<LogMealModal onClose={cerrarComponedor} onScan={pasarAlEscaner} initialDaysAgo={atras} userId={userId} />');
-        expect(dh).toContain("<ScanMealModal isOpen onClose={cerrarEscaner} userId={userId || 'guest'} initialDaysAgo={atras} />");
-        expect(dh).toContain('const pasarAlEscaner = useCallback(() => { setRegistrando(false); setEscaneando(true); }, []);');
+        // [P1-PLAN-LOTE-1151] el día (y la comida) viajan con la ida y la vuelta del escáner; sin ellos, el día que se mira
+        expect(dh).toContain('<LogMealModal onClose={cerrarComponedor} onScan={pasarAlEscaner} initialMealType={registrando?.mealType || null} initialDaysAgo={registrando?.daysAgo ?? atras} userId={userId} />');
+        expect(dh).toContain("<ScanMealModal isOpen onClose={cerrarEscaner} onBack={volverAlComponedor} userId={userId || 'guest'} initialDaysAgo={escaneando?.daysAgo ?? atras} initialMealType={escaneando?.mealType || null} />");
+        expect(dh).toContain('const pasarAlEscaner = useCallback((d) => { setRegistrando(false); setEscaneando(d || true); }, []);');
         // con cualquiera de las dos hojas encima, las teclas son suyas
         expect(dh).toContain('if (registrando || escaneando) return;');
     });
@@ -119,7 +120,7 @@ describe('el escáner desde «Ver días anteriores»', () => {
     });
     it('el escáner nace en el día pedido, con su chip, y el aviso no llama «antier» a hace cinco días', () => {
         const sm = leer('components/dashboard/ScanMealModal.jsx');
-        expect(sm).toContain('const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMealType = null }) => {');   // [P1-PLAN-LOTE-382]
+        expect(sm).toContain('const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo = 0, initialMealType = null }) => {');   // [1151] onBack   // [P1-PLAN-LOTE-382]
         expect(sm).toContain('useState(() => normalizarDiasAtras(initialDaysAgo));');
         expect(sm).toContain('options={_getDayOptionsCon(t, initialDaysAgo)} value={daysAgo} onChange={setDaysAgo}');
         // [P1-PLAN-LOTE-366] cada plato puede ir a su día: el aviso nombra el día de cada uno con el mismo helper

@@ -155,7 +155,7 @@
     display: flex;
     align-items: center;
     gap: 0.55rem;
-    font-size: 1.2rem;
+    font-size: 24px;   /* [1151] como «¿Qué comiste?» */
     font-weight: 800;
     color: #0F172A;
     margin: 0;
@@ -801,12 +801,18 @@
 
 /* ---- [P1-PLAN-LOTE-224] Varios platos ---- */
 .multiHint {
-    margin: 0.9rem 0 0;
-    font-size: 0.82rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 14px 0 0;
+    padding: 12px 14px;
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+    font-size: 13px;
     line-height: 1.45;
-    color: #64748B;
-    text-align: center;
+    color: var(--text-muted);
 }
+.multiHintIco { flex: none; margin-top: 1px; color: var(--primary); }
 
 .platoList {
     list-style: none;
@@ -1335,4 +1341,77 @@
     background: var(--surface-secondary, rgba(255, 255, 255, 0.05));
     color: var(--primary);
     border-radius: 0.5rem;
+}
+
+/* ---- [P1-PLAN-LOTE-1151 · 2026-11-21] La primera pantalla, con la voz de «Registrar comida» ----
+   El dueño: «mejora visualmente lo de escanear comida». Eran dos filas iguales de menú; ahora la acción principal
+   (la cámara en el teléfono, la galería en el PC) es un VISOR grande —esquinas de encuadre, botón redondo que late— y
+   la otra queda como fila secundaria debajo. Solo transform/opacity en lo que se mueve. */
+.optionHero {
+    position: relative;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    min-height: 220px;
+    padding: 30px 20px 24px;
+    text-align: center;
+    border-radius: var(--radius-xl);
+    border: 1px solid color-mix(in srgb, var(--primary) 38%, var(--border));
+    background:
+        radial-gradient(110% 80% at 50% 0%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 70%),
+        var(--bg-page);
+    box-shadow: 0 24px 48px -28px color-mix(in srgb, var(--primary) 95%, transparent);
+    overflow: hidden;
+}
+/* las cuatro esquinas del encuadre */
+.optionHero::before {
+    content: '';
+    position: absolute;
+    inset: 16px;
+    pointer-events: none;
+    --esq: color-mix(in srgb, var(--primary-light) 75%, transparent);
+    background:
+        linear-gradient(var(--esq), var(--esq)) top left / 26px 3px no-repeat,
+        linear-gradient(var(--esq), var(--esq)) top left / 3px 26px no-repeat,
+        linear-gradient(var(--esq), var(--esq)) top right / 26px 3px no-repeat,
+        linear-gradient(var(--esq), var(--esq)) top right / 3px 26px no-repeat,
+        linear-gradient(var(--esq), var(--esq)) bottom left / 26px 3px no-repeat,
+        linear-gradient(var(--esq), var(--esq)) bottom left / 3px 26px no-repeat,
+        linear-gradient(var(--esq), var(--esq)) bottom right / 26px 3px no-repeat,
+        linear-gradient(var(--esq), var(--esq)) bottom right / 3px 26px no-repeat;
+}
+.optionHero:hover { background:
+        radial-gradient(110% 80% at 50% 0%, color-mix(in srgb, var(--primary) 28%, transparent), transparent 70%),
+        var(--bg-page); }
+.optionHero .optionIco {
+    position: relative;
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    color: rgb(255 255 255);
+    background: var(--primary-fill);
+    border-color: transparent;
+    box-shadow: 0 14px 30px -12px color-mix(in srgb, var(--primary) 90%, transparent);
+}
+.optionHero .optionIco svg { width: 34px; height: 34px; }
+/* el anillo que late alrededor del botón */
+.optionHero .optionIco::after {
+    content: '';
+    position: absolute;
+    inset: -9px;
+    border-radius: 50%;
+    border: 2px solid color-mix(in srgb, var(--primary) 50%, transparent);
+    animation: smLatido 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    pointer-events: none;
+}
+.optionHero .optionTxt { flex: none; align-items: center; gap: 4px; }
+.optionHero .optionLabel { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.optionHero .optionSub { display: block; font-size: 14px; }
+.optionHero .optionChev { display: none; }
+@keyframes smLatido {
+    0% { transform: scale(0.92); opacity: 0.9; }
+    100% { transform: scale(1.28); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .optionHero .optionIco::after { animation: none; opacity: 0.5; }
 }

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import {
-    Camera, Image as ImageIcon, Loader2, Check, X, AlertTriangle, ChevronRight, ChevronDown, Trash2, RotateCcw,
+    Camera, Image as ImageIcon, Layers, Loader2, Check, X, AlertTriangle, ChevronRight, ChevronDown, Trash2, RotateCcw,
     Refrigerator, Pencil, Plus,
 } from 'lucide-react';
 import BroteChispa from '../common/BroteChispa';   // [P1-PLAN-LOTE-1049] el destello de lucide parecía el logo de Gemini
@@ -748,7 +748,11 @@ EditorDePlato.propTypes = {
     onOcupado: PropTypes.func,
 };
 
-const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMealType = null }) => {
+// [P1-PLAN-LOTE-1151] `onBack`: abierto desde «Registrar comida» (su botón de la cámara), salir SIN registrar —la X,
+// deslizar hacia abajo, tocar fuera, Escape— vuelve a esa hoja, no al panel: «quiero que la x le dé para atrás y me
+// devuelva a donde estaba». Registrar sigue cerrando todo (`onClose`): ya está hecho.
+const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo = 0, initialMealType = null }) => {
+    const salir = onBack || onClose;
     // [P2-SCAN-NO-WEBCAM-ON-DESKTOP · 2026-07-30] "Tomar foto" solo donde es el gesto natural.
     //
     // En escritorio, `<input capture="environment">` abre la WEBCAM: apuntar un portátil al plato
@@ -857,11 +861,11 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
     const country = _scanFormData?.country;
     const { containerRef } = useModalAccessibility({
         isOpen,
-        onClose,
+        onClose: salir,
         disableClose: guardando, // no cerrar mientras se registra (operación en vuelo)
         isTopmost: () => !viewfinderOpen,
     });
-    const hoja = useBottomSheet({ containerRef, bodyRef, onClose, disabled: isBusy });
+    const hoja = useBottomSheet({ containerRef, bodyRef, onClose: salir, disabled: isBusy });
     // [P1-PLAN-LOTE-165 · 2026-09-22] En el iPhone el teclado tapaba el pie de la revisión: la hoja sube por encima.
     const teclado = estilosDeHojaConTeclado(useTecladoDeHoja(isOpen, { cuerpoRef: bodyRef }));
 
@@ -1302,8 +1306,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
     }, [guardando, _neveraOn, descontarNevera, userId, mealType, daysAgo, neveraConCosas, onClose, t, tn, _ponerPlato]);
 
     const handleOverlayClick = useCallback((e) => {
-        if (e.target === e.currentTarget && !isBusy) onClose();
-    }, [isBusy, onClose]);
+        if (e.target === e.currentTarget && !isBusy) salir();
+    }, [isBusy, salir]);
 
     if (!isOpen) return null;
 
@@ -1500,9 +1504,9 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                         </div>
                         <button
                             className={`${styles.closeBtn} ui-close`}
-                            onClick={onClose}
+                            onClick={salir}
                             disabled={guardando}
-                            aria-label={t('Cerrar')}
+                            aria-label={onBack ? t('Volver a Registrar comida') : t('Cerrar')}
                         >
                             <X size={20} strokeWidth={2.25} aria-hidden="true" />
                         </button>
@@ -1539,7 +1543,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                             sublabel + chevron. La cámara lleva el tile primary (acción recomendada). */}
                         <div className={styles.pickRow}>
                             {isCoarsePointer && (
-                                <button className={styles.optionCard} onClick={openCamera}>
+                                // [P1-PLAN-LOTE-1151] la acción principal, en grande: un visor con el botón de la cámara
+                                <button className={`${styles.optionCard} ${styles.optionHero}`} onClick={openCamera}>
                                     <span className={`${styles.optionIco} ${styles.optionIcoPrimary}`}>
                                         <Camera size={20} strokeWidth={2.1} />
                                     </span>
@@ -1558,7 +1563,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                                 </button>
                             )}
                             <button
-                                className={styles.optionCard}
+                                className={`${styles.optionCard}${isCoarsePointer ? '' : ` ${styles.optionHero}`}`}
                                 onClick={openGallery}
                             >
                                 {/* En escritorio la galería es la ÚNICA acción, así que se queda el tile primario: no
@@ -1579,6 +1584,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                         </div>
                         {/* [P1-PLAN-LOTE-224] Que se sepa que se puede: como en el chat, varias fotos a la vez. */}
                         <p className={styles.multiHint}>
+                            <Layers size={16} strokeWidth={2.1} aria-hidden="true" className={styles.multiHintIco} />
                             {t('¿Comiste varios platos? Puedes añadir hasta {n}, una foto por plato, y registrarlos juntos.', { n: MAX_PLATOS })}
                         </p>
                     </>
@@ -1755,6 +1761,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
 ScanMealModal.propTypes = {
     isOpen: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired,
+    onBack: PropTypes.func,
     userId: PropTypes.string.isRequired,
     initialDaysAgo: PropTypes.number,
     initialMealType: PropTypes.string,

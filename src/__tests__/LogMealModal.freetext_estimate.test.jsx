@@ -95,7 +95,7 @@ describe('foto desde el componedor', () => {
         const tp = src('src/components/dashboard/TrackingProgress.jsx');
         // [P1-PLAN-LOTE-382] …y le pasa la comida y el día del componedor
         expect(tp).toContain('const handleLogToScan = useCallback((d) => { setLogOpen(false); setScanOpen(d || true); }, []);');
-        expect(tp).toContain('<LogMealModal onClose={handleLogClose} onScan={handleLogToScan} />');
+        expect(tp).toContain('<LogMealModal onClose={handleLogClose} onScan={handleLogToScan} initialMealType={logOpen?.mealType || null} initialDaysAgo={logOpen?.daysAgo || 0} />');   // [1151] al volver del escáner
         const dash = src('src/pages/Dashboard.jsx');
         expect(dash).toContain("onScan={(d) => { setLogMealOpen(false); setScanMealOpen(d || true); }}");
         // [P1-PLAN-LOTE-224] el escáner es perezoso: se monta al pedirlo, dentro de su propio Suspense
