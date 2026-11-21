@@ -368,6 +368,16 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const [caminoACompartir, setCaminoACompartir] = useState(null);
     // el detalle del día elegido (calorías, comidas): tocar un nivel lo trae a la vista si quedó debajo
     const detalleRef = useRef(null);
+    // [P1-PLAN-LOTE-1134] «hay dos [scroll] y quitaste uno… era el otro que tenía al lado» (el dueño, en PC): con el
+    // cajón abierto la PÁGINA de fondo seguía desplazable y su barra salía pegada a la del cajón. Se bloquea mientras
+    // está abierto (en <html>, que es quien desplaza el dashboard) y se devuelve tal cual al cerrar.
+    useEffect(() => {
+        if (!open || typeof document === 'undefined') return undefined;
+        const raiz = document.documentElement;
+        const antes = raiz.style.overflow;
+        raiz.style.overflow = 'hidden';
+        return () => { raiz.style.overflow = antes; };
+    }, [open]);
     // [P1-PLAN-LOTE-721] la comida cuya ficha está abierta, o null
     const [fichaMeal, setFichaMeal] = useState(null);
     const idsConFoto = useIdsConFoto(userId);
