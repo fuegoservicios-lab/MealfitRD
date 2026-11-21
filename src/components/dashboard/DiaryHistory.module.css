@@ -70,11 +70,6 @@
     flex-shrink: 0;
 }
 
-/* [P1-PLAN-LOTE-1134] «en pc no le veo sentido a estos scroll» (el dueño): el cajón se desplaza con la rueda o el
-   trackpad igual, sin la barra gris al lado del mapa (que tiene su propio desplazamiento). Como el mapa y el móvil. */
-.drawerBody { scrollbar-width: none; }
-.drawerBody::-webkit-scrollbar { display: none; }
-
 .headTop {
     display: flex;
     align-items: center;
