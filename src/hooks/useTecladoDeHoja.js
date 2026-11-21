@@ -128,6 +128,13 @@ export function useTecladoDeHoja(activo, { cuerpoRef } = {}) {
         // centinela: la primera medición SIEMPRE se escribe (el estado de React puede venir de una apertura anterior)
         let actual = { inset: -1, abierto: null, alto: null };
         let asiento = null;
+        // [P1-PLAN-LOTE-1150] «Cuando los cierro se siente raro». Al cerrar, la hoja empezaba a bajar y una medición
+        // tardía —el asiento pendiente, o un evento que iOS emite con la geometría de ANTES— la veía abierta y la
+        // volvía a subir un instante. Mientras el teclado baja, «abierto» solo cuenta si hay un campo enfocado; al
+        // terminar la bajada se mide una vez (por si el teclado, en realidad, sigue arriba).
+        let cerrandoHasta = 0;
+        let finDeCierre = null;
+        const hayCampoEnfocado = () => typeof document !== 'undefined' && esCampoDeTexto(document.activeElement);
         const aplicar = (nuevo) => {
             if (mismo(actual, nuevo)) return;
             actual = nuevo;
@@ -157,6 +164,7 @@ export function useTecladoDeHoja(activo, { cuerpoRef } = {}) {
 
         const medir = (forzar = false) => {
             const medida = medirTecladoDeVentana(window);
+            if (medida.abierto && Date.now() < cerrandoHasta && !hayCampoEnfocado()) return;
             // Anticipado y la geometría aún no se enteró: no deshacer la subida (el resize llega al final).
             if (!forzar && !medida.abierto && Date.now() < anticipadoHasta) return;
             if (medida.abierto) anticipadoHasta = 0;
@@ -188,6 +196,11 @@ export function useTecladoDeHoja(activo, { cuerpoRef } = {}) {
         const cerrar = (duracion) => {
             anticipadoHasta = 0;
             clearTimeout(plazo);
+            clearTimeout(asiento);
+            clearTimeout(traer);
+            clearTimeout(finDeCierre);
+            cerrandoHasta = Date.now() + duracion + 250;
+            finDeCierre = setTimeout(() => { cerrandoHasta = 0; medir(true); }, duracion + 260);
             setMs(duracion);
             visto = { abierto: false, alto: null };
             aplicar(CERRADO);
@@ -196,8 +209,11 @@ export function useTecladoDeHoja(activo, { cuerpoRef } = {}) {
         const alEnfocar = (e) => {
             if (!esCampoDeTexto(e.target)) return;
             if (!window.matchMedia?.('(pointer: coarse)')?.matches) return;
+            cerrandoHasta = 0;
+            clearTimeout(finDeCierre);
             const ya = medirTecladoDeVentana(window);
-            if (ya.abierto) { traerCampoALaVista(60); return; }   // cambia de campo con el teclado puesto
+            // cambia de campo con el teclado puesto (o vuelve a uno mientras bajaba): se recoloca ya
+            if (ya.abierto) { medir(true); traerCampoALaVista(60); return; }
             anticipar(Number(safeLocalStorageGet(CLAVE_INSET_NATIVO, 0)) || 0, msActual());
         };
         const alDesenfocar = (e) => {
@@ -224,6 +240,7 @@ export function useTecladoDeHoja(activo, { cuerpoRef } = {}) {
             clearTimeout(plazo);
             clearTimeout(traer);
             clearTimeout(asiento);
+            clearTimeout(finDeCierre);
             vv.removeEventListener('resize', alCambiarVista);
             vv.removeEventListener('scroll', alCambiarVista);
             if (ios) {
