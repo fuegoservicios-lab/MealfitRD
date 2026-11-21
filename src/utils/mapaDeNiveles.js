@@ -101,7 +101,11 @@ export function armarMapa({ inicioISO, hoyISO, estadoDe, umbrales = [0] }) {
  * su paisaje detrás).
  */
 export const ALTO_DIA = 80;
-export const ALTO_TROFEO = 84;
+// [P1-PLAN-LOTE-1146 · 2026-11-21] Hoy lleva su cartel «Estás aquí» ENCIMA: con el alto de un día normal el cartel se
+// montaba sobre la tarjeta de la semana (el dueño: «mira cómo eso choca») o sobre el nivel bloqueado de arriba. Su
+// tramo es más alto (simétrico: las zonas de los mundos siguen pegadas fila con fila).
+export const ALTO_HOY = 148;
+export const ALTO_TROFEO = 92;   // [1146] la tarjeta lleva ahora la barra de 7 días con los hitos de estrella
 export const ALTO_PUERTA = 70;
 export const MARGEN_SUP = 84;   // aire para el marcador flotante y el cartel «Estás aquí»
 export const MARGEN_INF = 40;
@@ -121,9 +125,10 @@ export function filasDelMapa(semanas) {
         filas.push({ tipo: 'trofeo', semana: s, mundo, x: 50, y: y + ALTO_TROFEO / 2, alto: ALTO_TROFEO, clave: `t-${s.domingo}` });
         y += ALTO_TROFEO;
         s.dias.forEach((d) => {
-            filas.push({ tipo: 'dia', dia: d, semana: s, mundo, x: CURVA[k % CURVA.length], y: y + ALTO_DIA / 2, alto: ALTO_DIA, clave: d.iso });
+            const altoFila = d.esHoy ? ALTO_HOY : ALTO_DIA;
+            filas.push({ tipo: 'dia', dia: d, semana: s, mundo, x: CURVA[k % CURVA.length], y: y + altoFila / 2, alto: altoFila, clave: d.iso });
             k += 1;
-            y += ALTO_DIA;
+            y += altoFila;
         });
     });
     if (lista.length > 0) {

@@ -21,7 +21,7 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { ArrowUp, Check, Maximize2, Minimize2, Crown, Flag, Flame, Gem, Gift, Lock, MapPin, Medal, PartyPopper, Share, Star, Trophy } from 'lucide-react';
 import { formatDate, formatNumber, useT, useTn } from '../../i18n';
-import { ESTRELLAS_MAX, mediodiaDe } from '../../utils/progresoDeLosDias';
+import { DIAS_DE_LA_SEMANA, ESTRELLAS_MAX, estrellasDeLaSemana, mediodiaDe } from '../../utils/progresoDeLosDias';
 import { armarMapa, celebracionPendiente, filasDelMapa, trazo } from '../../utils/mapaDeNiveles';
 import { triggerMobileHaptic } from '../../utils/mobileHaptics';
 import { ESCALERA, posicionEnLaEscalera } from './EscaleraDeRangos';
@@ -76,6 +76,22 @@ function Estrellas({ n }) {
     );
 }
 Estrellas.propTypes = { n: PropTypes.number.isRequired };
+
+// [P1-PLAN-LOTE-1146] La barra de la semana: 7 tramos (uno por día en meta) con los hitos de estrella (3.º, 5.º, 7.º)
+// marcados: se VE cuánto falta para la siguiente, no solo se lee.
+const HITOS = Array.from({ length: DIAS_DE_LA_SEMANA }, (_, k) => estrellasDeLaSemana(k + 1) > estrellasDeLaSemana(k));
+function BarraDeLaSemana({ enMeta }) {
+    return (
+        <span className={styles.barra} aria-hidden="true">
+            {HITOS.map((hito, k) => (
+                <span key={k} className={`${styles.tramo} ${k < enMeta ? styles.tramoLleno : ''} ${hito ? styles.tramoHito : ''}`}>
+                    {hito && <Star className={styles.tramoEstrella} strokeWidth={2.5} />}
+                </span>
+            ))}
+        </span>
+    );
+}
+BarraDeLaSemana.propTypes = { enMeta: PropTypes.number.isRequired };
 
 export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, porFecha, onElegir, onCompartir, onGrande }) {
     const t = useT();
@@ -339,6 +355,7 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                                                     : tn(s.faltan, 'Falta {n} día en meta para otra estrella', 'Faltan {n} días en meta para otra estrella', { n: s.faltan })
                                                                 : tn(s.enMeta, '{n} día en meta', '{n} días en meta', { n: s.enMeta })}
                                                     </small>
+                                                    <BarraDeLaSemana enMeta={s.enMeta} />
                                                 </span>
                                             </div>
                                         </li>
@@ -356,7 +373,7 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                 return (
                                     <li key={f.clave} className={styles.nivelFila} style={pos}>
                                         {d.esHoy && (
-                                            <span className={styles.cartel} aria-hidden="true">{t('Estás aquí')}</span>
+                                            <span className={styles.cartel} aria-hidden="true"><MapPin className={styles.cartelPin} strokeWidth={2.5} />{t('Estás aquí')}</span>
                                         )}
                                         <button
                                             type="button"
