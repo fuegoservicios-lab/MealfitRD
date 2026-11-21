@@ -53,6 +53,7 @@ import AvisoRegalos from './AvisoRegalos';
 // [P1-PLAN-LOTE-835 · 2026-09-29] El aviso de «cuenta de prueba» (una vez) y, sin pantalla, el informe de los ajustes del
 // dispositivo (P1-PLAN-LOTE-837): los dos junto a AvisoRegalos, solo con cuenta.
 import AvisoCuentaPrueba from './AvisoCuentaPrueba';
+import { SincronizarDiaActivo } from './DiaActivo';   // [P1-PLAN-LOTE-1145] tu día termina cuando duermes
 import ReporteAjustesDispositivo from './ReporteAjustesDispositivo';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al hover/touch
 import { prefetchRoute } from '../../utils/routePreload';
@@ -505,6 +506,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
             {/* [P1-PLAN-LOTE-835] El aviso «Esta es una cuenta de prueba» (hoja, portal a <body>; solo si el perfil trae la marca
                 sin ver) y [P1-PLAN-LOTE-837] el informe, sin pantalla, de los ajustes del dispositivo. El invitado no tiene cuenta. */}
             {!isGuest && <AvisoCuentaPrueba />}
+            <SincronizarDiaActivo activo={!isGuest && Boolean(session?.user?.id)} />
             {!isGuest && <ReporteAjustesDispositivo />}
 
 

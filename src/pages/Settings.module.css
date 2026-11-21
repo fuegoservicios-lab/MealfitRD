@@ -1278,6 +1278,9 @@
     border-radius: var(--radius-lg);
 }
 
+/* [P1-PLAN-LOTE-1145] «Tu día termina a las»: cinco horas en una fila */
+.segmented5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
 .segment {
     display: flex;
     align-items: center;

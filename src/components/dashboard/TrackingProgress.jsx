@@ -38,6 +38,7 @@ import { getCalorieGoalState, resolveMainGoal } from '../../utils/calorieGoalSta
 import { useIdsConFoto, useEnlazarFotosDelChat, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
 import MiniaturaDeComida from './MiniaturaDeComida';
 import { getBiologicalDateStr } from '../../utils/diaBiologico';
+import { AvisoDiaActivo } from './DiaActivo';
 import styles from './TrackingProgress.module.css';
 
 // [P1-COMPARTIR-DIA · 2026-09-23] La hoja se carga al abrirla: canvas + textos no pesan en el panel.
@@ -566,6 +567,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
         // [P1-PLAN-LOTE-88 · 2026-09-17] `flatOnMobile`: en ≤480px la sección pierde el marco de tarjeta
         // (borde, fondo, sombra y relleno) y usa el ancho entero. Lo pide el padre; hoy solo el contador.
         <div className={flatOnMobile ? `${styles.card} ${styles.flatMobile}` : styles.card}>
+            {/* [P1-PLAN-LOTE-1145] «Sigues en tu viernes» / «¿Aún no has dormido?» */}
+            <AvisoDiaActivo />
             {/* Header Sector */}
             <div className={styles.header}>
                 <div className={styles.headerLeft}>

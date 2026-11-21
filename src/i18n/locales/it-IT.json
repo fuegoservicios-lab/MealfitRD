@@ -4350,5 +4350,17 @@
   "Ver al 100 %": "Vedi al 100%",
   "Acercar": "Ingrandisci",
   "Foto": "Foto",
-  "Quitar": "Rimuovi"
+  "Quitar": "Rimuovi",
+  "No se pudo cambiar el día. Inténtalo de nuevo.": "Impossibile cambiare il giorno. Riprova.",
+  "Tu día termina más tarde (Configuración)": "La tua giornata finisce più tardi (Impostazioni)",
+  "Lo elegiste tú": "L’hai scelto tu",
+  "No has dormido: tu día sigue": "Non hai dormito: la tua giornata continua",
+  "Sigues en tu {dia}": "Sei ancora al tuo {dia}",
+  "Empezar mi {dia}": "Inizia il mio {dia}",
+  "¿Aún no has dormido?": "Non hai ancora dormito?",
+  "Lo que comas seguirá contando en tu {dia}.": "Quello che mangi continuerà a contare per il tuo {dia}.",
+  "Seguir en mi {dia}": "Resta al mio {dia}",
+  "Tu día termina a las {h}:00 a. m.": "La tua giornata finisce alle {h}:00",
+  "Tu día termina a las": "La tua giornata finisce alle",
+  "Hasta esa hora de la mañana, lo que comas cuenta en el día anterior. Si no has dormido, tu día sigue solo hasta que duermas.": "Fino a quell’ora del mattino, quello che mangi conta per il giorno prima. Se non hai dormito, la tua giornata continua da sola finché non dormi."
 }

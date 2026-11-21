@@ -4350,5 +4350,17 @@
   "Ver al 100 %": "Voir à 100 %",
   "Acercar": "Zoomer",
   "Foto": "Photo",
-  "Quitar": "Retirer"
+  "Quitar": "Retirer",
+  "No se pudo cambiar el día. Inténtalo de nuevo.": "Impossible de changer le jour. Réessayez.",
+  "Tu día termina más tarde (Configuración)": "Votre journée se termine plus tard (Paramètres)",
+  "Lo elegiste tú": "Vous l’avez choisi",
+  "No has dormido: tu día sigue": "Vous n’avez pas dormi : votre journée continue",
+  "Sigues en tu {dia}": "Vous êtes toujours à votre {dia}",
+  "Empezar mi {dia}": "Commencer mon {dia}",
+  "¿Aún no has dormido?": "Vous n’avez pas encore dormi ?",
+  "Lo que comas seguirá contando en tu {dia}.": "Ce que vous mangez comptera toujours pour votre {dia}.",
+  "Seguir en mi {dia}": "Rester sur mon {dia}",
+  "Tu día termina a las {h}:00 a. m.": "Votre journée se termine à {h} h",
+  "Tu día termina a las": "Votre journée se termine à",
+  "Hasta esa hora de la mañana, lo que comas cuenta en el día anterior. Si no has dormido, tu día sigue solo hasta que duermas.": "Jusqu’à cette heure du matin, ce que vous mangez compte pour la veille. Si vous n’avez pas dormi, votre journée continue d’elle-même jusqu’à ce que vous dormiez."
 }

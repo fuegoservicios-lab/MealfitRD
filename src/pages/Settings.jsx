@@ -544,6 +544,32 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         }
     };
 
+    // [P1-PLAN-LOTE-1145 · 2026-11-21] «Mi día termina a las…» (4-8 a. m.): para quien trabaja de noche o se acuesta
+    // tarde. Hasta esa hora sigue contando el día anterior (`backend/dia_extendido.py`). Misma vía que el país:
+    // PATCH de UNA clave de health_profile y perfil fresco del servidor.
+    const [corteElegido, setCorteElegido] = useState(null);
+    const corteGuardado = (() => {
+        const h = Number(userProfile?.health_profile?.dia_termina_h);
+        return Number.isFinite(h) && h >= 4 && h <= 8 ? Math.round(h) : 4;
+    })();
+    const elegirCorte = async (h) => {
+        if (h === (corteElegido ?? corteGuardado)) return;
+        setCorteElegido(h);
+        try {
+            const res = await fetchWithAuth('/api/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ health_profile: { dia_termina_h: h }, health_profile_keys: ['dia_termina_h'] }),
+            });
+            if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
+            try { await refreshProfileAndPlan(); } catch { /* best-effort: el servidor ya lo tiene */ }
+            toast.success(t('Tu día termina a las {h}:00 a. m.', { h }));
+        } catch {
+            setCorteElegido(null);
+            toast.error(t('No se pudo guardar. Inténtalo de nuevo.'));
+        }
+    };
+
     // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] País — en oscuro hasta el flip
     // global (COUNTRY_SYSTEM_UI). Persiste por el MISMO PATCH key-level que
     // usa la rama contador (QTrackingFinish): manda solo `{ country }`, y el
@@ -3634,6 +3660,33 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         </div>
                     </section>
                     )}
+
+                    {/* [P1-PLAN-LOTE-1145] Tu día: a qué hora empieza el día nuevo (además, sin dormir, sigue solo). */}
+                    <section className={`${styles.section} ${styles.sectionDivided}`}>
+                        <h2 className={styles.sectionTitle}>
+                            {t('Tu día termina a las')}
+                        </h2>
+                        <p className={styles.sectionDesc}>
+                            {t('Hasta esa hora de la mañana, lo que comas cuenta en el día anterior. Si no has dormido, tu día sigue solo hasta que duermas.')}
+                        </p>
+                        <div className={`${styles.segmented} ${styles.segmented5}`} role="radiogroup" aria-label={t('Tu día termina a las')}>
+                            {[4, 5, 6, 7, 8].map((h) => {
+                                const activo = (corteElegido ?? corteGuardado) === h;
+                                return (
+                                    <button
+                                        key={h}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={activo}
+                                        onClick={() => elegirCorte(h)}
+                                        className={`${styles.segment} ${activo ? styles.segmentActive : ''}`}
+                                    >
+                                        {`${h}:00`}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
                     </>
                     )}
 
