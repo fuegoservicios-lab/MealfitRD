@@ -40,6 +40,15 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose: onCerrar });
     const bodyRef = useRef(null);
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose: onCerrar });
+    // [P1-PLAN-LOTE-1158] Firefox, ventana estrecha: la hoja toca el borde derecho y ahí Firefox entrega el puntero a
+    // la barra de la PÁGINA (`elementFromPoint` → <html>), no a la de la hoja: arrastrar no bajaba la lista. Con la
+    // raíz también bloqueada mientras la hoja está abierta, la barra del borde es la de la hoja.
+    useEffect(() => {
+        const raiz = document.documentElement;
+        const antes = raiz.style.overflow;
+        raiz.style.overflow = 'hidden';
+        return () => { raiz.style.overflow = antes; };
+    }, []);
     // [1157] ¿queda contenido debajo? (fundido sobre el pie: se ve que la hoja sigue)
     const [masAbajo, setMasAbajo] = useState(false);
     useEffect(() => {

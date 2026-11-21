@@ -48,6 +48,15 @@ describe('[1157] en PC se puede bajar', () => {
         expect(body.getAttribute('tabindex')).toBe('0');
         expect(CSS).toMatch(/@media \(hover: hover\) and \(pointer: fine\) \{\s*\.body \{ scrollbar-width: thin;/);
     });
+    // [P1-PLAN-LOTE-1158] Firefox con la hoja pegada al borde: la barra del borde era la de la página
+    it('mientras está abierta, la raíz no se desplaza (y se restaura al cerrar)', () => {
+        document.documentElement.style.overflow = 'auto';
+        const { unmount } = render(<EscaleraDeRangos abierta onCerrar={() => {}} estrellas={1} semanasCerradas={9} />);
+        expect(document.documentElement.style.overflow).toBe('hidden');
+        unmount();
+        expect(document.documentElement.style.overflow).toBe('auto');
+        document.documentElement.style.overflow = '';
+    });
     it('dos columnas en pantallas anchas y fundido sobre el pie mientras queda algo', () => {
         expect(CSS).toMatch(/@media \(min-width: 900px\) \{[^}]*\.sheet \{ max-width: 780px; \}\s*\.body \{ display: grid; grid-template-columns: 1fr 1fr;/);
         expect(CSS).toContain(".sheet[data-mas='si'] .pie::before");
