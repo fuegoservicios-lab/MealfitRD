@@ -612,3 +612,33 @@
     .verDia.compartirDia:hover:not(:disabled) { background: var(--primary-dark); }
 }
 .compartirDia + .verDia { margin-top: 0.5rem; }
+
+/* [P1-PLAN-LOTE-1161 · 2026-11-22] juego por puntos: barra a la siguiente división, puntos de la semana y del día */
+.rangoBarra {
+    position: relative;
+    display: block;
+    width: 120px;
+    height: 5px;
+    margin: 0.2rem 0 0.1rem;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--text-muted) 20%, transparent);
+    overflow: hidden;
+}
+.rangoBarraLleno {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--avance, 0%);
+    border-radius: var(--radius-full);
+    background: var(--primary);
+    transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cuentaPts { font-size: 0.875rem; font-weight: 800; color: var(--text-main); font-variant-numeric: tabular-nums; }
+.ptsDia {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+}

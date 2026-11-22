@@ -118,7 +118,7 @@ describe('[1082] las puertas', () => {
         expect(SEM).toContain("aria-label={t('Compartir tu semana')}");
         expect(SEM).toContain("const ShareDaySheet = lazy(() => import('./ShareDaySheet'));");
         expect(SEM).toContain('semana={semanaParaCompartir}');
-        expect(SEM).toContain('racha: enCurso ? racha : 0');
+        expect(SEM).toContain('racha: enCurso ? (juego ? rachaVivo : racha) : 0');   // [1161] racha registrando con el juego por puntos
     });
     it('el cierre del domingo invita a compartir esa semana', () => {
         expect(CIE).toContain('onCompartir(Number(cierre.datos.numero))');

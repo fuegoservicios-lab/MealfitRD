@@ -1,0 +1,206 @@
+/* [P1-PLAN-LOTE-1161 · 2026-11-22] Marcador de HOY (puntos, llama de racha, logros) dentro de «Tu semana».
+   Solo tokens del tema (trinquete lote1063): nada de hex nuevos; letra en la escala; radios con token. */
+
+.marcador {
+    margin-top: 0.7rem;
+    padding: 0.7rem 0.75rem 0.65rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+    background:
+        radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--ink-warn) 12%, transparent) 0%, transparent 60%),
+        color-mix(in srgb, var(--bg-muted) 55%, transparent);
+}
+
+.fila {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+/* ------------------------------------------------------------ puntos de hoy */
+
+.hoy { display: flex; flex-direction: column; min-width: 0; }
+
+.hoyEtiqueta {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.hoyCifra {
+    position: relative;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    line-height: 1;
+    color: var(--text-main);
+}
+
+.hoyCifra strong {
+    font-size: 2.25rem;
+    font-weight: 850;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+}
+
+.hoyUnidad { font-size: 0.875rem; font-weight: 750; color: var(--text-muted); }
+
+.hoyMult {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--ink-warn);
+    white-space: nowrap;
+}
+
+.flotante {
+    position: absolute;
+    left: 100%;
+    top: -0.2rem;
+    margin-left: 0.35rem;
+    font-size: 0.875rem;
+    font-weight: 850;
+    color: var(--ink-good);
+    pointer-events: none;
+    animation: subir 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes subir {
+    0% { opacity: 0; transform: translateY(6px) scale(0.9); }
+    15% { opacity: 1; transform: translateY(0) scale(1.08); }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-18px) scale(1); }
+}
+
+/* ------------------------------------------------------------ llama de racha */
+
+.llama {
+    flex: none;
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 0.4rem;
+    row-gap: 0.2rem;
+    padding: 0.45rem 0.65rem 0.45rem 0.5rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid color-mix(in srgb, var(--ink-warn) 30%, var(--border));
+    background: color-mix(in srgb, var(--ink-warn) 10%, var(--bg-card));
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    --brillo: 0;
+}
+button.llama { cursor: pointer; }
+button.llama:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.fuego {
+    grid-row: 1 / span 2;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    color: var(--text-muted);
+    background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+}
+
+.llamaTexto { display: inline-flex; align-items: baseline; gap: 0.2rem; }
+.llamaDias { font-size: 1.25rem; font-weight: 850; font-variant-numeric: tabular-nums; }
+.llamaUnidad { font-size: 0.75rem; font-weight: 650; color: var(--text-muted); }
+
+.mult {
+    justify-self: start;
+    padding: 0.05rem 0.4rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+}
+
+.escudos {
+    grid-column: 1 / -1;
+    display: inline-flex;
+    gap: 0.2rem;
+    padding-left: 0.1rem;
+}
+.escudoLleno { color: var(--primary); fill: color-mix(in srgb, var(--primary) 35%, transparent); }
+.escudoVacio { color: color-mix(in srgb, var(--text-muted) 45%, transparent); }
+
+/* los tramos encienden la llama, de menos a más */
+.tramo_encendida .fuego,
+.tramo_en_llamas .fuego,
+.tramo_imparable .fuego,
+.tramo_leyenda .fuego {
+    color: var(--ink-warn);
+    background: color-mix(in srgb, var(--ink-warn) 18%, transparent);
+}
+.tramo_en_llamas .fuego { box-shadow: 0 0 14px color-mix(in srgb, var(--ink-warn) 40%, transparent); }
+.tramo_imparable .fuego {
+    color: var(--ink-proteins);
+    background: color-mix(in srgb, var(--ink-proteins) 20%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--ink-proteins) 45%, transparent);
+}
+.tramo_leyenda .fuego {
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 22%, transparent);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--primary) 55%, transparent);
+}
+.tramo_encendida .mult,
+.tramo_en_llamas .mult,
+.tramo_imparable .mult { color: var(--ink-warn); background: color-mix(in srgb, var(--ink-warn) 16%, transparent); }
+.tramo_leyenda .mult { color: var(--primary); background: color-mix(in srgb, var(--primary) 16%, transparent); }
+
+.tramo_encendida .fuego svg,
+.tramo_en_llamas .fuego svg,
+.tramo_imparable .fuego svg,
+.tramo_leyenda .fuego svg { animation: arder 1.8s ease-in-out infinite; transform-origin: 50% 90%; }
+
+@keyframes arder {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    30% { transform: scale(1.08) rotate(-3deg); }
+    60% { transform: scale(0.96) rotate(2deg); }
+}
+
+/* ------------------------------------------------------------ logros del día */
+
+.logros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0.65rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.logro {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 650;
+    color: var(--text-muted);
+    border: 1px dashed color-mix(in srgb, var(--text-muted) 40%, transparent);
+}
+.logroPts { font-weight: 800; color: var(--primary); }
+.logroHecho {
+    color: var(--ink-good);
+    border-style: solid;
+    border-color: color-mix(in srgb, var(--ink-good) 35%, transparent);
+    background: color-mix(in srgb, var(--ink-good) 12%, transparent);
+    animation: encender 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes encender {
+    from { transform: scale(0.9); opacity: 0.6; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .flotante, .logroHecho, .fuego svg { animation: none !important; }
+    .flotante { display: none; }
+}

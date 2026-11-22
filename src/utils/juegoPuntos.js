@@ -122,3 +122,14 @@ export function rangoPorPuntos(total) {
         indice: i,
     };
 }
+
+/** Nombre de cada tramo de la racha (con la `t` del componente). */
+export const nombreDelTramo = (clave, t) => ({
+    encendida: t('Encendida'), en_llamas: t('En llamas'), imparable: t('Imparable'), leyenda: t('Leyenda'),
+})[clave] || '';
+
+/** Nombre del rango con su división: «Plata II». */
+export function nombreDelRango(clave, division, t) {
+    const base = ({ bronce: t('Bronce'), plata: t('Plata'), oro: t('Oro'), platino: t('Platino'), diamante: t('Diamante') })[clave] || '';
+    return division && ROMANO[division] ? `${base} ${ROMANO[division]}` : base;
+}

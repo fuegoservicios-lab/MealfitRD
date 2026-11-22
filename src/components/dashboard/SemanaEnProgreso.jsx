@@ -16,6 +16,12 @@
 //
 // [P1-PLAN-LOTE-1082 · 2026-11-18] «Compartir tu semana»: el botón junto a las flechas (y el del cierre del domingo)
 // abre la hoja de compartir con ESTA semana tal como se ve aquí (anillos, días en meta, estrellas, racha, rango).
+//
+// [P1-PLAN-LOTE-1161 · 2026-11-22] Juego 2.0: la semana suma PUNTOS (registrar, día completo, calorías en la banda,
+// proteína, agua) que la racha de días registrando multiplica; las estrellas salen de esos puntos y el rango (con
+// división I-III) de los puntos totales. Los puntos de HOY se calculan en vivo con el espejo `utils/juegoPuntos.js`
+// sobre la racha del servidor hasta ayer; los de los días pasados y semanas viejas son los del servidor. Con un
+// servidor viejo (sin `puntos`) la tarjeta pinta como antes.
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -33,6 +39,11 @@ import {
 import { useResumenDeProgreso } from '../../hooks/useResumenDeProgreso';
 import { pedirSemanas } from '../../utils/progresoServidor';
 import EscaleraDeRangos from './EscaleraDeRangos';
+import PuntosDeHoy from './PuntosDeHoy';
+import {
+    ESCUDOS_MAX, estrellasPorPuntos, faltanParaOtraEstrella, logrosDelDia, nombreDelRango as nombreConDivision,
+    puntosDeHoy, rangoPorPuntos, tramoDeRacha,
+} from '../../utils/juegoPuntos';
 import CierreDeSemana from './CierreDeSemana';
 import styles from './SemanaEnProgreso.module.css';
 
@@ -43,6 +54,8 @@ const RADIO = 17;
 const CIRCUNFERENCIA = 2 * Math.PI * RADIO;
 const _claveCache = (userId) => `mealfit_semana_progreso_${userId}`;
 const _claveInicio = (userId) => `mealfit_semana_inicio_${userId}`;
+
+const estiloAvance = (a) => ({ '--avance': `${Math.round(Math.max(0, Math.min(1, Number(a) || 0)) * 100)}%` });
 
 const _leerCache = (userId) => {
     try {
@@ -140,16 +153,46 @@ const SemanaEnProgreso = ({
     // Más atrás del tope de 365 días del endpoint no hay detalle por día: el resumen de la semana lo da el servidor.
     const fueraDeHistoria = Math.round((mediodiaDe(hoyISO) - mediodiaDe(dias[DIAS_DE_LA_SEMANA - 1].iso)) / 86400000)
         >= DIAS_MAX_HISTORIA;
+    // [1161] las semanas pasadas traen sus PUNTOS del servidor: se piden al mirar una (caché de 30 s).
     useEffect(() => {
-        if (!fueraDeHistoria || semanasViejas || !userId) return undefined;
+        if ((enCurso && !fueraDeHistoria) || semanasViejas || !userId) return undefined;
         let vivo = true;
         pedirSemanas(userId).then((l) => { if (vivo) setSemanasViejas(l); }).catch(() => {});
         return () => { vivo = false; };
-    }, [fueraDeHistoria, semanasViejas, userId]);
-    const deServidor = fueraDeHistoria ? (semanasViejas || []).find((x) => x.numero === semana) : null;
-    const enMeta = deServidor ? deServidor.dias_en_meta : dias.filter((d) => d.estado === 'meta').length;
-    const estrellas = estrellasDeLaSemana(enMeta);
-    const faltan = faltanParaLaSiguienteEstrella(enMeta);
+    }, [enCurso, fueraDeHistoria, semanasViejas, userId]);
+    const deServidor = (semanasViejas || []).find((x) => x.numero === semana) || null;
+    const enMeta = fueraDeHistoria && deServidor ? deServidor.dias_en_meta : dias.filter((d) => d.estado === 'meta').length;
+
+    // [1161] juego por puntos (solo con un servidor que ya los da)
+    const juego = Boolean(servidor && servidor.puntos && servidor.hoy_puntos);
+    const enCursoServidor = juego && Number(servidor.semana?.numero) === semanaActual;
+    const hoyVivo = useMemo(() => {
+        if (!juego) return null;
+        const lg = logrosDelDia({
+            calories: hoy?.calories, protein: hoy?.protein, mealsCount: hoy?.mealsCount,
+            metaKcal: targetCalories, metaProteina: targetMacros?.protein, objetivo: mainGoal,
+        });
+        // el agua la sabe el servidor (su contador vive aparte)
+        lg.agua = servidor.hoy_puntos?.logros?.agua ?? null;
+        if (lg.agua && !lg.registro) lg.agua = false;
+        return { ...puntosDeHoy({ logros: lg, rachaHastaAyer: Number(servidor.racha_hasta_ayer) || 0 }), logros: lg };
+    }, [juego, servidor, hoy, targetCalories, targetMacros, mainGoal]);
+    const puntosSemana = (() => {
+        if (!juego) return null;
+        if (enCurso && enCursoServidor) {
+            return Math.max(0, (Number(servidor.semana.puntos) || 0) - (Number(servidor.hoy_puntos.puntos) || 0) + (hoyVivo?.puntos || 0));
+        }
+        return deServidor && Number.isFinite(Number(deServidor.puntos)) ? Number(deServidor.puntos) : null;
+    })();
+    const porPuntos = puntosSemana !== null;
+    const estrellas = porPuntos ? estrellasPorPuntos(puntosSemana) : estrellasDeLaSemana(enMeta);
+    const faltan = porPuntos ? faltanParaOtraEstrella(puntosSemana) : faltanParaLaSiguienteEstrella(enMeta);
+    const puntosDelDia = new Map(enCursoServidor && enCurso
+        ? (servidor.semana.dias || []).map((d) => [d.iso, d.iso === hoyISO ? hoyVivo?.puntos : d.puntos])
+        : []);
+    const totalVivo = juego ? (Number(servidor.puntos.total) || 0) - (Number(servidor.hoy_puntos.puntos) || 0) + (hoyVivo?.puntos || 0) : 0;
+    const rangoVivo = juego ? rangoPorPuntos(totalVivo) : null;
+    const rachaVivo = juego ? (Number(servidor.racha_hasta_ayer) || 0) + (hoyVivo?.logros?.registro ? 1 : 0) : 0;
     const diaDeLaSemana = dias.findIndex((d) => d.esHoy) + 1;
     const sel = elegido ? dias.find((d) => d.iso === elegido) : null;
 
@@ -185,6 +228,9 @@ const SemanaEnProgreso = ({
         bronce: t('Bronce'), plata: t('Plata'), oro: t('Oro'), platino: t('Platino'), diamante: t('Diamante'),
     })[clave] || '';
     const textoRacha = tn(racha, '{n} día seguido', '{n} días seguidos', { n: racha });
+    const escaleraProps = juego
+        ? { puntos: totalVivo, racha: rachaVivo, escudos: Number(servidor.escudos) || 0, aguaEncendida: hoyVivo?.logros?.agua !== null }
+        : {};
     // [1082] Se comparte una semana con algo anotado y con su detalle por día (más atrás de 365 días solo hay el total).
     const sePuedeCompartir = !fueraDeHistoria && dias.some((d) => d.estado !== 'vacio' && d.estado !== 'futuro');
     const semanaParaCompartir = compartiendo ? {
@@ -195,8 +241,10 @@ const SemanaEnProgreso = ({
         enMeta,
         estrellas,
         // la racha es la de HOY: solo cuenta en la semana en curso
-        racha: enCurso ? racha : 0,
-        rango: rango?.clave || null,
+        racha: enCurso ? (juego ? rachaVivo : racha) : 0,
+        rango: rangoVivo?.clave || rango?.clave || null,
+        division: rangoVivo?.division || null,
+        puntos: porPuntos ? puntosSemana : null,
     } : null;
     // [P1-PLAN-LOTE-1099] El día tal cual lo devuelve el Diario (comidas y totales) y su fecha a mediodía.
     const compartirDia = async (iso) => {
@@ -231,7 +279,7 @@ const SemanaEnProgreso = ({
                     {rango ? (
                         <button
                             type="button"
-                            className={`${styles.insignia} ${styles.insigniaBoton} ${styles[`rango_${rango.clave}`] || ''}`}
+                            className={`${styles.insignia} ${styles.insigniaBoton} ${styles[`rango_${rangoVivo?.clave || rango.clave}`] || ''}`}
                             onClick={() => setEscaleraAbierta(true)}
                             aria-label={t('Ver los rangos y cómo subir')}
                             aria-haspopup="dialog"
@@ -248,7 +296,28 @@ const SemanaEnProgreso = ({
                                 ? t('Día {n} de {total}', { n: diaDeLaSemana, total: DIAS_DE_LA_SEMANA })
                                 : `${fechaCorta(dias[0].iso)} – ${fechaCorta(dias[DIAS_DE_LA_SEMANA - 1].iso)}`}
                         </p>
-                        {rango && (
+                        {rangoVivo && (
+                            <button type="button" className={styles.rango} onClick={() => setEscaleraAbierta(true)} aria-haspopup="dialog">
+                                <span className={styles.rangoNombre}>
+                                    {nombreConDivision(rangoVivo.clave, rangoVivo.division, t)}
+                                    <ChevronRight size={14} strokeWidth={2.5} aria-hidden="true" />
+                                </span>
+                                {rangoVivo.siguiente && (
+                                    <>
+                                        <span className={styles.rangoBarra} aria-hidden="true">
+                                            <i className={styles.rangoBarraLleno} style={estiloAvance(rangoVivo.avance)} />
+                                        </span>
+                                        <span className={styles.rangoFalta}>
+                                            {t('{n} pts para {rango}', {
+                                                n: formatNumber(rangoVivo.puntos_para_la_siguiente),
+                                                rango: nombreConDivision(rangoVivo.siguiente.clave, rangoVivo.siguiente.division, t),
+                                            })}
+                                        </span>
+                                    </>
+                                )}
+                            </button>
+                        )}
+                        {rango && !rangoVivo && (
                             <button type="button" className={styles.rango} onClick={() => setEscaleraAbierta(true)} aria-haspopup="dialog">
                                 <span className={styles.rangoNombre}>
                                     {t('Rango {rango}', { rango: nombreDelRango(rango.clave) })}
@@ -270,6 +339,19 @@ const SemanaEnProgreso = ({
                 {calendario}
             </div>
 
+            {/* [P1-PLAN-LOTE-1161] el marcador de hoy: puntos en vivo, llama de racha y logros */}
+            {juego && enCurso && hoyVivo && (
+                <PuntosDeHoy
+                    puntos={hoyVivo.puntos}
+                    mult={hoyVivo.mult}
+                    logros={hoyVivo.logros}
+                    racha={rachaVivo}
+                    tramo={tramoDeRacha(rachaVivo)}
+                    escudos={Number(servidor.escudos) || 0}
+                    escudosMax={Number(servidor.escudos_max) || ESCUDOS_MAX}
+                    onAbrir={() => setEscaleraAbierta(true)}
+                />
+            )}
             {/* [P1-PLAN-LOTE-1059 · plan 1035] cierre de semana e hitos: una vez, y se marcan vistos en el servidor */}
             <CierreDeSemana userId={userId} eventos={servidor?.eventos} onCompartir={compartirSemana} />
             {diaACompartir?.dia && (
@@ -298,6 +380,7 @@ const SemanaEnProgreso = ({
                     onCerrar={() => setEscaleraAbierta(false)}
                     estrellas={Number(servidor?.total?.estrellas) || 0}
                     semanasCerradas={Math.max(0, (Number(servidor?.total?.semanas) || 1) - 1)}
+                    {...escaleraProps}
                 />
             )}
 
@@ -319,9 +402,11 @@ const SemanaEnProgreso = ({
                     ))}
                 </span>
                 <p className={styles.cuenta}>
-                    {t('{n} de {total} días en meta', { n: enMeta, total: DIAS_DE_LA_SEMANA })}
+                    {porPuntos
+                        ? <><strong className={styles.cuentaPts}>{formatNumber(puntosSemana)}</strong> {t('pts esta semana')}</>
+                        : t('{n} de {total} días en meta', { n: enMeta, total: DIAS_DE_LA_SEMANA })}
                 </p>
-                {racha >= 2 && (
+                {!juego && racha >= 2 && (
                     <span className={styles.racha} role="img" aria-label={textoRacha} title={textoRacha}>
                         <Flame size={14} strokeWidth={2.5} aria-hidden="true" />
                         {racha}
@@ -400,7 +485,7 @@ const SemanaEnProgreso = ({
                             whileTap={futuro ? undefined : { scale: 0.97 }}
                             disabled={futuro}
                             aria-pressed={activo}
-                            aria-label={`${fechaLarga(d)}: ${textoEstado(d)}`}
+                            aria-label={`${fechaLarga(d)}: ${textoEstado(d)}${puntosDelDia.get(d.iso) > 0 ? ` · ${t('{n} pts', { n: formatNumber(puntosDelDia.get(d.iso)) })}` : ''}`}
                             onClick={() => setElegido(activo ? null : d.iso)}
                             style={{ '--i': i }}
                         >
@@ -432,6 +517,9 @@ const SemanaEnProgreso = ({
                                     )}
                                 </span>
                             </span>
+                            {puntosDelDia.get(d.iso) > 0 && (
+                                <span className={styles.ptsDia} aria-hidden="true">+{formatNumber(puntosDelDia.get(d.iso))}</span>
+                            )}
                         </motion.button>
                     );
                 })}
@@ -446,7 +534,9 @@ const SemanaEnProgreso = ({
             {enCurso && faltan > 0 && (
                 <p className={styles.aviso}>
                     <Star size={13} strokeWidth={2.5} aria-hidden="true" />
-                    {tn(faltan, 'Falta {n} día en meta para otra estrella', 'Faltan {n} días en meta para otra estrella', { n: faltan })}
+                    {porPuntos
+                        ? t('Faltan {n} pts para otra estrella', { n: formatNumber(faltan) })
+                        : tn(faltan, 'Falta {n} día en meta para otra estrella', 'Faltan {n} días en meta para otra estrella', { n: faltan })}
                 </p>
             )}
 
