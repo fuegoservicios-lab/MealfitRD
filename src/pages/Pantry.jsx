@@ -200,7 +200,7 @@ const tempOfZone = (zoneDef) => (zoneDef && zoneDef.kind === 'pantry' ? 'seco' :
 // siempre, con el agravante de que en es-DO se ve perfecto.
 const getTempZones = () => [
     { id: 'frio', label: t('Nevera') },
-    { id: 'seco', label: t('Alacena') },
+    { id: 'seco', label: t('Despensa') },
 ];
 
 const ZONE_DISPLAY_COLOR = {
@@ -332,7 +332,7 @@ const getZoneLabels = () => ({
     door:           t('Puerta · Bebidas & Condimentos'),
     drawer_fruits:  t('Frutas'),
     drawer_veggies: t('Verduras'),
-    pantry:         t('Alacena · Granos y secos'),
+    pantry:         t('Despensa · Granos y secos'),
 });
 
 const getZoneDefinitions = () => {
@@ -670,12 +670,32 @@ const PantryPage = () => {
             toast.error(t('No se pudo guardar. Inténtalo de nuevo.'));
         }
     };
+    // [P1-PLAN-LOTE-1160] Devuelve a la Nevera lo que está en la papelera (30 días) y recarga.
+    const restaurarDeLaPapelera = async (cuerpo) => {
+        try {
+            const r = await _apiJson('/api/inventory/papelera/restaurar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cuerpo),
+            });
+            invalidateInventoryCache();
+            fetchData(false);
+            _scheduleRecalcShoppingList();
+            toast.success(t('Recuperado: {n}', { n: (r?.items || []).length }), { icon: iconoDeAviso('deshacer'), duration: 2500 });
+        } catch {
+            toast.error(t('No se pudo restaurar el alimento.'));
+        }
+    };
     const borrarSuplemento = async (id) => {
         try {
             await _apiJson(`/api/inventory/items/${id}`, { method: 'DELETE' });
             invalidateInventoryCache();
             fetchData(false);
-            toast.success(t('Suplemento quitado de tu Alacena'));
+            // [P1-PLAN-LOTE-1160] el pote va a la papelera con su etiqueta: se puede deshacer
+            toast.success(t('Suplemento quitado de tu Despensa'), {
+                duration: 6000,
+                action: { label: t('Deshacer'), onClick: () => restaurarDeLaPapelera({ original_ids: [id] }) },
+            });
         } catch {
             toast.error(t('No se pudo quitar. Inténtalo de nuevo.'));
         }
@@ -1894,26 +1914,17 @@ const PantryPage = () => {
             action: {
                 label: t('Deshacer'),
                 onClick: async () => {
-                    // Re-insertar en la DB
-                    // [P1-NEON-DB-MIGRATION · 2026-06-12] POST /api/inventory/items
-                    // — la respuesta {item} ya trae el embed master_ingredients
-                    // (paridad con el .select() del insert legacy).
+                    // [P1-PLAN-LOTE-1160] Deshacer = sacarlo de la papelera: vuelve la fila ENTERA (marca, tipo y, si
+                    // es un pote, su etiqueta). Antes se reinsertaba a mano y un pote volvía como alimento sin etiqueta.
                     try {
                         const oldId = deletedItem.id;
-                        const _json = await _apiJson('/api/inventory/items', {
+                        const _json = await _apiJson('/api/inventory/papelera/restaurar', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                ingredient_name: deletedItem.ingredient_name,
-                                quantity: deletedItem.quantity,
-                                unit: deletedItem.unit,
-                                master_ingredient_id: deletedItem.master_ingredient_id || null,
-                                source: deletedItem.source || null,
-                                category: deletedItem.category || null,
-                            }),
+                            body: JSON.stringify({ original_ids: [oldId] }),
                         });
-                        const data = _json?.item;
-                        if (!data) throw new Error('INSERT sin item en la respuesta.');
+                        const data = _json?.items?.[0];
+                        if (!data) throw new Error('La papelera no devolvió la fila.');
 
                         // Insertar nueva data devuelta por DB
                         setInventory(prev =>
@@ -1954,9 +1965,11 @@ const PantryPage = () => {
             // [P1-NEON-DB-MIGRATION · 2026-06-12] DELETE /api/inventory/items
             // (sin id = vaciar nevera completa) → {deleted_count}. El backend
             // filtra user_id server-side (I2) — el delete legacy confiaba en RLS.
-            await _apiJson('/api/inventory/items', { method: 'DELETE' });
+            // [P1-PLAN-LOTE-1160] solo los ALIMENTOS (los potes de suplementos se quedan) y todo va a la papelera.
+            const _borrado = await _apiJson('/api/inventory/items', { method: 'DELETE' });
+            const _papeleraIds = _borrado?.papelera_ids || [];
 
-            setInventory([]);
+            setInventory(prev => prev.filter(i => i.kind === 'supplement'));
             // Vaciar también la lista de "agotados" — el usuario está empezando
             // desde cero, no tiene sentido conservar recordatorios viejos.
             // [P3-DELETEALL-DEPLETED · 2026-05-30] El clear local de
@@ -1975,7 +1988,10 @@ const PantryPage = () => {
                 }
             })();
             toast.dismiss(loadingToast);
-            toast.success(t('Todos los alimentos han sido borrados'));
+            toast.success(t('Todos los alimentos han sido borrados'), _papeleraIds.length ? {
+                duration: 8000,
+                action: { label: t('Deshacer'), onClick: () => restaurarDeLaPapelera({ papelera_ids: _papeleraIds }) },
+            } : undefined);
 
             // [P3-AUDIT-8 · 2026-05-10] Delega al helper SSOT. Pasa
             // `clearRestockedFlag=true` porque vaciar la nevera invalida
@@ -2904,7 +2920,7 @@ const PantryPage = () => {
                         ) : (
                             <>
                                 <span className={mstyles.emptyIco} aria-hidden="true"><Wheat size={26} /></span>
-                                <b>{t('Tu alacena está vacía')}</b>{t('Arroz, granos, especias y conservas viven aquí.')}
+                                <b>{t('Tu despensa está vacía')}</b>{t('Arroz, granos, especias y conservas viven aquí.')}
                             </>
                         )}
                     </div>
@@ -3038,7 +3054,7 @@ const PantryPage = () => {
                     <div className={fstyles.main}>
                         <div className={fstyles.head}>
                             <div className={fstyles.mobtitle}>
-                                <FridgeGlyph size={20} />{tempZone === 'frio' ? t('Nevera') : t('Alacena')}
+                                <FridgeGlyph size={20} />{tempZone === 'frio' ? t('Nevera') : t('Despensa')}
                                 <span className={fstyles.c}>{tempZoneCount}</span>
                             </div>
                             <div className={fstyles.search}>
@@ -3190,7 +3206,7 @@ const PantryPage = () => {
                                     ) : tempZone === 'frio' ? (
                                         <><b>{t('Tu nevera está vacía')}</b>{t('Registra tus compras recientes o añade tus primeros ingredientes con el botón “Añadir”.')}</>
                                     ) : (
-                                        <><b>{t('Tu alacena está vacía')}</b>{t('Arroz, granos, especias y conservas viven aquí. Añádelos con el botón “Añadir”.')}</>
+                                        <><b>{t('Tu despensa está vacía')}</b>{t('Arroz, granos, especias y conservas viven aquí. Añádelos con el botón “Añadir”.')}</>
                                     )}
                                 </div>
                             )}
@@ -3878,7 +3894,7 @@ const PantryPage = () => {
                                 {t('¿Vaciar la Nevera?')}
                             </h2>
                             <p className={fstyles.confirmText}>
-                                {t('Vas a borrar')} <strong>{t('todos los alimentos')}</strong> {t('de la despensa. Esta acción no se puede deshacer.')}
+                                {t('Vas a borrar')} <strong>{t('todos los alimentos')}</strong> {t('de la Nevera. Tus suplementos se quedan, y si te equivocas puedes deshacerlo.')}
                             </p>
                             <div className={fstyles.confirmActions}>
                                 <button

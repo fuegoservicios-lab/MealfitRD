@@ -132,7 +132,7 @@ export const QSupplements = ({ onFinish, isSubmitting, finishLabel, modoContador
                     {t('¿Tomas algún suplemento?')}
                 </div>
                 <p style={{ margin: '0.35rem 0 0.9rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    {t('Márcalos y los guardamos en tu Alacena.')}
+                    {t('Márcalos y los guardamos en tu Despensa.')}
                 </p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '0.75rem' }}>
                     {SUPPLEMENTS.map((val) => {

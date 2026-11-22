@@ -665,7 +665,7 @@ const InteractiveAssessmentFlow = () => {
         {
             // [P1-PLAN-LOTE-292] «¿qué tomas?» + «¿te recomendamos?» (ver QSupplements)
             title: t('Suplementos (opcional)'),
-            subtitle: t('Lo que ya tomas va a tu Alacena y al plan; si quieres, te recomendamos lo que tiene respaldo.'),
+            subtitle: t('Lo que ya tomas va a tu Despensa y al plan; si quieres, te recomendamos lo que tiene respaldo.'),
             hasInternalNext: true,
             // [P1-PANTRY-WIZARD-STEP · 2026-07-11] En modo pantry este step ya NO es el
             // final: avanza al paso "Prepara tu Nevera" (abajo) y el submit vive allí.

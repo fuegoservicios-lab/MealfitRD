@@ -65,7 +65,7 @@ afterEach(() => { window.matchMedia = matchMediaOriginal; });
 
 const abrirAlacena = async () => {
     render(<MemoryRouter initialEntries={['/dashboard/pantry']}><Pantry /></MemoryRouter>);
-    fireEvent.click(await screen.findByRole('tab', { name: /Alacena/ }, { timeout: 10000 }));
+    fireEvent.click(await screen.findByRole('tab', { name: /Despensa/ }, { timeout: 10000 }));
 };
 
 describe('[766] la Alacena con un suplemento y sin alimentos', () => {
@@ -73,7 +73,7 @@ describe('[766] la Alacena con un suplemento y sin alimentos', () => {
         filas = [POTE];
         await abrirAlacena();
         expect(await screen.findByText('Atlas Gainer Advanced Mass Vanilla', {}, { timeout: 10000 })).toBeInTheDocument();
-        expect(screen.queryByText('Tu alacena está vacía')).toBeNull();
+        expect(screen.queryByText('Tu despensa está vacía')).toBeNull();
         expect(screen.getByText('Arroz, granos, especias y conservas viven aquí.')).toBeInTheDocument();
         // la tarjeta: marca, «Sin etiqueta» con cómo completarla, y la pregunta de las porciones con su campo
         expect(screen.getByText('Patriot Nutrition')).toBeInTheDocument();
@@ -86,7 +86,7 @@ describe('[766] la Alacena con un suplemento y sin alimentos', () => {
     it('sin suplementos, el vacío de siempre', async () => {
         filas = [];
         await abrirAlacena();
-        expect(await screen.findByText('Tu alacena está vacía', {}, { timeout: 10000 })).toBeInTheDocument();
+        expect(await screen.findByText('Tu despensa está vacía', {}, { timeout: 10000 })).toBeInTheDocument();
         expect(screen.queryByText('Sin etiqueta')).toBeNull();
     });
 });

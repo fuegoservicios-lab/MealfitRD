@@ -179,10 +179,10 @@ describe('[P1-I18N-DASHBOARD] carga de catálogo', () => {
         // categoría en BD es `DESPENSA Y GRANOS`— y tenían dos nombres distintos por
         // idioma. «Credenza» era además un mueble de comedor.
         const esperado = {
-            'en-US': { 'Guardar': 'Save', 'Idioma': 'Language', 'Nevera': 'Fridge', 'Alacena': 'Pantry' },
-            'pt-BR': { 'Guardar': 'Salvar', 'Nevera': 'Geladeira', 'Alacena': 'Despensa' },
+            'en-US': { 'Guardar': 'Save', 'Idioma': 'Language', 'Nevera': 'Fridge', 'Despensa': 'Pantry' },
+            'pt-BR': { 'Guardar': 'Salvar', 'Nevera': 'Geladeira', 'Despensa': 'Despensa' },
             'fr-FR': { 'Guardar': 'Enregistrer', 'Idioma': 'Langue', 'Nevera': 'Frigo' },
-            'it-IT': { 'Guardar': 'Salva', 'Historial': 'Cronologia', 'Nevera': 'Frigo', 'Alacena': 'Dispensa' },
+            'it-IT': { 'Guardar': 'Salva', 'Historial': 'Cronologia', 'Nevera': 'Frigo', 'Despensa': 'Dispensa' },
         };
         for (const [code, pares] of Object.entries(esperado)) {
             const ok = await loadLocale(code);
