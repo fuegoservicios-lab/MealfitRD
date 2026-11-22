@@ -412,3 +412,14 @@
 .esqueletoBuscador {
     margin-top: 1.5rem;
 }
+
+/* [P1-PLAN-LOTE-1167 · 2026-11-22] PC ancho: el dueño vio espacio desaprovechado («quiero que la gente de pc tenga su
+   estilo»). Con la lista a una columna cada fila medía ~800 px con el nombre a un lado y los botones al otro; desde
+   1240 px de mueble (columna ≥ 480 px: nombre entero + botones), las categorías van en DOS columnas (rejilla: los encabezados sticky siguen funcionando dentro de
+   cada grupo, cosa que `columns` rompe). Vacío, agotados y suplementos ocupan el ancho entero. Móvil intacto. */
+@container (min-width: 1240px) {
+  .list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; align-content: start; align-items: start; }
+  .list > .empty, .list > .depleted, .list > .soloSuplementos { grid-column: 1 / -1; }
+  .list > :not(.group):not(.empty):not(.depleted):not(.soloSuplementos) { grid-column: 1 / -1; }
+  .rname { max-width: none; flex: 0 1 auto; min-width: 0; }
+}

@@ -2963,7 +2963,7 @@ const PantryPage = () => {
     return (
         <div className={fstyles.page}>
             {isMobileLayout ? renderMobileShell() : (
-            <section className={fstyles.app} aria-label={t('Inventario de alimentos')}>
+            <section className={fstyles.app} data-nevera-pc aria-label={t('Inventario de alimentos')}>
                 <div className={fstyles.shell}>
                     {/* ===== Sidebar (escritorio) ===== */}
                     <aside className={fstyles.side}>
