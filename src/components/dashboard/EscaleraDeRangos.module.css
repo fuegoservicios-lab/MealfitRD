@@ -381,3 +381,70 @@
 @media (prefers-reduced-motion: reduce) {
     .overlay, .sheet, .barraRelleno, .escalera::after, .gemaGrande::after { animation: none; }
 }
+
+/* [P1-PLAN-LOTE-1161 · 2026-11-22] juego por puntos: cómo se ganan, la racha que multiplica, escudos y divisiones */
+.puntosLista { margin: 0.4rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.3rem; }
+.puntosFila {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius-md);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-main);
+    background: color-mix(in srgb, var(--bg-muted) 70%, transparent);
+}
+.puntosValor { flex: none; font-weight: 850; color: var(--primary); font-variant-numeric: tabular-nums; }
+
+.llamita { color: var(--ink-warn); }
+.tramos { margin: 0.45rem 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.35rem; }
+.tramo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    padding: 0.45rem 0.2rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    text-align: center;
+    color: var(--text-muted);
+}
+.tramoMult { font-size: 1rem; font-weight: 850; font-variant-numeric: tabular-nums; }
+.tramoNombre { font-size: 0.75rem; font-weight: 700; }
+.tramoDias { font-size: 0.75rem; font-weight: 500; }
+.tramoLogrado { color: var(--ink-warn); border-color: color-mix(in srgb, var(--ink-warn) 35%, var(--border)); }
+.tramoActual {
+    color: var(--ink-warn);
+    background: color-mix(in srgb, var(--ink-warn) 14%, transparent);
+    border-color: color-mix(in srgb, var(--ink-warn) 60%, transparent);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--ink-warn) 30%, transparent);
+}
+
+.escudosNota {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin: 0.55rem 0 0;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+.escudosFila { flex: none; display: inline-flex; gap: 0.15rem; padding-top: 0.05rem; }
+.escudoLleno { color: var(--primary); fill: color-mix(in srgb, var(--primary) 35%, transparent); }
+.escudoVacio { color: color-mix(in srgb, var(--text-muted) 45%, transparent); }
+
+.divisiones { display: inline-flex; gap: 0.25rem; margin-top: 0.25rem; }
+.division {
+    min-width: 1.75rem;
+    padding: 0.05rem 0.3rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-align: center;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
+.divisionHecha { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.divisionAqui { color: white; background: var(--primary); border-color: var(--primary); }

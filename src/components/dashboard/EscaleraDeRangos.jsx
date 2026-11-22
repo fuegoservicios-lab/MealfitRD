@@ -22,19 +22,26 @@
 //    cerradas da 81). El camino es ahora un plan con los TRES ritmos que dan estrellas (7, 5 y 3 días en meta → cuántas
 //    semanas cada uno); «a tu ritmo» solo si es una cifra razonable (≤ 52 semanas). Las reglas de las estrellas quedan
 //    dentro de ese plan (eran una tarjeta aparte que repetía lo mismo); en la cima siguen solas.
+// [P1-PLAN-LOTE-1161 · 2026-11-22] Juego 2.0: con `puntos` (servidor nuevo) la hoja enseña el rango CON DIVISIÓN
+// (Plata II), los puntos totales, el camino a la siguiente división, la escalera de 5 rangos × 3 divisiones, cómo se
+// ganan los puntos y la escalera de la racha (multiplicadores y escudos). Sin `puntos`, la hoja de estrellas de antes.
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { Check, Lock, Star, Trophy, X } from 'lucide-react';
+import { Check, Flame, Lock, Shield, Star, Trophy, X } from 'lucide-react';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { Button } from '../ui/Button';
 import { formatNumber, useT, useTn } from '../../i18n';
 import { ESCALERA, posicionEnLaEscalera, semanasHasta, semanasPorRitmo, RITMO_PROPIO_MAX_SEMANAS } from '../../utils/caminoDeRangos';   // [1157] [1158]
+import {
+    ESCUDOS_MAX, ESCUDO_CADA, PUNTOS, RANGOS_PUNTOS, TRAMOS_RACHA, escaleraDePuntos, nombreDelRango, nombreDelTramo,
+    rangoPorPuntos, tramoDeRacha,
+} from '../../utils/juegoPuntos';
 import styles from './EscaleraDeRangos.module.css';
 
 /** La hoja abierta: existe solo mientras se ve, así `useBottomSheet` recuerda y restaura el scroll del fondo. */
-function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
+function HojaDeRangos({ onCerrar, estrellas, semanasCerradas, puntos = null, racha = 0, escudos = 0, aguaEncendida = false }) {
     const t = useT();
     const tn = useTn();
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose: onCerrar });
@@ -72,6 +79,18 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
     const tramos = ESCALERA.length - 1;
     const relleno = Math.min(1, (pos.indice + (pos.siguiente ? pos.avance : 0)) / tramos);
     const estrellasTexto = (n) => `${formatNumber(n)} ★`;
+    // [1161] modo puntos
+    const conPuntos = Number.isFinite(Number(puntos)) && puntos !== null;
+    const rp = conPuntos ? rangoPorPuntos(puntos) : null;
+    const pelDePuntos = conPuntos ? escaleraDePuntos() : [];
+    const indiceRango = conPuntos ? RANGOS_PUNTOS.findIndex(([c]) => c === rp.clave) : 0;
+    const rellenoPts = conPuntos ? Math.min(1, (indiceRango + (rp.division - 1 + (rp.siguiente ? rp.avance : 1)) / 3) / (RANGOS_PUNTOS.length - 1)) : 0;
+    const ptsTexto = (n) => t('{n} pts', { n: formatNumber(n) });
+    const tramo = tramoDeRacha(racha);
+    const nombresPuntos = {
+        registro: t('Registrar lo que comes'), completo: t('Día completo (3 comidas o más)'),
+        banda: t('Calorías dentro de tu meta'), proteina: t('Llegar a tu proteína'), agua: t('Tu agua del día'),
+    };
 
     return (
         <div className={styles.overlay}>
@@ -96,7 +115,134 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
                     </button>
                 </div>
 
-                <div ref={bodyRef} className={styles.body} tabIndex={0} style={{ '--avance': pos.avance, '--relleno': relleno }}>
+                <div ref={bodyRef} className={styles.body} tabIndex={0} style={{ '--avance': conPuntos ? rp.avance : pos.avance, '--relleno': conPuntos ? rellenoPts : relleno }}>
+                    {conPuntos ? (
+                    <>
+                    <div className={styles.columna}>
+                        <header className={styles.cabecera}>
+                            <span className={`${styles.gema} ${styles.gemaGrande} ${styles[`metal_${rp.clave}`]}`} aria-hidden="true">
+                                <Trophy size={30} strokeWidth={2.25} />
+                            </span>
+                            <p className={styles.antetitulo}>{t('Tu rango')}</p>
+                            <h2 id="escalera-rangos-titulo" className={styles.titulo}>{nombreDelRango(rp.clave, rp.division, t)}</h2>
+                            <p className={styles.total}>{t('{n} pts en total', { n: formatNumber(puntos) })}</p>
+                        </header>
+
+                        {rp.siguiente ? (
+                            <section className={styles.tarjeta} aria-labelledby="escalera-camino">
+                                <h3 id="escalera-camino" className={styles.tarjetaTitulo}>
+                                    <span className={`${styles.gema} ${styles.gemaMini} ${styles[`metal_${rp.siguiente.clave}`]}`} aria-hidden="true" />
+                                    {t('Camino a {rango}', { rango: nombreDelRango(rp.siguiente.clave, rp.siguiente.division, t) })}
+                                </h3>
+                                <p className={styles.progresoFalta}>{t('Te faltan {n} pts', { n: formatNumber(rp.puntos_para_la_siguiente) })}</p>
+                                <div
+                                    className={styles.barra}
+                                    role="progressbar"
+                                    aria-valuemin={rp.desde}
+                                    aria-valuemax={rp.hasta}
+                                    aria-valuenow={puntos}
+                                    aria-label={t('Avance hacia {rango}', { rango: nombreDelRango(rp.siguiente.clave, rp.siguiente.division, t) })}
+                                >
+                                    {rp.avance > 0 && <span className={`${styles.barraRelleno} ${styles[`metal_${rp.siguiente.clave}`]}`} />}
+                                </div>
+                                <div className={styles.extremos} aria-hidden="true">
+                                    <span>{ptsTexto(rp.desde)}</span>
+                                    <span>{ptsTexto(rp.hasta)}</span>
+                                </div>
+                            </section>
+                        ) : (
+                            <p className={styles.cima}>{t('Estás en la cima: llegaste a Diamante III.')}</p>
+                        )}
+
+                        <section className={styles.tarjeta} aria-labelledby="escalera-como">
+                            <h3 id="escalera-como" className={styles.tarjetaTitulo}>{t('Cómo ganar puntos cada día')}</h3>
+                            <ul className={styles.puntosLista}>
+                                {Object.keys(PUNTOS).filter((k) => k !== 'agua' || aguaEncendida).map((k) => (
+                                    <li key={k} className={styles.puntosFila}>
+                                        <span>{nombresPuntos[k]}</span>
+                                        <strong className={styles.puntosValor}>+{PUNTOS[k]}</strong>
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className={styles.planNota}>{t('Los puntos no se pierden y nunca bajas de rango.')}</p>
+                        </section>
+
+                        <section className={styles.tarjeta} aria-labelledby="escalera-racha">
+                            <h3 id="escalera-racha" className={styles.tarjetaTitulo}>
+                                <Flame size={16} strokeWidth={2.5} className={styles.llamita} aria-hidden="true" />
+                                {t('Tu racha multiplica los puntos')}
+                            </h3>
+                            <ol className={styles.tramos}>
+                                {[...TRAMOS_RACHA].reverse().filter(([desde]) => desde > 0).map(([desde, mult, clave]) => (
+                                    <li key={clave} className={`${styles.tramo} ${tramo.clave === clave ? styles.tramoActual : ''} ${racha >= desde ? styles.tramoLogrado : ''}`}>
+                                        <span className={styles.tramoMult}>×{formatNumber(mult, { maximumFractionDigits: 2 })}</span>
+                                        <span className={styles.tramoNombre}>{nombreDelTramo(clave, t)}</span>
+                                        <span className={styles.tramoDias}>{tn(desde, 'desde {n} día', 'desde {n} días', { n: desde })}</span>
+                                    </li>
+                                ))}
+                            </ol>
+                            <p className={styles.planNota}>
+                                {tramo.siguienteEn
+                                    ? tn(tramo.siguienteEn - racha, '{n} día más registrando y ganas ×{m}.', '{n} días más registrando y ganas ×{m}.',
+                                        { n: tramo.siguienteEn - racha, m: formatNumber(tramo.siguienteMult, { maximumFractionDigits: 2 }) })
+                                    : t('Racha de leyenda: todo lo que ganas vale el doble.')}
+                            </p>
+                            <p className={styles.escudosNota}>
+                                <span className={styles.escudosFila} aria-hidden="true">
+                                    {Array.from({ length: ESCUDOS_MAX }, (_, i) => (
+                                        <Shield key={i} size={15} strokeWidth={2.5} className={i < escudos ? styles.escudoLleno : styles.escudoVacio} />
+                                    ))}
+                                </span>
+                                {t('Cada {n} días seguidos ganas un escudo (máximo {m}). Si un día no registras, el escudo salva tu racha.', { n: ESCUDO_CADA, m: ESCUDOS_MAX })}
+                            </p>
+                        </section>
+                    </div>
+
+                    <div className={styles.columna}>
+                        <ol className={styles.escalera} aria-label={t('Los rangos')}>
+                            {RANGOS_PUNTOS.map(([clave, desde], i) => {
+                                const estado = i < indiceRango ? 'logrado' : i === indiceRango ? 'actual' : 'bloqueado';
+                                const esSiguiente = i === indiceRango + 1;
+                                const divs = pelDePuntos.filter((x) => x.clave === clave);
+                                return (
+                                    <li
+                                        key={clave}
+                                        className={`${styles.peldano} ${styles[estado]} ${esSiguiente ? styles.siguiente : ''}`}
+                                        aria-current={estado === 'actual' ? 'step' : undefined}
+                                    >
+                                        <span className={`${styles.gema} ${styles[`metal_${clave}`]}`} aria-hidden="true">
+                                            {estado === 'bloqueado' ? <Lock size={15} strokeWidth={2.5} /> : <Trophy size={17} strokeWidth={2.25} />}
+                                        </span>
+                                        <div className={styles.peldanoTexto}>
+                                            <span className={styles.peldanoNombre}>{nombreDelRango(clave, null, t)}</span>
+                                            <span className={styles.peldanoDesde}>
+                                                {desde === 0 ? t('Tu punto de partida') : t('Desde {n} pts', { n: formatNumber(desde) })}
+                                            </span>
+                                            <span className={styles.divisiones} aria-label={t('Divisiones de {rango}', { rango: nombreDelRango(clave, null, t) })}>
+                                                {divs.map((d) => {
+                                                    const hecha = puntos >= d.desde;
+                                                    const aqui = clave === rp.clave && d.division === rp.division;
+                                                    return (
+                                                        <span key={d.division} className={`${styles.division} ${hecha ? styles.divisionHecha : ''} ${aqui ? styles.divisionAqui : ''}`}>
+                                                            {['I', 'II', 'III'][d.division - 1]}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </span>
+                                        </div>
+                                        <span className={styles.peldanoEstado}>
+                                            {estado === 'logrado' && <><Check size={14} strokeWidth={3} aria-hidden="true" />{t('Conseguido')}</>}
+                                            {estado === 'actual' && t('Estás aquí')}
+                                            {esSiguiente && t('Faltan {n} pts', { n: formatNumber(desde - puntos) })}
+                                        </span>
+                                    </li>
+                                );
+                            })}
+                        </ol>
+                    </div>
+                    </>
+                    ) : (
+                    <>
                     <div className={styles.columna}>
                     <header className={styles.cabecera}>
                         <span className={`${styles.gema} ${styles.gemaGrande} ${styles[`metal_${pos.actual.clave}`]}`} aria-hidden="true">
@@ -219,6 +365,8 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
                     </section>
                     )}
                     </div>
+                    </>
+                    )}
                 </div>
 
                 <div className={styles.pie}>
@@ -229,18 +377,23 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas }) {
     );
 }
 
+const PROPS_PUNTOS = {
+    puntos: PropTypes.number,
+    racha: PropTypes.number,
+    escudos: PropTypes.number,
+    aguaEncendida: PropTypes.bool,
+};
+
 HojaDeRangos.propTypes = {
     onCerrar: PropTypes.func.isRequired,
     estrellas: PropTypes.number,
     semanasCerradas: PropTypes.number,
+    ...PROPS_PUNTOS,
 };
 
-export function EscaleraDeRangos({ abierta, onCerrar, estrellas, semanasCerradas }) {
+export function EscaleraDeRangos({ abierta, onCerrar, ...resto }) {
     if (!abierta || typeof document === 'undefined') return null;
-    return createPortal(
-        <HojaDeRangos onCerrar={onCerrar} estrellas={estrellas} semanasCerradas={semanasCerradas} />,
-        document.body,
-    );
+    return createPortal(<HojaDeRangos onCerrar={onCerrar} {...resto} />, document.body);
 }
 
 EscaleraDeRangos.propTypes = {
@@ -248,6 +401,7 @@ EscaleraDeRangos.propTypes = {
     onCerrar: PropTypes.func.isRequired,
     estrellas: PropTypes.number,
     semanasCerradas: PropTypes.number,
+    ...PROPS_PUNTOS,
 };
 
 export default EscaleraDeRangos;

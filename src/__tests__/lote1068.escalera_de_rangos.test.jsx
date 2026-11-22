@@ -76,7 +76,7 @@ describe('[1068] la tarjeta la abre', () => {
     const SRC = readFileSync(resolve(process.cwd(), 'src/components/dashboard/SemanaEnProgreso.jsx'), 'utf8');
     it('la insignia y la línea del rango son botones que abren la escalera', () => {
         expect(SRC).toContain("aria-label={t('Ver los rangos y cómo subir')}");
-        expect((SRC.match(/onClick=\{\(\) => setEscaleraAbierta\(true\)\}/g) || []).length).toBe(2);
+        expect((SRC.match(/onClick=\{\(\) => setEscaleraAbierta\(true\)\}/g) || []).length).toBeGreaterThanOrEqual(2);   // [1161] + la línea del rango con división
         expect(SRC).toContain('<EscaleraDeRangos');
     });
     it('«Te faltan…» va en su línea, ya no detrás de un «·»', () => {
