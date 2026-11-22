@@ -4,7 +4,7 @@
     min-height: 100dvh;
     background-color: #f8fafc; /* Lighter background for better contrast with cards */
     position: relative;
-    overflow-x: hidden;
+    overflow-x: clip;
     /* [P1-Z-SCALE · 2026-08-10] ESTA LÍNEA GOBIERNA EL APILAMIENTO DE TODO EL
        PRODUCTO y llevaba sin una palabra que lo dijera.
 

@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Award, Flame, Share2, Shield, Star, Trophy, X, Zap } from 'lucide-react';
+import { Award, Crown, Flame, Share2, Shield, Star, Trophy, X, Zap } from 'lucide-react';
 import { formatNumber, useT, useTn } from '../../i18n';
 import { nombreDelRango } from '../../utils/juegoPuntos';
 import { marcarEventosVistos } from '../../utils/progresoServidor';
@@ -45,6 +45,12 @@ function textosDelEvento(ev, { t, tn }) {
         // [P1-PLAN-LOTE-1161] juego por puntos
         case 'division':
             return { titulo: t('¡Subiste a {rango}!', { rango: nombreDelRango(d.clave, d.division, t) }), texto: t('Por tus puntos acumulados.') };
+        // [P1-PLAN-LOTE-1163] el rango especial
+        case 'maestro':
+            return {
+                titulo: t('¡Eres Maestro!'),
+                texto: t('El rango más difícil: miles de puntos, semanas perfectas y una racha de 100 días. Es tuyo para siempre.'),
+            };
         case 'escudo_ganado':
             return { titulo: t('Ganaste un escudo de racha'), texto: t('Si un día no registras, te guarda la racha.') };
         case 'escudo_salvo':
@@ -64,7 +70,7 @@ function textosDelEvento(ev, { t, tn }) {
 
 const ICONO = {
     semana_cerrada: Star, primera_estrella: Star, primera_semana_perfecta: Star, racha: Flame,
-    division: Trophy, escudo_ganado: Shield, escudo_salvo: Shield, record_dia: Zap,
+    division: Trophy, maestro: Crown, escudo_ganado: Shield, escudo_salvo: Shield, record_dia: Zap,
 };
 
 const CierreDeSemana = ({ userId, eventos, onCompartir = null }) => {

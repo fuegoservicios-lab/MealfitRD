@@ -7,11 +7,14 @@ import { t, tn, formatNumber, formatDate } from '../i18n';
 import { BRAND } from '../data/routeMeta';
 import { SITIO } from './compartirDia';
 import { PINCEL } from './historiaConFoto';
+import { divisionRomana } from './juegoPuntos';
 
 export const DIAS = 7;
 export const ESTRELLAS_MAX = 3;
 const ESTADOS = new Set(['meta', 'bajo', 'pasado', 'vacio', 'futuro']);
-const NOMBRE_RANGO = () => ({ bronce: t('Bronce'), plata: t('Plata'), oro: t('Oro'), platino: t('Platino'), diamante: t('Diamante') });
+const NOMBRE_RANGO = () => ({
+    bronce: t('Bronce'), plata: t('Plata'), oro: t('Oro'), platino: t('Platino'), diamante: t('Diamante'), maestro: t('Maestro'),
+});
 // Tinta FIJA de los anillos (es un JPEG con su propio fondo, no interfaz): la MISMA paleta de la historia del día
 // en meta el verde, corto el ámbar, las estrellas el oro de las calorías; «pasado», el rojo de la tira de la app
 // (`.dia_pasado .arco`, el mismo degradado que su barra).
@@ -47,7 +50,8 @@ export function resumenDeSemana(semana) {
         // [P1-PLAN-LOTE-1161] con el juego por puntos: «Plata II» y los puntos de la semana
         rango: rangoClave ? {
             clave: rangoClave,
-            nombre: NOMBRE_RANGO()[rangoClave] + ({ 1: ' I', 2: ' II', 3: ' III' }[Number(s.division)] || ''),
+            // [P1-PLAN-LOTE-1163] divisiones IV→I (la `division` interna asciende); Maestro no lleva división
+            nombre: NOMBRE_RANGO()[rangoClave] + (rangoClave !== 'maestro' && divisionRomana(s.division) ? ` ${divisionRomana(s.division)}` : ''),
         } : null,
         puntos: Number.isFinite(Number(s.puntos)) && s.puntos !== null ? Math.max(0, Number(s.puntos)) : null,
         perfecta: enMeta >= DIAS,

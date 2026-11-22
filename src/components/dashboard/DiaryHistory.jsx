@@ -371,6 +371,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             estrellas: new Map(conPuntos.map((s) => [Number(s.numero), Number(s.estrellas) || 0])),
             puntos: new Map(conPuntos.map((s) => [Number(s.numero), Number(s.puntos) || 0])),
             racha: Number(resumenJuego.racha) || 0,
+            escudosUsados: new Set(Array.isArray(resumenJuego.escudos_usados) ? resumenJuego.escudos_usados : []),
+            totalPuntos: Number.isFinite(Number(resumenJuego.puntos?.total)) ? Number(resumenJuego.puntos.total) : null,
+            rango: resumenJuego.rango || null,
         };
     }, [resumenJuego, semanasJuego]);
     const [borrandoId, setBorrandoId] = useState(null);

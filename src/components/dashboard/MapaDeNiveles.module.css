@@ -443,6 +443,8 @@
 .insignia_meta { --c: var(--success); }
 .insignia_bajo { --c: var(--warning); }
 .insignia_sobre { --c: var(--danger); }
+.insignia_escudo { --c: var(--primary); }
+.nivelEscudo { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary-light) 65%, transparent); }
 .nivelHoy .insignia { width: 24px; height: 24px; top: -3px; right: -5px; }
 .nivelHoy .insignia svg { width: 15px; height: 15px; }
 

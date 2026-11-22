@@ -595,6 +595,14 @@
 .rango_oro { background: linear-gradient(155deg, #FBBF24 0%, #F59E0B 50%, #B45309 100%); }
 .rango_platino { background: linear-gradient(155deg, #A5F3FC 0%, #22D3EE 45%, #0E7490 100%); }
 .rango_diamante { background: linear-gradient(155deg, #C4B5FD 0%, #818CF8 45%, #4338CA 100%); }
+/* [P1-PLAN-LOTE-1163] Maestro, el rango especial: iridiscente (rosa → violeta → cian → verde → oro) y en lento vaivén */
+.rango_maestro {
+    background: linear-gradient(120deg, rgb(244 114 182) 0%, rgb(167 139 250) 25%, rgb(56 189 248) 50%, rgb(52 211 153) 75%, rgb(251 191 36) 100%);
+    background-size: 220% 220%;
+    animation: iridiscente 6s ease-in-out infinite alternate;
+}
+@keyframes iridiscente { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@media (prefers-reduced-motion: reduce) { .rango_maestro { animation: none; } }
 .semanaPerfecta .insignia.rango_bronce,
 .semanaPerfecta .insignia.rango_plata,
 .semanaPerfecta .insignia.rango_platino,
@@ -641,4 +649,27 @@
     line-height: 1;
     color: var(--primary);
     font-variant-numeric: tabular-nums;
+}
+.escudoDia {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.15rem;
+    color: var(--primary);
+}
+.diaEscudo .anillo {
+    box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--primary) 45%, transparent);
+    border-radius: 50%;
+}
+.vacioEscudo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.35rem 0 0;
+    padding: 0.45rem 0.65rem;
+    border-radius: var(--radius-md);
+    font-size: 0.8125rem;
+    font-weight: 650;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
 }

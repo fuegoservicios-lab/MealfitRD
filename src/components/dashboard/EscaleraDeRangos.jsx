@@ -25,23 +25,31 @@
 // [P1-PLAN-LOTE-1161 · 2026-11-22] Juego 2.0: con `puntos` (servidor nuevo) la hoja enseña el rango CON DIVISIÓN
 // (Plata II), los puntos totales, el camino a la siguiente división, la escalera de 5 rangos × 3 divisiones, cómo se
 // ganan los puntos y la escalera de la racha (multiplicadores y escudos). Sin `puntos`, la hoja de estrellas de antes.
+// [P1-PLAN-LOTE-1163 · 2026-11-22] El dueño: «que todo sea entendible y didáctico», divisiones como en los videojuegos
+// (Bronce IV es la entrada, Bronce I la cima del rango) y un rango especial muy difícil. La hoja enseña primero CÓMO se
+// sube (3 pasos), el camino con lo que tardas a tu ritmo, el bono de semana perfecta y, al final de la escalera,
+// MAESTRO con sus tres requisitos y cuánto llevas de cada uno.
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { Check, Flame, Lock, Shield, Star, Trophy, X } from 'lucide-react';
+import { Check, Crown, Flame, Lock, Shield, Star, Trophy, X } from 'lucide-react';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { Button } from '../ui/Button';
 import { formatNumber, useT, useTn } from '../../i18n';
 import { ESCALERA, posicionEnLaEscalera, semanasHasta, semanasPorRitmo, RITMO_PROPIO_MAX_SEMANAS } from '../../utils/caminoDeRangos';   // [1157] [1158]
 import {
-    ESCUDOS_MAX, ESCUDO_CADA, PUNTOS, RANGOS_PUNTOS, TRAMOS_RACHA, escaleraDePuntos, nombreDelRango, nombreDelTramo,
-    rangoPorPuntos, tramoDeRacha,
+    BONO_SEMANA_PERFECTA, DIVISIONES, ESCUDOS_MAX, ESCUDO_CADA, MAESTRO, MAESTRO_PUNTOS, PUNTOS, RANGOS_PUNTOS,
+    TRAMOS_RACHA, diasParaEscudo, divisionRomana, escaleraDePuntos, maestroProgreso, nombreDelRango, nombreDelTramo,
+    proximoHitoRacha, rangoDelJugador, tramoDeRacha,
 } from '../../utils/juegoPuntos';
 import styles from './EscaleraDeRangos.module.css';
 
 /** La hoja abierta: existe solo mientras se ve, así `useBottomSheet` recuerda y restaura el scroll del fondo. */
-function HojaDeRangos({ onCerrar, estrellas, semanasCerradas, puntos = null, racha = 0, escudos = 0, aguaEncendida = false }) {
+function HojaDeRangos({
+    onCerrar, estrellas, semanasCerradas, puntos = null, racha = 0, escudos = 0, aguaEncendida = false,
+    mejorRacha = 0, recordDia = 0, rango = null, maestro = null, diasJugados = 0,
+}) {
     const t = useT();
     const tn = useTn();
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose: onCerrar });
@@ -81,15 +89,32 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas, puntos = null, rac
     const estrellasTexto = (n) => `${formatNumber(n)} ★`;
     // [1161] modo puntos
     const conPuntos = Number.isFinite(Number(puntos)) && puntos !== null;
-    const rp = conPuntos ? rangoPorPuntos(puntos) : null;
+    // [1163] el rango llega ya resuelto (con piso y Maestro); sin él, se calcula de los puntos.
+    const rp = conPuntos ? (rango || rangoDelJugador(puntos, 0, mejorRacha)) : null;
+    const esMaestro = conPuntos && rp.clave === MAESTRO;
+    const req = conPuntos ? (maestro || maestroProgreso(puntos, 0, mejorRacha)) : null;
     const pelDePuntos = conPuntos ? escaleraDePuntos() : [];
-    const indiceRango = conPuntos ? RANGOS_PUNTOS.findIndex(([c]) => c === rp.clave) : 0;
-    const rellenoPts = conPuntos ? Math.min(1, (indiceRango + (rp.division - 1 + (rp.siguiente ? rp.avance : 1)) / 3) / (RANGOS_PUNTOS.length - 1)) : 0;
+    const indiceRango = conPuntos ? (esMaestro ? RANGOS_PUNTOS.length : RANGOS_PUNTOS.findIndex(([c]) => c === rp.clave)) : 0;
+    // raíl: 5 rangos + Maestro = 5 tramos; dentro de un rango, 4 divisiones
+    const rellenoPts = conPuntos
+        ? (esMaestro ? 1 : Math.min(1, (indiceRango + (rp.division - 1 + (rp.siguiente ? rp.avance : 1)) / DIVISIONES) / RANGOS_PUNTOS.length))
+        : 0;
+    // [1163] a tu ritmo: puntos por día desde tu día 1 → días hasta el siguiente peldaño
+    const ptsPorDia = conPuntos && diasJugados > 0 ? puntos / diasJugados : 0;
+    const faltanPts = conPuntos && rp.siguiente ? rp.puntos_para_la_siguiente : 0;
+    const diasAlRitmo = ptsPorDia >= 1 && faltanPts > 0 ? Math.ceil(faltanPts / ptsPorDia) : null;
+    const nombreRequisito = (r) => ({
+        puntos: t('Puntos totales'),
+        semanas_perfectas: t('Semanas perfectas (3★)'),
+        racha: t('Racha más larga (días)'),
+    })[r.clave] || '';
     const ptsTexto = (n) => t('{n} pts', { n: formatNumber(n) });
     const tramo = tramoDeRacha(racha);
+    const hito = proximoHitoRacha(racha);
+    const diasEsc = diasParaEscudo(racha, escudos);
     const nombresPuntos = {
-        registro: t('Registrar lo que comes'), completo: t('Día completo (3 comidas o más)'),
-        banda: t('Calorías dentro de tu meta'), proteina: t('Llegar a tu proteína'), agua: t('Tu agua del día'),
+        registro: t('Registrar lo que comes'), completo: t('Día completo (3 comidas o 2 con ≥70% kcal)'),
+        banda: t('Calorías dentro de tu meta'), proteina: t('Proteína (70% +5 · 90% +10)'), agua: t('Tu agua del día'),
     };
 
     return (
@@ -121,12 +146,38 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas, puntos = null, rac
                     <div className={styles.columna}>
                         <header className={styles.cabecera}>
                             <span className={`${styles.gema} ${styles.gemaGrande} ${styles[`metal_${rp.clave}`]}`} aria-hidden="true">
-                                <Trophy size={30} strokeWidth={2.25} />
+                                {esMaestro ? <Crown size={32} strokeWidth={2.25} /> : <Trophy size={30} strokeWidth={2.25} />}
                             </span>
-                            <p className={styles.antetitulo}>{t('Tu rango')}</p>
+                            <p className={styles.antetitulo}>{esMaestro ? t('Rango especial') : t('Tu rango')}</p>
                             <h2 id="escalera-rangos-titulo" className={styles.titulo}>{nombreDelRango(rp.clave, rp.division, t)}</h2>
                             <p className={styles.total}>{t('{n} pts en total', { n: formatNumber(puntos) })}</p>
+                            {(mejorRacha > 0 || recordDia > 0) && (
+                                <div className={styles.estadisticas}>
+                                    {mejorRacha > 0 && (
+                                        <span>{tn(mejorRacha, 'Mejor racha: {n} día', 'Mejor racha: {n} días', { n: formatNumber(mejorRacha) })}</span>
+                                    )}
+                                    {recordDia > 0 && (
+                                        <span>{t('Récord del día: {n} pts', { n: formatNumber(recordDia) })}</span>
+                                    )}
+                                </div>
+                            )}
                         </header>
+
+                        {/* [1163] cómo se sube, en tres pasos (es una secuencia: por eso numerada) */}
+                        <ol className={styles.pasos} aria-label={t('Cómo se sube')}>
+                            <li className={styles.paso}>
+                                <span className={styles.pasoNumero} aria-hidden="true">1</span>
+                                <span className={styles.pasoTexto}><strong>{t('Suma puntos')}</strong>{t('cada día que registras lo que comes')}</span>
+                            </li>
+                            <li className={styles.paso}>
+                                <span className={styles.pasoNumero} aria-hidden="true">2</span>
+                                <span className={styles.pasoTexto}><strong>{t('Baja de IV a I')}</strong>{t('cada rango tiene 4 divisiones')}</span>
+                            </li>
+                            <li className={styles.paso}>
+                                <span className={styles.pasoNumero} aria-hidden="true">3</span>
+                                <span className={styles.pasoTexto}><strong>{t('Salta de rango')}</strong>{t('después de la I viene el siguiente')}</span>
+                            </li>
+                        </ol>
 
                         {rp.siguiente ? (
                             <section className={styles.tarjeta} aria-labelledby="escalera-camino">
@@ -134,13 +185,17 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas, puntos = null, rac
                                     <span className={`${styles.gema} ${styles.gemaMini} ${styles[`metal_${rp.siguiente.clave}`]}`} aria-hidden="true" />
                                     {t('Camino a {rango}', { rango: nombreDelRango(rp.siguiente.clave, rp.siguiente.division, t) })}
                                 </h3>
-                                <p className={styles.progresoFalta}>{t('Te faltan {n} pts', { n: formatNumber(rp.puntos_para_la_siguiente) })}</p>
+                                <p className={styles.progresoFalta}>
+                                    {faltanPts > 0
+                                        ? t('Te faltan {n} pts', { n: formatNumber(faltanPts) })
+                                        : t('Ya tienes los puntos de Maestro')}
+                                </p>
                                 <div
                                     className={styles.barra}
                                     role="progressbar"
                                     aria-valuemin={rp.desde}
                                     aria-valuemax={rp.hasta}
-                                    aria-valuenow={puntos}
+                                    aria-valuenow={Math.min(puntos, rp.hasta)}
                                     aria-label={t('Avance hacia {rango}', { rango: nombreDelRango(rp.siguiente.clave, rp.siguiente.division, t) })}
                                 >
                                     {rp.avance > 0 && <span className={`${styles.barraRelleno} ${styles[`metal_${rp.siguiente.clave}`]}`} />}
@@ -149,9 +204,23 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas, puntos = null, rac
                                     <span>{ptsTexto(rp.desde)}</span>
                                     <span>{ptsTexto(rp.hasta)}</span>
                                 </div>
+                                {diasAlRitmo !== null && (
+                                    <p className={styles.planNota}>
+                                        {diasAlRitmo > 365
+                                            ? t('A tu ritmo (unos {r} pts al día) tardarías más de un año: una racha larga multiplica lo que ganas.',
+                                                { r: formatNumber(Math.round(ptsPorDia)) })
+                                            : tn(diasAlRitmo,
+                                                'A tu ritmo (unos {r} pts al día) llegas en {n} día.',
+                                                'A tu ritmo (unos {r} pts al día) llegas en unos {n} días.',
+                                                { n: formatNumber(diasAlRitmo), r: formatNumber(Math.round(ptsPorDia)) })}
+                                    </p>
+                                )}
+                                {rp.siguiente.clave === MAESTRO && (
+                                    <p className={styles.planNota}>{t('Maestro pide además semanas perfectas y una racha larga: míralo al final de la escalera.')}</p>
+                                )}
                             </section>
                         ) : (
-                            <p className={styles.cima}>{t('Estás en la cima: llegaste a Diamante III.')}</p>
+                            <p className={styles.cima}>{t('Llegaste a Maestro, el rango más difícil. Es tuyo para siempre.')}</p>
                         )}
 
                         <section className={styles.tarjeta} aria-labelledby="escalera-como">
@@ -163,6 +232,13 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas, puntos = null, rac
                                         <strong className={styles.puntosValor}>+{PUNTOS[k]}</strong>
                                     </li>
                                 ))}
+                                <li className={`${styles.puntosFila} ${styles.puntosBono}`}>
+                                    <span>
+                                        <Star size={14} className={styles.estrellaLlena} aria-hidden="true" />
+                                        {t('Bono por semana perfecta (3★)')}
+                                    </span>
+                                    <strong className={styles.puntosValor}>+{BONO_SEMANA_PERFECTA}</strong>
+                                </li>
                             </ul>
                             <p className={styles.planNota}>{t('Los puntos no se pierden y nunca bajas de rango.')}</p>
                         </section>
@@ -185,7 +261,12 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas, puntos = null, rac
                                 {tramo.siguienteEn
                                     ? tn(tramo.siguienteEn - racha, '{n} día más registrando y ganas ×{m}.', '{n} días más registrando y ganas ×{m}.',
                                         { n: tramo.siguienteEn - racha, m: formatNumber(tramo.siguienteMult, { maximumFractionDigits: 2 }) })
-                                    : t('Racha de leyenda: todo lo que ganas vale el doble.')}
+                                    : (
+                                        <>
+                                            {t('Racha de leyenda: tus puntos valen ×{m}.', { m: formatNumber(tramo.mult, { maximumFractionDigits: 2 }) })}
+                                            {hito && ` ${t('Próximo hito: {n} días.', { n: formatNumber(hito) })}`}
+                                        </>
+                                    )}
                             </p>
                             <p className={styles.escudosNota}>
                                 <span className={styles.escudosFila} aria-hidden="true">
@@ -193,7 +274,10 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas, puntos = null, rac
                                         <Shield key={i} size={15} strokeWidth={2.5} className={i < escudos ? styles.escudoLleno : styles.escudoVacio} />
                                     ))}
                                 </span>
-                                {t('Cada {n} días seguidos ganas un escudo (máximo {m}). Si un día no registras, el escudo salva tu racha.', { n: ESCUDO_CADA, m: ESCUDOS_MAX })}
+                                <span>
+                                    {t('Cada {n} días seguidos ganas un escudo (máximo {m}). Si un día no registras, el escudo salva tu racha.', { n: ESCUDO_CADA, m: ESCUDOS_MAX })}
+                                    {diasEsc !== null && ` ${tn(diasEsc, 'Te falta {n} día para otro escudo.', 'Te faltan {n} días para otro escudo.', { n: diasEsc })}`}
+                                </span>
                             </p>
                         </section>
                     </div>
@@ -218,13 +302,17 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas, puntos = null, rac
                                             <span className={styles.peldanoDesde}>
                                                 {desde === 0 ? t('Tu punto de partida') : t('Desde {n} pts', { n: formatNumber(desde) })}
                                             </span>
-                                            <span className={styles.divisiones} aria-label={t('Divisiones de {rango}', { rango: nombreDelRango(clave, null, t) })}>
+                                            <span className={styles.divisiones} aria-label={t('Divisiones de {rango}, de la IV a la I', { rango: nombreDelRango(clave, null, t) })}>
                                                 {divs.map((d) => {
-                                                    const hecha = puntos >= d.desde;
+                                                    const hecha = esMaestro || puntos >= d.desde;
                                                     const aqui = clave === rp.clave && d.division === rp.division;
                                                     return (
-                                                        <span key={d.division} className={`${styles.division} ${hecha ? styles.divisionHecha : ''} ${aqui ? styles.divisionAqui : ''}`}>
-                                                            {['I', 'II', 'III'][d.division - 1]}
+                                                        <span
+                                                            key={d.division}
+                                                            className={`${styles.division} ${hecha ? styles.divisionHecha : ''} ${aqui ? styles.divisionAqui : ''}`}
+                                                            title={t('{rango}: desde {n} pts', { rango: nombreDelRango(clave, d.division, t), n: formatNumber(d.desde) })}
+                                                        >
+                                                            {divisionRomana(d.division)}
                                                         </span>
                                                     );
                                                 })}
@@ -233,12 +321,52 @@ function HojaDeRangos({ onCerrar, estrellas, semanasCerradas, puntos = null, rac
                                         <span className={styles.peldanoEstado}>
                                             {estado === 'logrado' && <><Check size={14} strokeWidth={3} aria-hidden="true" />{t('Conseguido')}</>}
                                             {estado === 'actual' && t('Estás aquí')}
-                                            {esSiguiente && t('Faltan {n} pts', { n: formatNumber(desde - puntos) })}
+                                            {esSiguiente && t('Faltan {n} pts', { n: formatNumber(Math.max(0, desde - puntos)) })}
                                         </span>
                                     </li>
                                 );
                             })}
+                            <li
+                                className={`${styles.peldano} ${styles.peldanoMaestro} ${esMaestro ? styles.actual : styles.bloqueado}`}
+                                aria-current={esMaestro ? 'step' : undefined}
+                            >
+                                <span className={`${styles.gema} ${styles.metal_maestro}`} aria-hidden="true">
+                                    {esMaestro ? <Crown size={18} strokeWidth={2.25} /> : <Lock size={15} strokeWidth={2.5} />}
+                                </span>
+                                <div className={styles.peldanoTexto}>
+                                    <span className={styles.peldanoNombre}>
+                                        {t('Maestro')}
+                                        <span className={styles.etiquetaEspecial}>{t('Rango especial')}</span>
+                                    </span>
+                                    <span className={styles.peldanoDesde}>
+                                        {esMaestro ? t('Lo conseguiste: el rango más difícil.') : t('Muy difícil: necesitas las tres cosas.')}
+                                    </span>
+                                    <ul className={styles.requisitos}>
+                                        {req.requisitos.map((r) => (
+                                            <li key={r.clave} className={`${styles.requisito} ${r.ok ? styles.requisitoOk : ''}`}>
+                                                <span className={styles.requisitoNombre}>
+                                                    {r.ok && <Check size={13} strokeWidth={3} aria-hidden="true" />}
+                                                    {nombreRequisito(r)}
+                                                </span>
+                                                <span className={styles.requisitoCifra}>
+                                                    {formatNumber(Math.min(r.actual, r.meta))} / {formatNumber(r.meta)}
+                                                </span>
+                                                <progress className={styles.requisitoBarra} max={r.meta} value={Math.min(r.actual, r.meta)} aria-label={nombreRequisito(r)} />
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <span className={styles.peldanoEstado}>
+                                    {esMaestro
+                                        ? t('Estás aquí')
+                                        : t('{n} de 3', { n: req.cumplidos })}
+                                </span>
+                            </li>
                         </ol>
+                        <p className={styles.notaMaestro}>
+                            {t('Maestro: {p} pts, {s} semanas perfectas y una racha de {r} días. Casi nadie llega.',
+                                { p: formatNumber(MAESTRO_PUNTOS), s: req.requisitos[1].meta, r: req.requisitos[2].meta })}
+                        </p>
                     </div>
                     </>
                     ) : (
@@ -382,6 +510,11 @@ const PROPS_PUNTOS = {
     racha: PropTypes.number,
     escudos: PropTypes.number,
     aguaEncendida: PropTypes.bool,
+    mejorRacha: PropTypes.number,
+    recordDia: PropTypes.number,
+    rango: PropTypes.object,
+    maestro: PropTypes.object,
+    diasJugados: PropTypes.number,
 };
 
 HojaDeRangos.propTypes = {

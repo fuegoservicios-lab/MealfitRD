@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { ArrowDown, ArrowUp, Check, Maximize2, Minimize2, Crown, Flag, Flame, Gem, Gift, Lock, MapPin, Medal, PartyPopper, Share, Star, Trophy } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Maximize2, Minimize2, Crown, Flag, Flame, Gem, Gift, Lock, MapPin, Medal, PartyPopper, Share, Shield, Star, Trophy } from 'lucide-react';
 import { formatDate, formatNumber, useT, useTn } from '../../i18n';
 import { DIAS_DE_LA_SEMANA, ESTRELLAS_MAX, estrellasDeLaSemana, mediodiaDe } from '../../utils/progresoDeLosDias';
 import { adornosDelMapa, armarMapa, celebracionPendiente, filasDelMapa, trazo } from '../../utils/mapaDeNiveles';
@@ -321,7 +321,7 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
 
     const mundoHoy = claveMundo(mapa.mundo);
     // [1162] con el juego por puntos el marcador dice el rango CON división, igual que «Tu semana» («Plata II»)
-    const rangoHud = juego ? rangoPorPuntos(mapa.puntos || 0) : null;
+    const rangoHud = juego ? (juego.rango || rangoPorPuntos(juego.totalPuntos ?? mapa.puntos ?? 0)) : null;
     const chip = (cual, clase, contenido, titulo) => (
         <button type="button" className={`${styles.hudChip} ${clase}`} title={titulo}
             aria-expanded={ayuda === cual} aria-controls="mapa-ayuda" onClick={() => alternarAyuda(cual)}>
@@ -422,7 +422,9 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                                             ? (s.estrellas === ESTRELLAS_MAX
                                                                 ? t('{n} pts · Semana perfecta', { n: formatNumber(s.puntos) })
                                                                 : s.enCurso
-                                                                    ? t('{n} pts · faltan {f} para otra estrella', { n: formatNumber(s.puntos), f: formatNumber(faltanParaOtraEstrella(s.puntos)) })
+                                                                    ? (s.estrellas === 0
+                                                                        ? t('{n} pts · faltan {f} para tu primera estrella', { n: formatNumber(s.puntos), f: formatNumber(faltanParaOtraEstrella(s.puntos)) })
+                                                                        : t('{n} pts · faltan {f} para otra estrella', { n: formatNumber(s.puntos), f: formatNumber(faltanParaOtraEstrella(s.puntos)) }))
                                                                     : t('{n} pts', { n: formatNumber(s.puntos) }))
                                                         : s.estrellas === ESTRELLAS_MAX
                                                             ? t('Semana perfecta')
@@ -444,6 +446,7 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                 const r = porFecha?.get?.(d.iso);
                                 const activo = d.iso === selected;
                                 const bloqueado = d.estado === 'futuro';
+                                const salvado = d.estado === 'vacio' && Boolean(juego?.escudosUsados?.has?.(d.iso));
                                 const fecha = mediodiaDe(d.iso);
                                 const celebrado = celebracion?.tipo === 'dia' && celebracion.iso === d.iso;
                                 const detalle = r && (r.meals_count || 0) > 0
@@ -456,10 +459,10 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                         )}
                                         <button
                                             type="button"
-                                            className={`${styles.nivel} ${styles[`nivel_${d.estado}`]} ${d.esHoy ? styles.nivelHoy : ''} ${activo ? styles.nivelActivo : ''} ${celebrado ? styles.nivelCelebrado : ''}`}
+                                            className={`${styles.nivel} ${styles[`nivel_${d.estado}`]} ${d.esHoy ? styles.nivelHoy : ''} ${activo ? styles.nivelActivo : ''} ${celebrado ? styles.nivelCelebrado : ''} ${salvado ? styles.nivelEscudo : ''}`}
                                             disabled={bloqueado}
                                             aria-pressed={activo}
-                                            aria-label={`${fechaLarga(d.iso)} · ${t('Día {n}', { n: d.nivel })} · ${etiquetas[d.estado]}${detalle}`}
+                                            aria-label={`${fechaLarga(d.iso)} · ${t('Día {n}', { n: d.nivel })} · ${etiquetas[d.estado]}${salvado ? ` · ${t('Escudo protegió tu racha')}` : ''}${detalle}`}
                                             onClick={() => { if (!bloqueado) { triggerMobileHaptic('light'); onElegir(d.iso); } }}
                                         >
                                             {/* [1155] el número del día SIEMPRE a la vista; el estado, en una insignia (✓ en meta, ↓ bajo,
@@ -467,9 +470,9 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                             <span className={styles.nivelCara} aria-hidden="true">
                                                 {bloqueado ? <Lock /> : fecha.getDate()}
                                             </span>
-                                            {INSIGNIA[d.estado] && (
-                                                <span className={`${styles.insignia} ${styles[`insignia_${d.estado}`]}`} aria-hidden="true">
-                                                    {INSIGNIA[d.estado]}
+                                            {(INSIGNIA[d.estado] || salvado) && (
+                                                <span className={`${styles.insignia} ${salvado ? styles.insignia_escudo : styles[`insignia_${d.estado}`]}`} aria-hidden="true">
+                                                    {salvado ? <Shield strokeWidth={2.75} /> : INSIGNIA[d.estado]}
                                                 </span>
                                             )}
                                         </button>
@@ -546,5 +549,12 @@ MapaDeNiveles.propTypes = {
     onElegir: PropTypes.func.isRequired,
     onCompartir: PropTypes.func,
     onGrande: PropTypes.func,
-    juego: PropTypes.shape({ estrellas: PropTypes.instanceOf(Map), puntos: PropTypes.instanceOf(Map), racha: PropTypes.number }),
+    juego: PropTypes.shape({
+        estrellas: PropTypes.instanceOf(Map),
+        puntos: PropTypes.instanceOf(Map),
+        racha: PropTypes.number,
+        escudosUsados: PropTypes.instanceOf(Set),
+        totalPuntos: PropTypes.number,
+        rango: PropTypes.object,
+    }),
 };

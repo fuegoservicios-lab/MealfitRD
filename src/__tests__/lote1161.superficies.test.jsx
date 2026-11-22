@@ -21,7 +21,7 @@ describe('[1161] avisos del juego por puntos', () => {
             { clave: 'racha:7', codigo: 'racha', datos: { dias: 7, mult: 1.5 } },
             { clave: 'semana_cerrada:10', codigo: 'semana_cerrada', datos: { numero: 10, estrellas: 2, dias_en_meta: 1, puntos: 190, siguiente: 11 } },
         ]} />);
-        expect(screen.getByText('¡Subiste a Plata II!')).toBeInTheDocument();
+        expect(screen.getByText('¡Subiste a Plata III!')).toBeInTheDocument();   // [1163] 2.ª división interna = III
         expect(screen.getByText('Ganaste un escudo de racha')).toBeInTheDocument();
         expect(screen.getByText('Sigues con 9 días seguidos.')).toBeInTheDocument();
         expect(screen.getByText('68 pts hoy.')).toBeInTheDocument();
@@ -48,7 +48,7 @@ describe('[1161] mapa de niveles con el servidor', () => {
 describe('[1161] compartir la semana con puntos', () => {
     it('el rango lleva división y el texto los puntos', () => {
         const r = resumenDeSemana({ numero: 10, dias: [], estrellas: 2, racha: 9, rango: 'plata', division: 2, puntos: 190 });
-        expect(r.rango.nombre).toBe('Plata II');
+        expect(r.rango.nombre).toBe('Plata III');                   // [1163] IV→I
         expect(textoDeSemana(r)).toContain('⚡ 190 pts esta semana');
     });
 });

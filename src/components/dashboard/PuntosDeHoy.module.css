@@ -10,6 +10,17 @@
         radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--ink-warn) 12%, transparent) 0%, transparent 60%),
         color-mix(in srgb, var(--bg-muted) 55%, transparent);
 }
+.marcador[data-tramo="imparable"] {
+    background:
+        radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--ink-proteins) 14%, transparent) 0%, transparent 60%),
+        color-mix(in srgb, var(--bg-muted) 55%, transparent);
+}
+.marcador[data-tramo="leyenda"] {
+    border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+    background:
+        radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--primary) 16%, transparent) 0%, transparent 60%),
+        color-mix(in srgb, var(--bg-muted) 55%, transparent);
+}
 
 .fila {
     display: flex;
@@ -51,7 +62,26 @@
     font-size: 0.75rem;
     font-weight: 700;
     line-height: 1.3;
-    color: var(--ink-warn);   /* [1162] parte en dos líneas: con nowrap se cortaba contra la llama */
+    color: var(--ink-warn);
+}
+.cercaRecord {
+    margin-top: 0.15rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.recordBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    margin-left: 0.25rem;
+    padding: 0.12rem 0.45rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 750;
+    color: var(--ink-warn);
+    background: color-mix(in srgb, var(--ink-warn) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ink-warn) 35%, transparent);
 }
 
 .flotante {
@@ -81,12 +111,12 @@
     grid-template-columns: auto auto;
     grid-template-rows: auto auto auto;
     align-items: center;
-    column-gap: 0.4rem;
+    column-gap: 0.45rem;
     row-gap: 0.2rem;
-    padding: 0.45rem 0.65rem 0.45rem 0.5rem;
+    padding: 0.48rem 0.68rem 0.48rem 0.52rem;
     border-radius: var(--radius-lg);
-    border: 1px solid color-mix(in srgb, var(--ink-warn) 30%, var(--border));
-    background: color-mix(in srgb, var(--ink-warn) 10%, var(--bg-card));
+    border: 1px solid var(--border);
+    background: var(--bg-card);
     color: var(--text-main);
     font: inherit;
     text-align: left;
@@ -106,7 +136,7 @@ button.llama:focus-visible { outline: 2px solid var(--primary); outline-offset: 
     background: color-mix(in srgb, var(--text-muted) 12%, transparent);
 }
 
-.llamaEtiqueta { grid-column: 2; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); line-height: 1; }
+.llamaEtiqueta { grid-column: 2; font-size: 0.75rem; font-weight: 750; color: var(--text-muted); line-height: 1; }
 .llamaTexto { grid-column: 2; display: inline-flex; align-items: baseline; gap: 0.2rem; }
 .llamaDias { font-size: 1.25rem; font-weight: 850; font-variant-numeric: tabular-nums; }
 .llamaUnidad { font-size: 0.75rem; font-weight: 650; color: var(--text-muted); }
@@ -125,17 +155,43 @@ button.llama:focus-visible { outline: 2px solid var(--primary); outline-offset: 
 .escudos {
     grid-column: 1 / -1;
     display: inline-flex;
-    gap: 0.2rem;
+    align-items: center;
+    gap: 0.22rem;
     padding-left: 0.1rem;
 }
 .escudoLleno { color: var(--primary); fill: color-mix(in srgb, var(--primary) 35%, transparent); }
 .escudoVacio { color: color-mix(in srgb, var(--text-muted) 45%, transparent); }
+.escudosCuenta {
+    margin-left: 0.1rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
 
-/* los tramos encienden la llama, de menos a más */
+/* los tramos encienden toda la caja de racha en armonía, de menos a más */
+.tramo_encendida,
+.tramo_en_llamas {
+    border-color: color-mix(in srgb, var(--ink-warn) 36%, var(--border));
+    background: color-mix(in srgb, var(--ink-warn) 10%, var(--bg-card));
+}
+.tramo_imparable {
+    border-color: color-mix(in srgb, var(--ink-proteins) 38%, var(--border));
+    background: color-mix(in srgb, var(--ink-proteins) 10%, var(--bg-card));
+}
+.tramo_leyenda {
+    border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
+    background: color-mix(in srgb, var(--primary) 12%, var(--bg-card));
+    box-shadow: 0 0 20px -8px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.tramo_encendida .llamaEtiqueta,
+.tramo_en_llamas .llamaEtiqueta { color: var(--ink-warn); }
+.tramo_imparable .llamaEtiqueta { color: var(--ink-proteins); }
+.tramo_leyenda .llamaEtiqueta { color: var(--primary); }
+
 .tramo_encendida .fuego,
-.tramo_en_llamas .fuego,
-.tramo_imparable .fuego,
-.tramo_leyenda .fuego {
+.tramo_en_llamas .fuego {
     color: var(--ink-warn);
     background: color-mix(in srgb, var(--ink-warn) 18%, transparent);
 }
@@ -151,9 +207,9 @@ button.llama:focus-visible { outline: 2px solid var(--primary); outline-offset: 
     box-shadow: 0 0 22px color-mix(in srgb, var(--primary) 55%, transparent);
 }
 .tramo_encendida .mult,
-.tramo_en_llamas .mult,
-.tramo_imparable .mult { color: var(--ink-warn); background: color-mix(in srgb, var(--ink-warn) 16%, transparent); }
-.tramo_leyenda .mult { color: var(--primary); background: color-mix(in srgb, var(--primary) 16%, transparent); }
+.tramo_en_llamas .mult { color: var(--ink-warn); background: color-mix(in srgb, var(--ink-warn) 16%, transparent); }
+.tramo_imparable .mult { color: var(--ink-proteins); background: color-mix(in srgb, var(--ink-proteins) 16%, transparent); }
+.tramo_leyenda .mult { color: var(--primary); background: color-mix(in srgb, var(--primary) 18%, transparent); }
 
 .tramo_encendida .fuego svg,
 .tramo_en_llamas .fuego svg,
@@ -172,10 +228,25 @@ button.llama:focus-visible { outline: 2px solid var(--primary); outline-offset: 
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
     margin-top: 0.7rem;
 }
+.logrosTituloWrap {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
 .logrosTitulo { margin: 0; font-size: 0.8125rem; font-weight: 750; color: var(--text-main); }
+.maxHoy {
+    padding: 0.08rem 0.42rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
 .comoFunciona {
     flex: none;
     padding: 0;
@@ -192,29 +263,61 @@ button.llama:focus-visible { outline: 2px solid var(--primary); outline-offset: 
 .comoFunciona:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-sm); }
 
 .logros {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    margin: 0.4rem 0 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+    margin: 0.45rem 0 0;
     padding: 0;
     list-style: none;
 }
 
 .logro {
-    display: inline-flex;
+    position: relative;
+    overflow: hidden;
+    display: flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem 0.55rem;
-    border-radius: var(--radius-full);
+    gap: 0.3rem;
+    min-width: 0;
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--radius-md);
     font-size: 0.75rem;
     font-weight: 650;
     color: var(--text-muted);
-    border: 1px dashed color-mix(in srgb, var(--text-muted) 40%, transparent);
+    background: color-mix(in srgb, var(--bg-card) 65%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
 }
-.logroPts { font-weight: 800; color: var(--primary); }
+.logro::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--pct, 0%);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    pointer-events: none;
+}
+.logro:nth-child(5):last-child { grid-column: 1 / -1; }
+.logro > * { position: relative; }
+.logroNombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.logroPts { flex: none; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
+.logroMeta {
+    margin-left: auto;
+    flex: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+.logroParcial {
+    color: var(--text-main);
+    border-color: color-mix(in srgb, var(--primary) 42%, transparent);
+    background: color-mix(in srgb, var(--primary) 8%, var(--bg-card));
+}
+.logroCerrado {
+    color: var(--text-muted);
+    opacity: 0.72;
+    background: color-mix(in srgb, var(--bg-muted) 65%, transparent);
+}
 .logroHecho {
     color: var(--ink-good);
-    border-style: solid;
     border-color: color-mix(in srgb, var(--ink-good) 35%, transparent);
     background: color-mix(in srgb, var(--ink-good) 12%, transparent);
     animation: encender 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -223,6 +326,46 @@ button.llama:focus-visible { outline: 2px solid var(--primary); outline-offset: 
 @keyframes encender {
     from { transform: scale(0.9); opacity: 0.6; }
     to { transform: scale(1); opacity: 1; }
+}
+
+@media (min-width: 769px) {
+    .marcador {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        column-gap: 0.75rem;
+    }
+    .fila,
+    .logrosCabecera {
+        display: contents;
+    }
+    .hoy {
+        grid-column: 1;
+        grid-row: 1;
+        align-self: center;
+    }
+    .llama {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center;
+        justify-self: center;
+    }
+    .logrosTituloWrap {
+        grid-column: 1;
+        grid-row: 2;
+        align-self: center;
+        margin-top: 0.7rem;
+    }
+    .comoFunciona {
+        grid-column: 2;
+        grid-row: 2;
+        justify-self: center;
+        align-self: center;
+        margin-top: 0.7rem;
+    }
+    .logros {
+        grid-column: 1 / -1;
+        grid-row: 3;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -13,23 +13,25 @@ const juego = {
     estrellas: new Map([[1, 1], [2, 3], [3, 0]]),
     puntos: new Map([[1, 400], [2, 650], [3, 0]]),
     racha: 15,
+    escudosUsados: new Set(['2026-11-21']),
 };
 const pintar = (props = {}) => render(
-    <MapaDeNiveles inicioISO="2026-11-08" hoyISO={HOY} selected={HOY} estadoDe={() => 'bajo'} porFecha={new Map()} onElegir={vi.fn()} juego={juego} {...props} />,
+    <MapaDeNiveles inicioISO="2026-11-08" hoyISO={HOY} selected={HOY} estadoDe={(iso) => (iso === '2026-11-21' ? null : 'bajo')} porFecha={new Map()} onElegir={vi.fn()} juego={juego} {...props} />,
 );
 
 describe('[1162] mapa por puntos', () => {
     it('el marcador dice el rango con división y la racha del servidor', () => {
         pintar();
-        expect(screen.getByText('Plata II')).toBeInTheDocument();          // 1.050 pts ⇒ Plata II
+        expect(screen.getByText('Plata III')).toBeInTheDocument();         // 1.050 pts ⇒ [1163] Plata III (810-1080)
         expect(screen.getByRole('button', { name: /Racha/ }).textContent).toContain('15');
+        expect(screen.getByRole('button', { name: /Escudo protegió tu racha/ })).toBeInTheDocument();
     });
 
     it('las tarjetas de semana hablan de puntos (no de días en meta)', () => {
         pintar();
         expect(screen.getByText('650 pts · Semana perfecta')).toBeInTheDocument();
         expect(screen.getByText('400 pts')).toBeInTheDocument();
-        expect(screen.getByText('0 pts · faltan 80 para otra estrella')).toBeInTheDocument();
+        expect(screen.getByText('0 pts · faltan 85 para tu primera estrella')).toBeInTheDocument();
         expect(screen.queryByText(/días? en meta/)).toBeNull();
     });
 
