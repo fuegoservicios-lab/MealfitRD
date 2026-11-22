@@ -1989,7 +1989,7 @@ const PantryPage = () => {
             })();
             toast.dismiss(loadingToast);
             toast.success(t('Todos los alimentos han sido borrados'), _papeleraIds.length ? {
-                duration: 8000,
+                duration: 6000,
                 action: { label: t('Deshacer'), onClick: () => restaurarDeLaPapelera({ papelera_ids: _papeleraIds }) },
             } : undefined);
 
