@@ -166,21 +166,28 @@ const SemanaEnProgreso = ({
     // [1161] juego por puntos (solo con un servidor que ya los da)
     const juego = Boolean(servidor && servidor.puntos && servidor.hoy_puntos);
     const enCursoServidor = juego && Number(servidor.semana?.numero) === semanaActual;
+    // El resumen guardado puede ser de AYER (la app abre con la caché antes de refrescar): entonces su «hoy» ya es un
+    // día cerrado — su racha completa es la de «hasta ayer» y sus puntos de hoy no se restan.
+    const mismoDia = juego && servidor.hoy === hoyISO;
+    const deAyer = juego && !mismoDia && String(servidor.hoy || '') < hoyISO;
+    const rachaBase = juego ? Number(deAyer ? servidor.racha : servidor.racha_hasta_ayer) || 0 : 0;
+    const ptsHoyServidor = mismoDia ? Number(servidor.hoy_puntos?.puntos) || 0 : 0;
     const hoyVivo = useMemo(() => {
         if (!juego) return null;
         const lg = logrosDelDia({
             calories: hoy?.calories, protein: hoy?.protein, mealsCount: hoy?.mealsCount,
             metaKcal: targetCalories, metaProteina: targetMacros?.protein, objetivo: mainGoal,
         });
-        // el agua la sabe el servidor (su contador vive aparte)
-        lg.agua = servidor.hoy_puntos?.logros?.agua ?? null;
+        // el agua la sabe el servidor (su contador vive aparte); de otro día, solo si está encendida
+        const aguaServidor = servidor.hoy_puntos?.logros?.agua ?? null;
+        lg.agua = mismoDia ? aguaServidor : (aguaServidor === null ? null : false);
         if (lg.agua && !lg.registro) lg.agua = false;
-        return { ...puntosDeHoy({ logros: lg, rachaHastaAyer: Number(servidor.racha_hasta_ayer) || 0 }), logros: lg };
-    }, [juego, servidor, hoy, targetCalories, targetMacros, mainGoal]);
+        return { ...puntosDeHoy({ logros: lg, rachaHastaAyer: rachaBase }), logros: lg };
+    }, [juego, servidor, hoy, targetCalories, targetMacros, mainGoal, mismoDia, rachaBase]);
     const puntosSemana = (() => {
         if (!juego) return null;
         if (enCurso && enCursoServidor) {
-            return Math.max(0, (Number(servidor.semana.puntos) || 0) - (Number(servidor.hoy_puntos.puntos) || 0) + (hoyVivo?.puntos || 0));
+            return Math.max(0, (Number(servidor.semana.puntos) || 0) - ptsHoyServidor + (hoyVivo?.puntos || 0));
         }
         return deServidor && Number.isFinite(Number(deServidor.puntos)) ? Number(deServidor.puntos) : null;
     })();
@@ -190,9 +197,9 @@ const SemanaEnProgreso = ({
     const puntosDelDia = new Map(enCursoServidor && enCurso
         ? (servidor.semana.dias || []).map((d) => [d.iso, d.iso === hoyISO ? hoyVivo?.puntos : d.puntos])
         : []);
-    const totalVivo = juego ? (Number(servidor.puntos.total) || 0) - (Number(servidor.hoy_puntos.puntos) || 0) + (hoyVivo?.puntos || 0) : 0;
+    const totalVivo = juego ? (Number(servidor.puntos.total) || 0) - ptsHoyServidor + (hoyVivo?.puntos || 0) : 0;
     const rangoVivo = juego ? rangoPorPuntos(totalVivo) : null;
-    const rachaVivo = juego ? (Number(servidor.racha_hasta_ayer) || 0) + (hoyVivo?.logros?.registro ? 1 : 0) : 0;
+    const rachaVivo = juego ? rachaBase + (hoyVivo?.logros?.registro ? 1 : 0) : 0;
     const diaDeLaSemana = dias.findIndex((d) => d.esHoy) + 1;
     const sel = elegido ? dias.find((d) => d.iso === elegido) : null;
 

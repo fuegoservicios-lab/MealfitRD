@@ -447,4 +447,4 @@
     border: 1px solid var(--border);
 }
 .divisionHecha { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); background: color-mix(in srgb, var(--primary) 10%, transparent); }
-.divisionAqui { color: white; background: var(--primary); border-color: var(--primary); }
+.divisionAqui { color: white; background: var(--primary-fill); border-color: var(--primary-fill); }

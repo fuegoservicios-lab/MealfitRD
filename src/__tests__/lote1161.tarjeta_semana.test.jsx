@@ -73,6 +73,16 @@ describe('[1161] la tarjeta de la semana por puntos', () => {
         ]);
     });
 
+    it('con un resumen de AYER: su racha entera es la de hasta ayer y sus puntos de «hoy» no se restan', async () => {
+        const deAyer = { ...RESUMEN, hoy: '2026-11-17', racha: 9, racha_hasta_ayer: 8, hoy_puntos: { ...RESUMEN.hoy_puntos, puntos: 55 } };
+        fetchWithAuth.mockImplementation(respuestas(deAyer));
+        montar({ calories: 1900, protein: 110, carbs: 200, fats: 60, mealsCount: 3 });
+        // racha 9 (hasta ayer) + hoy = 10 ⇒ ×1,5 · 60 pts; total 940 + 60 = 1000 (no se resta el 55 de ayer)
+        expect(await screen.findByRole('button', { name: /10 días seguidos registrando/ })).toBeInTheDocument();
+        expect(screen.getByText('Plata II')).toBeInTheDocument();
+        expect(screen.getByText('400 pts para Plata III')).toBeInTheDocument();
+    });
+
     it('cada día cerrado de la semana enseña sus puntos', async () => {
         montar({ calories: 0, protein: 0, mealsCount: 0 });
         expect(await screen.findByText('+55')).toBeInTheDocument();

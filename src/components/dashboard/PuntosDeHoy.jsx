@@ -38,7 +38,8 @@ const PuntosDeHoy = ({ puntos = 0, mult = 1, logros = {}, racha = 0, tramo = nul
     return (
         <div className={styles.marcador}>
             <div className={styles.fila}>
-                <div className={styles.hoy} aria-live="polite">
+                {/* sin aria-live: el contador animado haría leer cada número intermedio */}
+                <div className={styles.hoy}>
                     <span className={styles.hoyEtiqueta}>{t('Hoy')}</span>
                     <span className={styles.hoyCifra}>
                         <strong><ContadorAnimado valor={puntos} /></strong>
