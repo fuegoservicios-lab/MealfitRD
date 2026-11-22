@@ -25,6 +25,7 @@ const LlamaDeRacha = ({ racha = 0, tramo, escudos = 0, escudosMax = 2, onAbrir =
             <span className={styles.fuego} aria-hidden="true">
                 <Flame size={22} strokeWidth={2.25} />
             </span>
+            <span className={styles.llamaEtiqueta} aria-hidden="true">{t('Racha')}</span>
             <span className={styles.llamaTexto} aria-hidden="true">
                 <strong className={styles.llamaDias}>{formatNumber(racha)}</strong>
                 <span className={styles.llamaUnidad}>{tn(racha, 'día', 'días', { n: racha })}</span>

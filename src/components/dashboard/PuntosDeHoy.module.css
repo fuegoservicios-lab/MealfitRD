@@ -20,7 +20,7 @@
 
 /* ------------------------------------------------------------ puntos de hoy */
 
-.hoy { display: flex; flex-direction: column; min-width: 0; }
+.hoy { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 .hoyEtiqueta {
     font-size: 0.75rem;
@@ -50,8 +50,8 @@
     margin-top: 0.25rem;
     font-size: 0.75rem;
     font-weight: 700;
-    color: var(--ink-warn);
-    white-space: nowrap;
+    line-height: 1.3;
+    color: var(--ink-warn);   /* [1162] parte en dos líneas: con nowrap se cortaba contra la llama */
 }
 
 .flotante {
@@ -79,7 +79,7 @@
     flex: none;
     display: grid;
     grid-template-columns: auto auto;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     align-items: center;
     column-gap: 0.4rem;
     row-gap: 0.2rem;
@@ -96,7 +96,7 @@ button.llama { cursor: pointer; }
 button.llama:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .fuego {
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
     display: grid;
     place-items: center;
     width: 40px;
@@ -106,11 +106,13 @@ button.llama:focus-visible { outline: 2px solid var(--primary); outline-offset: 
     background: color-mix(in srgb, var(--text-muted) 12%, transparent);
 }
 
-.llamaTexto { display: inline-flex; align-items: baseline; gap: 0.2rem; }
+.llamaEtiqueta { grid-column: 2; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); line-height: 1; }
+.llamaTexto { grid-column: 2; display: inline-flex; align-items: baseline; gap: 0.2rem; }
 .llamaDias { font-size: 1.25rem; font-weight: 850; font-variant-numeric: tabular-nums; }
 .llamaUnidad { font-size: 0.75rem; font-weight: 650; color: var(--text-muted); }
 
 .mult {
+    grid-column: 2;
     justify-self: start;
     padding: 0.05rem 0.4rem;
     border-radius: var(--radius-full);
@@ -166,11 +168,34 @@ button.llama:focus-visible { outline: 2px solid var(--primary); outline-offset: 
 
 /* ------------------------------------------------------------ logros del día */
 
+.logrosCabecera {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.7rem;
+}
+.logrosTitulo { margin: 0; font-size: 0.8125rem; font-weight: 750; color: var(--text-main); }
+.comoFunciona {
+    flex: none;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--primary);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.comoFunciona:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-sm); }
+
 .logros {
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
-    margin: 0.65rem 0 0;
+    margin: 0.4rem 0 0;
     padding: 0;
     list-style: none;
 }

@@ -4382,11 +4382,8 @@
   "pts esta semana": "pts cette semaine",
   "{n} pts": "{n} pts",
   "Faltan {n} pts para otra estrella": "Encore {n} pts pour une autre étoile",
-  "Registro": "Saisie",
-  "Día completo": "Journée complète",
   "Agua": "Eau",
   "pts": "pts",
-  "Tu racha multiplica ×{m}": "Votre série multiplie ×{m}",
   "Logros de hoy": "Réussites du jour",
   "conseguido": "réussi",
   "+{n} puntos si lo consigues": "+{n} points si vous y arrivez",
@@ -4441,5 +4438,15 @@
   "Sigues con {n} días seguidos.": {
     "one": "Vous restez à {n} jour d'affilée.",
     "other": "Vous restez à {n} jours d'affilée."
-  }
+  },
+  "3 comidas": "3 repas",
+  "Calorías en meta": "Calories dans l'objectif",
+  "Registra hoy: tu racha multiplica ×{m} lo que ganes.": "Notez aujourd'hui : votre série multiplie ×{m} ce que vous gagnez.",
+  "Registra una comida para empezar a sumar.": "Notez un repas pour commencer à cumuler.",
+  "Tu racha multiplica ×{m} tus puntos de hoy": "Votre série multiplie ×{m} vos points du jour",
+  "¡Hoy lo conseguiste todo!": "Tout réussi aujourd'hui !",
+  "Cómo sumar puntos hoy": "Comment gagner des points aujourd'hui",
+  "¿Cómo funciona?": "Comment ça marche ?",
+  "{n} pts · Semana perfecta": "{n} pts · Semaine parfaite",
+  "{n} pts · faltan {f} para otra estrella": "{n} pts · encore {f} pour une autre étoile"
 }

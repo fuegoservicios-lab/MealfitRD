@@ -11,6 +11,7 @@ import LlamaDeRacha from './LlamaDeRacha';
 import styles from './PuntosDeHoy.module.css';
 
 const ORDEN = ['registro', 'completo', 'banda', 'proteina', 'agua'];
+const visibles0 = (logros) => ORDEN.filter((k) => !(k === 'agua' && (logros?.agua === null || logros?.agua === undefined)));
 
 function ContadorAnimado({ valor }) {
     const quieto = useReducedMotion();
@@ -29,10 +30,12 @@ const PuntosDeHoy = ({ puntos = 0, mult = 1, logros = {}, racha = 0, tramo = nul
     if (seguimiento.valor !== puntos) {
         setSeguimiento({ valor: puntos, delta: puntos - seguimiento.valor, n: seguimiento.n + 1 });
     }
+    // [P1-PLAN-LOTE-1162] «hazlo más entendible» (el dueño): cada logro dice QUÉ hay que hacer, no un rótulo
     const nombres = {
-        registro: t('Registro'), completo: t('Día completo'), banda: t('Calorías'), proteina: t('Proteína'), agua: t('Agua'),
+        registro: t('Registrar'), completo: t('3 comidas'), banda: t('Calorías en meta'), proteina: t('Proteína'), agua: t('Agua'),
     };
-    const visibles = ORDEN.filter((k) => !(k === 'agua' && (logros?.agua === null || logros?.agua === undefined)));
+    const todosHechos = visibles0(logros).every((k) => logros?.[k] === true);
+    const visibles = visibles0(logros);
     const multTxt = formatNumber(mult || 1, { maximumFractionDigits: 2 });
 
     return (
@@ -48,11 +51,25 @@ const PuntosDeHoy = ({ puntos = 0, mult = 1, logros = {}, racha = 0, tramo = nul
                             <span key={seguimiento.n} className={styles.flotante} aria-hidden="true">+{formatNumber(seguimiento.delta)}</span>
                         )}
                     </span>
-                    {mult > 1 && (
-                        <span className={styles.hoyMult}>{t('Tu racha multiplica ×{m}', { m: multTxt })}</span>
+                    {puntos === 0 ? (
+                        <span className={styles.hoyMult}>
+                            {mult > 1
+                                ? t('Registra hoy: tu racha multiplica ×{m} lo que ganes.', { m: multTxt })
+                                : t('Registra una comida para empezar a sumar.')}
+                        </span>
+                    ) : mult > 1 && (
+                        <span className={styles.hoyMult}>{t('Tu racha multiplica ×{m} tus puntos de hoy', { m: multTxt })}</span>
                     )}
                 </div>
                 <LlamaDeRacha racha={racha} tramo={tramo} escudos={escudos} escudosMax={escudosMax} onAbrir={onAbrir} />
+            </div>
+            <div className={styles.logrosCabecera}>
+                <p className={styles.logrosTitulo}>{todosHechos ? t('¡Hoy lo conseguiste todo!') : t('Cómo sumar puntos hoy')}</p>
+                {onAbrir && (
+                    <button type="button" className={styles.comoFunciona} onClick={onAbrir} aria-haspopup="dialog">
+                        {t('¿Cómo funciona?')}
+                    </button>
+                )}
             </div>
             <ul className={styles.logros} aria-label={t('Logros de hoy')}>
                 {visibles.map((k) => {

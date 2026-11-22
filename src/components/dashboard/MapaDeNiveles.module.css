@@ -45,9 +45,9 @@
     left: 0;
     right: 0;
     bottom: 0;
-    height: 56px;
+    height: 28px;   /* [1162] era 56 px a 0,85: oscurecía la tarjeta de la semana de abajo («se tapa») */
     z-index: 2;
-    background: linear-gradient(180deg, transparent, rgb(11 16 38 / 0.85));
+    background: linear-gradient(180deg, transparent, rgb(11 16 38 / 0.55));
     pointer-events: none;
 }
 
@@ -578,6 +578,8 @@
     color: rgb(255 255 255);
 }
 .trofeoIcono svg { width: 18px; height: 18px; filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.3)); }
+/* [1162] en la tarjeta dorada el renglón de los puntos se perdía (tinta suave sobre violeta) */
+.trofeoPerfecto .trofeoTexto small { color: rgb(254 243 199 / 0.92); }
 .trofeoTexto { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; text-align: left; }
 .trofeoLinea { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .trofeoTexto b { font-family: var(--font-heading); font-size: 14px; font-weight: 800; letter-spacing: 0.01em; white-space: nowrap; }
@@ -591,6 +593,36 @@
     color: var(--tinta-suave);
     line-height: 1.3;
 }
+
+/* [1162] barra de PUNTOS de la semana (juego por puntos): se llena hacia los 260 y las estrellas marcan 80/160/260 */
+.barraPts {
+    position: relative;
+    display: block;
+    height: 6px;
+    margin: 7px 6px 2px 0;
+    border-radius: var(--radius-full);
+    background: rgb(2 6 23 / 0.55);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-light) 18%, transparent);
+}
+.barraPtsLleno {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--lleno, 0%);
+    border-radius: inherit;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--success) 70%, white), var(--success));
+    box-shadow: 0 0 8px -2px color-mix(in srgb, var(--success) 80%, transparent);
+}
+.barraPtsHito {
+    position: absolute;
+    left: var(--en);
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    translate: -50% -50%;
+    color: rgb(148 163 184 / 0.7);
+    fill: var(--noche-b);
+}
+.barraPtsHitoHecho { color: var(--warning); fill: var(--warning); filter: drop-shadow(0 0 3px rgb(245 158 11 / 0.7)); }
 
 /* [1146] la barra de la semana: 7 tramos, los hitos de estrella (3.º, 5.º, 7.º) con su estrellita */
 .barra { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-top: 5px; }

@@ -4382,11 +4382,8 @@
   "pts esta semana": "pts nesta semana",
   "{n} pts": "{n} pts",
   "Faltan {n} pts para otra estrella": "Faltam {n} pts para outra estrela",
-  "Registro": "Registro",
-  "Día completo": "Dia completo",
   "Agua": "Água",
   "pts": "pts",
-  "Tu racha multiplica ×{m}": "Sua sequência multiplica ×{m}",
   "Logros de hoy": "Conquistas de hoje",
   "conseguido": "conseguido",
   "+{n} puntos si lo consigues": "+{n} pontos se conseguir",
@@ -4441,5 +4438,15 @@
   "Sigues con {n} días seguidos.": {
     "one": "Você continua com {n} dia seguido.",
     "other": "Você continua com {n} dias seguidos."
-  }
+  },
+  "3 comidas": "3 refeições",
+  "Calorías en meta": "Calorias na meta",
+  "Registra hoy: tu racha multiplica ×{m} lo que ganes.": "Registre hoje: sua sequência multiplica ×{m} o que você ganhar.",
+  "Registra una comida para empezar a sumar.": "Registre uma refeição para começar a somar.",
+  "Tu racha multiplica ×{m} tus puntos de hoy": "Sua sequência multiplica ×{m} seus pontos de hoje",
+  "¡Hoy lo conseguiste todo!": "Hoje você conseguiu tudo!",
+  "Cómo sumar puntos hoy": "Como somar pontos hoje",
+  "¿Cómo funciona?": "Como funciona?",
+  "{n} pts · Semana perfecta": "{n} pts · Semana perfeita",
+  "{n} pts · faltan {f} para otra estrella": "{n} pts · faltam {f} para outra estrela"
 }

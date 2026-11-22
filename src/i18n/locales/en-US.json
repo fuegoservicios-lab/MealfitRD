@@ -4382,11 +4382,8 @@
   "pts esta semana": "pts this week",
   "{n} pts": "{n} pts",
   "Faltan {n} pts para otra estrella": "{n} pts to another star",
-  "Registro": "Logged",
-  "Día completo": "Full day",
   "Agua": "Water",
   "pts": "pts",
-  "Tu racha multiplica ×{m}": "Your streak multiplies ×{m}",
   "Logros de hoy": "Today's achievements",
   "conseguido": "done",
   "+{n} puntos si lo consigues": "+{n} points if you get it",
@@ -4441,5 +4438,15 @@
   "Sigues con {n} días seguidos.": {
     "one": "You're still on {n} day in a row.",
     "other": "You're still on {n} days in a row."
-  }
+  },
+  "3 comidas": "3 meals",
+  "Calorías en meta": "Calories on goal",
+  "Registra hoy: tu racha multiplica ×{m} lo que ganes.": "Log today: your streak multiplies what you earn ×{m}.",
+  "Registra una comida para empezar a sumar.": "Log a meal to start earning.",
+  "Tu racha multiplica ×{m} tus puntos de hoy": "Your streak multiplies today's points ×{m}",
+  "¡Hoy lo conseguiste todo!": "You got it all today!",
+  "Cómo sumar puntos hoy": "How to earn points today",
+  "¿Cómo funciona?": "How does it work?",
+  "{n} pts · Semana perfecta": "{n} pts · Perfect week",
+  "{n} pts · faltan {f} para otra estrella": "{n} pts · {f} to another star"
 }

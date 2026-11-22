@@ -25,7 +25,7 @@ import { DIAS_DE_LA_SEMANA, ESTRELLAS_MAX, estrellasDeLaSemana, mediodiaDe } fro
 import { adornosDelMapa, armarMapa, celebracionPendiente, filasDelMapa, trazo } from '../../utils/mapaDeNiveles';
 import { triggerMobileHaptic } from '../../utils/mobileHaptics';
 import { ESCALERA, posicionEnLaEscalera } from '../../utils/caminoDeRangos';
-import { RANGOS_PUNTOS } from '../../utils/juegoPuntos';
+import { ESTRELLAS_SEMANA, RANGOS_PUNTOS, faltanParaOtraEstrella, nombreDelRango, rangoPorPuntos } from '../../utils/juegoPuntos';
 import { Button } from '../ui/Button';
 import styles from './MapaDeNiveles.module.css';
 
@@ -37,6 +37,8 @@ const AYUDA_MS = 4500;
 const CELEBRACION_MS = 3600;
 const ANCLA = 0.4;
 const BAJO_EL_MARCADOR = 52;   // alto del marcador flotante (pastillas de 30 px a 10 px del borde) + aire
+const AIRE_ABAJO = 28;          // [1162] lo que necesita la tarjeta de abajo para no quedar bajo la sombra del borde
+const MITAD_HOY = 86;           // [1162] media fila de hoy (74) + el cartel «Estás aquí» que asoma por encima
 
 const ETIQUETA = (t) => ({
     meta: t('En meta'),
@@ -101,6 +103,24 @@ function BarraDeLaSemana({ enMeta }) {
     );
 }
 BarraDeLaSemana.propTypes = { enMeta: PropTypes.number.isRequired };
+
+// [P1-PLAN-LOTE-1162 · 2026-11-22] Con el juego por puntos la barra es de PUNTOS: se llena hacia los 260 y lleva las
+// tres estrellas donde se ganan (80, 160, 260). Antes contaba días en meta y contradecía las estrellas del servidor
+// («Semana perfecta ★★★» con una barra casi vacía).
+const TOPE_SEMANA = ESTRELLAS_SEMANA[ESTRELLAS_SEMANA.length - 1];
+const estiloLleno = (pts) => ({ '--lleno': `${Math.round(Math.min(1, Math.max(0, pts / TOPE_SEMANA)) * 100)}%` });
+const estiloHito = (u) => ({ '--en': `${Math.round((u / TOPE_SEMANA) * 100)}%` });
+function BarraDePuntos({ puntos }) {
+    return (
+        <span className={styles.barraPts} style={estiloLleno(puntos)} aria-hidden="true">
+            <i className={styles.barraPtsLleno} />
+            {ESTRELLAS_SEMANA.map((u) => (
+                <Star key={u} className={`${styles.barraPtsHito} ${puntos >= u ? styles.barraPtsHitoHecho : ''}`} style={estiloHito(u)} strokeWidth={2.5} />
+            ))}
+        </span>
+    );
+}
+BarraDePuntos.propTypes = { puntos: PropTypes.number.isRequired };
 
 export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, porFecha, onElegir, onCompartir, onGrande, juego = null }) {
     const t = useT();
@@ -187,22 +207,37 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
     };
     const topeElegido = topeDe(selected) ?? topeDe(hoyISO);
     const topeHoy = topeDe(hoyISO);
+    // [P1-PLAN-LOTE-1162] lo que hay JUSTO debajo del día (el trofeo de la semana anterior, o una puerta de mundo): su
+    // borde inferior. El dueño: «lo que veo que se tapa cuando abro el mapa» — en domingo (día 1 de la semana) el día
+    // quedaba al 72 % y la tarjeta de la semana pasada, cortada contra el borde bajo la sombra del marco.
+    const fondoDe = (iso) => {
+        const i = filas.findIndex((f) => f.tipo === 'dia' && f.dia.iso === iso);
+        const abajo = i >= 0 ? filas[i + 1] : null;
+        return abajo && abajo.tipo !== 'dia' ? abajo.y + abajo.alto / 2 : null;
+    };
+    const fondoElegido = fondoDe(selected) ?? fondoDe(hoyISO);
+    const fondoHoy = fondoDe(hoyISO);
     const yaCentradoRef = useRef(false);
-    const irA = useCallback((y, suave, tope = null) => {
+    const irA = useCallback((y, suave, tope = null, fondo = null) => {
         const v = ventanaRef.current;
         if (!v) return;
         const h = v.clientHeight;
         let destino = tope != null ? tope - BAJO_EL_MARCADOR : y - h * ANCLA;
         if (y - destino > h * 0.72) destino = y - h * 0.72;
+        // [1162] que la tarjeta de debajo quepa ENTERA (con aire sobre la sombra del borde), sin subir tanto que el día
+        // y su «Estás aquí» se metan bajo el marcador
+        if (fondo != null && fondo + AIRE_ABAJO > destino + h) {
+            destino = Math.min(fondo + AIRE_ABAJO - h, y - MITAD_HOY - BAJO_EL_MARCADOR);
+        }
         destino = Math.max(0, destino);
         if (typeof v.scrollTo === 'function') v.scrollTo({ top: destino, behavior: suave && !sinMovimiento() ? 'smooth' : 'auto' });
         else v.scrollTop = destino;
     }, []);
     useLayoutEffect(() => {
         // la primera vez, al instante (abrir ya en tu día); después, deslizando (sin saltos al tocar)
-        irA(yElegido, yaCentradoRef.current, topeElegido);
+        irA(yElegido, yaCentradoRef.current, topeElegido, fondoElegido);
         yaCentradoRef.current = true;
-    }, [yElegido, topeElegido, irA, grande]);
+    }, [yElegido, topeElegido, fondoElegido, irA, grande]);
     // en grande, la ventana toma el foco: rueda, flechas, Re Pág/Av Pág y espacio la desplazan sin tocar nada más
     const enfocarVentana = useCallback(() => { ventanaRef.current?.focus?.({ preventScroll: true }); }, []);
     useEffect(() => {
@@ -228,7 +263,7 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
     const irAHoy = () => {
         triggerMobileHaptic('light');
         onElegir(hoyISO);
-        irA(yHoy, true, topeHoy);
+        irA(yHoy, true, topeHoy, fondoHoy);
     };
 
     // Las pastillas del marcador explican lo que cuentan (una a la vez; se cierra sola o al volver a tocar).
@@ -285,6 +320,8 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
     };
 
     const mundoHoy = claveMundo(mapa.mundo);
+    // [1162] con el juego por puntos el marcador dice el rango CON división, igual que «Tu semana» («Plata II»)
+    const rangoHud = juego ? rangoPorPuntos(mapa.puntos || 0) : null;
     const chip = (cual, clase, contenido, titulo) => (
         <button type="button" className={`${styles.hudChip} ${clase}`} title={titulo}
             aria-expanded={ayuda === cual} aria-controls="mapa-ayuda" onClick={() => alternarAyuda(cual)}>
@@ -304,7 +341,7 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                             {grande ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
                         </button>
                         {chip('dia', '', <><MapPin aria-hidden="true" />{t('Día {n}', { n: formatNumber(mapa.nivelHoy) })}</>, t('Día del camino'))}
-                        {chip('mundo', styles.hudMundo, <><span className={`${styles.hudMedalla} ${styles[`medalla_${mundoHoy}`]}`} aria-hidden="true" />{nombres[mundoHoy]}</>, t('Mundo'))}
+                        {chip('mundo', styles.hudMundo, <><span className={`${styles.hudMedalla} ${styles[`medalla_${mundoHoy}`]}`} aria-hidden="true" />{rangoHud ? nombreDelRango(rangoHud.clave, rangoHud.division, t) : nombres[mundoHoy]}</>, t('Mundo'))}
                     </span>
                     <span className={styles.hudLado}>
                         {chip('estrellas', styles.hudEstrellas, <><Star aria-hidden="true" /><b>{formatNumber(mapa.estrellas)}</b><span className={styles.srOnly}>{t('Estrellas')}</span></>, t('Estrellas'))}
@@ -381,7 +418,13 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                                         <Estrellas n={s.estrellas} />
                                                     </span>
                                                     <small>
-                                                        {s.estrellas === ESTRELLAS_MAX
+                                                        {juego && s.puntos != null
+                                                            ? (s.estrellas === ESTRELLAS_MAX
+                                                                ? t('{n} pts · Semana perfecta', { n: formatNumber(s.puntos) })
+                                                                : s.enCurso
+                                                                    ? t('{n} pts · faltan {f} para otra estrella', { n: formatNumber(s.puntos), f: formatNumber(faltanParaOtraEstrella(s.puntos)) })
+                                                                    : t('{n} pts', { n: formatNumber(s.puntos) }))
+                                                        : s.estrellas === ESTRELLAS_MAX
                                                             ? t('Semana perfecta')
                                                             : s.enCurso
                                                                 ? s.estrellas === 0
@@ -389,7 +432,9 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                                                     : tn(s.faltan, 'Falta {n} día en meta para otra estrella', 'Faltan {n} días en meta para otra estrella', { n: s.faltan })
                                                                 : tn(s.enMeta, '{n} día en meta', '{n} días en meta', { n: s.enMeta })}
                                                     </small>
-                                                    <BarraDeLaSemana enMeta={s.enMeta} />
+                                                    {juego && s.puntos != null
+                                                        ? <BarraDePuntos puntos={Number(s.puntos) || 0} />
+                                                        : <BarraDeLaSemana enMeta={s.enMeta} />}
                                                 </span>
                                             </div>
                                         </li>

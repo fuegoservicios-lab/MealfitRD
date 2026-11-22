@@ -54,7 +54,7 @@ describe('[1161] la tarjeta de la semana por puntos', () => {
         expect(screen.getByText('400 pts para Plata III')).toBeInTheDocument();
         const llama = screen.getByRole('button', { name: /9 días seguidos registrando, multiplicador ×1\.5, 2 escudos de racha/ });
         expect(llama).toBeInTheDocument();
-        expect(screen.getByText('Tu racha multiplica ×1.5')).toBeInTheDocument();
+        expect(screen.getByText('Tu racha multiplica ×1.5 tus puntos de hoy')).toBeInTheDocument();
         // semana: 150 − 0 + 60 = 210 ⇒ 2 ★
         expect(screen.getByText('210')).toBeInTheDocument();
         expect(screen.getByRole('img', { name: '2 de 3 estrellas' })).toBeInTheDocument();
@@ -66,9 +66,9 @@ describe('[1161] la tarjeta de la semana por puntos', () => {
         const lista = await screen.findByRole('list', { name: 'Logros de hoy' });
         const items = within(lista).getAllByRole('listitem').map((li) => li.getAttribute('aria-label'));
         expect(items).toEqual([
-            'Registro: conseguido',
-            'Día completo: +5 puntos si lo consigues',
-            'Calorías: +15 puntos si lo consigues',
+            'Registrar: conseguido',
+            '3 comidas: +5 puntos si lo consigues',
+            'Calorías en meta: +15 puntos si lo consigues',
             'Proteína: +10 puntos si lo consigues',
         ]);
     });
