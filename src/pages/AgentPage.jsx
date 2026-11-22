@@ -6375,7 +6375,9 @@ const AgentPage = () => {
                     border: isMobile ? 'none' : '1px solid var(--border)',
                     overflow: 'hidden',
                     margin: isMobile ? '0' : '2.25rem auto 0',
-                    maxWidth: isMobile ? '100vw' : '1200px',
+                    // [P1-PLAN-LOTE-1167 · 2026-11-22] 1.440 en PC, como Nevera e Historial: al cambiar de sección la
+                    // tarjeta ya no salta de ancho. Los mensajes siguen con su tope de 800 px (lectura cómoda).
+                    maxWidth: isMobile ? '100vw' : '1440px',
                     width: '100%',
                     minWidth: 0,
                     boxSizing: 'border-box',
