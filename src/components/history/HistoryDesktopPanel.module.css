@@ -1,0 +1,16 @@
+/* [P1-PLAN-LOTE-1167 · 2026-11-22] Historial en PC. El dueño: «quiero que la gente de pc tenga su estilo». En pantalla
+   ancha cada plan anterior era una fila de ~1.100 px con el nombre a un lado y macros/kcal al otro y un hueco en
+   medio. Desde 1.040 px de lista los planes de cada grupo van en DOS columnas y macros + kcal + acciones bajan bajo el
+   nombre. Por debajo, la fila de siempre (móvil usa HistoryMobilePanel: intacto). */
+.lista { display: flex; flex-direction: column; gap: 18px; container-type: inline-size; }
+.grupo { display: flex; flex-direction: column; gap: 10px; }
+.grupoCabeza { display: flex; align-items: center; gap: 10px; padding: 2px; }
+.fila { grid-template-columns: auto 1fr auto; }
+.lado { display: flex; align-items: center; gap: 16px; }
+
+@container (min-width: 1040px) {
+  .grupo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+  .grupoCabeza { grid-column: 1 / -1; }
+  .fila { grid-template-columns: auto minmax(0, 1fr); align-self: stretch; }
+  .lado { grid-column: 2; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+}

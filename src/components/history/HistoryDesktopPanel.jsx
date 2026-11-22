@@ -17,6 +17,7 @@ import { mealDisplayName } from "../../utils/displayMeal";
 // dominicanos en las cuatro traducciones, y en pt-BR la coma es DECIMAL.
 import { t, tn, useT, useI18n, formatDate, formatNumber, getLocale } from "../../i18n";
 import { textoDelServidor } from "../../utils/textosDelServidor";
+import css from "./HistoryDesktopPanel.module.css";
 
 /**
  * HistoryDesktopPanel — vista "Historial" de escritorio (Bioboros).
@@ -340,7 +341,8 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
     <div onClick={onOpen} role="button" tabIndex={0} onKeyDown={(e) => handleRowKeyDown(e, editing, onOpen)}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       onFocus={() => setH(true)} onBlur={() => setH(false)}
-      style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 16, padding: "14px 16px", borderRadius: 16, cursor: "pointer",
+      className={css.fila}
+      style={{ display: "grid", alignItems: "center", gap: 16, padding: "14px 16px", borderRadius: 16, cursor: "pointer",
         border: `1px solid ${h ? "color-mix(in srgb, var(--primary) 45%, var(--border))" : "var(--border)"}`,
         background: h ? "color-mix(in srgb, var(--primary) 5%, transparent)" : "var(--bg-page)",
         transform: h ? "translateY(-1px)" : "none", transition: ".15s" }}>
@@ -362,7 +364,7 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
         </div>
         <RecipeChips meals={plan.meals} max={3} />
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <div className={css.lado}>
         {(plan.macros.p || plan.macros.c || plan.macros.g) ? <MacroBar macros={plan.macros} /> : <span />}
         {plan.kcal > 0 && <span style={{ ...kcalBig, gap: 4 }}><b style={{ fontSize: "1.1rem", color: "var(--ink-warn)" }}>{formatNumber(plan.kcal)}</b><span>{t("kcal")}</span></span>}
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -462,7 +464,7 @@ export default function HistoryDesktopPanel({
       </div>
 
       {/* Lista */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div className={css.lista} data-historial-pc>
         {active && (!q || active.name.toLowerCase().includes(q)) && (
           <PlanHero
             paused={paused}
@@ -474,8 +476,8 @@ export default function HistoryDesktopPanel({
         )}
 
         {BUCKET_ORDER.filter((g) => groups[g]).map((g) => (
-          <div key={g} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 2px" }}>
+          <div key={g} className={css.grupo}>
+            <div className={css.grupoCabeza}>
               <span style={{ fontFamily: "var(--font-heading)", fontSize: ".75rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-muted)" }}>{bucketTitle(g)}</span>
               <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
               <span style={{ fontSize: ".75rem", fontWeight: 700, color: "var(--text-muted)" }}>{groups[g].length}</span>

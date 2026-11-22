@@ -129,7 +129,8 @@
         padding: 1.75rem 2.25rem 2.5rem;
     }
     /* [P1-PLAN-LOTE-1167 · 2026-11-22] La Nevera también crece en PC: con 1.440 px su lista cabe en dos columnas. */
-    .mainContent:has([data-nevera-pc]) {
+    .mainContent:has([data-nevera-pc]),
+    .mainContent:has([data-historial-pc]) {
         max-width: 1440px;
     }
 }
