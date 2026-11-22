@@ -4377,5 +4377,69 @@
   "Ej.: 2 guineítos y café": "Ex. : 2 bananes vertes et café",
   "Ej.: arroz, pollo, mangú": "Ex. : riz, poulet, mangú",
   "Volver a Registrar comida": "Revenir à Enregistrer un repas",
-  "Total del plato": "Total de l’assiette"
+  "Total del plato": "Total de l’assiette",
+  "{n} pts para {rango}": "{n} pts avant {rango}",
+  "pts esta semana": "pts cette semaine",
+  "{n} pts": "{n} pts",
+  "Faltan {n} pts para otra estrella": "Encore {n} pts pour une autre étoile",
+  "Registro": "Saisie",
+  "Día completo": "Journée complète",
+  "Agua": "Eau",
+  "pts": "pts",
+  "Tu racha multiplica ×{m}": "Votre série multiplie ×{m}",
+  "Logros de hoy": "Réussites du jour",
+  "conseguido": "réussi",
+  "+{n} puntos si lo consigues": "+{n} points si vous y arrivez",
+  "multiplicador ×{m}": "multiplicateur ×{m}",
+  "Registrar lo que comes": "Noter ce que vous mangez",
+  "Día completo (3 comidas o más)": "Journée complète (3 repas ou plus)",
+  "Calorías dentro de tu meta": "Calories dans votre objectif",
+  "Llegar a tu proteína": "Atteindre vos protéines",
+  "Tu agua del día": "Votre eau du jour",
+  "{n} pts en total": "{n} pts au total",
+  "Te faltan {n} pts": "Encore {n} pts",
+  "Estás en la cima: llegaste a Diamante III.": "Vous êtes au sommet : vous avez atteint Diamant III.",
+  "Cómo ganar puntos cada día": "Comment gagner des points chaque jour",
+  "Los puntos no se pierden y nunca bajas de rango.": "Les points ne se perdent pas et vous ne descendez jamais de rang.",
+  "Tu racha multiplica los puntos": "Votre série multiplie les points",
+  "Racha de leyenda: todo lo que ganas vale el doble.": "Série de légende : tout ce que vous gagnez compte double.",
+  "Cada {n} días seguidos ganas un escudo (máximo {m}). Si un día no registras, el escudo salva tu racha.": "Tous les {n} jours d'affilée, vous gagnez un bouclier (maximum {m}). Si vous oubliez un jour, le bouclier sauve votre série.",
+  "Desde {n} pts": "Dès {n} pts",
+  "Divisiones de {rango}": "Divisions de {rango}",
+  "Faltan {n} pts": "Encore {n} pts",
+  "Días seguidos registrando: tus puntos valen ×{m}.": "Jours de saisie d'affilée : vos points valent ×{m}.",
+  "¡Subiste a {rango}!": "Vous passez à {rango} !",
+  "Por tus puntos acumulados.": "Grâce à vos points cumulés.",
+  "Ganaste un escudo de racha": "Vous avez gagné un bouclier de série",
+  "Si un día no registras, te guarda la racha.": "Si vous oubliez un jour, il garde votre série.",
+  "Un escudo salvó tu racha": "Un bouclier a sauvé votre série",
+  "¡Récord de puntos en un día!": "Record de points en un jour !",
+  "{n} pts hoy.": "{n} pts aujourd'hui.",
+  "Tu rango es tu mundo. Te faltan {n} pts para {siguiente}.": "Votre rang est votre monde. Encore {n} pts avant {siguiente}.",
+  "Cada semana da hasta 3 estrellas según los puntos que sumes.": "Chaque semaine donne jusqu'à 3 étoiles selon les points que vous cumulez.",
+  "Días seguidos registrando: multiplican tus puntos. Hoy no la corta mientras el día no termine.": "Jours de saisie d'affilée : ils multiplient vos points. Aujourd'hui ne la casse pas tant que la journée n'est pas finie.",
+  "Encendida": "Allumée",
+  "En llamas": "En feu",
+  "Imparable": "Inarrêtable",
+  "⚡ {n} pts esta semana": "⚡ {n} pts cette semaine",
+  "{n} días seguidos registrando": {
+    "one": "{n} jour de saisie d'affilée",
+    "other": "{n} jours de saisie d'affilée"
+  },
+  "{n} escudos de racha": {
+    "one": "{n} bouclier de série",
+    "other": "{n} boucliers de série"
+  },
+  "desde {n} días": {
+    "one": "dès {n} jour",
+    "other": "dès {n} jours"
+  },
+  "{n} días más registrando y ganas ×{m}.": {
+    "one": "Encore {n} jour de saisie et vous obtenez ×{m}.",
+    "other": "Encore {n} jours de saisie et vous obtenez ×{m}."
+  },
+  "Sigues con {n} días seguidos.": {
+    "one": "Vous restez à {n} jour d'affilée.",
+    "other": "Vous restez à {n} jours d'affilée."
+  }
 }

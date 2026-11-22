@@ -60,6 +60,8 @@ import { getCalorieGoalBand, getCalorieGoalState, isStrongDeficit, resolveMainGo
 import { ESTRELLAS_MAX, domingoDe, estrellasDeLaSemana, inicioDeLaSemana1, inicioDelViaje, numeroDeSemana } from '../../utils/progresoDeLosDias';
 import { diaUnoDelServidor, invalidarCacheSemanas } from '../../utils/progresoServidor';
 import VitrinaDeSemanas from './VitrinaDeSemanas';
+import { useResumenDeProgreso } from '../../hooks/useResumenDeProgreso';
+import { pedirSemanas } from '../../utils/progresoServidor';
 import MapaDeNiveles from './MapaDeNiveles';   // [P1-PLAN-LOTE-1131] el mapa de niveles, vista principal
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import styles from './DiaryHistory.module.css';
@@ -352,6 +354,25 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const [error, setError] = useState('');
     // [P1-PLAN-LOTE-105] sube cuando algo cambió (borrar aquí, registrar en el componedor, la tarjeta o el chat)
     const [version, setVersion] = useState(0);
+    // [P1-PLAN-LOTE-1161] el mapa de niveles con el juego por puntos: estrellas por semana y racha del SERVIDOR
+    const resumenJuego = useResumenDeProgreso(open ? userId : null);
+    const [semanasJuego, setSemanasJuego] = useState(null);
+    useEffect(() => {
+        if (!open || !userId || !resumenJuego?.puntos) return undefined;
+        let vivo = true;
+        pedirSemanas(userId).then((l) => { if (vivo && Array.isArray(l)) setSemanasJuego(l); }).catch(() => {});
+        return () => { vivo = false; };
+    }, [open, userId, resumenJuego?.puntos, version]);
+    const juegoDelMapa = useMemo(() => {
+        if (!resumenJuego?.puntos || !semanasJuego) return null;
+        const conPuntos = semanasJuego.filter((s) => Number.isFinite(Number(s?.puntos)));
+        if (!conPuntos.length) return null;
+        return {
+            estrellas: new Map(conPuntos.map((s) => [Number(s.numero), Number(s.estrellas) || 0])),
+            puntos: new Map(conPuntos.map((s) => [Number(s.numero), Number(s.puntos) || 0])),
+            racha: Number(resumenJuego.racha) || 0,
+        };
+    }, [resumenJuego, semanasJuego]);
     const [borrandoId, setBorrandoId] = useState(null);
     const borrandoRef = useRef(new Set());
     const eliminadasRef = useRef(new Set());
@@ -959,6 +980,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     onElegir={elegirDesdeMapa}
                                     onCompartir={setCaminoACompartir}
                                     onGrande={setMapaGrande}
+                                    juego={juegoDelMapa}
                                 />
                             </div>
                         ) : (

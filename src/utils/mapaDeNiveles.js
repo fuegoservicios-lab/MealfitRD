@@ -28,7 +28,10 @@ export const NIVELES_MAX = 371;
  * nuevo: el camino se sube, como en los juegos). Cada día: `{ iso, estado, esHoy, nivel }` con
  * `estado ∈ meta|bajo|sobre|vacio|futuro` y `nivel` = su número en el camino (día 1 = 1).
  */
-export function armarMapa({ inicioISO, hoyISO, estadoDe, umbrales = [0] }) {
+// [P1-PLAN-LOTE-1161] `servidor` (juego por puntos): {estrellas: Map(numero→★), puntos: Map(numero→pts), racha}. Las
+// estrellas de cada semana y la racha (días registrando) son las del servidor; los MUNDOS se abren por PUNTOS acumulados
+// (`umbrales` = los de `RANGOS_PUNTOS`). Sin `servidor`, la regla vieja (días en meta).
+export function armarMapa({ inicioISO, hoyISO, estadoDe, umbrales = [0], servidor = null }) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(hoyISO || ''))) return { semanas: [], racha: 0, estrellas: 0, nivelHoy: 1, mundo: 0 };
     let inicio = /^\d{4}-\d{2}-\d{2}$/.test(String(inicioISO || '')) && inicioISO <= hoyISO ? inicioISO : hoyISO;
     if (diasEntre(inicio, hoyISO) > NIVELES_MAX - DIAS_DE_LA_SEMANA) inicio = sumarDias(hoyISO, -(NIVELES_MAX - DIAS_DE_LA_SEMANA));
@@ -52,11 +55,13 @@ export function armarMapa({ inicioISO, hoyISO, estadoDe, umbrales = [0] }) {
             dias.push({ iso, estado, esHoy: iso === hoyISO, nivel: diasEntre(inicio, iso) + 1 });
         }
         const enCurso = hoyISO >= domingo && hoyISO <= sumarDias(domingo, DIAS_DE_LA_SEMANA - 1);
-        const est = estrellasDeLaSemana(enMeta);
+        const numero = numeroDeSemana(semana1, domingo);
+        const est = servidor?.estrellas?.has(numero) ? Number(servidor.estrellas.get(numero)) || 0 : estrellasDeLaSemana(enMeta);
         estrellas += est;
         semanas.push({
-            numero: numeroDeSemana(semana1, domingo),
+            numero,
             domingo,
+            puntos: servidor?.puntos?.get(numero) ?? null,
             enCurso,
             enMeta,
             estrellas: est,
@@ -76,7 +81,7 @@ export function armarMapa({ inicioISO, hoyISO, estadoDe, umbrales = [0] }) {
     for (let k = semanas.length - 1; k >= 0; k -= 1) {
         const s = semanas[k];
         s.mundo = mundoDe(acumuladas);
-        acumuladas += s.estrellas;
+        acumuladas += servidor ? (Number(s.puntos) || 0) : s.estrellas;
         const tras = mundoDe(acumuladas);
         s.abreMundo = tras > s.mundo ? tras : null;
     }
@@ -88,6 +93,9 @@ export function armarMapa({ inicioISO, hoyISO, estadoDe, umbrales = [0] }) {
         if (e === 'meta') racha += 1;
         else if (iso === hoyISO) continue;
         else break;
+    }
+    if (servidor) {
+        return { semanas, racha: Number(servidor.racha) || 0, estrellas, puntos: acumuladas, nivelHoy: diasEntre(inicio, hoyISO) + 1, mundo: mundoDe(acumuladas) };
     }
     return { semanas, racha, estrellas, nivelHoy: diasEntre(inicio, hoyISO) + 1, mundo: mundoDe(estrellas) };
 }

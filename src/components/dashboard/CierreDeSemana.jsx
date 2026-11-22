@@ -6,8 +6,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Award, Flame, Share2, Star, X } from 'lucide-react';
-import { useT, useTn } from '../../i18n';
+import { Award, Flame, Share2, Shield, Star, Trophy, X, Zap } from 'lucide-react';
+import { formatNumber, useT, useTn } from '../../i18n';
+import { nombreDelRango } from '../../utils/juegoPuntos';
 import { marcarEventosVistos } from '../../utils/progresoServidor';
 import styles from './CierreDeSemana.module.css';
 
@@ -24,7 +25,10 @@ function textosDelEvento(ev, { t, tn }) {
             return {
                 titulo: t('Semana {n} cerrada', { n: d.numero }),
                 texto: `${tn(d.estrellas || 0, '{n} estrella', '{n} estrellas', { n: d.estrellas || 0 })} · `
-                    + `${t('{n} de {total} días en meta', { n: d.dias_en_meta || 0, total: 7 })}. `
+                    // [P1-PLAN-LOTE-1161] con el juego por puntos, los puntos de la semana
+                    + `${Number.isFinite(Number(d.puntos)) && d.puntos !== null
+                        ? t('{n} pts', { n: formatNumber(d.puntos) })
+                        : t('{n} de {total} días en meta', { n: d.dias_en_meta || 0, total: 7 })}. `
                     + t('Empieza la Semana {n}.', { n: d.siguiente }),
             };
         case 'primera_estrella':
@@ -32,7 +36,21 @@ function textosDelEvento(ev, { t, tn }) {
         case 'primera_semana_perfecta':
             return { titulo: t('¡Primera semana perfecta!'), texto: t('Los 7 días en meta.') };
         case 'racha':
-            return { titulo: tn(d.dias || 0, 'Racha de {n} día', 'Racha de {n} días', { n: d.dias || 0 }), texto: t('Días seguidos en meta.') };
+            return {
+                titulo: tn(d.dias || 0, 'Racha de {n} día', 'Racha de {n} días', { n: d.dias || 0 }),
+                texto: d.mult
+                    ? t('Días seguidos registrando: tus puntos valen ×{m}.', { m: formatNumber(d.mult, { maximumFractionDigits: 2 }) })
+                    : t('Días seguidos en meta.'),
+            };
+        // [P1-PLAN-LOTE-1161] juego por puntos
+        case 'division':
+            return { titulo: t('¡Subiste a {rango}!', { rango: nombreDelRango(d.clave, d.division, t) }), texto: t('Por tus puntos acumulados.') };
+        case 'escudo_ganado':
+            return { titulo: t('Ganaste un escudo de racha'), texto: t('Si un día no registras, te guarda la racha.') };
+        case 'escudo_salvo':
+            return { titulo: t('Un escudo salvó tu racha'), texto: tn(d.racha || 0, 'Sigues con {n} día seguido.', 'Sigues con {n} días seguidos.', { n: d.racha || 0 }) };
+        case 'record_dia':
+            return { titulo: t('¡Récord de puntos en un día!'), texto: t('{n} pts hoy.', { n: formatNumber(d.puntos || 0) }) };
         case 'semanas_seguidas_con_estrella':
             return { titulo: tn(d.semanas || 0, '{n} semana seguida con estrella', '{n} semanas seguidas con estrella', { n: d.semanas || 0 }), texto: t('Constancia de verdad.') };
         case 'rango':
@@ -44,7 +62,10 @@ function textosDelEvento(ev, { t, tn }) {
     }
 }
 
-const ICONO = { semana_cerrada: Star, primera_estrella: Star, primera_semana_perfecta: Star, racha: Flame };
+const ICONO = {
+    semana_cerrada: Star, primera_estrella: Star, primera_semana_perfecta: Star, racha: Flame,
+    division: Trophy, escudo_ganado: Shield, escudo_salvo: Shield, record_dia: Zap,
+};
 
 const CierreDeSemana = ({ userId, eventos, onCompartir = null }) => {
     const t = useT();

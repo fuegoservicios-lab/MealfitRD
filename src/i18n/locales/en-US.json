@@ -4377,5 +4377,69 @@
   "Ej.: 2 guineítos y café": "E.g.: 2 green bananas and coffee",
   "Ej.: arroz, pollo, mangú": "E.g.: rice, chicken, mangú",
   "Volver a Registrar comida": "Back to Log meal",
-  "Total del plato": "Plate total"
+  "Total del plato": "Plate total",
+  "{n} pts para {rango}": "{n} pts to {rango}",
+  "pts esta semana": "pts this week",
+  "{n} pts": "{n} pts",
+  "Faltan {n} pts para otra estrella": "{n} pts to another star",
+  "Registro": "Logged",
+  "Día completo": "Full day",
+  "Agua": "Water",
+  "pts": "pts",
+  "Tu racha multiplica ×{m}": "Your streak multiplies ×{m}",
+  "Logros de hoy": "Today's achievements",
+  "conseguido": "done",
+  "+{n} puntos si lo consigues": "+{n} points if you get it",
+  "multiplicador ×{m}": "multiplier ×{m}",
+  "Registrar lo que comes": "Log what you eat",
+  "Día completo (3 comidas o más)": "Full day (3 meals or more)",
+  "Calorías dentro de tu meta": "Calories within your goal",
+  "Llegar a tu proteína": "Hit your protein",
+  "Tu agua del día": "Your daily water",
+  "{n} pts en total": "{n} pts in total",
+  "Te faltan {n} pts": "{n} pts to go",
+  "Estás en la cima: llegaste a Diamante III.": "You're at the top: you reached Diamond III.",
+  "Cómo ganar puntos cada día": "How to earn points every day",
+  "Los puntos no se pierden y nunca bajas de rango.": "Points are never lost and you never drop a rank.",
+  "Tu racha multiplica los puntos": "Your streak multiplies your points",
+  "Racha de leyenda: todo lo que ganas vale el doble.": "Legend streak: everything you earn counts double.",
+  "Cada {n} días seguidos ganas un escudo (máximo {m}). Si un día no registras, el escudo salva tu racha.": "Every {n} days in a row you earn a shield (up to {m}). If you miss a day, the shield saves your streak.",
+  "Desde {n} pts": "From {n} pts",
+  "Divisiones de {rango}": "{rango} divisions",
+  "Faltan {n} pts": "{n} pts to go",
+  "Días seguidos registrando: tus puntos valen ×{m}.": "Days in a row logging: your points are worth ×{m}.",
+  "¡Subiste a {rango}!": "You moved up to {rango}!",
+  "Por tus puntos acumulados.": "Thanks to your total points.",
+  "Ganaste un escudo de racha": "You earned a streak shield",
+  "Si un día no registras, te guarda la racha.": "If you miss a day, it keeps your streak.",
+  "Un escudo salvó tu racha": "A shield saved your streak",
+  "¡Récord de puntos en un día!": "New daily points record!",
+  "{n} pts hoy.": "{n} pts today.",
+  "Tu rango es tu mundo. Te faltan {n} pts para {siguiente}.": "Your rank is your world. {n} pts to {siguiente}.",
+  "Cada semana da hasta 3 estrellas según los puntos que sumes.": "Each week gives up to 3 stars based on the points you earn.",
+  "Días seguidos registrando: multiplican tus puntos. Hoy no la corta mientras el día no termine.": "Days in a row logging: they multiply your points. Today doesn't break it until the day is over.",
+  "Encendida": "On fire",
+  "En llamas": "Blazing",
+  "Imparable": "Unstoppable",
+  "⚡ {n} pts esta semana": "⚡ {n} pts this week",
+  "{n} días seguidos registrando": {
+    "one": "{n} day in a row logging",
+    "other": "{n} days in a row logging"
+  },
+  "{n} escudos de racha": {
+    "one": "{n} streak shield",
+    "other": "{n} streak shields"
+  },
+  "desde {n} días": {
+    "one": "from {n} day",
+    "other": "from {n} days"
+  },
+  "{n} días más registrando y ganas ×{m}.": {
+    "one": "{n} more day logging and you get ×{m}.",
+    "other": "{n} more days logging and you get ×{m}."
+  },
+  "Sigues con {n} días seguidos.": {
+    "one": "You're still on {n} day in a row.",
+    "other": "You're still on {n} days in a row."
+  }
 }

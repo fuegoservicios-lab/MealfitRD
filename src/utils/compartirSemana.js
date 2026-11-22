@@ -44,7 +44,12 @@ export function resumenDeSemana(semana) {
         enMeta,
         estrellas,
         racha: Math.max(0, Number(s.racha) || 0),
-        rango: rangoClave ? { clave: rangoClave, nombre: NOMBRE_RANGO()[rangoClave] } : null,
+        // [P1-PLAN-LOTE-1161] con el juego por puntos: «Plata II» y los puntos de la semana
+        rango: rangoClave ? {
+            clave: rangoClave,
+            nombre: NOMBRE_RANGO()[rangoClave] + ({ 1: ' I', 2: ' II', 3: ' III' }[Number(s.division)] || ''),
+        } : null,
+        puntos: Number.isFinite(Number(s.puntos)) && s.puntos !== null ? Math.max(0, Number(s.puntos)) : null,
         perfecta: enMeta >= DIAS,
         pintor: PINTOR_SEMANA,
     };
@@ -61,6 +66,7 @@ export function textoDeSemana(r) {
         t('✅ {n} de {total} días en meta', { n: r.enMeta, total: DIAS }),
         t('⭐ {n} de {total} estrellas', { n: r.estrellas, total: ESTRELLAS_MAX }),
     ];
+    if (r.puntos != null) lineas.push(t('⚡ {n} pts esta semana', { n: r.puntos }));
     if (r.racha >= 2) lineas.push(tn(r.racha, '🔥 Racha de {n} día', '🔥 Racha de {n} días', { n: r.racha }));
     if (r.rango) lineas.push(t('🏅 Rango {rango}', { rango: r.rango.nombre }));
     lineas.push('', t('¿Y tú, cómo va tu semana? 💪'), SITIO);

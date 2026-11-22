@@ -25,10 +25,12 @@ import { DIAS_DE_LA_SEMANA, ESTRELLAS_MAX, estrellasDeLaSemana, mediodiaDe } fro
 import { adornosDelMapa, armarMapa, celebracionPendiente, filasDelMapa, trazo } from '../../utils/mapaDeNiveles';
 import { triggerMobileHaptic } from '../../utils/mobileHaptics';
 import { ESCALERA, posicionEnLaEscalera } from '../../utils/caminoDeRangos';
+import { RANGOS_PUNTOS } from '../../utils/juegoPuntos';
 import { Button } from '../ui/Button';
 import styles from './MapaDeNiveles.module.css';
 
 const UMBRALES = ESCALERA.map((e) => e.desde);
+const UMBRALES_PUNTOS = RANGOS_PUNTOS.map(([, desde]) => desde);   // [1161]
 const ICONO_MUNDO = { bronce: Medal, plata: Medal, oro: Trophy, platino: Crown, diamante: Gem };
 export const CLAVE_CELEBRADAS = 'mealfit_mapa_celebradas';
 const AYUDA_MS = 4500;
@@ -100,7 +102,7 @@ function BarraDeLaSemana({ enMeta }) {
 }
 BarraDeLaSemana.propTypes = { enMeta: PropTypes.number.isRequired };
 
-export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, porFecha, onElegir, onCompartir, onGrande }) {
+export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, porFecha, onElegir, onCompartir, onGrande, juego = null }) {
     const t = useT();
     // [P1-PLAN-LOTE-1135] «En grande» (el dueño: «en pc que se pueda poner en grande para ver todo… la gente de pc no
     // tiene forma de scrollear desde afuera»): el mapa a pantalla completa, en PC y en móvil. Escape o el botón lo
@@ -152,12 +154,17 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
     const etiquetas = ETIQUETA(t);
     const nombres = NOMBRE_MUNDO(t);
 
-    const mapa = useMemo(() => armarMapa({ inicioISO, hoyISO, estadoDe, umbrales: UMBRALES }), [inicioISO, hoyISO, estadoDe]);
+    // [P1-PLAN-LOTE-1161] con el juego por puntos, las estrellas y la racha son las del servidor y los mundos se abren por puntos
+    const mapa = useMemo(
+        () => armarMapa({ inicioISO, hoyISO, estadoDe, umbrales: juego ? UMBRALES_PUNTOS : UMBRALES, servidor: juego }),
+        [inicioISO, hoyISO, estadoDe, juego],
+    );
     const { filas, alto, zonas } = useMemo(() => filasDelMapa(mapa.semanas), [mapa]);
     // [P1-PLAN-LOTE-1155] el paisaje a los lados del camino (planetas, lunas, destellos, cometas)
     const adornos = useMemo(() => adornosDelMapa(filas), [filas]);
     const claveMundo = (i) => ESCALERA[i]?.clave || 'bronce';
     const escalera = posicionEnLaEscalera(mapa.estrellas);
+    const sigMundo = juego ? RANGOS_PUNTOS[mapa.mundo + 1] || null : null;
 
     // El camino: lo RECORRIDO (del inicio a hoy, de abajo arriba) brilla y se dibuja al abrir; lo que VIENE va punteado.
     const { recorrido, porVenir } = useMemo(() => {
@@ -234,11 +241,19 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
     const alternarAyuda = (cual) => setAyuda((a) => (a === cual ? null : cual));
     const textoAyuda = {
         dia: t('Día {n} de tu camino: cuenta desde tu primer día.', { n: formatNumber(mapa.nivelHoy) }),
-        mundo: escalera.siguiente
+        mundo: juego
+            ? (sigMundo
+                ? t('Tu rango es tu mundo. Te faltan {n} pts para {siguiente}.', { n: formatNumber(sigMundo[1] - (mapa.puntos || 0)), siguiente: nombres[sigMundo[0]] })
+                : t('Llegaste al último mundo: Diamante.'))
+            : escalera.siguiente
             ? tn(escalera.faltan, 'Tu rango es tu mundo. Te falta {n} estrella para {siguiente}.', 'Tu rango es tu mundo. Te faltan {n} estrellas para {siguiente}.', { n: escalera.faltan, siguiente: nombres[escalera.siguiente.clave] })
             : t('Llegaste al último mundo: Diamante.'),
-        estrellas: t('Cada semana da hasta 3 estrellas: con 3, 5 y 7 días en meta.'),
-        racha: t('Días seguidos en meta. Hoy no la corta mientras el día no termine.'),
+        estrellas: juego
+            ? t('Cada semana da hasta 3 estrellas según los puntos que sumes.')
+            : t('Cada semana da hasta 3 estrellas: con 3, 5 y 7 días en meta.'),
+        racha: juego
+            ? t('Días seguidos registrando: multiplican tus puntos. Hoy no la corta mientras el día no termine.')
+            : t('Días seguidos en meta. Hoy no la corta mientras el día no termine.'),
     };
 
     // La celebración: una vez por cosa (se anota al verse) y se va sola.
@@ -336,7 +351,9 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                     const titulo = f.tipo === 'inicio' ? t('Inicio') : t('Mundo {nombre}', { nombre: nombres[clave] });
                                     const sub = f.tipo === 'inicio'
                                         ? t('Mundo {nombre}', { nombre: nombres[clave] })
-                                        : t('Desde {n} estrellas', { n: formatNumber(ESCALERA[f.mundo].desde) });
+                                        : juego
+                                            ? t('Desde {n} pts', { n: formatNumber(RANGOS_PUNTOS[f.mundo]?.[1] || 0) })
+                                            : t('Desde {n} estrellas', { n: formatNumber(ESCALERA[f.mundo].desde) });
                                     return (
                                         <li key={f.clave} className={styles.puertaFila} style={pos}>
                                             <div className={`${styles.puerta} ${f.tipo === 'inicio' ? styles.puertaInicio : ''}`} role="img" aria-label={`${titulo} · ${sub}`}>
@@ -484,4 +501,5 @@ MapaDeNiveles.propTypes = {
     onElegir: PropTypes.func.isRequired,
     onCompartir: PropTypes.func,
     onGrande: PropTypes.func,
+    juego: PropTypes.shape({ estrellas: PropTypes.instanceOf(Map), puntos: PropTypes.instanceOf(Map), racha: PropTypes.number }),
 };
