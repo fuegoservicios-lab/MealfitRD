@@ -673,3 +673,135 @@
     color: var(--primary);
     background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
+
+/* [P1-PLAN-LOTE-1166 · 2026-11-22] Resumen de semana cerrada: mismo lenguaje visual que PuntosDeHoy,
+   ocupa el hueco central al navegar semanas pasadas y evita vacíos muertos en PC. */
+.cerradaResumen {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.7rem;
+    padding: 0.95rem 0.95rem 0.85rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+    background:
+        radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--primary) 12%, transparent) 0%, transparent 62%),
+        color-mix(in srgb, var(--bg-muted) 55%, transparent);
+}
+.cerradaPerfecta {
+    border-color: color-mix(in srgb, var(--ink-pantry) 36%, var(--border));
+    background:
+        radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--ink-pantry) 14%, transparent) 0%, transparent 62%),
+        color-mix(in srgb, var(--bg-muted) 55%, transparent);
+}
+.cerradaCima {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.cerradaPrincipal {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.cerradaEtiqueta {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+.cerradaCifra {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    margin-top: 0.1rem;
+    line-height: 1.05;
+    color: var(--text-main);
+}
+.cerradaCifra strong {
+    font-size: 1.875rem;
+    font-weight: 850;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+}
+.cerradaUnidad {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+.cerradaInsignia {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.2rem;
+    padding: 0.45rem 0.65rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
+}
+.cerradaEstrellas {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+}
+.cerradaEstrellas .estrellaGanada {
+    animation: none;
+}
+.cerradaEstado {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.cerradaGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin: 0.85rem 0 0;
+}
+.cerradaStat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+    background: color-mix(in srgb, var(--bg-card) 72%, transparent);
+    min-width: 0;
+}
+.cerradaStat dt {
+    font-size: 0.75rem;
+    font-weight: 650;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cerradaStat dd {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+.cerradaStatBien {
+    color: var(--ink-good);
+}
+.cerradaPista {
+    margin: 0.65rem 0 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+@media (min-width: 960px) {
+    .semana {
+        padding: 1.25rem 1.2rem 1.1rem;
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-sm);
+    }
+    .resumen {
+        margin-top: 0.75rem;
+    }
+}

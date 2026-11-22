@@ -31,11 +31,13 @@ const montar = (estadoRevisado = 200) => {
         if (url.startsWith('/api/admin/yo')) return respuesta({ ok: true });
         return respuesta({ dias: 7, generado: '2026-11-12T17:07:00+00:00', bloques: [ATENCION] });
     });
-    return render(
+    const view = render(
         <MemoryRouter initialEntries={['/admin']}>
             <Routes><Route path="/admin" element={<AdminPage />} /></Routes>
         </MemoryRouter>,
     );
+    fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
+    return view;
 };
 
 describe('[993] Requiere atención', () => {

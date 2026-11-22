@@ -183,6 +183,7 @@ const SemanaEnProgreso = ({
         const aguaServidor = servidor.hoy_puntos?.logros?.agua ?? null;
         lg.agua = mismoDia ? aguaServidor : (aguaServidor === null ? null : false);
         if (lg.agua && !lg.registro) lg.agua = false;
+        lg.dia_perfecto = Boolean(lg.banda && lg.proteina && lg.completo && lg.agua !== false);
         return { ...puntosDeHoy({ logros: lg, rachaHastaAyer: rachaBase }), logros: lg };
     }, [juego, servidor, hoy, targetCalories, targetMacros, mainGoal, mismoDia, rachaBase]);
     const puntosSemana = (() => {
@@ -239,6 +240,20 @@ const SemanaEnProgreso = ({
     const estadoHoy = dias.find((d) => d.esHoy)?.estado || 'vacio';
     const diaDeLaSemana = dias.findIndex((d) => d.esHoy) + 1;
     const sel = elegido ? dias.find((d) => d.iso === elegido) : null;
+    const diasConRegistro = dias.filter((d) => d.estado !== 'vacio' && d.estado !== 'futuro');
+    const registradosSemana = fueraDeHistoria && deServidor
+        ? Number(deServidor.dias_registrados) || 0
+        : diasConRegistro.length;
+    const kcalMediaSemana = (() => {
+        if (fueraDeHistoria && Number(deServidor?.kcal_media) > 0) return Math.round(Number(deServidor.kcal_media));
+        if (diasConRegistro.length) {
+            return Math.round(diasConRegistro.reduce((acc, d) => acc + (d.calories || 0), 0) / diasConRegistro.length);
+        }
+        return Number(deServidor?.kcal_media) > 0 ? Math.round(Number(deServidor.kcal_media)) : 0;
+    })();
+    const protMediaSemana = !fueraDeHistoria && diasConRegistro.length
+        ? Math.round(diasConRegistro.reduce((acc, d) => acc + (d.protein || 0), 0) / diasConRegistro.length)
+        : null;
 
     const irA = (n) => {
         const destino = Math.max(1, Math.min(n, semanaActual));
@@ -411,6 +426,65 @@ const SemanaEnProgreso = ({
                     estadoHoy={estadoHoy}
                     recordDia={Number(servidor.puntos?.record_dia) || 0}
                 />
+            )}
+            {!enCurso && (
+                <div
+                    className={`${styles.cerradaResumen} ${estrellas === ESTRELLAS_MAX ? styles.cerradaPerfecta : ''}`}
+                    aria-label={t('Resumen de la semana')}
+                >
+                    <div className={styles.cerradaCima}>
+                        <div className={styles.cerradaPrincipal}>
+                            <span className={styles.cerradaEtiqueta}>{t('Resumen de la semana')}</span>
+                            <span className={styles.cerradaCifra}>
+                                {porPuntos ? (
+                                    <>
+                                        <strong>{formatNumber(puntosSemana)}</strong>
+                                        <span className={styles.cerradaUnidad}>{t('pts')}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <strong>{enMeta}</strong>
+                                        <span className={styles.cerradaUnidad}>/ {DIAS_DE_LA_SEMANA}</span>
+                                    </>
+                                )}
+                            </span>
+                        </div>
+                        <div className={styles.cerradaInsignia}>
+                            <span className={styles.cerradaEstrellas} aria-hidden="true">
+                                {Array.from({ length: ESTRELLAS_MAX }, (_, i) => (
+                                    <Star
+                                        key={i}
+                                        size={15}
+                                        strokeWidth={2.25}
+                                        className={i < estrellas ? styles.estrellaGanada : styles.estrella}
+                                    />
+                                ))}
+                            </span>
+                            <span className={styles.cerradaEstado}>{t('Semana cerrada')}</span>
+                        </div>
+                    </div>
+                    <dl className={styles.cerradaGrid}>
+                        <div className={styles.cerradaStat}>
+                            <dt>{t('Días en meta')}</dt>
+                            <dd className={enMeta > 0 ? styles.cerradaStatBien : ''}>{enMeta}/{DIAS_DE_LA_SEMANA}</dd>
+                        </div>
+                        <div className={styles.cerradaStat}>
+                            <dt>{t('Registrados')}</dt>
+                            <dd>{registradosSemana}/{DIAS_DE_LA_SEMANA}</dd>
+                        </div>
+                        <div className={styles.cerradaStat}>
+                            <dt>{t('Media diaria')}</dt>
+                            <dd>{kcalMediaSemana > 0 ? t('{n} kcal', { n: formatNumber(kcalMediaSemana) }) : '—'}</dd>
+                        </div>
+                        <div className={styles.cerradaStat}>
+                            <dt>{t('Proteína media')}</dt>
+                            <dd>{protMediaSemana !== null ? `${formatNumber(protMediaSemana)} g` : '—'}</dd>
+                        </div>
+                    </dl>
+                    {!fueraDeHistoria && (
+                        <p className={styles.cerradaPista}>{t('Toca un día para ver su detalle.')}</p>
+                    )}
+                </div>
             )}
             {/* [P1-PLAN-LOTE-1059 · plan 1035] cierre de semana e hitos: una vez, y se marcan vistos en el servidor */}
             <CierreDeSemana userId={userId} eventos={servidor?.eventos} onCompartir={compartirSemana} />

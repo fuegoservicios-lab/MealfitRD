@@ -4,7 +4,7 @@
 // dicha en palabra (no solo en color), las `serie` de barras y el `embudo`. Sigue siendo genérico: lo que pinta lo
 // decide el servidor.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -42,11 +42,15 @@ const METRICAS = {
         ] },
     ],
 };
-const montar = () => render(
-    <MemoryRouter initialEntries={['/admin']}>
-        <Routes><Route path="/admin" element={<AdminPage />} /></Routes>
-    </MemoryRouter>,
-);
+const montar = () => {
+    const view = render(
+        <MemoryRouter initialEntries={['/admin']}>
+            <Routes><Route path="/admin" element={<AdminPage />} /></Routes>
+        </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
+    return view;
+};
 
 describe('[638] /admin por secciones', () => {
     beforeEach(() => {

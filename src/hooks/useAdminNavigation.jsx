@@ -34,6 +34,23 @@ export function useAdminNavigationState(
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
+export function useClearAdminNavigationPrefix() {
+    const navigation = useContext(AdminNavigation);
+    return useCallback((prefix) => {
+        if (!navigation?.key || !prefix) return;
+        const fullPrefix = `${navigation.key}:${prefix}`;
+        try {
+            const toDelete = [];
+            for (let i = 0; i < sessionStorage.length; i += 1) {
+                const k = sessionStorage.key(i);
+                if (k && k.startsWith(fullPrefix)) toDelete.push(k);
+            }
+            toDelete.forEach((k) => sessionStorage.removeItem(k));
+        } catch { /* Storage may be unavailable. */ }
+    }, [navigation]);
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAdminLoading(loading) {
     const navigation = useContext(AdminNavigation);
     const token = useRef(Symbol());

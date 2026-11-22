@@ -166,8 +166,8 @@ describe('[833] /admin · Cuentas: la lista de todas las cuentas', () => {
 
     it('sin la lista (404: interruptor apagado) se queda la búsqueda por correo exacto de hoy, desde el primer render', async () => {
         servidor([]);
-        await abrirCuentas();
-        // El test del 775 busca el campo SÍNCRONAMENTE tras pulsar la pestaña: tiene que estar, y a la vista, en el
+        montar();
+        // El test del 775 busca el campo SÍNCRONAMENTE al abrir Cuentas: tiene que estar, y a la vista, en el
         // primer render (por rol: un campo oculto no cuenta).
         expect(screen.getByRole('textbox', { name: 'Correo de la cuenta' })).toBeInTheDocument();
         // [ronda 1] Mientras no se sabe si hay lista, la ayuda es la de «con lista»; solo un 404 la devuelve a la de hoy.
@@ -252,9 +252,9 @@ describe('[833] /admin · Cuentas: la lista de todas las cuentas', () => {
         ]);
         await abrirCuentas();
         const t = await tabla();
-        // Las que ya son de prueba no se pueden volver a marcar.
-        expect(within(filaDe(t, 'beto@correo.com')).getByRole('checkbox')).toBeDisabled();
-        const marcar = screen.getByRole('button', { name: 'Marcar seleccionadas como prueba' });
+        // [1166] las de prueba también se eligen (para quitarles la marca o borrarlas); el servidor dice «ya_marcada».
+        expect(within(filaDe(t, 'beto@correo.com')).getByRole('checkbox')).not.toBeDisabled();
+        const marcar = screen.getByRole('button', { name: 'Marcar como prueba' });
         expect(marcar).toBeDisabled();
         fireEvent.click(screen.getByRole('checkbox', { name: 'Seleccionar ana@correo.com' }));
         fireEvent.click(screen.getByRole('checkbox', { name: 'Seleccionar dani@correo.com' }));
@@ -283,23 +283,24 @@ describe('[833] /admin · Cuentas: la lista de todas las cuentas', () => {
         expect(document.activeElement).toBe(screen.getByText('1 marcada · 1 salió ella misma').closest('[role="status"]'));
     });
 
-    it('«Seleccionar todas las de esta página» coge solo las que no están marcadas', async () => {
+    // [P1-PLAN-LOTE-1166] ahora se elige CUALQUIER cuenta (marcar, quitar marca o eliminar): «todas» coge las tres.
+    it('«Seleccionar todas las de esta página» coge todas, también las marcadas', async () => {
         servidor([[RUTA_LISTA, async () => respuesta(lista())]]);
         await abrirCuentas();
         await tabla();
         fireEvent.click(screen.getByRole('checkbox', { name: 'Seleccionar todas las de esta página' }));
         expect(screen.getByRole('checkbox', { name: 'Seleccionar ana@correo.com' })).toBeChecked();
         expect(screen.getByRole('checkbox', { name: 'Seleccionar dani@correo.com' })).toBeChecked();
-        expect(screen.getByRole('checkbox', { name: 'Seleccionar beto@correo.com' })).not.toBeChecked();
-        expect(screen.getByText('2 seleccionadas')).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'Seleccionar beto@correo.com' })).toBeChecked();
+        expect(screen.getByText('4 seleccionadas')).toBeInTheDocument();
     });
 
-    it('una seleccionada que pasa a ser de prueba mientras tanto (otra pestaña, otro admin) deja de estar seleccionada', async () => {
+    it('[1166] una seleccionada que pasa a ser de prueba mientras tanto sigue seleccionada (se puede quitar o borrar)', async () => {
         let daniMarcada = false;
         const conDaniMarcada = () => lista({ cuentas: lista().cuentas.map((c) => (c.user_id === D
             ? { ...c, prueba: { estado: 'activa', desde: '2026-09-29T12:00:00+00:00' } } : c)) });
         servidor([
-            [`/api/admin/cuentas/${A}/prueba`, async () => { daniMarcada = true; return respuesta({ ok: true, cuenta: fichaAmpliada({ prueba: pruebaViva() }) }); }],
+            [`/api/admin/cuentas/${A}/creditos`, async () => { daniMarcada = true; return respuesta({ ok: true, cuenta: fichaAmpliada() }); }],
             [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: fichaAmpliada() })],
             [RUTA_LISTA, async () => respuesta(daniMarcada ? conDaniMarcada() : lista())],
         ]);
@@ -308,19 +309,20 @@ describe('[833] /admin · Cuentas: la lista de todas las cuentas', () => {
         fireEvent.click(screen.getByRole('checkbox', { name: 'Seleccionar dani@correo.com' }));
         expect(screen.getByText('1 seleccionada')).toBeInTheDocument();
         const ficha = await abrirFicha();
-        fireEvent.click(within(ficha).getByRole('button', { name: 'Marcar como cuenta de prueba' }));
-        const dialogo = screen.getByRole('dialog', { name: 'Marcar como cuenta de prueba' });
-        fireEvent.change(within(dialogo).getByLabelText('Motivo'), { target: { value: 'tester del beta' } });
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Marcar como prueba' }));
+        fireEvent.click(within(ficha).getByRole('button', { name: 'Regalar créditos' }));
+        const dialogo = screen.getByRole('dialog', { name: 'Regalar créditos' });
+        fireEvent.change(within(dialogo).getByLabelText('Cantidad'), { target: { value: '10' } });
+        fireEvent.change(within(dialogo).getByLabelText('Motivo'), { target: { value: 'compensación' } });
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Regalar 10 créditos' }));
         await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
         await waitFor(() => expect(pedidasDeLista().length).toBe(2));            // la lista se refrescó, oculta
         fireEvent.click(screen.getByRole('button', { name: 'Volver a la lista' }));
         await tabla();
         const dani = screen.getByRole('checkbox', { name: 'Seleccionar dani@correo.com' });
-        await waitFor(() => expect(dani).toBeDisabled());
-        expect(dani).not.toBeChecked();
-        expect(screen.getByText('0 seleccionadas')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Marcar seleccionadas como prueba' })).toBeDisabled();
+        await waitFor(() => expect(dani).not.toBeDisabled());
+        expect(dani).toBeChecked();
+        expect(screen.getByText('1 seleccionada')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Quitar marca de prueba' })).not.toBeDisabled();
     });
 
     it('una fila cuya marca ya se quitó («sin_marca») no lleva «Prueba» y se puede elegir', async () => {
@@ -415,7 +417,7 @@ describe('[833] /admin · Cuentas: la lista de todas las cuentas', () => {
         await abrirCuentas();
         await tabla();
         fireEvent.click(screen.getByRole('checkbox', { name: 'Seleccionar ana@correo.com' }));
-        const marcar = screen.getByRole('button', { name: 'Marcar seleccionadas como prueba' });
+        const marcar = screen.getByRole('button', { name: 'Marcar como prueba' });
         marcar.focus();
         fireEvent.click(marcar);
         const dialogo = screen.getByRole('dialog', { name: 'Marcar 1 cuenta como de prueba' });
@@ -488,7 +490,7 @@ describe('[833] /admin · Cuentas: la lista de todas las cuentas', () => {
         const ana = filaDe(t, 'ana@correo.com');
         const rotulos = [...ana.querySelectorAll('td[data-etiqueta]')].map((td) => td.getAttribute('data-etiqueta'));
         expect(rotulos).toEqual(['Última actividad', 'Comidas', 'Planes', 'Mensajes al coach', 'Escaneos',
-            'Gasto de IA (30 días)', 'Días activos (30 días)', 'Alta']);
+            'Gasto de IA (30 días)', 'Días activos continuos', 'Registro']);
         const css = readFileSync(resolve(process.cwd(), 'src/pages/AdminCuentasLista.module.css'), 'utf8');
         const movil = css.slice(css.indexOf('@media (max-width: 640px)'));
         expect(css.indexOf('@media (max-width: 640px)')).toBeGreaterThan(-1);
@@ -567,7 +569,6 @@ describe('[833] /admin · Cuentas: la ficha ampliada', () => {
         const nueva = screen.getByRole('article', { name: 'Cuenta ana@correo.com' });
         expect(within(nueva).getByText('incluye +20 de regalo')).toBeInTheDocument();
         expect(within(nueva).getByRole('region', { name: 'Actividad' })).toBeInTheDocument();
-        expect(within(nueva).getByRole('region', { name: 'Cuenta de prueba' })).toBeInTheDocument();
     });
 
     it('Actividad: los números de la cuenta y el embudo con sus fechas (o «Todavía no»)', async () => {
@@ -695,195 +696,20 @@ describe('[833] /admin · Cuentas: la ficha ampliada', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
         let ficha = await screen.findByRole('article', { name: 'Cuenta ana@correo.com' });
         expect(within(ficha).getByRole('region', { name: 'Actividad' })).toBeInTheDocument();
-        expect(within(ficha).getByRole('region', { name: 'Cuenta de prueba' })).toBeInTheDocument();
         ampliada = false;
         fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
         await waitFor(() => expect(screen.queryByRole('region', { name: 'Actividad' })).toBeNull());
         ficha = await screen.findByRole('article', { name: 'Cuenta ana@correo.com' });
         expect(within(ficha).queryByRole('region', { name: 'Ajustes' })).toBeNull();
-        expect(within(ficha).queryByRole('region', { name: 'Cuenta de prueba' })).toBeNull();
         expect(within(ficha).getByRole('heading', { name: 'Historial de regalos' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Volver a la lista' })).toBeNull();   // sin lista, sin «volver»
     });
 });
 
-describe('[833] /admin · Cuentas: la cuenta de prueba en la ficha', () => {
+describe('[833] /admin · Cuentas: el detalle de la cuenta de prueba', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('marcar pide motivo; si la persona salió ella, un SEGUNDO diálogo pide confirmar «La persona me pidió volver»', async () => {
-        servidor([
-            [`/api/admin/cuentas/${A}/prueba`, async (url, op) => {
-                const cuerpo = JSON.parse(op.body);
-                if (!cuerpo.confirmar_vuelta) return respuesta({ detail: 'salio_ella' }, 409);
-                return respuesta({ ok: true, cuenta: fichaAmpliada({ prueba: pruebaViva({ estado: 'aviso_pendiente', aviso_visto_at: null, motivo: cuerpo.motivo }) }) });
-            }],
-            [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: fichaAmpliada() })],
-            [RUTA_LISTA, async () => respuesta(lista())],
-        ]);
-        await abrirCuentas();
-        const ficha = await abrirFicha();
-        const bloque = within(ficha).getByRole('region', { name: 'Cuenta de prueba' });
-        expect(within(bloque).getByText('No es una cuenta de prueba.')).toBeInTheDocument();
-        fireEvent.click(within(bloque).getByRole('button', { name: 'Marcar como cuenta de prueba' }));
-        const primero = screen.getByRole('dialog', { name: 'Marcar como cuenta de prueba' });
-        const marcar = within(primero).getByRole('button', { name: 'Marcar como prueba' });
-        expect(marcar).toBeDisabled();
-        fireEvent.change(within(primero).getByLabelText('Motivo'), { target: { value: 'tester del beta' } });
-        fireEvent.click(marcar);
-        const segundo = await screen.findByRole('dialog', { name: 'Esta persona salió ella misma del modo de prueba' });
-        expect(screen.getAllByRole('dialog')).toHaveLength(1);                   // el primero se cerró
-        const volver = within(segundo).getByRole('button', { name: 'Volver a marcarla' });
-        expect(volver).toBeDisabled();                                           // hasta confirmarlo aparte
-        fireEvent.click(within(segundo).getByLabelText('La persona me pidió volver'));
-        fireEvent.click(volver);
-        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-        const posts = peticiones.filter((p) => p.url === `/api/admin/cuentas/${A}/prueba`);
-        expect(posts.map((p) => JSON.parse(p.opciones.body))).toEqual([
-            { motivo: 'tester del beta', confirmar_vuelta: false },
-            { motivo: 'tester del beta', confirmar_vuelta: true },
-        ]);
-        for (const p of posts) {
-            expect(p.opciones.method).toBe('POST');
-            expect(p.opciones.headers['X-Admin-Accion']).toBe('1');
-        }
-        const nuevo = within(screen.getByRole('article', { name: 'Cuenta ana@correo.com' })).getByRole('region', { name: 'Cuenta de prueba' });
-        expect(within(nuevo).getByText('Esperando a que vea el aviso en la app.')).toBeInTheDocument();
-        expect(within(nuevo).getByText('Motivo: «tester del beta»')).toBeInTheDocument();
-        expect(screen.getByText('Cambio guardado y anotado.')).toBeInTheDocument();
-    });
-
-    it('el diálogo de marcar atrapa el foco y ESC lo cierra', async () => {
-        servidor([
-            [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: fichaAmpliada() })],
-            [RUTA_LISTA, async () => respuesta(lista())],
-        ]);
-        await abrirCuentas();
-        const ficha = await abrirFicha();
-        fireEvent.click(within(ficha).getByRole('button', { name: 'Marcar como cuenta de prueba' }));
-        const dialogo = screen.getByRole('dialog', { name: 'Marcar como cuenta de prueba' });
-        const focosables = [...dialogo.querySelectorAll(FOCOSABLES)];
-        expect(focosables.length).toBeGreaterThan(1);
-        focosables[0].focus();
-        fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
-        expect(document.activeElement).toBe(focosables.at(-1));
-        expect(dialogo.contains(document.activeElement)).toBe(true);
-        fireEvent.keyDown(document, { key: 'Escape' });
-        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    });
-
-    it('un «ya_marcada» del servidor se explica dentro del diálogo', async () => {
-        servidor([
-            [`/api/admin/cuentas/${A}/prueba`, async () => respuesta({ detail: 'ya_marcada' }, 409)],
-            [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: fichaAmpliada() })],
-            [RUTA_LISTA, async () => respuesta(lista())],
-        ]);
-        await abrirCuentas();
-        const ficha = await abrirFicha();
-        fireEvent.click(within(ficha).getByRole('button', { name: 'Marcar como cuenta de prueba' }));
-        const dialogo = screen.getByRole('dialog', { name: 'Marcar como cuenta de prueba' });
-        fireEvent.change(within(dialogo).getByLabelText('Motivo'), { target: { value: 'tester' } });
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Marcar como prueba' }));
-        expect(await within(dialogo).findByRole('alert')).toHaveTextContent('Esta cuenta ya estaba marcada como de prueba.');
-    });
-
-    it('con la marca: desde cuándo, quién, el motivo, si vio el aviso y el historial; «Quitar marca» pide motivo', async () => {
-        const marcada = fichaAmpliada({ prueba: pruebaViva({ historial: [
-            { desde: '2026-09-29T10:00:00+00:00', hasta: null, motivo: 'tester del beta', motivo_quitar: null, quitada_por_la_persona: false, marcada_por: 'dueno@bioboros.com' },
-            { desde: '2026-09-02T10:00:00+00:00', hasta: '2026-09-15T10:00:00+00:00', motivo: 'primera ronda', motivo_quitar: null, quitada_por_la_persona: true, marcada_por: 'dueno@bioboros.com' },
-        ] }) });
-        servidor([
-            [`/api/admin/cuentas/${A}/prueba/quitar`, async () => respuesta({ ok: true, cuenta: fichaAmpliada({ prueba: null }) })],
-            [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: marcada })],
-            [RUTA_LISTA, async () => respuesta(lista())],
-        ]);
-        await abrirCuentas();
-        const ficha = await abrirFicha();
-        const bloque = within(ficha).getByRole('region', { name: 'Cuenta de prueba' });
-        expect(within(bloque).getByText(/^Cuenta de prueba desde el /)).toBeInTheDocument();
-        expect(within(bloque).getByText('Marcada por dueno@bioboros.com')).toBeInTheDocument();
-        expect(within(bloque).getByText('Motivo: «tester del beta»')).toBeInTheDocument();
-        expect(within(bloque).getByText(/^La persona vio el aviso el /)).toBeInTheDocument();
-        const historial = within(bloque).getByRole('list', { name: 'Historial de la marca' });
-        const entradas = within(historial).getAllByRole('listitem');
-        expect(entradas).toHaveLength(2);
-        expect(entradas[0]).toHaveTextContent('vigente');
-        expect(entradas[1]).toHaveTextContent(/salió la persona el \d/);
-        fireEvent.click(within(bloque).getByRole('button', { name: 'Quitar marca' }));
-        const dialogo = screen.getByRole('dialog', { name: 'Quitar la marca de prueba' });
-        fireEvent.change(within(dialogo).getByLabelText('Motivo'), { target: { value: 'terminó la prueba' } });
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Quitar la marca' }));
-        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-        const p = peticiones.find((x) => x.url === `/api/admin/cuentas/${A}/prueba/quitar`);
-        expect(JSON.parse(p.opciones.body)).toEqual({ motivo: 'terminó la prueba' });
-        expect(p.opciones.headers['X-Admin-Accion']).toBe('1');
-        expect(await screen.findByText('No es una cuenta de prueba.')).toBeInTheDocument();
-    });
-
-    it('con la marca quitada («sin_marca») dice «Ya no es de prueba», quién la quitó y cuándo, y se puede volver a marcar', async () => {
-        const quitada = fichaAmpliada({ prueba: { estado: 'sin_marca', desde: null, motivo: null, marcada_por: null, aviso_visto_at: null, historial: [
-            { desde: '2026-09-02T10:00:00+00:00', hasta: '2026-09-15T10:00:00+00:00', motivo: 'primera ronda', motivo_quitar: null,
-              quitada_por_la_persona: true, marcada_por: 'dueno@bioboros.com' },
-            { desde: '2026-08-01T10:00:00+00:00', hasta: '2026-08-10T10:00:00+00:00', motivo: 'piloto', motivo_quitar: 'terminó el piloto',
-              quitada_por_la_persona: false, marcada_por: 'dueno@bioboros.com' },
-        ] } });
-        servidor([
-            [`/api/admin/cuentas/${A}/prueba`, async (url, op) => (JSON.parse(op.body).confirmar_vuelta
-                ? respuesta({ ok: true, cuenta: fichaAmpliada({ prueba: pruebaViva({ estado: 'aviso_pendiente', aviso_visto_at: null }) }) })
-                : respuesta({ detail: 'salio_ella' }, 409))],
-            [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: quitada })],
-            [RUTA_LISTA, async () => respuesta(lista())],
-        ]);
-        await abrirCuentas();
-        const ficha = await abrirFicha();
-        const bloque = within(ficha).getByRole('region', { name: 'Cuenta de prueba' });
-        expect(within(bloque).getByText('Ya no es de prueba.')).toBeInTheDocument();
-        expect(within(bloque).queryByText('Prueba')).toBeNull();
-        expect(within(bloque).queryByText('No es una cuenta de prueba.')).toBeNull();
-        expect(within(bloque).queryByRole('button', { name: 'Ver detalle' })).toBeNull();
-        expect(within(bloque).queryByRole('button', { name: 'Quitar marca' })).toBeNull();
-        const entradas = within(within(bloque).getByRole('list', { name: 'Historial de la marca' })).getAllByRole('listitem');
-        expect(entradas).toHaveLength(2);
-        expect(entradas[0]).toHaveTextContent(/salió la persona el \d/);
-        expect(entradas[1]).toHaveTextContent(/la quitó el equipo el \d/);
-        expect(entradas[1]).toHaveTextContent('al quitarla: «terminó el piloto»');
-        fireEvent.click(within(bloque).getByRole('button', { name: 'Marcar como cuenta de prueba' }));
-        const primero = screen.getByRole('dialog', { name: 'Marcar como cuenta de prueba' });
-        fireEvent.change(within(primero).getByLabelText('Motivo'), { target: { value: 'volvió a pedirlo' } });
-        fireEvent.click(within(primero).getByRole('button', { name: 'Marcar como prueba' }));
-        const segundo = await screen.findByRole('dialog', { name: 'Esta persona salió ella misma del modo de prueba' });
-        fireEvent.click(within(segundo).getByLabelText('La persona me pidió volver'));
-        fireEvent.click(within(segundo).getByRole('button', { name: 'Volver a marcarla' }));
-        expect(await screen.findByText('Esperando a que vea el aviso en la app.')).toBeInTheDocument();
-    });
-
-    it('un «sin_marca» del servidor al quitar se explica dentro del diálogo', async () => {
-        servidor([
-            [`/api/admin/cuentas/${A}/prueba/quitar`, async () => respuesta({ detail: 'sin_marca' }, 409)],
-            [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: fichaAmpliada({ prueba: pruebaViva() }) })],
-            [RUTA_LISTA, async () => respuesta(lista())],
-        ]);
-        await abrirCuentas();
-        const ficha = await abrirFicha();
-        fireEvent.click(within(ficha).getByRole('button', { name: 'Quitar marca' }));
-        const dialogo = screen.getByRole('dialog', { name: 'Quitar la marca de prueba' });
-        fireEvent.change(within(dialogo).getByLabelText('Motivo'), { target: { value: 'terminó la prueba' } });
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Quitar la marca' }));
-        expect(await within(dialogo).findByRole('alert')).toHaveTextContent('Esta cuenta ya no tenía la marca.');
-    });
-
-    it('con el aviso pendiente lo dice: «Esperando a que vea el aviso en la app»', async () => {
-        servidor([
-            [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: fichaAmpliada({ prueba: pruebaViva({ estado: 'aviso_pendiente', aviso_visto_at: null }) }) })],
-            [RUTA_LISTA, async () => respuesta(lista())],
-        ]);
-        await abrirCuentas();
-        const ficha = await abrirFicha();
-        const bloque = within(ficha).getByRole('region', { name: 'Cuenta de prueba' });
-        expect(within(bloque).getByText('Esperando a que vea el aviso en la app.')).toBeInTheDocument();
-        expect(within(bloque).getByText('Aviso pendiente')).toBeInTheDocument();
-    });
-
-    it('«Ver detalle» abre el detalle como estado de la página (sin rutas) y «Volver a la ficha» la devuelve', async () => {
+    it('«Abrir conversaciones y detalle» abre el detalle como estado de la página (sin rutas) y «Volver a la ficha» la devuelve', async () => {
         servidor([
             [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: fichaAmpliada({ prueba: pruebaViva() }) })],
             [RUTA_LISTA, async () => respuesta(lista())],
@@ -893,7 +719,8 @@ describe('[833] /admin · Cuentas: la cuenta de prueba en la ficha', () => {
         fireEvent.change(screen.getByLabelText('Filtro'), { target: { value: 'prueba' } });
         await waitFor(() => expect(ultimaLista().get('filtro')).toBe('prueba'));
         const ficha = await abrirFicha();
-        fireEvent.click(within(ficha).getByRole('button', { name: 'Ver detalle' }));
+        expect(within(ficha).queryByRole('region', { name: 'Cuenta de prueba' })).toBeNull();
+        fireEvent.click(within(ficha).getByRole('button', { name: 'Abrir conversaciones y detalle' }));
         const detalle = screen.getByRole('region', { name: 'Detalle de ana@correo.com' });
         expect(document.activeElement).toBe(detalle);
         expect(detalle).toHaveAttribute('data-detalle-prueba', A);
@@ -902,12 +729,44 @@ describe('[833] /admin · Cuentas: la cuenta de prueba en la ficha', () => {
         fireEvent.click(within(detalle).getByRole('button', { name: 'Volver a la ficha' }));
         expect(screen.getByRole('article', { name: 'Cuenta ana@correo.com' })).toBeInTheDocument();
         expect(screen.queryByRole('region', { name: 'Detalle de ana@correo.com' })).toBeNull();
-        expect(document.activeElement).toBe(within(screen.getByRole('article', { name: 'Cuenta ana@correo.com' })).getByRole('button', { name: 'Ver detalle' }));
+        expect(document.activeElement).toBe(within(screen.getByRole('article', { name: 'Cuenta ana@correo.com' })).getByRole('button', { name: 'Abrir conversaciones y detalle' }));
         // Nada se desmontó por el camino: la lista vuelve con su filtro, sin volver a empezar.
         const pedidas = pedidasDeLista().length;
         fireEvent.click(screen.getByRole('button', { name: 'Volver a la lista' }));
         await tabla();
         expect(screen.getByLabelText('Filtro')).toHaveValue('prueba');
         expect(pedidasDeLista().length).toBe(pedidas);
+    });
+
+    it('«Quitar marca de prueba» aparece discreto al pie solo si tiene marca activa y al confirmar quita la marca', async () => {
+        let estadoPrueba = pruebaViva();
+        servidor([
+            [`/api/admin/cuentas/${A}/prueba/quitar`, async () => {
+                estadoPrueba = { estado: 'sin_marca', desde: null };
+                return respuesta({ ok: true, cuenta: fichaAmpliada({ prueba: null }) });
+            }],
+            [`/api/admin/cuentas/${A}`, async () => respuesta({ cuenta: fichaAmpliada({ prueba: estadoPrueba }) })],
+            [RUTA_LISTA, async () => respuesta(lista())],
+        ]);
+        await abrirCuentas();
+        const ficha = await abrirFicha();
+        const boton = within(ficha).getByRole('button', { name: 'Quitar marca de prueba' });
+        fireEvent.click(boton);
+        const dialogo = screen.getByRole('dialog', { name: 'Quitar la marca de prueba' });
+        fireEvent.change(within(dialogo).getByLabelText('Motivo'), { target: { value: 'terminó la prueba' } });
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Quitar la marca' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        const p = peticiones.find((x) => x.url === `/api/admin/cuentas/${A}/prueba/quitar`);
+        expect(p.opciones.method).toBe('POST');
+        expect(JSON.parse(p.opciones.body)).toEqual({ motivo: 'terminó la prueba' });
+        expect(p.opciones.headers['X-Admin-Accion']).toBe('1');
+        const actualizada = await screen.findByRole('article', { name: 'Cuenta ana@correo.com' });
+        await waitFor(() => expect(within(actualizada).queryByRole('button', { name: 'Quitar marca de prueba' })).toBeNull());
+
+        // Con marca `sin_marca` o `null` no se muestra el botón
+        fireEvent.click(screen.getByRole('button', { name: 'Volver a la lista' }));
+        await tabla();
+        const reabierta = await abrirFicha();
+        expect(within(reabierta).queryByRole('button', { name: 'Quitar marca de prueba' })).toBeNull();
     });
 });

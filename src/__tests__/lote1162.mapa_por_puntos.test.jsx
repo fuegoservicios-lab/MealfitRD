@@ -31,7 +31,7 @@ describe('[1162] mapa por puntos', () => {
         pintar();
         expect(screen.getByText('650 pts · Semana perfecta')).toBeInTheDocument();
         expect(screen.getByText('400 pts')).toBeInTheDocument();
-        expect(screen.getByText('0 pts · faltan 85 para tu primera estrella')).toBeInTheDocument();
+        expect(screen.getByText('0 pts · faltan 60 para tu primera estrella')).toBeInTheDocument();
         expect(screen.queryByText(/días? en meta/)).toBeNull();
     });
 

@@ -1,15 +1,15 @@
 /* frontend/src/pages/AdminFichaAmpliada.module.css — [P1-PLAN-LOTE-833 · 2026-09-29] Los bloques nuevos de la ficha
    (Actividad, Cuenta de prueba, Ajustes), con los tokens del panel. Un estado se dice en PALABRA; el color (verde
    encendido, gris apagado, azul automático, borde discontinuo sin elegir) solo acompaña. Nada por debajo de 12 px. */
-.bloque { display: flex; flex-direction: column; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-.titulo { margin: 0; font-size: 0.95rem; font-weight: 700; }
+.bloque { display: flex; flex-direction: column; gap: 0.9rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+.titulo { margin: 0; font-family: var(--font-heading); font-size: 1rem; font-weight: 700; }
 .titulo:focus { outline: none; }
-.subtitulo { margin: 0; font-size: 0.86rem; font-weight: 700; }
-.texto { margin: 0; font-size: 0.88rem; color: var(--text-muted); }
+.subtitulo { margin: 0; font-size: 0.875rem; font-weight: 700; }
+.texto { margin: 0; font-size: 0.875rem; color: var(--text-muted); }
 .acciones { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
 /* Actividad: cifras en micro-tarjetas y embudo */
-.datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 165px), 1fr)); gap: 0.7rem; }
+.datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 0.75rem; }
 .dato {
     display: flex;
     flex-direction: column;
@@ -37,15 +37,8 @@
 .pasoFecha { font-size: 0.78rem; color: var(--text-muted); }
 .paso[data-hecho="true"] .pasoFecha { color: var(--success-text); }
 
-/* Cuenta de prueba */
-.etiquetas { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.hechos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.88rem; overflow-wrap: anywhere; }
-.pendiente { color: var(--warning-text); font-weight: 600; }
-.historial { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.84rem; }
-.marca { padding: 0.5rem 0.7rem; border-radius: 10px; border: 1px solid var(--border); overflow-wrap: anywhere; }
-
 /* chips de estado: palabra + color */
-.chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 700; line-height: 1.25; padding: 0.12rem 0.5rem; border-radius: 999px; border: 1px solid var(--border); color: var(--text-main); background: var(--bg-card); white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 700; line-height: 1.25; padding: 0.12rem 0.5rem; border-radius: var(--radius-full); border: 1px solid var(--border); color: var(--text-main); background: var(--bg-card); white-space: nowrap; }
 .chip::before { content: ''; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: currentColor; flex: none; }
 .chip[data-estado="encendido"] { color: var(--success-text); background: var(--success-bg); border-color: var(--success-border); }
 .chip[data-estado="apagado"] { color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 10%, var(--bg-card)); }
@@ -57,33 +50,80 @@
 .chip[data-tono="pendiente"] { color: var(--warning-text); background: var(--warning-bg); border-color: var(--warning-border); }
 
 /* Ajustes */
-.leyenda { margin: 0; font-size: 0.78rem; line-height: 1.45; color: var(--text-muted); }
-.grupos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1rem 1.75rem; }
-.grupo { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.leyenda { margin: 0; font-size: 0.75rem; line-height: 1.45; color: var(--text-muted); }
+.grupos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; }
+.grupo { display: flex; flex-direction: column; gap: 0.55rem; min-width: 0; }
+.grupos > .grupo {
+    padding: 1rem 1.15rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--surface-sunken, color-mix(in srgb, var(--bg-page) 45%, var(--bg-card)));
+}
+.grupos > .grupo .subtitulo {
+    font-family: var(--font-heading);
+    font-size: 0.9375rem;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+.grupos > .grupo:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.grupos > .grupo:last-child:nth-child(odd) .filas {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 2rem;
+}
 .filas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.fila { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.15rem 0.75rem; align-items: center; padding: 0.45rem 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.fila { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.2rem 1rem; align-items: center; padding: 0.55rem 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
 .fila:last-child { border-bottom: 0; }
-.filaEtiqueta { font-size: 0.88rem; overflow-wrap: anywhere; }
-.filaNota { grid-column: 1 / -1; font-size: 0.78rem; color: var(--text-muted); }
-.notaEnLinea { font-size: 0.78rem; color: var(--text-muted); }
-.valor { font-size: 0.86rem; font-weight: 700; text-align: right; overflow-wrap: anywhere; max-width: 14rem; }
+.filaEtiqueta { font-size: 0.875rem; overflow-wrap: anywhere; }
+.filaNota { grid-column: 1 / -1; font-size: 0.75rem; color: var(--text-muted); }
+.notaEnLinea { font-size: 0.75rem; color: var(--text-muted); }
+.valor { font-size: 0.8125rem; font-weight: 700; text-align: right; overflow-wrap: anywhere; max-width: 14rem; }
 /* un estado con su detalle al lado (la hora de un recordatorio, las plataformas de un aviso) */
 .estadoConDetalle { display: inline-flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.3rem 0.45rem; }
-.detalle { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); overflow-wrap: anywhere; }
-.plataformas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 0.75rem; }
-.plataforma { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.7rem 0.85rem; border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
-.plataformaTitulo { margin: 0; font-size: 0.84rem; font-weight: 700; }
+.detalle { font-size: 0.8125rem; font-weight: 600; color: var(--text-muted); overflow-wrap: anywhere; }
+.plataformas { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.85rem; }
+.plataforma {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-sunken, color-mix(in srgb, var(--bg-page) 45%, var(--bg-card)));
+    min-width: 0;
+}
+.plataformaTitulo {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 0.875rem;
+    font-weight: 700;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+.plataforma .filas {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 2rem;
+}
 
 /* historial de cambios de ajustes (plegable) */
 .cambios { display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
 .panelCambios { width: 100%; display: flex; flex-direction: column; gap: 0.5rem; }
 .panelCambios[hidden] { display: none; }
-.periodo { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.84rem; }
+.periodo { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; }
 .periodo select { width: auto; flex: none; }
-.listaCambios { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.84rem; }
-.cambio { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; padding: 0.45rem 0.65rem; border-radius: 8px; background: color-mix(in srgb, var(--text-muted) 7%, var(--bg-card)); overflow-wrap: anywhere; }
+.listaCambios { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.8125rem; }
+.cambio { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; padding: 0.45rem 0.65rem; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--text-muted) 7%, var(--bg-card)); overflow-wrap: anywhere; }
 .cambioFecha { color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.estadoCambios { margin: 0; font-size: 0.84rem; color: var(--text-muted); }
+.estadoCambios { margin: 0; font-size: 0.8125rem; color: var(--text-muted); }
+
+@media (max-width: 860px) {
+    .grupos,
+    .grupos > .grupo:last-child:nth-child(odd) .filas,
+    .plataforma .filas {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
 
 @media (max-width: 640px) {
     /* dos columnas de cifras: en una sola, las 17 de «Actividad» ocupaban tres pantallas */

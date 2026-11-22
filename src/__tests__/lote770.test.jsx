@@ -17,11 +17,15 @@ const metricas = (dias, activos) => ({
     bloques: [{ id: 'resumen', seccion: 'Resumen', titulo: `Últimos ${dias} días`, tipo: 'resumen',
                 tarjetas: [{ etiqueta: 'Usuarios activos', valor: activos, tono: 'neutro' }] }],
 });
-const montar = () => render(
-    <MemoryRouter initialEntries={['/admin']}>
-        <Routes><Route path="/admin" element={<AdminPage />} /><Route path="/dashboard" element={<p>DASH</p>} /></Routes>
-    </MemoryRouter>,
-);
+const montar = () => {
+    const view = render(
+        <MemoryRouter initialEntries={['/admin']}>
+            <Routes><Route path="/admin" element={<AdminPage />} /><Route path="/dashboard" element={<p>DASH</p>} /></Routes>
+        </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
+    return view;
+};
 
 describe('[770] cambiar de periodo es fluido', () => {
     let soltar30;

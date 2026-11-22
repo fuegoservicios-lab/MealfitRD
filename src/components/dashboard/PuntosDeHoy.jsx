@@ -4,13 +4,14 @@
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion, useReducedMotion, useSpring, useTransform } from 'framer-motion';
-import { Check, X, Zap } from 'lucide-react';
+import { Check, Flame, Star, X, Zap } from 'lucide-react';
 import { formatNumber, useT } from '../../i18n';
-import { COMIDAS_DIA_COMPLETO, gananciaLogro, maximoDiario } from '../../utils/juegoPuntos';
+import { COMIDAS_DIA_COMPLETO, gananciaLogro, maximoDiario, puntosCaloriasParciales } from '../../utils/juegoPuntos';
 import LlamaDeRacha from './LlamaDeRacha';
 import styles from './PuntosDeHoy.module.css';
 
-const ORDEN = ['registro', 'completo', 'banda', 'proteina', 'agua'];
+// [P1-PLAN-LOTE-1164] puntos por calidad: registrar solo cuida la racha; el día perfecto es su propio logro (+10).
+const ORDEN = ['registro', 'completo', 'banda', 'proteina', 'agua', 'dia_perfecto'];
 const visibles0 = (logros) => ORDEN.filter((k) => !(k === 'agua' && (logros?.agua === null || logros?.agua === undefined)));
 const estiloPct = (p) => (p > 0 ? { '--pct': `${Math.min(100, Math.round(p))}%` } : undefined);
 
@@ -40,7 +41,9 @@ const PuntosDeHoy = ({
         banda: estadoHoy === 'pasado' ? t('Sobre la meta') : t('Calorías en meta'),
         proteina: t('Proteína'),
         agua: t('Agua'),
+        dia_perfecto: t('Día perfecto'),
     };
+    const ptsCaloriasYa = puntosCaloriasParciales({ logros, mult: mult || 1 });
     const visibles = visibles0(logros);
     const todosHechos = visibles.every((k) => logros?.[k] === true);
     const conAgua = visibles.includes('agua');
@@ -56,6 +59,7 @@ const PuntosDeHoy = ({
 
     const mensajeSub = (() => {
         if (puntos === 0) {
+            if (logros?.registro) return t('Registrado: tu racha sigue. Los puntos llegan al acercarte a tus metas.');
             if (racha > 0 && multEfectivo > 1 && hora >= 17) {
                 return escudos > 0
                     ? t('Registra hoy para no gastar un escudo (×{m}).', { m: multTxt })
@@ -111,8 +115,11 @@ const PuntosDeHoy = ({
             <ul className={styles.logros} aria-label={t('Logros de hoy')}>
                 {visibles.map((k) => {
                     const hecho = logros?.[k] === true;
-                    const pasadoBanda = k === 'banda' && estadoHoy === 'pasado';
+                    // [1164] pasado de calorías: el día perfecto ya no se puede y las calorías dan lo que dan (+8 / +3)
+                    const pasadoBanda = (k === 'banda' || k === 'dia_perfecto') && estadoHoy === 'pasado' && !hecho;
                     const parcialProt = k === 'proteina' && !hecho && logros?.proteina_parcial === true;
+                    const parcialKcal = k === 'banda' && !hecho && !pasadoBanda && ptsCaloriasYa > 0;
+                    const soloRacha = k === 'registro';
                     const ptsGanar = gananciaLogro({ logros, clave: k, mult: multEfectivo });
 
                     let pct = 0;
@@ -130,24 +137,35 @@ const PuntosDeHoy = ({
                     const clase = [styles.logro];
                     if (hecho) clase.push(styles.logroHecho);
                     else if (pasadoBanda) clase.push(styles.logroCerrado);
-                    else if (parcialProt) clase.push(styles.logroParcial);
+                    else if (parcialProt || parcialKcal) clase.push(styles.logroParcial);
+                    if (k === 'dia_perfecto') clase.push(styles.logroPerfecto);
 
                     let aria;
                     if (hecho) aria = `${nombres[k]}: ${t('conseguido')}`;
-                    else if (pasadoBanda) aria = `${t('Calorías en meta')}: ${t('hoy te pasaste de la banda')}`;
+                    else if (soloRacha) aria = `${nombres[k]}: ${t('mantiene tu racha')}`;
+                    else if (pasadoBanda && k === 'banda') aria = `${t('Calorías en meta')}: ${t('hoy te pasaste de la banda; ganas +{n}', { n: formatNumber(ptsCaloriasYa) })}`;
+                    else if (pasadoBanda) aria = `${nombres[k]}: ${t('hoy te pasaste de la banda')}`;
+                    else if (parcialKcal) aria = `${nombres[k]}: ${t('cerca: +{n} ya; +{m} más si entras en tu meta', { n: formatNumber(ptsCaloriasYa), m: formatNumber(ptsGanar) })}`;
                     else if (parcialProt) aria = `${nombres[k]}: ${t('parcial conseguido, +{n} puntos si llegas al 90%', { n: formatNumber(ptsGanar) })}`;
                     else aria = `${nombres[k]}: ${t('+{n} puntos si lo consigues', { n: formatNumber(ptsGanar) })}`;
 
                     return (
                         <li key={k} className={clase.join(' ')} style={estiloPct(pct)} aria-label={aria}>
                             {hecho ? (
-                                <Check size={13} strokeWidth={3} aria-hidden="true" />
+                                k === 'dia_perfecto' ? <Star size={13} strokeWidth={2.5} aria-hidden="true" /> : <Check size={13} strokeWidth={3} aria-hidden="true" />
+                            ) : soloRacha ? (
+                                <Flame size={13} strokeWidth={2.5} aria-hidden="true" />
                             ) : pasadoBanda ? (
                                 <X size={13} strokeWidth={2.75} aria-hidden="true" />
                             ) : (
                                 <span className={styles.logroPts} aria-hidden="true">+{formatNumber(ptsGanar)}</span>
                             )}
                             <span className={styles.logroNombre} aria-hidden="true">{nombres[k]}</span>
+                            {soloRacha && !hecho && <span className={styles.logroMeta} aria-hidden="true">{t('racha')}</span>}
+                            {pasadoBanda && k === 'banda' && ptsCaloriasYa > 0 && (
+                                <span className={styles.logroMeta} aria-hidden="true">+{formatNumber(ptsCaloriasYa)}</span>
+                            )}
+                            {parcialKcal && <span className={styles.logroMeta} aria-hidden="true">{t('cerca +{n}', { n: formatNumber(ptsCaloriasYa) })}</span>}
                             {progresoTxt && <span className={styles.logroMeta} aria-hidden="true">{progresoTxt}</span>}
                         </li>
                     );

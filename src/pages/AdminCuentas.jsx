@@ -2,7 +2,7 @@
 // [P1-PLAN-LOTE-775 / 833] Panel admin · Cuentas: lista, buscador exacto, ficha con barras de consumo,
 // regalos, cortesías, recarga gratuita iPhone, ficha ampliada y detalle de cuenta de prueba.
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, Copy } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Copy, MessageSquare } from 'lucide-react';
 import { formatDate, formatNumber } from '../i18n';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { ultimoDiaDeRegalo } from '../utils/regalosCuenta';
@@ -10,10 +10,11 @@ import {
     NOMBRE_PLAN, copiarTexto, fecha as dia, generarRequestId, marcaViva, pedirAdmin,
 } from '../utils/adminCuentas';
 import AdminCuentasLista from './AdminCuentasLista';
+import AdminDialogoMotivo from './AdminDialogoMotivo';
 import AdminFichaAmpliada from './AdminFichaAmpliada';
 import AdminPruebaDetalle from './AdminPruebaDetalle';
 import styles from './AdminCuentas.module.css';
-import { useAdminLoading, useAdminNavigationState } from '../hooks/useAdminNavigation';
+import { useAdminLoading, useAdminNavigationState, useClearAdminNavigationPrefix } from '../hooks/useAdminNavigation';
 import { IOS_FREE_GENERATION, IOS_FREE_COACH } from '../utils/iosFree';
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
@@ -32,7 +33,14 @@ const TEXTOS = {
     cuenta: (correo) => `Cuenta ${correo}`,
     copiarCorreo: 'Copiar correo',
     copiado: 'Copiado',
-    alta: (f) => `Alta: ${f}`,
+    alta: (f) => `Registro: ${f}`,
+    seccionPlan: 'Plan y cupos mensuales',
+    etiquetaWebAndroid: 'Web y Android',
+    badgeSinPaypal: 'Sin suscripción',
+    badgePaypal: 'PayPal',
+    verificadorAndroidSi: 'Verificador Android',
+    verificadorAndroidNo: 'No verificador Android',
+    abrirConversaciones: 'Abrir conversaciones y detalle',
     plan: 'Plan',
     paga: (p) => `paga ${p}`,
     cortesiaHasta: (f) => `Cortesía hasta el ${f}`,
@@ -47,6 +55,7 @@ const TEXTOS = {
     regalarCreditos: 'Regalar créditos',
     recargar: 'Recargar al completo',
     cortesia: 'Plan de cortesía',
+    ayudaAcciones: '«Regalar créditos» suma cupo extra; «Recargar al completo» repone lo que ya gastó este mes.',
     ningunPlanMejor: 'Ya tiene el plan más alto.',
     historial: 'Historial de regalos',
     sinHistorial: 'Todavía no se le ha regalado nada.',
@@ -59,9 +68,9 @@ const TEXTOS = {
     tituloRecargar: 'Recargar al completo',
     tituloCortesia: 'Dar un plan de cortesía',
     tituloRevertir: 'Revertir un regalo',
-    tituloIosGratis: 'iPhone · Gratis',
-    subIosGratis: 'Cupo mensual pensado para 14 días de uso frecuente. Independiente del plan de la web.',
-    etiquetaIosGratis: 'Sin pago',
+    tituloIosGratis: 'Cupo exclusivo de iPhone (App Store)',
+    subIosGratis: 'Solo aplica dentro de la app de iOS (sin compras integradas). No afecta ni se mezcla con Web o Android.',
+    etiquetaIosGratis: 'Independiente · Sin pago',
     creditosIosGratis: 'Créditos gratuitos',
     mensajesIosGratis: 'Mensajes gratuitos',
     botonIosGratis: 'Añadir recarga gratuita',
@@ -91,6 +100,18 @@ const TEXTOS = {
     botonRecargar: (n) => `Recargar ${n}`,
     botonCortesia: (p) => `Dar ${p} de cortesía`,
     botonRevertir: 'Revertir el regalo',
+    quitarPrueba: 'Quitar marca de prueba',
+    dialogoQuitarPrueba: {
+        titulo: 'Quitar la marca de prueba',
+        explicacion: 'El equipo deja de ver su actividad completa. Los números y los ajustes siguen a la vista.',
+        boton: 'Quitar la marca',
+    },
+    erroresPrueba: {
+        sin_marca: 'Esta cuenta ya no tenía la marca.',
+        no_existe: 'Esta cuenta ya no existe.',
+        motivo: 'El motivo debe tener entre 3 y 300 caracteres.',
+        generico: 'No se pudo guardar; no se hizo ningún cambio.',
+    },
 };
 
 const RANGO = { gratis: 0, basic: 1, plus: 2, ultra: 3 };
@@ -111,6 +132,12 @@ const subirAlInicio = () => {
     if (/jsdom/i.test(window.navigator?.userAgent || '')) return;
     window.scrollTo({ top: 0, behavior: 'auto' });
 };
+
+function mensajeErrorPrueba(err) {
+    if (err?.detalle && TEXTOS.erroresPrueba[err.detalle]) return TEXTOS.erroresPrueba[err.detalle];
+    if (err?.status === 422) return TEXTOS.erroresPrueba.motivo;
+    return err?.message || TEXTOS.erroresPrueba.generico;
+}
 
 function Medidor({ titulo, m, esAdmin }) {
     const usados = Number(m?.usados) || 0;
@@ -138,9 +165,23 @@ function Medidor({ titulo, m, esAdmin }) {
 
 export function Ficha({ ficha, onAccion, onCambio, onVerDetalle, refVerDetalle }) {
     const [copiado, setCopiado] = useState(false);
+    const [quitandoPruebaDe, setQuitandoPruebaDe] = useState(null);
+    const quitandoPrueba = quitandoPruebaDe === ficha.user_id;
     const hayMejor = !ficha.es_admin && planesMejores(ficha.plan_pagado).length > 0;
     const suscripcion = ficha.suscripcion || {};
     const regalos = Array.isArray(ficha.regalos) ? ficha.regalos : [];
+
+    const cerrarQuitarPrueba = useCallback(() => setQuitandoPruebaDe(null), []);
+    const quitarPrueba = async (motivo) => {
+        let datos;
+        try {
+            datos = await pedirAdmin(`/api/admin/cuentas/${encodeURIComponent(ficha.user_id)}/prueba/quitar`, { motivo });
+        } catch (err) {
+            throw new Error(mensajeErrorPrueba(err));
+        }
+        setQuitandoPruebaDe(null);
+        onCambio?.(datos?.cuenta || null);
+    };
 
     const copiarCorreo = async () => {
         if (!ficha.email) return;
@@ -154,26 +195,102 @@ export function Ficha({ ficha, onAccion, onCambio, onVerDetalle, refVerDetalle }
     return (
         <article className={styles.ficha} aria-label={TEXTOS.cuenta(ficha.email)}>
             <header className={styles.fichaCabecera}>
-                <span className={styles.fichaAvatar} data-admin={ficha.es_admin ? 'true' : undefined} aria-hidden="true">
-                    {inicialDe(ficha)}
-                </span>
-                <div className={styles.fichaIdentidad}>
-                    <div className={styles.fichaCorreoFila}>
-                        <h3 className={styles.correo}>{ficha.email}</h3>
-                        <button
-                            type="button"
-                            className={styles.copiarIcono}
-                            aria-label={copiado ? TEXTOS.copiado : TEXTOS.copiarCorreo}
-                            title={copiado ? TEXTOS.copiado : TEXTOS.copiarCorreo}
-                            data-copiado={copiado ? 'true' : undefined}
-                            onClick={copiarCorreo}
-                        >
-                            {copiado ? <Check size={14} strokeWidth={2.5} aria-hidden="true" /> : <Copy size={14} strokeWidth={2} aria-hidden="true" />}
-                        </button>
+                <div className={styles.fichaPersona}>
+                    <span className={styles.fichaAvatar} data-admin={ficha.es_admin ? 'true' : undefined} aria-hidden="true">
+                        {inicialDe(ficha)}
+                    </span>
+                    <div className={styles.fichaIdentidad}>
+                        <div className={styles.fichaCorreoFila}>
+                            <h3 className={styles.correo}>{ficha.email}</h3>
+                            <button
+                                type="button"
+                                className={styles.copiarIcono}
+                                aria-label={copiado ? TEXTOS.copiado : TEXTOS.copiarCorreo}
+                                title={copiado ? TEXTOS.copiado : TEXTOS.copiarCorreo}
+                                data-copiado={copiado ? 'true' : undefined}
+                                onClick={copiarCorreo}
+                            >
+                                {copiado ? <Check size={14} strokeWidth={2.5} aria-hidden="true" /> : <Copy size={14} strokeWidth={2} aria-hidden="true" />}
+                            </button>
+                        </div>
+                        <p className={styles.sub}>{[ficha.nombre, TEXTOS.alta(dia(ficha.alta))].filter(Boolean).join(' · ')}</p>
                     </div>
-                    <p className={styles.sub}>{[ficha.nombre, TEXTOS.alta(dia(ficha.alta))].filter(Boolean).join(' · ')}</p>
+                </div>
+                <div className={styles.fichaDerecha}>
+                    <div className={styles.fichaBadges}>
+                        {typeof ficha.verificador_android === 'boolean' && (
+                            <span className={styles.fichaPill} data-tono={ficha.verificador_android ? 'android' : undefined}>
+                                {ficha.verificador_android ? TEXTOS.verificadorAndroidSi : TEXTOS.verificadorAndroidNo}
+                            </span>
+                        )}
+                        <span className={styles.fichaPill} data-tono="plan">
+                            {NOMBRE_PLAN[ficha.plan_efectivo] || ficha.plan_efectivo}
+                        </span>
+                        <span className={styles.fichaPill}>
+                            {suscripcion.paypal ? TEXTOS.badgePaypal : TEXTOS.badgeSinPaypal}
+                        </span>
+                    </div>
+                    {marcaViva(ficha.prueba) && (
+                        <button
+                            ref={refVerDetalle}
+                            type="button"
+                            className={`${styles.primario} ${styles.ctaDetalle}`}
+                            onClick={() => onVerDetalle?.({ user_id: ficha.user_id, email: ficha.email })}
+                        >
+                            <MessageSquare size={15} strokeWidth={2.2} aria-hidden="true" />
+                            {TEXTOS.abrirConversaciones}
+                            <ArrowRight size={15} strokeWidth={2.2} aria-hidden="true" />
+                        </button>
+                    )}
                 </div>
             </header>
+
+            <section className={styles.seccionCard} aria-label={TEXTOS.seccionPlan}>
+                <div className={styles.seccionCabecera}>
+                    <h4 className={styles.historialTitulo}>{TEXTOS.seccionPlan}</h4>
+                    <span className={styles.seccionPill}>{TEXTOS.etiquetaWebAndroid}</span>
+                </div>
+                <div className={styles.datos}>
+                    <div className={styles.dato}>
+                        <span className={styles.datoEtiqueta}>{TEXTOS.plan}</span>
+                        <span className={styles.datoValor}>{NOMBRE_PLAN[ficha.plan_efectivo] || ficha.plan_efectivo}</span>
+                        {ficha.cortesia && (
+                            <span className={styles.datoNota}>
+                                {`${ficha.cortesia.hasta ? TEXTOS.cortesiaHasta(ultimoDia(ficha.cortesia.hasta)) : TEXTOS.cortesiaSinFin} · ${TEXTOS.paga(NOMBRE_PLAN[ficha.plan_pagado] || ficha.plan_pagado)}`}
+                            </span>
+                        )}
+                    </div>
+                    <div className={styles.dato}>
+                        <span className={styles.datoEtiqueta}>{TEXTOS.suscripcion}</span>
+                        <span className={styles.datoTexto}>
+                            {suscripcion.paypal
+                                ? TEXTOS.conPaypal(suscripcion.estado, suscripcion.fin && dia(suscripcion.fin))
+                                : TEXTOS.sinPaypal}
+                        </span>
+                    </div>
+                    <Medidor titulo={TEXTOS.creditos} m={ficha.creditos} esAdmin={ficha.es_admin} />
+                    <Medidor titulo={TEXTOS.coach} m={ficha.coach} esAdmin={ficha.es_admin} />
+                </div>
+                {ficha.es_admin ? <p className={styles.aviso}>{TEXTOS.esAdmin}</p> : (
+                    <div className={styles.accionesGrupo}>
+                        <div className={styles.acciones}>
+                            <button type="button" className={styles.primario} onClick={() => onAccion({ tipo: 'creditos' })}>{TEXTOS.regalarCreditos}</button>
+                            <button type="button" className={styles.boton} onClick={() => onAccion({ tipo: 'completo' })}>{TEXTOS.recargar}</button>
+                            <button
+                                type="button"
+                                className={styles.boton}
+                                onClick={() => onAccion({ tipo: 'cortesia' })}
+                                disabled={!hayMejor}
+                                title={hayMejor ? undefined : TEXTOS.ningunPlanMejor}
+                            >
+                                {TEXTOS.cortesia}
+                            </button>
+                        </div>
+                        <p className={styles.ayudaAcciones}>{TEXTOS.ayudaAcciones}</p>
+                    </div>
+                )}
+            </section>
+
             {ficha.ios_gratis && (
                 <section className={styles.iosGratis} aria-label={TEXTOS.tituloIosGratis}>
                     <div className={styles.iosCabecera}>
@@ -187,48 +304,18 @@ export function Ficha({ ficha, onAccion, onCambio, onVerDetalle, refVerDetalle }
                         <Medidor titulo={TEXTOS.creditosIosGratis} m={ficha.ios_gratis.creditos} />
                         <Medidor titulo={TEXTOS.mensajesIosGratis} m={ficha.ios_gratis.coach} />
                     </div>
-                    <button type="button" className={styles.primario} onClick={() => onAccion({ tipo: 'ios_gratis' })}>{TEXTOS.botonIosGratis}</button>
-                    <p className={styles.datoNota}>{TEXTOS.notaIosGratis(formatNumber(IOS_FREE_COACH), IOS_FREE_GENERATION)}</p>
+                    <div className={styles.iosPie}>
+                        <button type="button" className={styles.boton} onClick={() => onAccion({ tipo: 'ios_gratis' })}>{TEXTOS.botonIosGratis}</button>
+                        <p className={styles.ayudaAcciones}>{TEXTOS.notaIosGratis(formatNumber(IOS_FREE_COACH), IOS_FREE_GENERATION)}</p>
+                    </div>
                 </section>
             )}
-            <div className={styles.datos}>
-                <div className={styles.dato}>
-                    <span className={styles.datoEtiqueta}>{TEXTOS.plan}</span>
-                    <span className={styles.datoValor}>{NOMBRE_PLAN[ficha.plan_efectivo] || ficha.plan_efectivo}</span>
-                    {ficha.cortesia && (
-                        <span className={styles.datoNota}>
-                            {`${ficha.cortesia.hasta ? TEXTOS.cortesiaHasta(ultimoDia(ficha.cortesia.hasta)) : TEXTOS.cortesiaSinFin} · ${TEXTOS.paga(NOMBRE_PLAN[ficha.plan_pagado] || ficha.plan_pagado)}`}
-                        </span>
-                    )}
-                </div>
-                <div className={styles.dato}>
-                    <span className={styles.datoEtiqueta}>{TEXTOS.suscripcion}</span>
-                    <span className={styles.datoTexto}>
-                        {suscripcion.paypal
-                            ? TEXTOS.conPaypal(suscripcion.estado, suscripcion.fin && dia(suscripcion.fin))
-                            : TEXTOS.sinPaypal}
-                    </span>
-                </div>
-                <Medidor titulo={TEXTOS.creditos} m={ficha.creditos} esAdmin={ficha.es_admin} />
-                <Medidor titulo={TEXTOS.coach} m={ficha.coach} esAdmin={ficha.es_admin} />
-            </div>
-            {ficha.es_admin ? <p className={styles.aviso}>{TEXTOS.esAdmin}</p> : (
-                <div className={styles.acciones}>
-                    <button type="button" className={styles.primario} onClick={() => onAccion({ tipo: 'creditos' })}>{TEXTOS.regalarCreditos}</button>
-                    <button type="button" className={styles.boton} onClick={() => onAccion({ tipo: 'completo' })}>{TEXTOS.recargar}</button>
-                    <button
-                        type="button"
-                        className={styles.boton}
-                        onClick={() => onAccion({ tipo: 'cortesia' })}
-                        disabled={!hayMejor}
-                        title={hayMejor ? undefined : TEXTOS.ningunPlanMejor}
-                    >
-                        {TEXTOS.cortesia}
-                    </button>
-                </div>
-            )}
+
             <section className={styles.historial} aria-label={TEXTOS.historial}>
-                <h4 className={styles.historialTitulo}>{TEXTOS.historial}</h4>
+                <div className={styles.historialCabecera}>
+                    <h4 className={styles.historialTitulo}>{TEXTOS.historial}</h4>
+                    {regalos.length > 0 && <span className={styles.seccionPill}>{regalos.length}</span>}
+                </div>
                 {regalos.length === 0 ? <p className={styles.sub}>{TEXTOS.sinHistorial}</p> : (
                     <ul className={styles.lista}>
                         {regalos.map((r) => (
@@ -245,7 +332,25 @@ export function Ficha({ ficha, onAccion, onCambio, onVerDetalle, refVerDetalle }
                     </ul>
                 )}
             </section>
-            <AdminFichaAmpliada key={ficha.user_id} ficha={ficha} onCambio={onCambio} onVerDetalle={onVerDetalle} refVerDetalle={refVerDetalle} />
+            <AdminFichaAmpliada key={ficha.user_id} ficha={ficha} />
+            {marcaViva(ficha.prueba) && (
+                <footer className={styles.fichaPie}>
+                    <button
+                        type="button"
+                        className={styles.accionSutil}
+                        onClick={() => setQuitandoPruebaDe(ficha.user_id)}
+                    >
+                        {TEXTOS.quitarPrueba}
+                    </button>
+                </footer>
+            )}
+            {quitandoPrueba && (
+                <AdminDialogoMotivo
+                    {...TEXTOS.dialogoQuitarPrueba}
+                    onEnviar={quitarPrueba}
+                    onCerrar={cerrarQuitarPrueba}
+                />
+            )}
         </article>
     );
 }
@@ -417,6 +522,7 @@ export default function AdminCuentas() {
     const [correo, setCorreo] = useAdminNavigationState('cuentas:correo', '');
     const [cuentaId, setCuentaId] = useAdminNavigationState('cuentas:id', '');
     const [enDetalle, setEnDetalle] = useAdminNavigationState('cuentas:detalle', false);
+    const limpiarNav = useClearAdminNavigationPrefix();
     const [restaurando, setRestaurando] = useState(Boolean(cuentaId));
     useAdminLoading(restaurando);
     const [estado, setEstado] = useState('inicio');
@@ -547,7 +653,15 @@ export default function AdminCuentas() {
         setDetalle(d);
         subirAlInicio();
     };
-    const cerrarDetalle = () => { setEnDetalle(false); enfocar.current = 'ficha'; setDetalle(null); };
+    const cerrarDetalle = () => {
+        if (detalle?.user_id) {
+            limpiarNav(`prueba:${detalle.user_id}:`);
+            limpiarNav(`/api/admin/cuentas/${encodeURIComponent(detalle.user_id)}/prueba:`);
+        }
+        setEnDetalle(false);
+        enfocar.current = 'ficha';
+        setDetalle(null);
+    };
 
     const alTerminar = async (cuenta) => {
         setAccion(null);
@@ -591,7 +705,7 @@ export default function AdminCuentas() {
                     {TEXTOS.volverLista}
                 </button>
             )}
-            <form className={styles.buscador} role="search" onSubmit={buscar}>
+            <form className={styles.buscador} role="search" onSubmit={buscar} hidden={Boolean(conFicha && hayLista)}>
                 <label htmlFor="admin-correo-cuenta" className={styles.etiqueta}>{TEXTOS.correo}</label>
                 <div className={styles.fila}>
                     <input

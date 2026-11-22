@@ -122,6 +122,14 @@
     margin: 0 auto;
 }
 
+/* [P1-PLAN-LOTE-1165 · 2026-11-22] Progreso en PC: aprovecha pantallas anchas sin tocar otras vistas. */
+@media (min-width: 1280px) {
+    .mainContent:has([data-progreso-pc]) {
+        max-width: 1340px;
+        padding: 1.75rem 2.25rem 2.5rem;
+    }
+}
+
 /* Logo Setup */
 .logo {
     /* [2026-08-14] Vuelve a `block`: el `flex` + `gap` existía para colocar el

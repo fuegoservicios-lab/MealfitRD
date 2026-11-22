@@ -241,7 +241,7 @@ const DashboardTracking = ({ modo = 'contador' }) => {
     // con marco lo que se toca o se descarta: la invitación al plan, las filas de comidas, los botones.
     // El dashboard de plan comparte estas tarjetas y no pasa la prop: allí no cambia nada.
     return (
-        <div className={styles.page}>
+        <div className={styles.page} data-progreso-pc="true">
             <div className={styles.mainCol}>
                 {metasMacros === null && (
                     <div className={styles.loading}>

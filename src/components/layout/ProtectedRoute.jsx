@@ -33,6 +33,9 @@ const ProtectedRoute = ({ children, landing = false }) => {
         if (landing) {
             return children;
         }
+        if (location.pathname === '/admin') {
+            return <Navigate to="/verificadores?acceso=admin" replace />;
+        }
         return <Navigate to="/login" replace />;
     }
 

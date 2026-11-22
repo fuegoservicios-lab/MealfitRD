@@ -11,6 +11,7 @@
     --mi-surface: color-mix(in srgb, var(--text-muted) 5%, transparent);
     --mi-good: #34D399;
     --mi-warn: #FBBF24;
+    container-type: inline-size;
     width: 100%;
     box-sizing: border-box;
     scroll-margin-top: 88px;
@@ -463,6 +464,14 @@
 /* ---------- Teléfono: una columna ---------- */
 @media (max-width: 560px) {
     .list { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* [P1-PLAN-LOTE-1165] En tarjetas anchas de PC, 3-4 columnas para ver los 8 micros en dos filas limpias. */
+@container (min-width: 780px) {
+    .list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (min-width: 1040px) {
+    .list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* ---------- Tema claro ---------- */

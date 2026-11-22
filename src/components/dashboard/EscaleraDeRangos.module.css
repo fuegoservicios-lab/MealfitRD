@@ -472,42 +472,10 @@
 }
 
 /* [P1-PLAN-LOTE-1163 · 2026-11-22] cómo se sube (3 pasos), bono de semana perfecta y Maestro con sus requisitos */
-.pasos {
-    list-style: none;
-    margin: 1.1rem 0 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.4rem;
-}
-.paso {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    padding: 0.6rem;
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-    border: 1px solid var(--border);
-}
-.pasoNumero {
-    display: grid;
-    place-items: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    border-radius: var(--radius-full);
-    font-size: 0.75rem;
-    font-weight: 800;
-    color: white;
-    background: var(--primary-fill);
-}
-.pasoTexto { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.75rem; line-height: 1.3; color: var(--text-muted); }
-.pasoTexto strong { font-size: 0.8125rem; font-weight: 800; color: var(--text-main); }
-
 .puntosBono {
     background: color-mix(in srgb, var(--ink-warn) 12%, transparent);
     border: 1px solid color-mix(in srgb, var(--ink-warn) 35%, transparent);
 }
-.puntosBono span { display: inline-flex; align-items: center; gap: 0.35rem; }
 .puntosBono .puntosValor { color: var(--ink-warn); }
 
 .peldanoMaestro {
@@ -562,9 +530,147 @@
     border-radius: var(--radius-full);
     background: linear-gradient(90deg, rgb(244 114 182), rgb(167 139 250), rgb(56 189 248));
 }
-.notaMaestro { margin: 0.6rem 0.25rem 0; font-size: 0.75rem; line-height: 1.4; color: var(--text-muted); text-align: center; }
 
-@media (max-width: 380px) {
-    .pasos { grid-template-columns: minmax(0, 1fr); }
-    .paso { flex-direction: row; align-items: center; }
+
+/* [P1-PLAN-LOTE-1164 · 2026-11-22] «confuso y feo»: una tarjeta del rango con la pista IV → I, pestañas y tramitos */
+.heroRango {
+    padding: 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background:
+        radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--primary) 14%, transparent) 0%, transparent 60%),
+        var(--surface-card);
+}
+.heroMaestro {
+    background:
+        radial-gradient(120% 90% at 0% 0%, rgb(167 139 250 / 0.22) 0%, transparent 55%),
+        radial-gradient(90% 80% at 100% 100%, rgb(56 189 248 / 0.16) 0%, transparent 60%),
+        var(--surface-card);
+}
+.heroFila { display: flex; align-items: center; gap: 1rem; }
+.heroTexto { min-width: 0; }
+.heroTexto .antetitulo { margin: 0; }
+.heroTexto .titulo { margin-top: 0.1rem; }
+.heroTotal { margin: 0.2rem 0 0; font-size: 0.875rem; font-weight: 650; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.heroRango .estadisticas { justify-content: flex-start; margin-top: 0.9rem; }
+.heroRango .cima { text-align: left; }
+
+/* la pista: IV — III — II — I → siguiente rango */
+.pista {
+    list-style: none;
+    margin: 1.1rem 0 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+}
+.pistaNodo { display: flex; align-items: center; flex: 1; min-width: 0; }
+.pistaNodo::after {
+    content: '';
+    flex: 1;
+    height: 3px;
+    margin: 0 0.3rem;
+    border-radius: var(--radius-full);
+    background: var(--border);
+}
+.pistaHecha::after { background: var(--primary); }
+.pistaCirculo {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--radius-full);
+    border: 2px solid var(--border);
+    font-size: 0.8125rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    background: var(--surface-sunken);
+}
+.pistaHecha .pistaCirculo { color: white; border-color: var(--primary-fill); background: var(--primary-fill); }
+.pistaAqui .pistaCirculo {
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 0.9375rem;
+    color: white;
+    border-color: color-mix(in srgb, var(--primary) 55%, white);
+    background: var(--primary-fill);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 22%, transparent), 0 6px 18px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+.pistaFin { flex: none; gap: 0.35rem; }
+.pistaFin::after { display: none; }
+.pistaFlecha { color: var(--text-muted); }
+.gemaPista { width: 26px; height: 29px; opacity: 0.9; }
+.pistaFinNombre { font-size: 0.8125rem; font-weight: 750; color: var(--text-main); white-space: nowrap; }
+
+.caminoTitulo {
+    margin: 1.1rem 0 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.caminoFila { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.caminoFila .progresoFalta { margin-top: 0.25rem; }
+.ritmo { font-size: 0.8125rem; font-weight: 650; color: var(--primary); }
+
+/* pestañas: Cómo ganar puntos | Tu racha */
+.pestanas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25rem;
+    margin-top: 1rem;
+    padding: 0.25rem;
+    border-radius: var(--radius-full);
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+}
+.pestana {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    border: 0;
+    border-radius: var(--radius-full);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: transparent;
+    cursor: pointer;
+}
+.pestana:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.pestanaActiva { color: white; background: var(--primary-fill); }
+.panel { margin-top: 0.75rem; }
+.panel[hidden] { display: none; }
+.puntosTexto { display: flex; flex-direction: column; min-width: 0; }
+.puntosNombre { font-weight: 700; color: var(--text-main); }
+.puntosDetalle { font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
+
+/* la escalera: nombre y «desde» en una línea; debajo, 4 tramitos IV III II I */
+.peldanoCabeza { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 0.5rem; }
+.tramitos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.3rem; margin-top: 0.4rem; width: 200px; max-width: 100%; }
+.tramito { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.tramitoBarra {
+    width: 100%;
+    height: 6px;
+    appearance: none;
+    border: 0;
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    background: var(--surface-sunken);
+}
+.tramitoBarra::-webkit-progress-bar { background: var(--surface-sunken); border-radius: var(--radius-full); }
+.tramitoBarra::-webkit-progress-value { background: var(--primary); border-radius: var(--radius-full); }
+.tramitoBarra::-moz-progress-bar { background: var(--primary); border-radius: var(--radius-full); }
+.tramitoAqui { box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 55%, transparent); }
+.tramitoRomano { font-size: 0.75rem; font-weight: 750; color: var(--text-muted); text-align: center; line-height: 1.1; }
+.tramitoRomanoAqui { color: var(--primary); }
+.bloqueado .tramitoRomano { opacity: 0.6; }
+
+@media (max-width: 420px) {
+    .pistaCirculo { width: 2rem; height: 2rem; }
+    .pistaAqui .pistaCirculo { width: 2.5rem; height: 2.5rem; }
+    .pistaFinNombre { display: none; }
 }

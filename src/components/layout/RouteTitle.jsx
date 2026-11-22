@@ -107,7 +107,10 @@ const KNOWN_REDIRECTS = ['/cookies', '/pantry', '/mi-nevera', '/configuracion', 
 // así que no estaban en ninguna lista y la pestaña de /admin decía «Página no encontrada». Solo el dueño las abre: ni
 // canonical ni indexación, y título fijo en español como la propia página.
 // [I18N-EXEMPT: panel interno del dueño, solo español]
-const RUTAS_INTERNAS = { '/admin': 'Panel de administración' };
+const RUTAS_INTERNAS = {
+    '/admin': 'Panel de administración',
+    '/verificadores': 'Seguimiento de verificadores',
+};
 
 function isKnownPath(path) {
     return KNOWN_PATHS.has(path)

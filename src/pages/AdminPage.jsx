@@ -20,8 +20,8 @@ import { AdminNavigationProvider, useAdminLoading, useAdminNavigationState } fro
 
 const RANGOS = [7, 30, 90];
 const VISTAS = [
-    ['metricas', 'Métricas'], // [I18N-EXEMPT: panel interno del dueño, solo español]
-    ['cuentas', 'Cuentas'],
+    ['cuentas', 'Cuentas'], // [I18N-EXEMPT: panel interno del dueño, solo español]
+    ['metricas', 'Métricas'],
 ];
 // Enfriamiento para evitar ráfagas de peticiones al volver de DevTools o cambiar rápido entre ventanas.
 const COOLDOWN_FOCO_MS = 5000;
@@ -544,7 +544,7 @@ export default function AdminPage() {
 }
 
 function AdminPanel() {
-    const [vista, setVista] = useAdminNavigationState('vista', 'metricas', (v) => ['metricas', 'cuentas'].includes(v));
+    const [vista, setVista] = useAdminNavigationState('vista', 'cuentas', (v) => ['cuentas', 'metricas'].includes(v));
     const [dias, setDias] = useAdminNavigationState('dias', 7, (v) => RANGOS.includes(v));
     const [estado, setEstado] = useState('cargando');
     const [datos, setDatos] = useState(null);
@@ -670,7 +670,7 @@ function AdminPanel() {
 
             <div className={styles.barraFija}>
                 <div className={styles.barraSuperior}>
-                    <div className={styles.rangos} role="tablist" aria-label={TEXTOS.secciones} style={{ '--i': vista === 'cuentas' ? 1 : 0, '--n': 2 }}>
+                    <div className={styles.rangos} role="tablist" aria-label={TEXTOS.secciones} style={{ '--i': vista === 'metricas' ? 1 : 0, '--n': 2 }}>
                         <span className={styles.indicador} aria-hidden="true" />
                         {VISTAS.map(([id, texto], idx) => (
                             <button

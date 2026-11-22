@@ -54,12 +54,16 @@ describe('Endurecimiento e interactividad del panel de administración', () => {
             return respuesta({}, 404);
         });
         montar();
-        const tabMetricas = await screen.findByRole('tab', { name: 'Métricas' });
+        const tabCuentas = await screen.findByRole('tab', { name: 'Cuentas' });
+        expect(tabCuentas).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByText(/Gestión de cuentas/)).toBeInTheDocument();
+        fireEvent.keyDown(tabCuentas, { key: 'ArrowRight' });
+        const tabMetricas = screen.getByRole('tab', { name: 'Métricas' });
+        expect(tabMetricas).toHaveAttribute('aria-selected', 'true');
         await screen.findByText(/Actualización automática cada 30 s/);
-        fireEvent.keyDown(tabMetricas, { key: 'ArrowRight' });
+        fireEvent.keyDown(tabMetricas, { key: 'ArrowLeft' });
         expect(screen.getByRole('tab', { name: 'Cuentas' })).toHaveAttribute('aria-selected', 'true');
         expect(screen.queryByText(/Actualización automática cada 30 s/)).toBeNull();
-        expect(screen.getByText(/Gestión de cuentas/)).toBeInTheDocument();
     });
 
     it('la minigráfica y las barras de serie muestran lectura interactiva al pasar el cursor y evitan rótulos pegados', async () => {
@@ -79,6 +83,7 @@ describe('Endurecimiento e interactividad del panel de administración', () => {
             return respuesta({}, 404);
         });
         montar();
+        fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
         const mini = await screen.findByRole('img', { name: /Por día/ });
         fireEvent.mouseEnter(mini.querySelectorAll('span')[0]);
         expect(screen.getByText('1 nov: 1')).toBeInTheDocument();
@@ -108,6 +113,7 @@ describe('Endurecimiento e interactividad del panel de administración', () => {
             return respuesta({}, 404);
         });
         montar();
+        fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
         const filaA = (await screen.findByText('Alerta A')).closest('li');
         fireEvent.click(within(filaA).getByRole('button', { name: 'Marcar como revisado' }));
         expect(within(filaA).getByRole('button', { name: '¿Seguro? Pulsa otra vez' })).toBeInTheDocument();
@@ -135,6 +141,7 @@ describe('Endurecimiento e interactividad del panel de administración', () => {
             return respuesta({}, 404);
         });
         montar();
+        fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
         const bloque = await screen.findByRole('region', { name: 'Ajustes de la gente' });
         const btnApagado = within(bloque).getByRole('button', { name: 'Apagado' });
         fireEvent.click(btnApagado);

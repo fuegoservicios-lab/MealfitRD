@@ -200,7 +200,7 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         expect(container).toHaveTextContent(/650\s*\/\s*2[\s.,]?100 kcal/);
     });
 
-    it('muestra un estado vacío que invita a registrar cuando no hay comidas', async () => {
+    it('no muestra caja vacía cuando no hay comidas registradas hoy', async () => {
         vi.mocked(fetchWithAuth).mockResolvedValue(_mockGetResponse([]));
 
         render(<TrackingProgress userId="user-1" planData={_PLAN_DATA} />);
@@ -208,7 +208,7 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         await waitFor(() => {
             expect(screen.getByText('0 comidas registradas')).toBeInTheDocument();
         });
-        expect(screen.getByText(/Aún no registras comidas hoy/)).toBeInTheDocument();
+        expect(screen.queryByText(/Aún no registras comidas hoy/)).not.toBeInTheDocument();
     });
 
     it('[BB-025] separa complementos y bebidas ligeras en su propio apartado y adapta subtítulo', async () => {

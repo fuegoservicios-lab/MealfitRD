@@ -18,6 +18,17 @@
     margin: 0 auto;
 }
 
+/* [P1-PLAN-LOTE-1164/1165] En escritorio sin barra lateral (agua apagada e invitación en la campana):
+   la columna de 320px no reserva hueco vacío ni añade doble relleno sobre el lienzo de Progreso. */
+@media (min-width: 901px) {
+    .page:has(.sideCol:empty):has(.turnOnSlot:empty) {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "main";
+        max-width: 100%;
+        padding: 0;
+    }
+}
+
 @media (max-width: 900px) {
     .page {
         grid-template-columns: minmax(0, 1fr);

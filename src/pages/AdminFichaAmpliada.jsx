@@ -14,10 +14,9 @@
 // «Ajustes del dispositivo» (por plataforma, con SUS etiquetas): en la lista de grupos salían dos veces. Una marca
 // `sin_marca` (hubo marcas, ninguna viva) dice «Ya no es de prueba» con su historial y se puede volver a marcar. Los valores
 // crudos (`relleno`, `vista`, `android,web`, listas y objetos) se leen como texto.
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import AdminDialogoMotivo from './AdminDialogoMotivo';
+import { useEffect, useId, useState } from 'react';
 import {
-    NOMBRE_MODO, cifra, fecha, fechaHora, marcaViva, nombreIdioma, nombrePais, nombresDePlataformas, pedirAdmin, usd,
+    NOMBRE_MODO, cifra, fecha, fechaHora, nombreIdioma, nombrePais, nombresDePlataformas, pedirAdmin, usd,
 } from '../utils/adminCuentas';
 import base from './AdminCuentas.module.css';
 import styles from './AdminFichaAmpliada.module.css';
@@ -48,50 +47,6 @@ const TEXTOS = {
     sinElegir: 'Sin elegir',
     embudo: 'Embudo',
     todaviaNo: 'Todavía no',
-    prueba: 'Cuenta de prueba',
-    noEs: 'No es una cuenta de prueba.',
-    yaNoEs: 'Ya no es de prueba.',
-    chipPrueba: 'Prueba',
-    chipPendiente: 'Aviso pendiente',
-    desde: (f) => `Cuenta de prueba desde el ${f}`,
-    marcadaPor: (quien) => `Marcada por ${quien}`,
-    motivo: (m) => `Motivo: «${m}»`,
-    avisoVisto: (f) => `La persona vio el aviso el ${f}.`,
-    avisoPendiente: 'Esperando a que vea el aviso en la app.',
-    avisoNoVisto: 'La persona todavía no ha visto el aviso en la app.',
-    historial: 'Historial de la marca',
-    vigente: 'vigente',
-    marcadaEl: (f, quien) => (quien ? `Marcada el ${f} por ${quien}` : `Marcada el ${f}`),
-    salioLaPersona: (f) => `salió la persona el ${f}`,
-    laQuitoElEquipo: (f) => `la quitó el equipo el ${f}`,
-    motivoQuitar: (m) => `al quitarla: «${m}»`,
-    marcar: 'Marcar como cuenta de prueba',
-    quitar: 'Quitar marca',
-    verDetalle: 'Ver detalle',
-    dialogoMarcar: {
-        titulo: 'Marcar como cuenta de prueba',
-        explicacion: 'La persona verá un aviso en la app. Hasta que lo vea, el detalle de su cuenta sigue cerrado; los números y los ajustes no cambian.',
-        boton: 'Marcar como prueba',
-    },
-    dialogoVuelta: {
-        titulo: 'Esta persona salió ella misma del modo de prueba',
-        explicacion: 'Quitó la marca desde la app. Vuelve a marcarla solo si ella te pidió volver: verá otra vez el aviso.',
-        confirmacion: 'La persona me pidió volver',
-        boton: 'Volver a marcarla',
-    },
-    dialogoQuitar: {
-        titulo: 'Quitar la marca de prueba',
-        explicacion: 'El equipo deja de ver su actividad completa. Los números y los ajustes siguen a la vista.',
-        boton: 'Quitar la marca',
-    },
-    errores: {
-        ya_marcada: 'Esta cuenta ya estaba marcada como de prueba.',
-        sin_marca: 'Esta cuenta ya no tenía la marca.',
-        no_existe: 'Esta cuenta ya no existe.',
-        salio_ella: 'La persona salió ella misma: confirma que te pidió volver.',
-        motivo: 'El motivo debe tener entre 3 y 300 caracteres.',
-        generico: 'No se pudo guardar; no se hizo ningún cambio.',
-    },
     ajustes: 'Ajustes',
     leyenda: 'Entre paréntesis, quién hizo el último cambio: la persona (desde la app), el coach o el sistema.',
     sinAjustes: 'Sin ajustes que mostrar.',
@@ -197,12 +152,6 @@ function valorLegible(clave, v) {
  *  Los recuentos no: un «2» suelto junto a «Encendido» no dice de qué. */
 const detalleDe = (v) => v !== null && v !== undefined && v !== '' && typeof v !== 'boolean' && typeof v !== 'number';
 
-function mensajeDe(err) {
-    if (err?.detalle && TEXTOS.errores[err.detalle]) return TEXTOS.errores[err.detalle];
-    if (err?.status === 422) return TEXTOS.errores.motivo;
-    return err?.message || TEXTOS.errores.generico;
-}
-
 function Dato({ etiqueta, valor, nota, alerta = false }) {
     return (
         <div className={styles.dato} data-dato="" data-alerta={alerta ? 'true' : undefined}>
@@ -253,137 +202,6 @@ function BloqueActividad({ actividad: a }) {
                     );
                 })}
             </ol>
-        </section>
-    );
-}
-
-function EntradaHistorial({ h }) {
-    const partes = [TEXTOS.marcadaEl(fecha(h.desde), h.marcada_por)];
-    if (h.motivo) partes.push(TEXTOS.motivo(h.motivo));
-    if (!h.hasta) partes.push(TEXTOS.vigente);
-    else partes.push(h.quitada_por_la_persona ? TEXTOS.salioLaPersona(fecha(h.hasta)) : TEXTOS.laQuitoElEquipo(fecha(h.hasta)));
-    if (h.motivo_quitar) partes.push(TEXTOS.motivoQuitar(h.motivo_quitar));
-    return <li className={styles.marca}>{partes.join(' · ')}</li>;
-}
-
-function BloquePrueba({ ficha, onCambio, onVerDetalle, refVerDetalle }) {
-    const idTitulo = useId();
-    const idHistorial = useId();
-    const [dialogo, setDialogo] = useState(null);     // null | { tipo: 'marcar' | 'vuelta' | 'quitar', motivo? }
-    const tituloRef = useRef(null);
-    const enfocarTitulo = useRef(false);
-    const cerrar = useCallback(() => setDialogo(null), []);
-    const p = ficha.prueba;
-    const viva = marcaViva(p);
-    const uid = ficha.user_id;
-
-    // Tras marcar o quitar, el botón que abrió el diálogo ya no existe (cambia por el contrario): el foco va al título
-    // del bloque, que se pinta de nuevo con el estado que acaba de guardarse.
-    useEffect(() => {
-        if (!enfocarTitulo.current || dialogo) return;
-        enfocarTitulo.current = false;
-        tituloRef.current?.focus();
-    }, [dialogo]);
-
-    const hecho = (datos) => {
-        enfocarTitulo.current = true;
-        setDialogo(null);
-        onCambio?.(datos?.cuenta || null);
-    };
-    const marcar = async (motivo, confirmarVuelta) => {
-        let datos;
-        try {
-            datos = await pedirAdmin(`/api/admin/cuentas/${encodeURIComponent(uid)}/prueba`, { motivo, confirmar_vuelta: confirmarVuelta });
-        } catch (err) {
-            // La persona salió ella misma: volver a marcarla se confirma aparte, en un segundo diálogo.
-            if (err?.detalle === 'salio_ella' && !confirmarVuelta) { setDialogo({ tipo: 'vuelta', motivo }); return; }
-            throw new Error(mensajeDe(err));
-        }
-        hecho(datos);
-    };
-    const quitar = async (motivo) => {
-        let datos;
-        try {
-            datos = await pedirAdmin(`/api/admin/cuentas/${encodeURIComponent(uid)}/prueba/quitar`, { motivo });
-        } catch (err) {
-            throw new Error(mensajeDe(err));
-        }
-        hecho(datos);
-    };
-
-    let aviso = null;
-    if (viva) {
-        if (p.estado === 'aviso_pendiente') aviso = <li className={styles.pendiente}>{TEXTOS.avisoPendiente}</li>;
-        else if (p.aviso_visto_at) aviso = <li>{TEXTOS.avisoVisto(fecha(p.aviso_visto_at))}</li>;
-        else aviso = <li>{TEXTOS.avisoNoVisto}</li>;
-    }
-    const historial = Array.isArray(p?.historial) ? p.historial : [];
-
-    return (
-        <section className={styles.bloque} aria-labelledby={idTitulo}>
-            <h4 id={idTitulo} ref={tituloRef} tabIndex={-1} className={styles.titulo}>{TEXTOS.prueba}</h4>
-            {!viva ? (
-                <>
-                    {/* Nunca marcada, o marcada y quitada (`sin_marca`: el historial dice quién y cuándo). Volver a
-                        marcar a quien salió pasa por la confirmación aparte de `salio_ella`. */}
-                    <p className={styles.texto}>{p ? TEXTOS.yaNoEs : TEXTOS.noEs}</p>
-                    <div className={styles.acciones}>
-                        <button type="button" className={base.boton} onClick={() => setDialogo({ tipo: 'marcar' })}>{TEXTOS.marcar}</button>
-                    </div>
-                </>
-            ) : (
-                <>
-                    <div className={styles.etiquetas}>
-                        <span className={styles.chip} data-tono="prueba">{TEXTOS.chipPrueba}</span>
-                        {p.estado === 'aviso_pendiente' && <span className={styles.chip} data-tono="pendiente">{TEXTOS.chipPendiente}</span>}
-                    </div>
-                    <ul className={styles.hechos}>
-                        <li>{TEXTOS.desde(fecha(p.desde))}</li>
-                        {p.marcada_por && <li>{TEXTOS.marcadaPor(p.marcada_por)}</li>}
-                        {p.motivo && <li>{TEXTOS.motivo(p.motivo)}</li>}
-                        {aviso}
-                    </ul>
-                    <div className={styles.acciones}>
-                        <button
-                            ref={refVerDetalle}
-                            type="button"
-                            className={base.primario}
-                            onClick={() => onVerDetalle?.({ user_id: uid, email: ficha.email })}
-                        >
-                            {TEXTOS.verDetalle}
-                        </button>
-                        <button type="button" className={base.boton} onClick={() => setDialogo({ tipo: 'quitar' })}>{TEXTOS.quitar}</button>
-                    </div>
-                </>
-            )}
-            {historial.length > 0 && (
-                <>
-                    <h5 id={idHistorial} className={styles.subtitulo}>{TEXTOS.historial}</h5>
-                    <ul className={styles.historial} aria-labelledby={idHistorial}>
-                        {historial.map((h, i) => <EntradaHistorial key={`${h.desde}-${i}`} h={h} />)}
-                    </ul>
-                </>
-            )}
-            {dialogo?.tipo === 'marcar' && (
-                <AdminDialogoMotivo
-                    key="marcar"
-                    {...TEXTOS.dialogoMarcar}
-                    onEnviar={(motivo) => marcar(motivo, false)}
-                    onCerrar={cerrar}
-                />
-            )}
-            {dialogo?.tipo === 'vuelta' && (
-                <AdminDialogoMotivo
-                    key="vuelta"
-                    {...TEXTOS.dialogoVuelta}
-                    motivoInicial={dialogo.motivo}
-                    onEnviar={(motivo) => marcar(motivo, true)}
-                    onCerrar={cerrar}
-                />
-            )}
-            {dialogo?.tipo === 'quitar' && (
-                <AdminDialogoMotivo key="quitar" {...TEXTOS.dialogoQuitar} onEnviar={quitar} onCerrar={cerrar} />
-            )}
         </section>
     );
 }
@@ -581,18 +399,15 @@ function BloqueAjustes({ ficha }) {
 }
 
 /**
- * Los bloques nuevos de la ficha. `onCambio(cuenta)` recibe la ficha que devuelve el servidor tras marcar o quitar;
- * `onVerDetalle({user_id, email})` abre el detalle de prueba; `refVerDetalle` es el botón al que vuelve el foco.
+ * Los bloques ampliados de la ficha (`Actividad` y `Ajustes`).
  */
-export default function AdminFichaAmpliada({ ficha, onCambio, onVerDetalle, refVerDetalle }) {
+export default function AdminFichaAmpliada({ ficha }) {
     const actividad = ficha.actividad && typeof ficha.actividad === 'object' ? ficha.actividad : null;
     const hayAjustes = Array.isArray(ficha.ajustes);
-    const hayPrueba = Object.prototype.hasOwnProperty.call(ficha, 'prueba');
-    if (!actividad && !hayAjustes && !hayPrueba) return null;
+    if (!actividad && !hayAjustes) return null;
     return (
         <>
             {actividad && <BloqueActividad actividad={actividad} />}
-            {hayPrueba && <BloquePrueba ficha={ficha} onCambio={onCambio} onVerDetalle={onVerDetalle} refVerDetalle={refVerDetalle} />}
             {hayAjustes && <BloqueAjustes ficha={ficha} />}
         </>
     );

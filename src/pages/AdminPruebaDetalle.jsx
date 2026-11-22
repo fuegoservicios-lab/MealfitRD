@@ -1,26 +1,16 @@
 // frontend/src/pages/AdminPruebaDetalle.jsx
-// [P1-PLAN-LOTE-834 · 2026-09-29] El detalle de una cuenta de PRUEBA en el panel /admin (spec
-// docs/superpowers/specs/2026-09-29-admin-cuentas-actividad-pruebas-design.md §4.4, §4.5, §13.4; contrato 9). Se abre
-// desde la ficha («Ver detalle») como ESTADO de la página, sin rutas: `/admin` es una ruta exacta.
+// [P1-PLAN-LOTE-834 · 2026-09-29] El detalle de una cuenta de PRUEBA en el panel /admin. Se abre desde la ficha
+// («Ver detalle») como ESTADO de la página, sin rutas: `/admin` es una ruta exacta.
 //   · Cinco pestañas —Formulario · Comidas · Planes · Conversaciones · Actividad— y solo la abierta está montada: cada
 //     una se pide AL ABRIRLA y otra vez cada vez que se abre. Sin caché a propósito: cada vista deja su fila en el
 //     registro de accesos y una marca quitada (por el equipo o por la persona) corta la vista siguiente.
-//   · Activación MANUAL (patrón ARIA de pestañas): las flechas, Inicio y Fin mueven el foco; el clic, Intro o Espacio
-//     abren. Pasar por una pestaña con el teclado no la consulta (ni deja una fila en el registro).
-//   · 409 `aviso_pendiente` ⇒ «Esperando a que vea el aviso en la app» (§13.4); 403 ⇒ «Esta cuenta ya no es de prueba».
-//     [ronda 1] Se decide por el CÓDIGO del servidor (`aviso_pendiente` / `no_es_prueba`) y, si falta, por el estado HTTP.
-//     Si lo dice un HIJO de la pestaña (el hilo de una conversación, los días de un plan) no se queda dentro de él: sube al
-//     detalle entero, que desmonta los paneles —con su lista y sus vistas previas— y pinta ese mismo aviso en todas las
-//     pestañas. Vale hasta «Comprobar otra vez» (409) o hasta volver a la ficha y reabrir el detalle.
-//   · Lo que manda el servidor se pinta SIEMPRE como texto: los mensajes del chat traen markdown o HTML y se enseñan
-//     tal cual, con sus saltos de línea; el formulario crudo va plegado, como JSON.
-//   · Las fotos del chat se piden al endpoint de adjuntos con la sesión (`fetchWithAuth`: el token nunca va en un
-//     `src`), se pintan desde un blob y se liberan al cerrar el hilo, cambiar de pestaña o salir del detalle.
-//   · La petición de la pestaña, del rango o del hilo que se deja atrás se aborta: una respuesta vieja nunca pinta
-//     sobre la nueva.
-// Solo lectura. Interno —solo el dueño, solo español—: los textos fijos viven en TEXTOS y en las tablas de abajo.
+//   · Lo que manda el servidor se pinta SIEMPRE como texto (nunca HTML); las fotos del chat se piden como blob con la
+//     sesión y se liberan al cerrar el hilo, cambiar de pestaña o salir del detalle.
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, Copy, X } from 'lucide-react';
+import {
+    Activity, ArrowLeft, CalendarDays, Check, ChevronRight, Copy, FileText, Image, MessageSquare, Search, ThumbsDown,
+    Utensils, X,
+} from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { formatDate } from '../i18n';
 import { cifra, copiarTexto, fecha, fechaHora, pedirAdmin, usd } from '../utils/adminCuentas';
@@ -31,6 +21,7 @@ import { useAdminLoading, useAdminNavigationState } from '../hooks/useAdminNavig
 // [I18N-EXEMPT: panel interno del dueño, solo español]
 const TEXTOS = {
     titulo: (correo) => `Cuenta de prueba · ${correo}`,
+    etiquetaSoloLectura: 'Solo lectura',
     soloLectura: 'Solo lectura. Cada pestaña que abres queda anotada en el registro de accesos.',
     pestanas: 'Secciones del detalle',
     cargando: 'Cargando…',
@@ -47,6 +38,9 @@ const TEXTOS = {
     si: 'Sí',
     no: 'No',
     sinNombre: 'Sin nombre',
+    copiado: 'Copiado',
+    copiarJson: 'Copiar JSON',
+    cerrarImagen: 'Cerrar',
     // Formulario
     formulario: 'Lo que indicó en el formulario',
     otrosCampos: 'Otros datos',
@@ -93,11 +87,22 @@ const TEXTOS = {
     planNoEncontrado: 'Este plan no es de esta cuenta o ya no existe.',
     // Conversaciones
     sinSesiones: 'No ha hablado con el coach todavía.',
+    nConversaciones: (n) => (n === 1 ? '1 conversación' : `${n} conversaciones`),
     nMensajes: (n) => (n === 1 ? '1 mensaje' : `${n} mensajes`),
     nFotos: (n) => (n === 1 ? '1 foto' : `${n} fotos`),
     nNoUtiles: (n) => (n === 1 ? '1 respuesta marcada como no útil' : `${n} respuestas marcadas como no útiles`),
-    ultimo: (f) => `último mensaje: ${f}`,
+    ultimo: (f) => `Último mensaje: ${f}`,
     sinTexto: '(sin texto)',
+    sinTextoFoto: 'Mensaje enviado con foto (sin texto)',
+    buscarConversacion: 'Buscar conversación por mensaje…',
+    ariaBuscarConversacion: 'Buscar en conversaciones',
+    limpiarBusqueda: 'Limpiar búsqueda',
+    ariaFiltrosConversacion: 'Filtrar conversaciones',
+    filtroTodas: 'Todas',
+    filtroFotos: 'Con fotos',
+    filtroNoUtiles: 'Con no útiles',
+    sinCoincidencias: 'Ninguna conversación coincide con ese filtro.',
+    abrirHilo: 'Abrir hilo',
     volverConversaciones: 'Volver a las conversaciones',
     conversacionDel: (f) => `Conversación del ${f}`,
     mensajes: 'Mensajes',
@@ -125,8 +130,11 @@ const TEXTOS = {
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
 const PESTANAS = [
-    ['formulario', 'Formulario'], ['comidas', 'Comidas'], ['planes', 'Planes'], ['conversaciones', 'Conversaciones'],
-    ['actividad', 'Actividad'],
+    ['conversaciones', 'Conversaciones', MessageSquare],
+    ['formulario', 'Formulario', FileText],
+    ['comidas', 'Comidas', Utensils],
+    ['planes', 'Planes', CalendarDays],
+    ['actividad', 'Actividad', Activity],
 ];
 // [I18N-EXEMPT: panel interno del dueño, solo español] Contrato 9: `tipos` de la actividad, en ESTE orden.
 const TIPOS_EVENTO = [
@@ -197,6 +205,7 @@ function diaDeFecha(s) {
     return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
 }
 const fechaDia = (s) => fecha(diaDeFecha(s) || s);
+const inicialDe = (correo) => (String(correo || '?').trim()[0] || '?').toUpperCase();
 
 /** `dias` días contando hoy: desde = hoy − (dias − 1). Así 90 cabe en el tope del servidor. */
 function rangoDeDias(dias) {
@@ -324,11 +333,6 @@ function nombreDia(dia, i) {
 const sumaKcal = (comidas) => comidas.reduce((s, c) => s + (esCifra(c.kcal) ? Number(c.kcal) : 0), 0);
 
 // ─── Petición de una sección ──────────────────────────────────────────────────────────────────────────────────────────
-/**
- * GET de una sección del detalle. Cambiar de `url` (o `recargar`) aborta la petición anterior: una respuesta vieja nunca
- * pinta sobre la nueva. `datos` puede ser aún la de la URL anterior mientras llega la nueva (se enseña atenuada);
- * `error` es solo el de la URL actual, y con un error no queda ningún dato de antes a la vista.
- */
 function usePedido(url) {
     const [intento, setIntento] = useState(0);
     const [res, setRes] = useState(null);                   // { clave, datos, error }
@@ -358,11 +362,6 @@ function usePedido(url) {
 
 const Cargando = () => <p className={styles.estado} role="status" data-admin-loading="">{TEXTOS.cargando}</p>;
 
-/**
- * Lo que el servidor dice de la CUENTA entera: `aviso_pendiente` (la persona aún no vio el aviso) o `no_es_prueba` (ya no
- * es de prueba). Manda el CÓDIGO del servidor (`error.detalle`); si falta, el estado HTTP (409 / 403). Cualquier otro
- * fallo (404, 429, 503…) es de esa sección y no dice nada de la cuenta: `null`.
- */
 function avisoDeLaCuenta(error) {
     if (error.detalle === 'aviso_pendiente' || error.detalle === 'no_es_prueba') return error.detalle;
     if (error.status === 409) return 'aviso_pendiente';
@@ -370,18 +369,12 @@ function avisoDeLaCuenta(error) {
     return null;
 }
 
-/**
- * Un HIJO de la pestaña (un hilo, los días de un plan) que oye un aviso de la cuenta lo sube al detalle (`onInvalido`).
- * Va en un efecto de LAYOUT: el detalle cambia antes de pintar y nunca se ve, ni un fotograma, el aviso del hijo con su
- * botón de «Volver» (que dejaría entrar de nuevo a la lista).
- */
 function useAvisoAlDetalle(error, onInvalido) {
     useLayoutEffect(() => {
         if (error && avisoDeLaCuenta(error)) onInvalido(error);
     }, [error, onInvalido]);
 }
 
-/** Aviso de la cuenta (ver `avisoDeLaCuenta`). 404: no existe (o no es de esta cuenta). Lo demás, fallo de la sección. */
 function Aviso({ error, onReintentar, noEncontrado = TEXTOS.noDisponible }) {
     const cuenta = avisoDeLaCuenta(error);
     if (cuenta === 'aviso_pendiente') {
@@ -447,7 +440,7 @@ function BloqueJsonCrudo({ crudo }) {
             <div className={styles.jsonBarra}>
                 <button type="button" className={styles.jsonCopiar} onClick={copiar}>
                     {copiado ? <Check size={13} strokeWidth={2.5} aria-hidden="true" /> : <Copy size={13} strokeWidth={2} aria-hidden="true" />}
-                    {copiado ? 'Copiado' : 'Copiar JSON'}
+                    {copiado ? TEXTOS.copiado : TEXTOS.copiarJson}
                 </button>
             </div>
             <pre className={styles.json}>{contenido}</pre>
@@ -509,7 +502,7 @@ function Comida({ c }) {
                 {esCifra(c.kcal) && <span className={styles.kcal}>{TEXTOS.kcal(cifra(c.kcal))}</span>}
             </div>
             <p className={styles.plato}>{texto(c.plato) || TEXTOS.sinNombre}</p>
-            {macros && <p className={styles.nota}>{macros}</p>}
+            {macros && <p className={styles.macrosPill}>{macros}</p>}
             {ingredientes.length > 0 && <p className={styles.ingredientes}>{ingredientes.join(', ')}</p>}
             {origen && <p className={styles.nota}>{origen}</p>}
         </li>
@@ -520,9 +513,11 @@ function DiaComidas({ grupo }) {
     const id = useId();
     return (
         <section className={styles.dia} aria-labelledby={id}>
-            <h3 id={id} className={styles.diaTitulo}>
-                {TEXTOS.cabeceraDia(diaLargo(grupo.at), TEXTOS.nComidas(grupo.items.length), cifra(sumaKcal(grupo.items)))}
-            </h3>
+            <div className={styles.diaCabecera}>
+                <h3 id={id} className={styles.diaTitulo}>
+                    {TEXTOS.cabeceraDia(diaLargo(grupo.at), TEXTOS.nComidas(grupo.items.length), cifra(sumaKcal(grupo.items)))}
+                </h3>
+            </div>
             <ul className={styles.tarjetas}>
                 {grupo.items.map((c, i) => <Comida key={c.id ?? i} c={c} />)}
             </ul>
@@ -552,14 +547,14 @@ function PanelComidas({ raiz, dias, onDias }) {
     }
     return (
         <div className={styles.contenido}>
-            <div className={styles.herramientas}>
+            <div className={styles.barraHerramientas}>
                 <div className={styles.campoFiltro}>
                     <label htmlFor={idPeriodo} className={comun.etiqueta}>{TEXTOS.periodoComidas}</label>
                     <select id={idPeriodo} className={comun.input} value={dias} onChange={(e) => onDias(Number(e.target.value))}>
                         {PERIODOS_COMIDAS.map((d) => <option key={d} value={d}>{TEXTOS.ultimos(d)}</option>)}
                     </select>
                 </div>
-                {resumen && <p className={cargando ? `${styles.meta} ${styles.atenuado}` : styles.meta}>{resumen}</p>}
+                {resumen && <p className={cargando ? `${styles.metaPill} ${styles.atenuado}` : styles.metaPill}>{resumen}</p>}
             </div>
             {cuerpo}
         </div>
@@ -666,7 +661,6 @@ function Plan({ raiz, plan: p, onInvalido }) {
                             {abierto ? TEXTOS.ocultarDias : TEXTOS.verDias}
                         </button>
                     </div>
-                    {/* los días se piden al abrirlos (y se sueltan al cerrarlos) */}
                     <div id={idDias} className={styles.diasPlan} hidden={!abierto}>
                         {abierto && <DiasDelPlan raiz={raiz} planId={p.id} onInvalido={onInvalido} />}
                     </div>
@@ -690,7 +684,6 @@ function PanelPlanes({ raiz, onInvalido }) {
 }
 
 // ─── Conversaciones ───────────────────────────────────────────────────────────────────────────────────────────────────
-/** Una foto del chat: se pide con la sesión, se pinta desde un blob y el blob se libera al desmontarse. */
 function FotoAdjunta({ url, alt }) {
     const [foto, setFoto] = useState({ src: null, fallo: false });
     const [ampliada, setAmpliada] = useState(false);
@@ -734,7 +727,7 @@ function FotoAdjunta({ url, alt }) {
             </button>
             {ampliada && (
                 <div className={styles.lightbox} role="dialog" aria-modal="true" aria-label={alt} onClick={() => setAmpliada(false)}>
-                    <button type="button" className={styles.lightboxCerrar} aria-label="Cerrar" onClick={() => setAmpliada(false)}>
+                    <button type="button" className={styles.lightboxCerrar} aria-label={TEXTOS.cerrarImagen} onClick={() => setAmpliada(false)}>
                         <X size={20} strokeWidth={2.2} aria-hidden="true" />
                     </button>
                     <img className={styles.lightboxImg} src={foto.src} alt={alt} onClick={(e) => e.stopPropagation()} />
@@ -744,8 +737,6 @@ function FotoAdjunta({ url, alt }) {
     );
 }
 
-// [P1-PLAN-LOTE-1056 · 2026-11-17] El coach escribe en markdown y aquí se veía crudo («**desayuno**», captura del dueño).
-// Solo las negritas, que es lo que usa: sin HTML ni librería de markdown en el panel.
 function conNegritas(s) {
     const partes = String(s || '').split(/\*\*((?:[^*\n]|\*(?!\*))+?)\*\*/g);
     return partes.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : p));
@@ -767,7 +758,7 @@ function Mensaje({ raiz, m }) {
         <li className={styles.mensaje} data-rol={rol}>
             <div className={styles.burbuja}>
                 <p className={styles.quien}>
-                    <span className={styles.rol}>{quien}</span>
+                    <span className={styles.rolPill} data-rol={rol}>{quien}</span>
                     {m.at && <time className={styles.hora} dateTime={m.at}>{fechaHora(m.at)}</time>}
                 </p>
                 {texto(m.texto) && <p className={styles.texto} data-texto="">{conNegritas(texto(m.texto))}</p>}
@@ -792,27 +783,39 @@ function Hilo({ raiz, sesion, onCerrar, onInvalido }) {
     const tituloRef = useRef(null);
     const { datos, error, recargar } = usePedido(`${raiz}/conversaciones/${encodeURIComponent(texto(sesion.id))}`);
     useAvisoAlDetalle(error, onInvalido);
-    // Al abrir el hilo, el foco va a su título (el botón que lo abrió ya no está en pantalla).
     useEffect(() => { tituloRef.current?.focus({ preventScroll: true }); }, []);
     const mensajes = objetos(datos?.mensajes).filter((m) => !String(m.texto || '').startsWith('[SYSTEM_TITLE]'));
+    const totalFotos = mensajes.reduce((s, m) => s + objetos(m.fotos).length, 0);
     let cuerpo;
     if (error) cuerpo = <Aviso error={error} onReintentar={recargar} noEncontrado={TEXTOS.hiloNoEncontrado} />;
     else if (!datos) cuerpo = <Cargando />;
     else if (mensajes.length === 0) cuerpo = <p className={styles.vacio}>{TEXTOS.sinMensajes}</p>;
     else {
         cuerpo = (
-            <ol className={styles.mensajes} aria-label={TEXTOS.mensajes}>
-                {mensajes.map((m, i) => <Mensaje key={m.id ?? i} raiz={raiz} m={m} />)}
-            </ol>
+            <div className={styles.chatMarco}>
+                <ol className={styles.mensajes} aria-label={TEXTOS.mensajes}>
+                    {mensajes.map((m, i) => <Mensaje key={m.id ?? i} raiz={raiz} m={m} />)}
+                </ol>
+            </div>
         );
     }
     return (
         <section className={styles.hilo} aria-labelledby={idTitulo}>
-            <button type="button" className={`${comun.boton} ${comun.volver}`} onClick={onCerrar}>
-                <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
-                {TEXTOS.volverConversaciones}
-            </button>
-            <h3 id={idTitulo} ref={tituloRef} tabIndex={-1} className={styles.subtitulo}>{TEXTOS.conversacionDel(fechaHora(sesion.inicio))}</h3>
+            <div className={styles.hiloCabecera}>
+                <button type="button" className={`${comun.boton} ${comun.volver}`} onClick={onCerrar}>
+                    <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
+                    {TEXTOS.volverConversaciones}
+                </button>
+                <div className={styles.hiloTituloFila}>
+                    <h3 id={idTitulo} ref={tituloRef} tabIndex={-1} className={styles.subtitulo}>{TEXTOS.conversacionDel(fechaHora(sesion.inicio))}</h3>
+                    {datos && !error && (
+                        <div className={styles.sesionChips}>
+                            <span className={styles.chip}>{TEXTOS.nMensajes(mensajes.length)}</span>
+                            {totalFotos > 0 && <span className={styles.chip} data-tono="info">{TEXTOS.nFotos(totalFotos)}</span>}
+                        </div>
+                    )}
+                </div>
+            </div>
             {cuerpo}
         </section>
     );
@@ -820,9 +823,11 @@ function Hilo({ raiz, sesion, onCerrar, onInvalido }) {
 
 function PanelConversaciones({ raiz, onInvalido }) {
     const { datos, error, recargar } = usePedido(`${raiz}/conversaciones`);
-    const [abierta, setAbierta] = useAdminNavigationState(`${raiz}:conversacion`, null, (v) => v === null || (typeof v?.id === 'string' && typeof v?.inicio === 'string'));           // la sesión cuyo hilo se ve
+    const [abierta, setAbierta] = useAdminNavigationState(`${raiz}:conversacion`, null, (v) => v === null || (typeof v?.id === 'string' && typeof v?.inicio === 'string'));
+    const [buscar, setBuscar] = useState('');
+    const [filtro, setFiltro] = useState('todas'); // 'todas' | 'fotos' | 'no_utiles'
     const listaRef = useRef(null);
-    const volverA = useRef(null);                          // al cerrar el hilo, el foco vuelve a SU conversación
+    const volverA = useRef(null);
     useEffect(() => {
         const id = volverA.current;
         if (id === null || abierta) return;
@@ -830,33 +835,136 @@ function PanelConversaciones({ raiz, onInvalido }) {
         const botones = listaRef.current ? [...listaRef.current.querySelectorAll('[data-sesion]')] : [];
         botones.find((b) => b.dataset.sesion === id)?.focus();
     }, [abierta, datos]);
-    // El hilo se desmonta al cerrarlo: aborta lo que esté en vuelo y libera sus fotos. La lista no se vuelve a pedir.
+
     const cerrar = () => { volverA.current = texto(abierta?.id); setAbierta(null); };
     if (abierta) return <Hilo raiz={raiz} sesion={abierta} onCerrar={cerrar} onInvalido={onInvalido} />;
     if (error) return <Aviso error={error} onReintentar={recargar} />;
     if (!datos) return <Cargando />;
     const sesiones = objetos(datos.sesiones).filter((s) => s.id !== null && s.id !== undefined && s.id !== '');
     if (sesiones.length === 0) return <p className={styles.vacio}>{TEXTOS.sinSesiones}</p>;
+
+    const totalMensajes = sesiones.reduce((acc, s) => acc + (esCifra(s.mensajes) ? Number(s.mensajes) : 0), 0);
+    const totalFotos = sesiones.reduce((acc, s) => acc + (esCifra(s.fotos) ? Number(s.fotos) : 0), 0);
+    const totalNoUtiles = sesiones.reduce((acc, s) => acc + (esCifra(s.pulgares_abajo) ? Number(s.pulgares_abajo) : 0), 0);
+
+    const q = buscar.trim().toLowerCase();
+    const filtradas = sesiones.filter((s) => {
+        if (filtro === 'fotos' && !(esCifra(s.fotos) && Number(s.fotos) > 0)) return false;
+        if (filtro === 'no_utiles' && !(esCifra(s.pulgares_abajo) && Number(s.pulgares_abajo) > 0)) return false;
+        if (q) {
+            const hayTexto = texto(s.primer_mensaje).toLowerCase().includes(q);
+            if (!hayTexto) return false;
+        }
+        return true;
+    });
+
     return (
-        <ul ref={listaRef} className={styles.sesiones}>
-            {sesiones.map((s) => {
-                const meta = [
-                    esCifra(s.mensajes) && TEXTOS.nMensajes(Number(s.mensajes)),
-                    esCifra(s.fotos) && Number(s.fotos) > 0 && TEXTOS.nFotos(Number(s.fotos)),
-                    esCifra(s.pulgares_abajo) && Number(s.pulgares_abajo) > 0 && TEXTOS.nNoUtiles(Number(s.pulgares_abajo)),
-                    s.ultimo && TEXTOS.ultimo(fechaHora(s.ultimo)),
-                ].filter(Boolean).join(' · ');
-                return (
-                    <li key={texto(s.id)} className={styles.sesion}>
-                        <button type="button" className={styles.sesionBoton} data-sesion={texto(s.id)} onClick={() => setAbierta({ id: texto(s.id), inicio: texto(s.inicio) })}>
-                            <span className={styles.sesionFecha}>{fechaHora(s.inicio)}</span>
-                            <span className={styles.sesionPrimer}>{texto(s.primer_mensaje) || TEXTOS.sinTexto}</span>
+        <div className={styles.contenido}>
+            <div className={styles.resumenSesiones}>
+                <span className={styles.chip}>{TEXTOS.nConversaciones(sesiones.length)}</span>
+                <span className={styles.chip}>{TEXTOS.nMensajes(totalMensajes)}</span>
+                {totalFotos > 0 && <span className={styles.chip} data-tono="info">{TEXTOS.nFotos(totalFotos)}</span>}
+                {totalNoUtiles > 0 && <span className={styles.chip} data-tono="malo">{TEXTOS.nNoUtiles(totalNoUtiles)}</span>}
+            </div>
+            <div className={styles.barraConversaciones}>
+                <div className={styles.buscarCaja}>
+                    <Search size={15} strokeWidth={2} className={styles.buscarIcono} aria-hidden="true" />
+                    <input
+                        type="search"
+                        className={`${comun.input} ${styles.inputBuscar}`}
+                        placeholder={TEXTOS.buscarConversacion}
+                        aria-label={TEXTOS.ariaBuscarConversacion}
+                        value={buscar}
+                        onChange={(e) => setBuscar(e.target.value)}
+                    />
+                    {buscar && (
+                        <button
+                            type="button"
+                            className={styles.limpiarBtn}
+                            aria-label={TEXTOS.limpiarBusqueda}
+                            onClick={() => setBuscar('')}
+                        >
+                            <X size={14} strokeWidth={2.2} aria-hidden="true" />
                         </button>
-                        {meta && <p className={styles.nota}>{meta}</p>}
-                    </li>
-                );
-            })}
-        </ul>
+                    )}
+                </div>
+                <div className={styles.filtrosRapidos} role="group" aria-label={TEXTOS.ariaFiltrosConversacion}>
+                    <button
+                        type="button"
+                        className={styles.filtroChip}
+                        data-activo={filtro === 'todas' ? 'true' : undefined}
+                        onClick={() => setFiltro('todas')}
+                    >
+                        {TEXTOS.filtroTodas}
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.filtroChip}
+                        data-activo={filtro === 'fotos' ? 'true' : undefined}
+                        onClick={() => setFiltro('fotos')}
+                    >
+                        {TEXTOS.filtroFotos}
+                    </button>
+                    {totalNoUtiles > 0 && (
+                        <button
+                            type="button"
+                            className={styles.filtroChip}
+                            data-activo={filtro === 'no_utiles' ? 'true' : undefined}
+                            onClick={() => setFiltro('no_utiles')}
+                        >
+                            {TEXTOS.filtroNoUtiles}
+                        </button>
+                    )}
+                </div>
+            </div>
+            {filtradas.length === 0 ? <p className={styles.vacio}>{TEXTOS.sinCoincidencias}</p> : (
+                <ul ref={listaRef} className={styles.sesiones}>
+                    {filtradas.map((s) => {
+                        const primer = texto(s.primer_mensaje);
+                        const nFotos = esCifra(s.fotos) ? Number(s.fotos) : 0;
+                        const nNoUtiles = esCifra(s.pulgares_abajo) ? Number(s.pulgares_abajo) : 0;
+                        const vistaPrevia = primer || (nFotos > 0 ? TEXTOS.sinTextoFoto : TEXTOS.sinTexto);
+                        return (
+                            <li key={texto(s.id)} className={styles.sesion}>
+                                <button
+                                    type="button"
+                                    className={styles.sesionBoton}
+                                    data-sesion={texto(s.id)}
+                                    onClick={() => setAbierta({ id: texto(s.id), inicio: texto(s.inicio) })}
+                                >
+                                    <span className={styles.sesionTop}>
+                                        <span className={styles.sesionFecha}>{fechaHora(s.inicio)}</span>
+                                        <span className={styles.sesionChips}>
+                                            {esCifra(s.mensajes) && <span className={styles.chip}>{TEXTOS.nMensajes(Number(s.mensajes))}</span>}
+                                            {nFotos > 0 && (
+                                                <span className={styles.chip} data-tono="info">
+                                                    <Image size={12} strokeWidth={2.2} aria-hidden="true" />
+                                                    {TEXTOS.nFotos(nFotos)}
+                                                </span>
+                                            )}
+                                            {nNoUtiles > 0 && (
+                                                <span className={styles.chip} data-tono="malo">
+                                                    <ThumbsDown size={12} strokeWidth={2.2} aria-hidden="true" />
+                                                    {TEXTOS.nNoUtiles(nNoUtiles)}
+                                                </span>
+                                            )}
+                                        </span>
+                                    </span>
+                                    <span className={primer ? styles.sesionPrimer : styles.sesionVacia}>{vistaPrevia}</span>
+                                    <span className={styles.sesionPie}>
+                                        <span className={styles.sesionUltimo}>{s.ultimo ? TEXTOS.ultimo(fechaHora(s.ultimo)) : ''}</span>
+                                        <span className={styles.abrirCue} aria-hidden="true">
+                                            {TEXTOS.abrirHilo}
+                                            <ChevronRight size={14} strokeWidth={2.2} />
+                                        </span>
+                                    </span>
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </div>
     );
 }
 
@@ -865,8 +973,10 @@ function DiaEventos({ grupo }) {
     const id = useId();
     return (
         <section className={styles.dia} aria-labelledby={id}>
-            <h3 id={id} className={styles.diaTitulo}>{diaLargo(grupo.at)}</h3>
-            <ol className={styles.tarjetas}>
+            <div className={styles.diaCabecera}>
+                <h3 id={id} className={styles.diaTitulo}>{diaLargo(grupo.at)}</h3>
+            </div>
+            <ol className={styles.eventosLista}>
                 {grupo.items.map((e, i) => (
                     <li key={`${texto(e.at)}-${i}`} className={styles.evento} data-evento={texto(e.tipo)}>
                         {e.at && <time className={styles.hora} dateTime={e.at}>{hora(e.at)}</time>}
@@ -902,7 +1012,7 @@ function PanelActividad({ raiz, filtro, onFiltro }) {
             <div className={styles.lista} aria-busy={cargando ? 'true' : undefined}>
                 <div className={styles.resumenActividad}>
                     <p className={styles.gasto}>{TEXTOS.gasto(diasDatos, usd(datos.gasto_ia_usd))}</p>
-                    <p className={styles.meta}>{cuantos}</p>
+                    <p className={styles.metaPill}>{cuantos}</p>
                 </div>
                 {eventos.length === 0
                     ? <p className={styles.vacio}>{TEXTOS.sinEventos}</p>
@@ -912,7 +1022,7 @@ function PanelActividad({ raiz, filtro, onFiltro }) {
     }
     return (
         <div className={styles.contenido}>
-            <div className={styles.herramientas}>
+            <div className={styles.barraHerramientas}>
                 <div className={styles.campoFiltro}>
                     <label htmlFor={idPeriodo} className={comun.etiqueta}>{TEXTOS.periodoActividad}</label>
                     <select
@@ -948,28 +1058,18 @@ function PanelActividad({ raiz, filtro, onFiltro }) {
 }
 
 // ─── El detalle ───────────────────────────────────────────────────────────────────────────────────────────────────────
-/**
- * `userId` y `email` de la cuenta de prueba. Se monta dentro de la región «Detalle de …» de `AdminCuentas`, que se
- * lleva el foco al abrirse; aquí no se le roba. El periodo de Comidas y el filtro de Actividad se recuerdan al cambiar
- * de pestaña; el contenido no (cada apertura lo vuelve a pedir).
- */
 export default function AdminPruebaDetalle({ userId, email }) {
     const idBase = useId();
-    const [pestana, setPestana] = useAdminNavigationState(`prueba:${userId}:pestana`, 'formulario', (v) => PESTANAS.some(([id]) => id === v));
+    const [pestana, setPestana] = useAdminNavigationState(`prueba:${userId}:pestana`, 'conversaciones', (v) => PESTANAS.some(([id]) => id === v));
     const [diasComidas, setDiasComidas] = useAdminNavigationState(`prueba:${userId}:diasComidas`, 30, (v) => PERIODOS_COMIDAS.includes(v));
     const [filtroActividad, setFiltroActividad] = useAdminNavigationState(`prueba:${userId}:actividad`, { dias: 7, tipos: [] }, (v) => PERIODOS_ACTIVIDAD.includes(v?.dias) && Array.isArray(v?.tipos) && v.tipos.every((tipo) => TIPOS_EVENTO.some(([id]) => tipo === id)));
-    // [ronda 1] El aviso de la cuenta (`{ status, detalle }`) que subió un HIJO de la pestaña (un hilo, los días de un
-    // plan): mientras esté, ningún panel está montado y en su lugar va ese aviso.
     const [invalido, setInvalido] = useState(null);
     const botones = useRef([]);
     const raiz = `/api/admin/cuentas/${encodeURIComponent(userId)}/prueba`;
     const idPestana = (id) => `${idBase}-pestana-${id}`;
     const idPanel = (id) => `${idBase}-panel-${id}`;
 
-    // Flechas, Inicio y Fin mueven el foco entre pestañas (con vuelta); no abren ninguna.
     const teclas = (e) => {
-        // Con Alt, Ctrl, Cmd o Mayús no son de las pestañas: Alt+← es «Atrás» del navegador, Ctrl+Inicio/Fin desplazan la
-        // página, Mayús+flecha selecciona. Ni se les hace `preventDefault` ni se mueve el foco.
         if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
         const i = PESTANAS.findIndex(([id]) => id === e.target?.dataset?.pestana);
         if (i < 0) return;
@@ -994,29 +1094,38 @@ export default function AdminPruebaDetalle({ userId, email }) {
 
     return (
         <div className={styles.detalle}>
-            <header className={styles.cabecera}>
-                <h2 className={styles.titulo}>{TEXTOS.titulo(email || userId)}</h2>
-                <p className={styles.sub}>{TEXTOS.soloLectura}</p>
-            </header>
-            <div role="tablist" aria-label={TEXTOS.pestanas} className={styles.pestanas} onKeyDown={teclas}>
-                {PESTANAS.map(([id, nombre], i) => (
-                    <button
-                        key={id}
-                        ref={(el) => { botones.current[i] = el; }}
-                        type="button"
-                        role="tab"
-                        id={idPestana(id)}
-                        aria-selected={pestana === id}
-                        aria-controls={idPanel(id)}
-                        tabIndex={pestana === id ? 0 : -1}
-                        data-pestana={id}
-                        className={styles.pestana}
-                        onClick={() => setPestana(id)}
-                    >
-                        {nombre}
-                    </button>
-                ))}
-            </div>
+            <section className={styles.encabezadoCard}>
+                <header className={styles.encabezadoTop}>
+                    <span className={styles.avatar} aria-hidden="true">{inicialDe(email || userId)}</span>
+                    <div className={styles.cabecera}>
+                        <div className={styles.tituloFila}>
+                            <h2 className={styles.titulo}>{TEXTOS.titulo(email || userId)}</h2>
+                            <span className={styles.soloLecturaPill}>{TEXTOS.etiquetaSoloLectura}</span>
+                        </div>
+                        <p className={styles.sub}>{TEXTOS.soloLectura}</p>
+                    </div>
+                </header>
+                <div role="tablist" aria-label={TEXTOS.pestanas} className={styles.pestanas} onKeyDown={teclas}>
+                    {PESTANAS.map(([id, nombre, Icono], i) => (
+                        <button
+                            key={id}
+                            ref={(el) => { botones.current[i] = el; }}
+                            type="button"
+                            role="tab"
+                            id={idPestana(id)}
+                            aria-selected={pestana === id}
+                            aria-controls={idPanel(id)}
+                            tabIndex={pestana === id ? 0 : -1}
+                            data-pestana={id}
+                            className={styles.pestana}
+                            onClick={() => setPestana(id)}
+                        >
+                            <Icono size={14} strokeWidth={2.1} aria-hidden="true" />
+                            {nombre}
+                        </button>
+                    ))}
+                </div>
+            </section>
             {PESTANAS.map(([id]) => (
                 <div
                     key={id}

@@ -4,9 +4,10 @@
 // correos sin partirse a mitad de palabra en escritorio con columna fija al desplazar, copia rápida al
 // portapapeles, barra de selección destacada y botón para limpiar búsqueda.
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Check, Copy, Download, Search, X } from 'lucide-react';
+import { Check, Copy, Download, Search, Trash2, X } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import AdminDialogoMotivo from './AdminDialogoMotivo';
+import AdminDialogoEliminar from './AdminDialogoEliminar';
 import {
     NOMBRE_MODO, NOMBRE_PLAN, cifra, copiarTexto, fecha, marcaViva, nombreCsvDeHoy, nombreDeArchivo, pedirAdmin,
     urlCsvCuentas, urlCuentas, usd,
@@ -30,7 +31,20 @@ const TEXTOS = {
     errorCsv: 'No se pudo descargar el CSV.',
     seleccionarTodas: 'Seleccionar todas las de esta página',
     seleccionadas: (n) => (n === 1 ? '1 seleccionada' : `${n} seleccionadas`),
-    marcarSeleccionadas: 'Marcar seleccionadas como prueba',
+    marcarSeleccionadas: 'Marcar como prueba',
+    // [P1-PLAN-LOTE-1166] más acciones sobre la selección: quitar la marca y eliminar (con revisión y confirmación)
+    quitarMarcaSeleccionadas: 'Quitar marca de prueba',
+    eliminarSeleccionadas: 'Eliminar…',
+    tituloQuitarLote: (n) => (n === 1 ? 'Quitar la marca de prueba a 1 cuenta' : `Quitar la marca de prueba a ${n} cuentas`),
+    explicacionQuitarLote: 'Vuelven a ser cuentas normales: su detalle se cierra otra vez para el panel.',
+    botonQuitarLote: (n) => (n === 1 ? 'Quitar marca a 1 cuenta' : `Quitar marca a ${n} cuentas`),
+    resumenQuitar: (q, s) => [q && (q === 1 ? '1 sin marca ahora' : `${q} sin marca ahora`),
+        s && (s === 1 ? '1 no estaba marcada' : `${s} no estaban marcadas`)].filter(Boolean).join(' · ') || 'Ningún cambio.',
+    resumenEliminar: (c) => [
+        c.eliminada && (c.eliminada === 1 ? '1 cuenta eliminada' : `${c.eliminada} cuentas eliminadas`),
+        c.parcial && `${c.parcial} a medias (revisa los avisos del panel)`,
+        c.otras && `${c.otras} no se borraron (bloqueadas o activas sin confirmar)`,
+    ].filter(Boolean).join(' · ') || 'No se borró ninguna cuenta.',
     quitarSeleccion: 'Quitar selección',
     seleccionar: (correo) => `Seleccionar ${correo}`,
     copiarCorreo: (correo) => `Copiar ${correo}`,
@@ -38,10 +52,21 @@ const TEXTOS = {
     seleccion: 'Selección',
     cuenta: 'Cuenta',
     comidas30: (n) => `${n} en 30 días`,
+    diasActivos: (num, fmt) => (num === 1 ? `${fmt} día` : `${fmt} días`),
+    metaPlayOk: 'Meta 14d ✓',
+    metaContinuosProgreso: (fmt) => `${fmt} de 14 seguidos`,
+    rachaActiva: 'racha activa',
+    sinRacha: 'sin racha',
+    tooltipRegistro: 'Fecha en que creó su cuenta',
     sinActividad: 'Sin actividad',
     prueba: 'Prueba',
     avisoPendiente: 'Aviso pendiente',
     admin: 'Admin',
+    verificadorAndroid: 'Verificador Android',
+    copiarLinkPortal: 'Link del panel',
+    linkPortalCopiado: 'Link copiado',
+    progresoPlay: (n) => `Google Play: ${n} / 12 verificadores Android`,
+    faltanPlay: (n) => (n >= 12 ? 'Mínimo de 12 alcanzado; revisa sus 14 días activos.' : `Faltan ${12 - n} para completar los 12 mínimos.`),
     vacio: 'Ninguna cuenta coincide.',
     errorCarga: 'No se pudo cargar la lista de cuentas.',
     reintentar: 'Reintentar',
@@ -73,13 +98,19 @@ const TEXTOS = {
 const FILTROS = [
     ['todas', 'Todas'], ['prueba', 'De prueba'], ['sin_marcar', 'Sin marcar'], ['activas_7d', 'Activas (7 días)'],
     ['inactivas_14d', 'Inactivas (14 días o más)'], ['con_plan', 'Con plan'], ['seguimiento', 'En seguimiento'],
+    ['verificadores_android', 'Verificadores Android'],
 ];
 // [I18N-EXEMPT: panel interno del dueño, solo español]
-const ORDENES = [['actividad', 'Última actividad'], ['alta', 'Fecha de alta'], ['comidas', 'Comidas registradas'], ['gasto', 'Gasto de IA']];
+const ORDENES = [['actividad', 'Última actividad'], ['alta', 'Fecha de registro'], ['comidas', 'Comidas registradas'], ['gasto', 'Gasto de IA']];
 // [I18N-EXEMPT: panel interno del dueño, solo español] Columnas de cifras: en el teléfono cada una rotula su celda.
 const COLUMNAS = {
     ultima: 'Última actividad', comidas: 'Comidas', planes: 'Planes', mensajes: 'Mensajes al coach', escaneos: 'Escaneos',
-    gasto: 'Gasto de IA (30 días)', dias: 'Días activos (30 días)', alta: 'Alta',
+    gasto: 'Gasto de IA (30 días)', continuos: 'Días activos continuos', alta: 'Registro',
+};
+// [I18N-EXEMPT: panel interno del dueño, solo español] Cabeceras compactas de una línea en la tabla de escritorio.
+const CABECERAS = {
+    ultima: 'Actividad', comidas: 'Comidas', planes: 'Planes', mensajes: 'Coach', escaneos: 'Escaneos',
+    gasto: 'Gasto 30d', continuos: 'Días activos continuos', alta: 'Registro',
 };
 
 const ESPERA_BUSQUEDA_MS = 300;
@@ -118,7 +149,6 @@ function FilaCuenta({ c, elegida, onElegir, onAbrir }) {
                     <input
                         type="checkbox"
                         checked={elegida}
-                        disabled={viva}
                         onChange={() => onElegir(c)}
                         aria-label={TEXTOS.seleccionar(c.email)}
                     />
@@ -152,8 +182,9 @@ function FilaCuenta({ c, elegida, onElegir, onAbrir }) {
                             </button>
                         </div>
                         {sub && <span className={styles.sub}>{sub}</span>}
-                        {(viva || c.es_admin) && (
+                        {(viva || c.es_admin || c.verificador_android) && (
                             <span className={styles.etiquetas}>
+                                {c.verificador_android && <span className={styles.chip} data-tono="android">{TEXTOS.verificadorAndroid}</span>}
                                 {viva && <span className={styles.chip} data-tono="prueba">{TEXTOS.prueba}</span>}
                                 {viva && c.prueba.estado === 'aviso_pendiente' && <span className={styles.chip} data-tono="pendiente">{TEXTOS.avisoPendiente}</span>}
                                 {c.es_admin && <span className={styles.chip} data-tono="admin">{TEXTOS.admin}</span>}
@@ -173,7 +204,23 @@ function FilaCuenta({ c, elegida, onElegir, onAbrir }) {
             <td data-etiqueta={COLUMNAS.gasto} className={`${styles.num} ${gastoAlto ? styles.gastoAlto : (!Number(a.gasto_ia_30d_usd) ? styles.cero : '')}`}>
                 {usd(a.gasto_ia_30d_usd)}
             </td>
-            <td data-etiqueta={COLUMNAS.dias} className={`${styles.num} ${!a.dias_activos_30d ? styles.cero : ''}`}>{cifra(a.dias_activos_30d)}</td>
+            <td data-etiqueta={COLUMNAS.continuos} className={styles.num}>
+                {(() => {
+                    const contNum = Number(a.dias_continuos) || 0;
+                    const contFmt = cifra(a.dias_continuos);
+                    const metaOk = c.verificador_android && contNum >= 14;
+                    return (
+                        <>
+                            <span className={!contNum ? styles.cero : undefined}>{TEXTOS.diasActivos(contNum, contFmt)}</span>
+                            <span className={metaOk ? styles.notaOk : styles.nota}>
+                                {c.verificador_android
+                                    ? (metaOk ? TEXTOS.metaPlayOk : TEXTOS.metaContinuosProgreso(contFmt))
+                                    : (contNum > 0 ? TEXTOS.rachaActiva : TEXTOS.sinRacha)}
+                            </span>
+                        </>
+                    );
+                })()}
+            </td>
             <td data-etiqueta={COLUMNAS.alta} className={`${styles.num} ${styles.fecha}`}>{fecha(c.alta)}</td>
         </tr>
     );
@@ -199,6 +246,7 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
     const [dialogo, setDialogo] = useState(false);
     const [resultado, setResultado] = useState(null);
     const [descargando, setDescargando] = useState(false);
+    const [linkCopiado, setLinkCopiado] = useState(false);
     const [errorCsv, setErrorCsv] = useState('');
     const refTodas = useRef(null);
     const resumenRef = useRef(null);
@@ -233,7 +281,7 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                 if (pagina > ultima) { setPagina(ultima); return; }
                 setDatos(cuerpo);
                 const elegiblesAhora = new Set((Array.isArray(cuerpo?.cuentas) ? cuerpo.cuentas : [])
-                    .filter((c) => !marcaViva(c.prueba)).map((c) => c.user_id));
+                    .map((c) => c.user_id));
                 setSeleccion((s) => ([...s.keys()].every((id) => elegiblesAhora.has(id))
                     ? s
                     : new Map([...s].filter(([id]) => elegiblesAhora.has(id)))));
@@ -252,7 +300,7 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
     }, [buscar, orden, filtro, pagina, version, intento, setPagina]);
 
     const cuentas = Array.isArray(datos?.cuentas) ? datos.cuentas : [];
-    const elegibles = cuentas.filter((c) => !marcaViva(c.prueba));
+    const elegibles = cuentas;   // [1166] cualquier cuenta se puede elegir: marcar, quitar marca o eliminar
     const todas = elegibles.length > 0 && elegibles.every((c) => seleccion.has(c.user_id));
     const algunas = elegibles.some((c) => seleccion.has(c.user_id));
 
@@ -314,6 +362,44 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
         setIntento((n) => n + 1);
     };
 
+    const quitarLote = async (motivo) => {
+        let respuesta;
+        try {
+            respuesta = await pedirAdmin('/api/admin/pruebas/lote/quitar', { user_ids: [...seleccion.keys()], motivo });
+        } catch (err) {
+            throw new Error(mensajeLote(err));
+        }
+        const rs = Array.isArray(respuesta?.resultados) ? respuesta.resultados : [];
+        enfocarResumen.current = true;
+        setResultado({ linea: TEXTOS.resumenQuitar(rs.filter((r) => r.resultado === 'quitada').length,
+            rs.filter((r) => r.resultado === 'sin_marca').length), salieron: [] });
+        setDialogo(false);
+        reconsultar();
+        setIntento((n) => n + 1);
+    };
+
+    const terminarEliminar = (rs) => {
+        const cuenta = { eliminada: 0, parcial: 0, otras: 0 };
+        rs.forEach((r) => {
+            if (r.resultado === 'eliminada') cuenta.eliminada += 1;
+            else if (r.resultado === 'parcial') cuenta.parcial += 1;
+            else cuenta.otras += 1;
+        });
+        enfocarResumen.current = true;
+        setResultado({ linea: TEXTOS.resumenEliminar(cuenta), salieron: [] });
+        setDialogo(false);
+        reconsultar();
+        setIntento((n) => n + 1);
+    };
+
+    const copiarPortal = async () => {
+        const origen = typeof window !== 'undefined' ? window.location.origin : '';
+        if (await copiarTexto(`${origen}/verificadores`)) {
+            setLinkCopiado(true);
+            setTimeout(() => setLinkCopiado(false), 1800);
+        }
+    };
+
     const descargar = async () => {
         if (descargando) return;
         setDescargando(true);
@@ -351,6 +437,7 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
     }
 
     const lista = [...seleccion.values()];
+    const idsElegidos = [...seleccion.keys()];
     const muestra = lista.length > CORREOS_A_LA_VISTA
         ? [...lista.slice(0, CORREOS_A_LA_VISTA), TEXTOS.yMas(lista.length - CORREOS_A_LA_VISTA)]
         : lista;
@@ -364,10 +451,16 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                     <p className={styles.avisoApertura} role="status">{aviso?.tipo === 'abriendo' ? aviso.texto : ''}</p>
                     {aviso?.tipo === 'error' && <p className={styles.error} role="alert">{aviso.texto}</p>}
                 </div>
-                <button type="button" className={`${base.boton} ${styles.botonIcono}`} onClick={descargar} aria-disabled={descargando || undefined}>
-                    <Download size={14} strokeWidth={2.2} aria-hidden="true" />
-                    {descargando ? TEXTOS.descargando : TEXTOS.descargar}
-                </button>
+                <div className={styles.accionesCabecera}>
+                    <button type="button" className={`${base.boton} ${styles.botonIcono}`} onClick={copiarPortal}>
+                        {linkCopiado ? <Check size={14} strokeWidth={2.2} aria-hidden="true" /> : <Copy size={14} strokeWidth={2.2} aria-hidden="true" />}
+                        {linkCopiado ? TEXTOS.linkPortalCopiado : TEXTOS.copiarLinkPortal}
+                    </button>
+                    <button type="button" className={`${base.boton} ${styles.botonIcono}`} onClick={descargar} aria-disabled={descargando || undefined}>
+                        <Download size={14} strokeWidth={2.2} aria-hidden="true" />
+                        {descargando ? TEXTOS.descargando : TEXTOS.descargar}
+                    </button>
+                </div>
             </div>
             {errorCsv && <p className={styles.error} role="alert">{errorCsv}</p>}
             <div className={styles.herramientas} role="search" aria-label={TEXTOS.herramientas}>
@@ -411,14 +504,27 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                     </select>
                 </div>
             </div>
+            {filtro === 'verificadores_android' && (
+                <div className={styles.bandaPlay} role="status">
+                    <span className={styles.bandaPlayTitulo}>{TEXTOS.progresoPlay(total)}</span>
+                    <span className={styles.bandaPlayNota}>{TEXTOS.faltanPlay(total)}</span>
+                </div>
+            )}
             <div className={styles.seleccion} data-activo={nElegidas > 0 ? 'true' : undefined}>
                 <label className={styles.opcion}>
                     <input ref={refTodas} type="checkbox" checked={todas} disabled={elegibles.length === 0} onChange={elegirTodas} />
                     {TEXTOS.seleccionarTodas}
                 </label>
                 <span className={styles.contador}>{TEXTOS.seleccionadas(nElegidas)}</span>
-                <button type="button" className={base.primario} disabled={nElegidas === 0} onClick={() => setDialogo(true)}>
+                <button type="button" className={base.primario} disabled={nElegidas === 0} onClick={() => setDialogo('marcar')}>
                     {TEXTOS.marcarSeleccionadas}
+                </button>
+                <button type="button" className={base.boton} disabled={nElegidas === 0} onClick={() => setDialogo('quitar')}>
+                    {TEXTOS.quitarMarcaSeleccionadas}
+                </button>
+                <button type="button" className={`${base.boton} ${styles.botonPeligroSuave}`} disabled={nElegidas === 0} onClick={() => setDialogo('eliminar')}>
+                    <Trash2 size={14} strokeWidth={2.2} aria-hidden="true" />
+                    {TEXTOS.eliminarSeleccionadas}
                 </button>
                 {nElegidas > 0 && (
                     <button type="button" className={styles.botonTexto} onClick={() => setSeleccion(new Map())}>{TEXTOS.quitarSeleccion}</button>
@@ -426,7 +532,7 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
             </div>
             {resultado && (
                 <div ref={resumenRef} className={styles.resultado} role="status" tabIndex={-1}>
-                    <p className={styles.resultadoLinea}>{TEXTOS.resumenLote(resultado.cuenta)}</p>
+                    <p className={styles.resultadoLinea}>{resultado.linea || TEXTOS.resumenLote(resultado.cuenta)}</p>
                     {resultado.salieron.length > 0 && (
                         <>
                             <p className={styles.resultadoNota}>{TEXTOS.salieron}</p>
@@ -454,14 +560,14 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                             <tr>
                                 <th scope="col" className={styles.celdaSeleccion}><span className={styles.srOnly}>{TEXTOS.seleccion}</span></th>
                                 <th scope="col" className={styles.thCuenta}>{TEXTOS.cuenta}</th>
-                                <th scope="col">{COLUMNAS.ultima}</th>
-                                <th scope="col" className={styles.num}>{COLUMNAS.comidas}</th>
-                                <th scope="col" className={styles.num}>{COLUMNAS.planes}</th>
-                                <th scope="col" className={styles.num}>{COLUMNAS.mensajes}</th>
-                                <th scope="col" className={styles.num}>{COLUMNAS.escaneos}</th>
-                                <th scope="col" className={styles.num}>{COLUMNAS.gasto}</th>
-                                <th scope="col" className={styles.num}>{COLUMNAS.dias}</th>
-                                <th scope="col" className={styles.num}>{COLUMNAS.alta}</th>
+                                <th scope="col" title={COLUMNAS.ultima}>{CABECERAS.ultima}</th>
+                                <th scope="col" className={styles.num} title={COLUMNAS.comidas}>{CABECERAS.comidas}</th>
+                                <th scope="col" className={styles.num} title={COLUMNAS.planes}>{CABECERAS.planes}</th>
+                                <th scope="col" className={styles.num} title={COLUMNAS.mensajes}>{CABECERAS.mensajes}</th>
+                                <th scope="col" className={styles.num} title={COLUMNAS.escaneos}>{CABECERAS.escaneos}</th>
+                                <th scope="col" className={styles.num} title={COLUMNAS.gasto}>{CABECERAS.gasto}</th>
+                                <th scope="col" className={styles.num} title={COLUMNAS.continuos}>{CABECERAS.continuos}</th>
+                                <th scope="col" className={styles.num} title={TEXTOS.tooltipRegistro}>{CABECERAS.alta}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -483,7 +589,20 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                     </button>
                 </nav>
             )}
-            {dialogo && (
+            {dialogo === 'quitar' && (
+                <AdminDialogoMotivo
+                    titulo={TEXTOS.tituloQuitarLote(nElegidas)}
+                    explicacion={TEXTOS.explicacionQuitarLote}
+                    lista={muestra}
+                    boton={TEXTOS.botonQuitarLote(nElegidas)}
+                    onEnviar={quitarLote}
+                    onCerrar={cerrarDialogo}
+                />
+            )}
+            {dialogo === 'eliminar' && (
+                <AdminDialogoEliminar ids={idsElegidos} onTerminar={terminarEliminar} onCerrar={cerrarDialogo} />
+            )}
+            {dialogo === 'marcar' && (
                 <AdminDialogoMotivo
                     titulo={TEXTOS.tituloLote(nElegidas)}
                     explicacion={TEXTOS.explicacionLote}

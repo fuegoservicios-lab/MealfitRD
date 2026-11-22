@@ -7,13 +7,14 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import {
-    BONO_SEMANA_PERFECTA, DIVISIONES, MAESTRO_PUNTOS, MAESTRO_RACHA, MAESTRO_SEMANAS_PERFECTAS, maestroProgreso,
-    rangoDelJugador,
-    CALORIAS_AYUNO_FRACCION, COMIDAS_AYUNO_COMPLETO, COMIDAS_DIA_COMPLETO, DIAMANTE_PASO, ESCUDOS_MAX, ESCUDO_CADA,
-    ESTRELLAS_SEMANA, HITOS_RACHA_LARGOS, PROTEINA_FRACCION, PROTEINA_PARCIAL_FRACCION, PUNTOS,
-    PUNTOS_PROTEINA_PARCIAL, RANGOS_PUNTOS, TRAMOS_RACHA, diasParaEscudo, estrellasPorPuntos, gananciaLogro,
-    logrosDelDia, maximoDiario, nivelIndice, proximoHitoRacha, puntosBase, puntosDeHoy, rangoConPiso, rangoPorPuntos,
-    recorrer, redondear, tramoDeRacha,
+    BONO_SEMANA_PERFECTA, CALORIAS_AYUNO_FRACCION, CALORIAS_CERCA_FRACCION, COMIDAS_AYUNO_COMPLETO,
+    COMIDAS_DIA_COMPLETO, DIVISIONES, ESCUDOS_MAX, ESCUDO_CADA, ESTRELLAS_SEMANA, HITOS_RACHA_LARGOS,
+    MAESTRO_PUNTOS, MAESTRO_RACHA, MAESTRO_SEMANAS_PERFECTAS, PROTEINA_FRACCION, PROTEINA_PARCIAL_FRACCION,
+    PUNTOS, PUNTOS_CALORIAS_CERCA, PUNTOS_CALORIAS_PASADO, PUNTOS_DIA_PERFECTO, PUNTOS_PROTEINA_PARCIAL,
+    RANGOS_PUNTOS, TRAMOS_RACHA, UMBRALES_DIVISIONES, diasParaEscudo, estrellasPorPuntos, gananciaLogro,
+    logrosDelDia, maestroProgreso, maximoDiario, nivelIndice, proximoHitoRacha, puntosBase,
+    puntosCaloriasParciales, puntosDeHoy, rangoConPiso, rangoDelJugador, rangoPorPuntos, recorrer, redondear,
+    tramoDeRacha,
 } from '../utils/juegoPuntos';
 
 const BACK = resolve(process.cwd(), '../backend');
@@ -46,6 +47,10 @@ describe('[1161] paridad con el servidor', () => {
         const pyPuntos = Object.fromEntries([...py.match(/^PUNTOS = \{(.*)\}$/m)[1].matchAll(/"(\w+)": (\d+)/g)].map((m) => [m[1], Number(m[2])]));
         expect(pyPuntos).toEqual(PUNTOS);
         expect(Number(py.match(/^PUNTOS_PROTEINA_PARCIAL = (\d+)/m)[1])).toBe(PUNTOS_PROTEINA_PARCIAL);
+        expect(Number(py.match(/^PUNTOS_CALORIAS_CERCA = (\d+)/m)[1])).toBe(PUNTOS_CALORIAS_CERCA);
+        expect(Number(py.match(/^PUNTOS_CALORIAS_PASADO = (\d+)/m)[1])).toBe(PUNTOS_CALORIAS_PASADO);
+        expect(Number(py.match(/^PUNTOS_DIA_PERFECTO = (\d+)/m)[1])).toBe(PUNTOS_DIA_PERFECTO);
+        expect(Number(py.match(/^CALORIAS_CERCA_FRACCION = ([\d.]+)/m)[1])).toBe(CALORIAS_CERCA_FRACCION);
         expect(Number(py.match(/^COMIDAS_DIA_COMPLETO = (\d+)/m)[1])).toBe(COMIDAS_DIA_COMPLETO);
         expect(Number(py.match(/^COMIDAS_AYUNO_COMPLETO = (\d+)/m)[1])).toBe(COMIDAS_AYUNO_COMPLETO);
         expect(Number(py.match(/^CALORIAS_AYUNO_FRACCION = ([\d.]+)/m)[1])).toBe(CALORIAS_AYUNO_FRACCION);
@@ -54,14 +59,16 @@ describe('[1161] paridad con el servidor', () => {
         expect(py.match(/^ESTRELLAS_SEMANA = \(([\d, ]+)\)/m)[1].split(',').map(Number)).toEqual(ESTRELLAS_SEMANA);
         const rangos = [...py.match(/^RANGOS_PUNTOS = \((.*)\)$/m)[1].matchAll(/\("(\w+)", (\d+)\)/g)].map((m) => [m[1], Number(m[2])]);
         expect(rangos).toEqual(RANGOS_PUNTOS);
+        const umbBloque = py.match(/^UMBRALES_DIVISIONES = \(([\s\S]*?)\)\n/m)[1];
+        const umb = [...umbBloque.matchAll(/\("(\w+)", \(([\d, ]+)\)\)/g)].map((m) => [m[1], m[2].split(',').map(Number)]);
+        expect(umb).toEqual(UMBRALES_DIVISIONES);
         expect(Number(py.match(/^ESCUDO_CADA = (\d+)/m)[1])).toBe(ESCUDO_CADA);
         expect(Number(py.match(/^ESCUDOS_MAX = (\d+)/m)[1])).toBe(ESCUDOS_MAX);
-        expect(Number(py.match(/^DIAMANTE_PASO = (\d+)/m)[1])).toBe(DIAMANTE_PASO);
         expect(Number(py.match(/^DIVISIONES = (\d+)/m)[1])).toBe(DIVISIONES);
         expect(Number(py.match(/^BONO_SEMANA_PERFECTA = (\d+)/m)[1])).toBe(BONO_SEMANA_PERFECTA);
         expect(Number(py.match(/^MAESTRO_SEMANAS_PERFECTAS = (\d+)/m)[1])).toBe(MAESTRO_SEMANAS_PERFECTAS);
         expect(Number(py.match(/^MAESTRO_RACHA = (\d+)/m)[1])).toBe(MAESTRO_RACHA);
-        expect(MAESTRO_PUNTOS).toBe(RANGOS_PUNTOS[RANGOS_PUNTOS.length - 1][1] + DIAMANTE_PASO * DIVISIONES);
+        expect(Number(py.match(/^MAESTRO_PUNTOS = (\d+)/m)[1])).toBe(MAESTRO_PUNTOS);
         expect(py.match(/^HITOS_RACHA_LARGOS = \(([\d, ]+)\)/m)[1].split(',').map(Number)).toEqual(HITOS_RACHA_LARGOS);
         const bloque = py.match(/^TRAMOS_RACHA = \(([\s\S]*?)\)\n/m)[1];
         const tramos = [...bloque.matchAll(/\((\d+), ([\d.]+), (?:"(\w+)"|None)\)/g)].map((m) => [Number(m[1]), Number(m[2]), m[3] || null]);
@@ -76,28 +83,40 @@ describe('[1161] puntos de hoy', () => {
         expect(lg.proteina).toBe(false);
         expect(lg.proteina_parcial).toBe(false);
         expect(lg.agua).toBeNull();
-        expect(puntosBase(lg)).toBe(30);
+        expect(lg.dia_perfecto).toBe(false);
+        expect(puntosBase(lg)).toBe(25);
     });
-    it('ayuno intermitente (2 comidas ≥70% kcal) y proteína parcial (70% = +5)', () => {
+    it('ayuno intermitente (2 comidas ≥70% kcal), calorías cerca/pasado y proteína parcial', () => {
         const lg = logrosDelDia({ calories: 1600, protein: 90, mealsCount: 2, metaKcal: 2000, metaProteina: 120, objetivo: 'maintenance' });
         expect(lg.completo).toBe(true);
+        expect(lg.calorias_cerca).toBe(true);
         expect(lg.proteina).toBe(false);
         expect(lg.proteina_parcial).toBe(true);
-        expect(puntosBase(lg)).toBe(20);
+        expect(puntosBase(lg)).toBe(18);
         expect(gananciaLogro({ logros: lg, clave: 'proteina', mult: 1.6 })).toBe(8);
+        expect(puntosCaloriasParciales({ logros: lg, mult: 1.6 })).toBe(13);
+        const pasado = logrosDelDia({ calories: 2800, protein: 20, mealsCount: 1, metaKcal: 2000, metaProteina: 120, objetivo: 'maintenance' });
+        expect(pasado.calorias_pasado).toBe(true);
+        expect(puntosBase(pasado)).toBe(3);
+        expect(puntosCaloriasParciales({ logros: pasado, mult: 1.6 })).toBe(5);
     });
-    it('máximo 45 con agua y techo diario multiplicado', () => {
-        expect(puntosBase(logrosDelDia({ ...base, protein: 120, vasos: 8, metaVasos: 8 }))).toBe(45);
-        expect(maximoDiario({ mult: 1.6, conAgua: false })).toBe(64);
-        expect(maximoDiario({ mult: 1.6, conAgua: true })).toBe(72);
+    it('máximo 50 con agua (45 sin) y techo diario multiplicado', () => {
+        expect(puntosBase(logrosDelDia({ ...base, protein: 120, vasos: 8, metaVasos: 8 }))).toBe(50);
+        expect(maximoDiario({ mult: 1.6, conAgua: false })).toBe(72);
+        expect(maximoDiario({ mult: 1.6, conAgua: true })).toBe(80);
     });
-    it('la racha hasta ayer multiplica hoy', () => {
+    it('la racha hasta ayer multiplica hoy y los logros en 0 enseñan su ganancia real sin duplicar día perfecto', () => {
         const lg = logrosDelDia({ ...base, protein: 120 });
-        expect(puntosDeHoy({ logros: lg, rachaHastaAyer: 6 })).toEqual({ puntos: 52, base: 40, mult: 1.3, rachaConHoy: 7 });
+        expect(puntosDeHoy({ logros: lg, rachaHastaAyer: 6 })).toEqual({ puntos: 59, base: 45, mult: 1.3, rachaConHoy: 7 });
         expect(tramoDeRacha(9)).toEqual({ mult: 1.3, clave: 'en_llamas', siguienteEn: 14, siguienteMult: 1.45 });
         expect(proximoHitoRacha(33)).toBe(50);
         expect(diasParaEscudo(9, 1)).toBe(5);
         expect(diasParaEscudo(9, 2)).toBeNull();
+        const vacio = logrosDelDia({ calories: 0, protein: 0, mealsCount: 0, metaKcal: 2000, metaProteina: 120, objetivo: 'maintenance' });
+        expect(gananciaLogro({ logros: vacio, clave: 'completo', mult: 1.6 })).toBe(8);
+        expect(gananciaLogro({ logros: vacio, clave: 'banda', mult: 1.6 })).toBe(32);
+        expect(gananciaLogro({ logros: vacio, clave: 'proteina', mult: 1.6 })).toBe(16);
+        expect(gananciaLogro({ logros: vacio, clave: 'dia_perfecto', mult: 1.6 })).toBe(16);
     });
     it('rango con piso nunca baja aunque bajen los puntos del día', () => {
         const piso = nivelIndice('plata', 4);
@@ -109,6 +128,6 @@ describe('[1161] puntos de hoy', () => {
     });
     it('redondeo de mitades y estrellas por puntos', () => {
         expect(redondear(22.5)).toBe(23);
-        expect([84, 85, 170, 265].map(estrellasPorPuntos)).toEqual([0, 1, 2, 3]);
+        expect([59, 60, 130, 220].map(estrellasPorPuntos)).toEqual([0, 1, 2, 3]);
     });
 });

@@ -32,14 +32,18 @@ const METRICAS = {
           barras: [0.4286, 0.1746] },
     ],
 };
-const montar = () => render(
-    <MemoryRouter initialEntries={['/admin']}>
-        <Routes>
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/dashboard" element={<p>DASHBOARD</p>} />
-        </Routes>
-    </MemoryRouter>,
-);
+const montar = () => {
+    const view = render(
+        <MemoryRouter initialEntries={['/admin']}>
+            <Routes>
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/dashboard" element={<p>DASHBOARD</p>} />
+            </Routes>
+        </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
+    return view;
+};
 
 describe('[621] /admin se lee de un vistazo', () => {
     beforeEach(() => {

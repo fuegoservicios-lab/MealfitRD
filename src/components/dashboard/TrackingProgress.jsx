@@ -575,9 +575,14 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     return (
         // [P1-PLAN-LOTE-88 · 2026-09-17] `flatOnMobile`: en ≤480px la sección pierde el marco de tarjeta
         // (borde, fondo, sombra y relleno) y usa el ancho entero. Lo pide el padre; hoy solo el contador.
+        <div className={styles.cardHost}>
         <div className={flatOnMobile ? `${styles.card} ${styles.flatMobile}` : styles.card}>
             {/* [P1-PLAN-LOTE-1145] «Sigues en tu viernes» / «¿Aún no has dormido?» */}
             <AvisoDiaActivo />
+            {/* [P1-PLAN-LOTE-1164] En PC ancho (la tarjeta ≥ 880 px) dos columnas: a la izquierda el día (registrar, tu
+                semana y las comidas), a la derecha los números (calorías, macros y micros). En el teléfono esta capa no
+                existe (`display: contents`): el orden y el aspecto del móvil no cambian. */}
+            <div className={styles.disposicion}>
             {/* Header Sector */}
             <div className={styles.header}>
                 <div className={styles.headerLeft}>
@@ -585,7 +590,10 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         <Activity size={24} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h2 className={styles.title}>{t('Tus macros y micros')}</h2>
+                        <h2 className={styles.title}>
+                            <span className={styles.titleMovil}>{t('Tus macros y micros')}</span>
+                            <span className={styles.titlePc}>{t('Tus macros')}</span>
+                        </h2>
                         <p className={styles.subtitle}>
                             {loading
                                 ? t('Cargando registros...')
@@ -651,36 +659,27 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     resumen del día tocado. La puerta al calendario completo vive en su cabecera (antes era un botón
                     ancho bajo «Registrar comida»). Fuera del ternario vacío/no-vacío: con el día en cero también está. */}
                 {isLoggedIn && (
-                    <SemanaEnProgreso
-                        userId={userId}
-                        hoy={loading ? null : hoyParaLaSemana}
-                        targetCalories={goalCal}
-                        targetMacros={metasMacrosDeHoy}
-                        mainGoal={resolvedMainGoal}
-                        onAbrirDia={(iso) => { setHistoryDia(iso); setHistoryOpen(true); }}
-                        calendario={(
-                            <DiaryHistoryTrigger compacto onClick={() => { setHistoryDia(null); setHistoryOpen(true); }} />
-                        )}
-                    />
+                    <div className={styles.semanaSlot}>
+                        <SemanaEnProgreso
+                            userId={userId}
+                            hoy={loading ? null : hoyParaLaSemana}
+                            targetCalories={goalCal}
+                            targetMacros={metasMacrosDeHoy}
+                            mainGoal={resolvedMainGoal}
+                            onAbrirDia={(iso) => { setHistoryDia(iso); setHistoryOpen(true); }}
+                            calendario={(
+                                <DiaryHistoryTrigger compacto onClick={() => { setHistoryDia(null); setHistoryOpen(true); }} />
+                            )}
+                        />
+                    </div>
                 )}
 
                 {/* [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas
                     hoy — ubicada directamente bajo «Registrar comida» y «Ver días
                     anteriores» para tener confirmación y acceso inmediato a la
                     ficha del plato y al botón de eliminar sin bajar al final. */}
-                {isLoggedIn && !loading && (
+                {isLoggedIn && !loading && _todaysMeals.length > 0 && (
                     <div className={styles.mealsSection}>
-                        {_todaysMeals.length === 0 ? (
-                            /* [P1-PLAN-LOTE-1128] estado vacío con forma (icono + frase + pista), no un párrafo gris suelto */
-                            <div className={styles.mealsEmpty}>
-                                <span className={styles.mealsEmptyIcon} aria-hidden="true"><Utensils size={18} /></span>
-                                <span className={styles.mealsEmptyText}>
-                                    <strong>{t('Aún no registras comidas hoy')}</strong>
-                                    <span>{t('Usa «Registrar comida», una foto o el chat con tu coach.')}</span>
-                                </span>
-                            </div>
-                        ) : (
-                            <>
                                 <ul className={styles.mealsList}>
                                     {visibleMeals.map((meal, idx) => (
                                         <li
@@ -797,12 +796,11 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                         </ul>
                                     </>
                                 )}
-                            </>
-                        )}
                     </div>
                 )}
             </div>
 
+            <div className={styles.macrosCard}>
             <div className={styles.content}>
                 {/* Calorías (Main Bar) */}
                 <ProgressBar
@@ -856,6 +854,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                 <p>{t('La referencia general marca el extremo superior del rango AMDR para adultos: proteína 35%, carbohidratos 65% y grasas 35% de la energía. Los gramos se calculan con las calorías de tu plan; el porcentaje de la barra se calcula con tu meta de cada macro.')}</p>
                 <p>{t('No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.')}</p>
             </details>
+            </div>
 
             {/* [P1-PLAN-LOTE-105 · 2026-09-18] Los micros, bajo las macros y ANTES de la lista de comidas: primero los
                 números del día, después las comidas que los produjeron. Misma lista que el diario de días anteriores. */}
@@ -909,6 +908,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     })()}
                 </div>
             ) : null}
+
+            </div>
 
             {/* [P1-DIARY-HISTORY · 2026-07-31] */}
             {isLoggedIn && (
@@ -973,6 +974,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     )}
                 </>
             )}
+        </div>
         </div>
     );
 };

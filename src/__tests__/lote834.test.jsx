@@ -52,9 +52,13 @@ const exactas = (url) => peticiones.filter((p) => p.url === url);
 const delDetalle = () => pedidas(BASE);
 const consulta = (url) => new URL(url, 'http://panel').searchParams;
 const montarDetalle = () => render(<AdminPruebaDetalle userId={A} email="ana@correo.com" />);
-const montarPanel = () => render(
-    <MemoryRouter initialEntries={['/admin']}><Routes><Route path="/admin" element={<AdminPage />} /></Routes></MemoryRouter>,
-);
+const montarPanel = () => {
+    const view = render(
+        <MemoryRouter initialEntries={['/admin']}><Routes><Route path="/admin" element={<AdminPage />} /></Routes></MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
+    return view;
+};
 const pestana = (nombre) => screen.getByRole('tab', { name: nombre });
 /** El panel a la vista: los demás llevan `hidden` y `getByRole` no los ve. */
 const panel = () => screen.getByRole('tabpanel');
@@ -172,26 +176,27 @@ afterEach(() => {
 });
 
 describe('[834] el detalle de prueba: pestañas', () => {
-    it('cada pestaña pide su ruta SOLO al abrirla (Formulario, la primera, al montarse)', async () => {
+    it('cada pestaña pide su ruta SOLO al abrirla (Conversaciones, la primera, al montarse)', async () => {
         servidor([[BASE, async () => respuesta({})]]);
         montarDetalle();
         const lista = screen.getByRole('tablist', { name: 'Secciones del detalle' });
         expect(within(lista).getAllByRole('tab').map((t) => t.textContent))
-            .toEqual(['Formulario', 'Comidas', 'Planes', 'Conversaciones', 'Actividad']);
+            .toEqual(['Conversaciones', 'Formulario', 'Comidas', 'Planes', 'Actividad']);
+        expect(pestana('Conversaciones')).toHaveAttribute('aria-selected', 'true');
+        await waitFor(() => expect(delDetalle().map((p) => p.url)).toEqual([`${BASE}/conversaciones`]));
+        fireEvent.click(pestana('Formulario'));
         expect(pestana('Formulario')).toHaveAttribute('aria-selected', 'true');
-        await waitFor(() => expect(delDetalle().map((p) => p.url)).toEqual([`${BASE}/formulario`]));
+        await waitFor(() => expect(delDetalle().at(-1).url).toBe(`${BASE}/formulario`));
         fireEvent.click(pestana('Comidas'));
         expect(pestana('Comidas')).toHaveAttribute('aria-selected', 'true');
-        await waitFor(() => expect(delDetalle()).toHaveLength(2));
-        const comidas = new URL(delDetalle()[1].url, 'http://panel');
+        await waitFor(() => expect(delDetalle()).toHaveLength(3));
+        const comidas = new URL(delDetalle()[2].url, 'http://panel');
         expect(comidas.pathname).toBe(`${BASE}/comidas`);
         // 30 días por defecto, contados con hoy (la fecha del dispositivo): desde = hoy − 29, hasta = hoy.
         expect(comidas.searchParams.get('hasta')).toBe(hoyLocal());
         expect(diasEntre(comidas.searchParams.get('desde'), comidas.searchParams.get('hasta'))).toBe(29);
         fireEvent.click(pestana('Planes'));
         await waitFor(() => expect(delDetalle().at(-1).url).toBe(`${BASE}/planes`));
-        fireEvent.click(pestana('Conversaciones'));
-        await waitFor(() => expect(delDetalle().at(-1).url).toBe(`${BASE}/conversaciones`));
         fireEvent.click(pestana('Actividad'));
         await waitFor(() => expect(delDetalle().at(-1).url).toBe(`${BASE}/actividad?dias=7&tipos=`));
         expect(delDetalle()).toHaveLength(5);                                      // una por pestaña abierta
@@ -202,6 +207,7 @@ describe('[834] el detalle de prueba: pestañas', () => {
         let marcada = true;
         servidor([[BASE, async () => (marcada ? respuesta(FORMULARIO) : respuesta({ detail: 'no_es_prueba' }, 403))]]);
         montarDetalle();
+        fireEvent.click(pestana('Formulario'));
         expect(await within(panel()).findByText('Perder grasa')).toBeInTheDocument();
         marcada = false;                                                          // la persona sale (o el equipo quita la marca)
         fireEvent.click(pestana('Comidas'));
@@ -218,19 +224,19 @@ describe('[834] el detalle de prueba: pestañas', () => {
         expect(await within(panel()).findByText('Esperando a que vea el aviso en la app.')).toBeInTheDocument();
         expect(within(panel()).queryByRole('button', { name: 'Reintentar' })).toBeNull();   // esperar no es un fallo
         fireEvent.click(within(panel()).getByRole('button', { name: 'Comprobar otra vez' }));
-        await waitFor(() => expect(exactas(`${BASE}/formulario`)).toHaveLength(2));
-        fireEvent.click(pestana('Conversaciones'));
+        await waitFor(() => expect(exactas(`${BASE}/conversaciones`)).toHaveLength(2));
+        fireEvent.click(pestana('Formulario'));
         expect(await within(panel()).findByText('Esperando a que vea el aviso en la app.')).toBeInTheDocument();
         expect(within(panel()).queryByRole('list')).toBeNull();
     });
 
     it('un fallo del registro de accesos (503) no enseña nada y se puede reintentar', async () => {
         let veces = 0;
-        servidor([[BASE, async () => { veces += 1; return veces === 1 ? respuesta({ detail: 'x' }, 503) : respuesta(FORMULARIO); }]]);
+        servidor([[BASE, async () => { veces += 1; return veces === 1 ? respuesta({ detail: 'x' }, 503) : respuesta(SESIONES); }]]);
         montarDetalle();
         expect(await within(panel()).findByRole('alert')).toHaveTextContent('no se enseña nada');
         fireEvent.click(within(panel()).getByRole('button', { name: 'Reintentar' }));
-        expect(await within(panel()).findByText('Perder grasa')).toBeInTheDocument();
+        expect(await within(panel()).findByText('Hola, ¿qué ceno hoy?')).toBeInTheDocument();
     });
 
     it('patrón ARIA: tablist/tab/tabpanel enlazados y foco itinerante con las flechas, sin abrir ni pedir nada', async () => {
@@ -261,7 +267,7 @@ describe('[834] el detalle de prueba: pestañas', () => {
     });
 
     it('cambiar de pestaña aborta la petición en vuelo de la anterior', async () => {
-        servidor([[`${BASE}/formulario`, () => new Promise(() => {})], [BASE, async () => respuesta({})]]);
+        servidor([[`${BASE}/conversaciones`, () => new Promise(() => {})], [BASE, async () => respuesta({})]]);
         montarDetalle();
         await waitFor(() => expect(delDetalle()).toHaveLength(1));
         const { signal } = delDetalle()[0].opciones;
@@ -409,8 +415,9 @@ describe('[834] el detalle de prueba: un 403/409 de un hijo invalida el detalle 
 
 describe('[834] el detalle de prueba: contenido de cada pestaña', () => {
     it('Formulario: campos por grupo, el JSON crudo PLEGADO y lo que el coach recuerda; lo del servidor, como texto', async () => {
-        servidor([[`${BASE}/formulario`, async () => respuesta(FORMULARIO)]]);
+        servidor([[`${BASE}/formulario`, async () => respuesta(FORMULARIO)], [BASE, async () => respuesta({})]]);
         montarDetalle();
+        fireEvent.click(pestana('Formulario'));
         const p = panel();
         const salud = await within(p).findByRole('region', { name: 'Salud' });
         expect(within(salud).getByText('Alergias').closest('[data-campo]')).toHaveTextContent('Maní, Mariscos');
@@ -428,6 +435,7 @@ describe('[834] el detalle de prueba: contenido de cada pestaña', () => {
     it('Formulario con una respuesta sin campos (o rara) no revienta', async () => {
         servidor([[BASE, async () => respuesta({ campos: 'x', crudo: null, memoria: [null, 3] })]]);
         montarDetalle();
+        fireEvent.click(pestana('Formulario'));
         expect(await within(panel()).findByText('El formulario está vacío.')).toBeInTheDocument();
         expect(within(panel()).getByText('El coach no recuerda nada de esta cuenta todavía.')).toBeInTheDocument();
     });
@@ -633,14 +641,14 @@ describe('[834] el detalle montado en la ficha (hueco del lote 833)', () => {
         const t = await screen.findByRole('table', { name: 'Todas las cuentas' });
         fireEvent.click(within(t).getByRole('button', { name: 'ana@correo.com' }));
         const art = await screen.findByRole('article', { name: 'Cuenta ana@correo.com' });
-        fireEvent.click(within(art).getByRole('button', { name: 'Ver detalle' }));
+        fireEvent.click(within(art).getByRole('button', { name: 'Abrir conversaciones y detalle' }));
         const detalle = screen.getByRole('region', { name: 'Detalle de ana@correo.com' });
         expect(document.activeElement).toBe(detalle);                            // el detalle no le roba el foco a la región
         expect(within(detalle).getByRole('tablist', { name: 'Secciones del detalle' })).toBeInTheDocument();
-        expect(await within(detalle).findByText('Perder grasa')).toBeInTheDocument();
-        fireEvent.click(within(detalle).getByRole('tab', { name: 'Conversaciones' }));
         fireEvent.click(await within(detalle).findByRole('button', { name: /Hola, ¿qué ceno hoy\?/ }));
         await within(detalle).findByRole('img', { name: 'Foto adjunta por la persona' });
+        fireEvent.click(within(detalle).getByRole('tab', { name: 'Formulario' }));
+        expect(await within(detalle).findByText('Perder grasa')).toBeInTheDocument();
         fireEvent.click(within(detalle).getByRole('button', { name: 'Volver a la ficha' }));
         expect(revocar).toHaveBeenCalledWith('blob:foto-1');
         expect(screen.queryByRole('tablist', { name: 'Secciones del detalle' })).toBeNull();

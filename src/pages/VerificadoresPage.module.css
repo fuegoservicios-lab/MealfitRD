@@ -1,0 +1,670 @@
+/* Portal minimalista y de solo lectura para seguimiento de verificadores Android (Google Play). */
+.pantalla {
+    min-height: 100vh;
+    background: var(--bg-page);
+    color: var(--text-main);
+    padding: 1.5rem 1rem 3rem;
+}
+
+.centro {
+    min-height: calc(100vh - 3rem);
+    display: grid;
+    place-items: center;
+}
+
+.loginTarjeta {
+    width: 100%;
+    max-width: 24rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2rem 1.75rem;
+    box-shadow: var(--shadow-md, 0 8px 24px color-mix(in srgb, var(--bg-page) 60%, transparent));
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+
+.marca {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.insignia {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--success-text, var(--success));
+    background: var(--success-bg);
+    border: 1px solid var(--success-border);
+    border-radius: var(--radius-full);
+    padding: 0.2rem 0.65rem;
+    white-space: nowrap;
+}
+
+.loginTitulo {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.loginDesc {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.formulario {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.campo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.etiqueta {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.62rem 0.85rem;
+    font: inherit;
+    font-size: 0.875rem;
+    color: var(--text-main);
+    background: var(--bg-page);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    transition: border-color 140ms ease;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.input:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.error {
+    margin: 0;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--danger-border, var(--danger));
+    background: var(--danger-bg, color-mix(in srgb, var(--danger) 12%, transparent));
+    color: var(--danger-text, var(--danger));
+    font-size: 0.8125rem;
+    line-height: 1.4;
+}
+
+.aviso {
+    margin: 0;
+    padding: 0.7rem 0.85rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--warning-border);
+    background: var(--warning-bg);
+    color: var(--warning-text, var(--text-main));
+    font-size: 0.8125rem;
+    line-height: 1.45;
+}
+
+.primario {
+    width: 100%;
+    padding: 0.68rem 1rem;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--primary);
+    color: var(--primary-contrast, var(--bg-page));
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 140ms ease;
+}
+
+.primario:hover {
+    opacity: 0.92;
+}
+
+.primario:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+    padding: 0.25rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--bg-page);
+}
+
+.tabBtn {
+    padding: 0.45rem 0.65rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 140ms ease, color 140ms ease;
+}
+
+.tabBtn[data-activo="true"] {
+    background: var(--bg-card);
+    color: var(--text-main);
+    box-shadow: var(--shadow-sm, 0 1px 2px color-mix(in srgb, var(--bg-page) 40%, transparent));
+}
+
+.tabBtn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+}
+
+.secundario {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    padding: 0.64rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-page);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.secundario:hover {
+    border-color: var(--primary);
+}
+
+.secundario:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.separador {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.separador::before,
+.separador::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.botonTexto {
+    align-self: flex-start;
+    padding: 0.15rem 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.botonTexto:hover {
+    color: var(--text-main);
+}
+
+/* Vista autenticada */
+.contenedor {
+    max-width: 68rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+
+.barraSuperior {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1.25rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.identidad {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.subtituloApp {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.acciones {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.usuarioPill {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 0.35rem 0.7rem;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+}
+
+.boton {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.48rem 0.85rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.boton:hover {
+    border-color: var(--primary);
+}
+
+.boton:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.resumen {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.kpi {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 0.95rem 1.05rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.kpiEtiqueta {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+.kpiValor {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-main);
+}
+
+.kpiNota {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.progreso {
+    width: 100%;
+    height: 0.42rem;
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    appearance: none;
+    border: 0;
+    background: color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.progreso::-webkit-progress-bar {
+    background: color-mix(in srgb, var(--border) 60%, transparent);
+    border-radius: var(--radius-full);
+}
+
+.progreso::-webkit-progress-value {
+    background: var(--success, var(--primary));
+    border-radius: var(--radius-full);
+}
+
+.progreso::-moz-progress-bar {
+    background: var(--success, var(--primary));
+    border-radius: var(--radius-full);
+}
+
+.herramientas {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 0.8rem 1rem;
+}
+
+.buscarCaja {
+    position: relative;
+    flex: 1 1 16rem;
+    display: flex;
+    align-items: center;
+}
+
+.buscarIcono {
+    position: absolute;
+    left: 0.75rem;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.inputBuscar {
+    padding-left: 2.2rem;
+    padding-right: 2rem;
+}
+
+.limpiarBtn {
+    position: absolute;
+    right: 0.45rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.filtros {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.filtroBtn {
+    padding: 0.42rem 0.78rem;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
+}
+
+.filtroBtn[data-activo="true"] {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.desplazable {
+    overflow-x: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.tabla th,
+.tabla td {
+    text-align: left;
+    padding: 0.72rem 0.75rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+    vertical-align: middle;
+}
+
+.tabla thead th {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface-sunken, var(--bg-page)) 70%, var(--bg-card));
+}
+
+.tabla tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.tabla .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.persona {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+}
+
+.avatar {
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 50%;
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    font-family: var(--font-heading);
+    font-size: 0.8125rem;
+    font-weight: 800;
+    color: var(--success-text, var(--success));
+    background: color-mix(in srgb, var(--success, var(--primary)) 14%, var(--bg-page));
+    border: 1px solid color-mix(in srgb, var(--success, var(--primary)) 32%, var(--border));
+}
+
+.personaInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.14rem;
+    min-width: 0;
+}
+
+.correo {
+    font-weight: 700;
+    color: var(--text-main);
+    word-break: break-word;
+}
+
+.nombre {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.etiquetas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.18rem;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.25;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.chip[data-estado="cumple"] {
+    color: var(--success-text, var(--success));
+    background: var(--success-bg);
+    border-color: var(--success-border);
+}
+
+.chip[data-estado="activo"] {
+    color: var(--info-text);
+    background: var(--info-bg);
+    border-color: var(--info-border);
+}
+
+.chip[data-estado="pendiente"] {
+    color: var(--warning-text);
+    background: var(--warning-bg);
+    border-color: var(--warning-border);
+}
+
+.nota {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.notaOk {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--success-text, var(--success));
+}
+
+.cero {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.fecha {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+}
+
+.vacio {
+    margin: 0;
+    padding: 1.75rem 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+@media (max-width: 780px) {
+    .resumen {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .desplazable {
+        border: 0;
+        background: transparent;
+        overflow: visible;
+    }
+
+    .tabla thead {
+        display: none;
+    }
+
+    .tabla,
+    .tabla tbody,
+    .tabla tr,
+    .tabla td {
+        display: block;
+        width: 100%;
+    }
+
+    .tabla tbody tr {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        margin-bottom: 0.75rem;
+        padding: 0.35rem 0.9rem;
+    }
+
+    .tabla td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
+        text-align: right;
+    }
+
+    .tabla td::before {
+        content: attr(data-etiqueta);
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-align: left;
+    }
+
+    .tabla td.celdaPersona {
+        display: block;
+        text-align: left;
+        padding-top: 0.65rem;
+    }
+
+    .tabla td.celdaPersona::before {
+        display: none;
+    }
+}

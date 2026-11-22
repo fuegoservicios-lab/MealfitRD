@@ -36,6 +36,7 @@ describe('[579] /admin', () => {
     it('pinta los bloques tal como los manda el servidor', async () => {
         fetchWithAuth.mockImplementation(async (url) => respuesta(url.startsWith('/api/admin/yo') ? { ok: true } : METRICAS));
         montar();
+        fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
         // [P1-PLAN-LOTE-775] `{ selector: 'span' }`: desde la pestaña «Cuentas» del panel (mismo texto, un
         // <button role="tab">) hay DOS «Cuentas» en pantalla. Ésta es la fila KPI (un <span>), no la pestaña.
         expect(await screen.findByText('Cuentas', { selector: 'span' })).toBeInTheDocument();
@@ -49,6 +50,7 @@ describe('[579] /admin', () => {
     it('cambiar el periodo vuelve a pedir con esos días', async () => {
         fetchWithAuth.mockImplementation(async () => respuesta(METRICAS));
         montar();
+        fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
         await screen.findByText('Cuentas', { selector: 'span' });
         fireEvent.click(screen.getByRole('button', { name: '30 días' }));
         await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/admin/metricas?dias=30', expect.objectContaining({ signal: expect.anything() })));
@@ -58,6 +60,7 @@ describe('[579] /admin', () => {
         // Revisión final: setDias con el mismo valor no relanza el efecto y «Cargando…» se quedaba para siempre.
         fetchWithAuth.mockImplementation(async () => respuesta(METRICAS));
         montar();
+        fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
         await screen.findByText('Cuentas', { selector: 'span' });
         fireEvent.click(screen.getByRole('button', { name: '7 días' }));
         expect(screen.queryByText('Cargando…')).toBeNull();

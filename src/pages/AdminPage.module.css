@@ -12,7 +12,7 @@
     color: var(--text-main);
     font-family: var(--font-body);
     padding: calc(1.75rem + var(--safe-area-top, 0px)) max(1.25rem, var(--safe-area-right, 0px)) calc(4rem + var(--safe-area-bottom, 0px)) max(1.25rem, var(--safe-area-left, 0px));
-    max-width: 1280px;
+    max-width: 1400px;
     margin: 0 auto;
     overflow-x: clip;
 }

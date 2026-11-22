@@ -20,6 +20,7 @@
     border: 1px solid var(--border);
     background: var(--bg-card);
 }
+.buscador[hidden] { display: none; }
 .fila { display: flex; gap: 0.6rem; }
 .etiqueta { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
 .ayuda { font-size: 0.78rem; color: var(--text-muted); margin: 0; line-height: 1.45; }
@@ -93,15 +94,49 @@
 .ficha {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 1.25rem 1.35rem 1.35rem;
+    border-radius: var(--radius-lg);
+    padding: 1.4rem 1.5rem 1.5rem;
     display: flex;
     flex-direction: column;
-    gap: 1.1rem;
-    box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+    gap: 1.25rem;
+    box-shadow: var(--shadow-sm, 0 2px 8px color-mix(in srgb, var(--bg-page) 45%, transparent));
 }
 
-.fichaCabecera { display: flex; align-items: center; gap: 0.85rem; }
+.fichaCabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+.fichaPersona { display: flex; align-items: center; gap: 0.85rem; min-width: 0; flex: 1 1 16rem; }
+.fichaDerecha { display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; }
+.fichaBadges { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+.ctaDetalle { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.55rem 1.1rem; font-size: 0.875rem; }
+.fichaPill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.7rem;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+    background: var(--surface-sunken, var(--bg-page));
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.fichaPill[data-tono="plan"] {
+    color: var(--primary);
+    border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.fichaPill[data-tono="android"] {
+    color: var(--success-text, var(--success));
+    border-color: var(--success-border);
+    background: var(--success-bg);
+}
 .fichaAvatar {
     width: 2.6rem;
     height: 2.6rem;
@@ -142,20 +177,55 @@
 .copiarIcono:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .sub { margin: 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
 
+.seccionCard {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding: 1.05rem 1.15rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--surface-sunken, color-mix(in srgb, var(--bg-page) 45%, var(--bg-card)));
+}
+.seccionCabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    flex-wrap: wrap;
+}
+.seccionPill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.6rem;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
 .datos {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
-    gap: 1rem 1.5rem;
-    padding: 1rem 0;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
+    gap: 0.8rem;
 }
-.dato { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
-.datoEtiqueta { font-size: 0.78rem; color: var(--text-muted); }
-.datoValor { font-family: var(--font-heading); font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.de { font-size: 0.9rem; font-weight: 600; color: var(--text-muted); }
-.datoTexto { font-size: 0.9rem; font-weight: 600; }
-.datoNota { font-size: 0.78rem; font-weight: 600; color: var(--primary); }
+.dato {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    min-width: 0;
+    padding: 0.78rem 0.9rem;
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
+    background: var(--bg-card);
+}
+.datoEtiqueta { font-size: 0.75rem; color: var(--text-muted); }
+.datoValor { font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.de { font-size: 0.875rem; font-weight: 600; color: var(--text-muted); }
+.datoTexto { font-size: 0.875rem; font-weight: 600; line-height: 1.35; }
+.datoNota { font-size: 0.75rem; font-weight: 600; color: var(--primary); }
 
 /* Barra de consumo visual en Medidor */
 .medidorCarril {
@@ -177,9 +247,21 @@
 .medidorBarra[data-nivel="alto"] { background: var(--warning); }
 .medidorBarra[data-nivel="lleno"] { background: var(--danger); }
 
+.accionesGrupo { display: flex; flex-direction: column; gap: 0.45rem; }
 .acciones { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-.historial { display: flex; flex-direction: column; gap: 0.55rem; }
-.historialTitulo { font-family: var(--font-heading); margin: 0; font-size: 0.94rem; font-weight: 700; }
+.ayudaAcciones { margin: 0; font-size: 0.75rem; color: var(--text-muted); line-height: 1.45; }
+
+.historial {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 1rem 1.15rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+}
+.historialCabecera { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.historialTitulo { font-family: var(--font-heading); margin: 0; font-size: 0.9375rem; font-weight: 700; }
 .lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
 .regalo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-sunken, color-mix(in srgb, var(--bg-page) 55%, var(--bg-card))); }
 .regalo[data-estado="revertido"], .regalo[data-estado="caducado"] { opacity: 0.58; }
@@ -225,32 +307,60 @@
 .efecto { display: flex; flex-direction: column; gap: 0.2rem; margin: 0; padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent); background: color-mix(in srgb, var(--primary) 9%, transparent); font-weight: 700; font-variant-numeric: tabular-nums; }
 .pie { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.2rem; }
 
-/* Tarjeta iPhone · Gratis con tokens del tema (sin rgba fijo ni doble margen) */
+/* Tarjeta secundaria para el cupo independiente de iOS (App Store) */
 .iosGratis {
     margin: 0;
-    padding: 1.15rem 1.25rem;
-    border: 1px solid color-mix(in srgb, var(--primary) 32%, var(--border));
+    padding: 1.05rem 1.15rem;
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    background: color-mix(in srgb, var(--primary) 8%, var(--bg-card));
-    display: grid;
-    gap: 0.9rem;
+    background: var(--surface-sunken, color-mix(in srgb, var(--bg-page) 55%, var(--bg-card)));
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
 }
-.iosCabecera { display: flex; align-items: flex-start; gap: 1rem; justify-content: space-between; }
-.iosCabecera h4 { margin: 0 0 0.35rem; }
+.iosCabecera { display: flex; align-items: flex-start; gap: 0.85rem; justify-content: space-between; flex-wrap: wrap; }
+.iosCabecera h4 { margin: 0 0 0.25rem; }
 .iosEtiqueta {
-    padding: 0.25rem 0.65rem;
+    padding: 0.2rem 0.62rem;
     border-radius: var(--radius-full);
-    background: color-mix(in srgb, var(--primary) 14%, transparent);
-    color: var(--primary);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-muted);
     white-space: nowrap;
     font-size: 0.75rem;
-    font-weight: 700;
+    font-weight: 600;
 }
-.iosGratis > button { min-height: 2.75rem; justify-self: start; }
+.iosPie { display: flex; align-items: center; gap: 0.55rem 0.9rem; flex-wrap: wrap; }
+
+.fichaPie {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 0.85rem;
+    border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+.accionSutil {
+    border: 0;
+    background: transparent;
+    padding: 0.25rem 0.45rem;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 150ms ease, background-color 150ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+    .accionSutil:hover {
+        color: var(--danger-text, var(--danger));
+        background: color-mix(in srgb, var(--danger) 8%, transparent);
+    }
+}
+.accionSutil:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
     .velo, .dialogo { animation: none; }
-    .primario, .boton, .volver svg, .medidorBarra { transition: none; }
+    .primario, .boton, .volver svg, .medidorBarra, .accionSutil { transition: none; }
 }
 
 @media (prefers-reduced-transparency: reduce) {

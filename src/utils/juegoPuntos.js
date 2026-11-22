@@ -5,8 +5,14 @@
 // `backend/tests/fixtures/juego_puntos_casos.json` (lote1161.juego_puntos.test.js).
 import { estadoDelDia } from './progresoDeLosDias';
 
-export const PUNTOS = { registro: 10, completo: 5, banda: 15, proteina: 10, agua: 5 };
+// [P1-PLAN-LOTE-1164] puntos por CALIDAD: registrar solo mantiene la racha (0); calorías en la banda 20, cerca (±20 %) 8,
+// pasado de largo 3, muy por debajo 0; día perfecto (banda + proteína + día completo + agua si la cuentas) +10.
+export const PUNTOS = { registro: 0, completo: 5, banda: 20, proteina: 10, agua: 5 };
 export const PUNTOS_PROTEINA_PARCIAL = 5;
+export const PUNTOS_CALORIAS_CERCA = 8;
+export const PUNTOS_CALORIAS_PASADO = 3;
+export const PUNTOS_DIA_PERFECTO = 10;
+export const CALORIAS_CERCA_FRACCION = 0.2;
 export const COMIDAS_DIA_COMPLETO = 3;
 export const COMIDAS_AYUNO_COMPLETO = 2;
 export const CALORIAS_AYUNO_FRACCION = 0.7;
@@ -16,17 +22,21 @@ export const PROTEINA_FRACCION = 0.9;
 export const TRAMOS_RACHA = [[30, 1.6, 'leyenda'], [14, 1.45, 'imparable'], [7, 1.3, 'en_llamas'], [3, 1.15, 'encendida'], [0, 1.0, null]];
 export const ESCUDO_CADA = 7;
 export const ESCUDOS_MAX = 2;
-export const ESTRELLAS_SEMANA = [85, 170, 265];
-export const RANGOS_PUNTOS = [['bronce', 0], ['plata', 540], ['oro', 1620], ['platino', 4050], ['diamante', 8100]];
+export const ESTRELLAS_SEMANA = [60, 130, 220];
+export const RANGOS_PUNTOS = [['bronce', 0], ['plata', 700], ['oro', 2200], ['platino', 4700], ['diamante', 8500]];
+/** [1164] entrada de IV, III, II y I de cada rango: cada división cuesta más que la anterior. */
+export const UMBRALES_DIVISIONES = [
+    ['bronce', [0, 100, 250, 450]], ['plata', [700, 1000, 1350, 1750]], ['oro', [2200, 2750, 3350, 4000]],
+    ['platino', [4700, 5500, 6400, 7400]], ['diamante', [8500, 9800, 11200, 12700]],
+];
 // [P1-PLAN-LOTE-1163] 4 divisiones que se VEN de IV (la entrada) a I (la cima del rango), como en los videojuegos;
 // `division` sigue ascendiendo por dentro (1 = la entrada). Semana perfecta +30. Encima de Diamante, MAESTRO.
 export const DIVISIONES = 4;
-export const DIAMANTE_PASO = 2700;
 export const HITOS_RACHA_LARGOS = [3, 7, 14, 30, 50, 75, 100, 150, 200, 365];
 export const ROMANOS = ['I', 'II', 'III', 'IV'];
 export const BONO_SEMANA_PERFECTA = 30;
 export const MAESTRO = 'maestro';
-export const MAESTRO_PUNTOS = 8100 + DIAMANTE_PASO * DIVISIONES;
+export const MAESTRO_PUNTOS = 14500;
 export const MAESTRO_SEMANAS_PERFECTAS = 8;
 export const MAESTRO_RACHA = 100;
 
@@ -54,14 +64,22 @@ export function logrosDelDia({ calories, protein, mealsCount, metaKcal, metaProt
     );
     const proteina = registro && mp > 0 && num(protein) >= mp * PROTEINA_FRACCION;
     const proteinaParcial = registro && !proteina && mp > 0 && num(protein) >= mp * PROTEINA_PARCIAL_FRACCION;
+    const banda = registro && mk > 0
+        && estadoDelDia({ calories: kcal, mealsCount: comidas, target: mk, mainGoal: objetivo || '' }) === 'meta';
+    const ratio = mk > 0 ? kcal / mk : 0;
+    const cerca = registro && mk > 0 && !banda && Math.abs(ratio - 1) <= CALORIAS_CERCA_FRACCION;
+    const pasado = registro && mk > 0 && !banda && !cerca && ratio > 1;
+    const agua = mv > 0 ? registro && num(vasos) >= mv : null;
     return {
         registro,
         completo,
-        banda: registro && mk > 0
-            && estadoDelDia({ calories: kcal, mealsCount: comidas, target: mk, mainGoal: objetivo || '' }) === 'meta',
+        banda,
+        calorias_cerca: cerca,
+        calorias_pasado: pasado,
         proteina,
         proteina_parcial: proteinaParcial,
-        agua: mv > 0 ? registro && num(vasos) >= mv : null,
+        agua,
+        dia_perfecto: Boolean(banda && proteina && completo && agua !== false),
     };
 }
 
@@ -69,6 +87,11 @@ export function puntosBase(logros) {
     if (!logros?.registro) return 0;
     let total = Object.keys(PUNTOS).reduce((s, k) => s + (logros[k] === true ? PUNTOS[k] : 0), 0);
     if (logros.proteina !== true && logros.proteina_parcial === true) total += PUNTOS_PROTEINA_PARCIAL;
+    if (logros.banda !== true) {
+        if (logros.calorias_cerca === true) total += PUNTOS_CALORIAS_CERCA;
+        else if (logros.calorias_pasado === true) total += PUNTOS_CALORIAS_PASADO;
+    }
+    if (logros.dia_perfecto === true) total += PUNTOS_DIA_PERFECTO;
     return total;
 }
 
@@ -125,15 +148,7 @@ export function faltanParaOtraEstrella(pts) {
 
 /** Todos los peldaños `{clave, division, desde}` en orden (5 rangos × 4 divisiones). */
 export function escaleraDePuntos() {
-    const out = [];
-    RANGOS_PUNTOS.forEach(([clave, desde], i) => {
-        const sig = RANGOS_PUNTOS[i + 1];
-        for (let dv = 0; dv < DIVISIONES; dv += 1) {
-            const d = sig ? desde + redondear(((sig[1] - desde) * dv) / DIVISIONES) : desde + DIAMANTE_PASO * dv;
-            out.push({ clave, division: dv + 1, desde: d });
-        }
-    });
-    return out;
+    return UMBRALES_DIVISIONES.flatMap(([clave, umbrales]) => umbrales.map((desde, dv) => ({ clave, division: dv + 1, desde })));
 }
 
 export function rangoPorPuntos(total) {
@@ -237,21 +252,29 @@ export function diasParaEscudo(racha, escudos) {
     return ESCUDO_CADA - (Math.max(0, Math.trunc(num(racha))) % ESCUDO_CADA);
 }
 
-/** Ganancia neta de puntos al conseguir un logro (con el multiplicador activo de la racha). */
-export function gananciaLogro({ logros = {}, clave, mult = 1 }) {
-    if (!clave) return 0;
-    const m = num(mult) || 1;
-    const base = puntosBase(logros);
-    if (clave === 'proteina') {
-        if (logros?.proteina === true) return 0;
-        const delta = logros?.proteina_parcial === true
-            ? PUNTOS.proteina - PUNTOS_PROTEINA_PARCIAL
-            : PUNTOS.proteina;
-        return Math.max(0, redondear((base + delta) * m) - redondear(base * m));
-    }
-    if (logros?.[clave] === true) return 0;
-    const delta = PUNTOS[clave] || 0;
-    return Math.max(0, redondear((base + delta) * m) - redondear(base * m));
+/** Los logros de hoy si además consiguiera `clave`. */
+function conLogro(logros, clave) {
+    const l = { ...logros, registro: true, [clave]: true, dia_perfecto: false };
+    if (clave === 'banda') { l.calorias_cerca = false; l.calorias_pasado = false; }
+    if (clave === 'proteina') l.proteina_parcial = false;
+    return l;
 }
 
-export const maximoDiario = ({ mult = 1, conAgua = false }) => redondear((conAgua ? 45 : 40) * (num(mult) || 1));
+/** Ganancia neta de puntos al conseguir un logro (con el multiplicador activo de la racha). [1164] Cada logro
+ * enseña su propia ganancia (sin duplicar el bono de día perfecto, que ya tiene su propia ficha). */
+export function gananciaLogro({ logros = {}, clave, mult = 1 }) {
+    if (!clave || logros?.[clave] === true) return 0;
+    const m = num(mult) || 1;
+    const base = puntosBase(logros);
+    if (clave === 'dia_perfecto') return Math.max(0, redondear((base + PUNTOS_DIA_PERFECTO) * m) - redondear(base * m));
+    return Math.max(0, redondear(puntosBase(conLogro(logros, clave)) * m) - redondear(base * m));
+}
+
+/** Lo que ya dan las calorías hoy sin estar en la banda (cerca 8 · pasado 3), con el multiplicador. */
+export function puntosCaloriasParciales({ logros = {}, mult = 1 }) {
+    if (logros?.banda === true) return 0;
+    const p = logros?.calorias_cerca === true ? PUNTOS_CALORIAS_CERCA : logros?.calorias_pasado === true ? PUNTOS_CALORIAS_PASADO : 0;
+    return redondear(p * (num(mult) || 1));
+}
+
+export const maximoDiario = ({ mult = 1, conAgua = false }) => redondear((conAgua ? 50 : 45) * (num(mult) || 1));

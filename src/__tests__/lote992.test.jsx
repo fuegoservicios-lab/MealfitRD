@@ -26,11 +26,13 @@ const ATENCION = { id: 'atencion', seccion: 'Requiere atención', titulo: 'Aviso
 const montar = (bloques) => {
     fetchWithAuth.mockImplementation(async (url) => respuesta(url.startsWith('/api/admin/yo') ? { ok: true } : {
         dias: 7, generado: '2026-11-12T17:07:00+00:00', bloques }));
-    return render(
+    const view = render(
         <MemoryRouter initialEntries={['/admin']}>
             <Routes><Route path="/admin" element={<AdminPage />} /></Routes>
         </MemoryRouter>,
     );
+    fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }));
+    return view;
 };
 const tarjeta = async (etiqueta) => (await screen.findByText(etiqueta)).closest('li');
 

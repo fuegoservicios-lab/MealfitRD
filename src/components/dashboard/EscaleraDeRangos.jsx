@@ -29,17 +29,21 @@
 // (Bronce IV es la entrada, Bronce I la cima del rango) y un rango especial muy difícil. La hoja enseña primero CÓMO se
 // sube (3 pasos), el camino con lo que tardas a tu ritmo, el bono de semana perfecta y, al final de la escalera,
 // MAESTRO con sus tres requisitos y cuánto llevas de cada uno.
+// [P1-PLAN-LOTE-1164 · 2026-11-22] «lo veo confuso y feo» (el dueño): menos cajas. Una tarjeta del rango con la PISTA de
+// las 4 divisiones (IV → I → el rango siguiente) que se entiende sin leer, la barra a la siguiente con el tiempo a tu
+// ritmo, «Puntos» y «Racha» en pestañas, y en la escalera una barrita de 4 tramos por rango en vez de píldoras.
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { Check, Crown, Flame, Lock, Shield, Star, Trophy, X } from 'lucide-react';
+import { Check, ChevronRight, Crown, Flame, Lock, Shield, Star, Trophy, X } from 'lucide-react';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { Button } from '../ui/Button';
 import { formatNumber, useT, useTn } from '../../i18n';
 import { ESCALERA, posicionEnLaEscalera, semanasHasta, semanasPorRitmo, RITMO_PROPIO_MAX_SEMANAS } from '../../utils/caminoDeRangos';   // [1157] [1158]
 import {
-    BONO_SEMANA_PERFECTA, DIVISIONES, ESCUDOS_MAX, ESCUDO_CADA, MAESTRO, MAESTRO_PUNTOS, PUNTOS, RANGOS_PUNTOS,
+    BONO_SEMANA_PERFECTA, DIVISIONES, ESCUDOS_MAX, ESCUDO_CADA, MAESTRO, MAESTRO_PUNTOS, PUNTOS, PUNTOS_CALORIAS_CERCA,
+    PUNTOS_CALORIAS_PASADO, PUNTOS_DIA_PERFECTO, PUNTOS_PROTEINA_PARCIAL, RANGOS_PUNTOS,
     TRAMOS_RACHA, diasParaEscudo, divisionRomana, escaleraDePuntos, maestroProgreso, nombreDelRango, nombreDelTramo,
     proximoHitoRacha, rangoDelJugador, tramoDeRacha,
 } from '../../utils/juegoPuntos';
@@ -112,10 +116,28 @@ function HojaDeRangos({
     const tramo = tramoDeRacha(racha);
     const hito = proximoHitoRacha(racha);
     const diasEsc = diasParaEscudo(racha, escudos);
-    const nombresPuntos = {
-        registro: t('Registrar lo que comes'), completo: t('Día completo (3 comidas o 2 con ≥70% kcal)'),
-        banda: t('Calorías dentro de tu meta'), proteina: t('Proteína (70% +5 · 90% +10)'), agua: t('Tu agua del día'),
+    const [pestana, setPestana] = useState('puntos');
+    // [1164] cuánto tarda, en palabras: días, semanas o meses
+    const tiempoTxt = (dias) => {
+        if (dias <= 13) return tn(dias, 'en {n} día', 'en unos {n} días', { n: formatNumber(dias) });
+        if (dias <= 60) return tn(Math.round(dias / 7), 'en {n} semana', 'en unas {n} semanas', { n: formatNumber(Math.round(dias / 7)) });
+        return tn(Math.round(dias / 30), 'en {n} mes', 'en unos {n} meses', { n: formatNumber(Math.round(dias / 30)) });
     };
+    // [1164] cómo se ganan: lo que vale cada cosa, con el detalle de los parciales
+    const filasPuntos = [
+        { k: 'registro', nombre: t('Registrar lo que comes'), detalle: t('mantiene tu racha'), valor: null },
+        { k: 'completo', nombre: t('Día completo'), detalle: t('3 comidas, o 2 con ≥70% de tus calorías'), valor: PUNTOS.completo },
+        { k: 'banda', nombre: t('Calorías en tu meta'), detalle: t('cerca (±20%) +{c} · pasado de largo +{p}', { c: PUNTOS_CALORIAS_CERCA, p: PUNTOS_CALORIAS_PASADO }), valor: PUNTOS.banda },
+        { k: 'proteina', nombre: t('Proteína al 90%'), detalle: t('al 70%: +{n}', { n: PUNTOS_PROTEINA_PARCIAL }), valor: PUNTOS.proteina },
+        ...(aguaEncendida ? [{ k: 'agua', nombre: t('Tu agua del día'), detalle: null, valor: PUNTOS.agua }] : []),
+        { k: 'perfecto', nombre: t('Día perfecto'), detalle: t('todo lo anterior sin pasarte'), valor: PUNTOS_DIA_PERFECTO, destacado: true },
+        { k: 'semana', nombre: t('Semana perfecta (3★)'), detalle: t('bono que suma a tu rango'), valor: BONO_SEMANA_PERFECTA, destacado: true },
+    ];
+    // [1164] la pista: las 4 divisiones del rango actual y, al final, el rango siguiente
+    const divsActual = conPuntos && !esMaestro ? escaleraDePuntos().filter((x) => x.clave === rp.clave) : [];
+    const finDePista = conPuntos && !esMaestro
+        ? (RANGOS_PUNTOS[indiceRango + 1] ? RANGOS_PUNTOS[indiceRango + 1][0] : MAESTRO)
+        : null;
 
     return (
         <div className={styles.overlay}>
@@ -144,13 +166,84 @@ function HojaDeRangos({
                     {conPuntos ? (
                     <>
                     <div className={styles.columna}>
-                        <header className={styles.cabecera}>
-                            <span className={`${styles.gema} ${styles.gemaGrande} ${styles[`metal_${rp.clave}`]}`} aria-hidden="true">
-                                {esMaestro ? <Crown size={32} strokeWidth={2.25} /> : <Trophy size={30} strokeWidth={2.25} />}
-                            </span>
-                            <p className={styles.antetitulo}>{esMaestro ? t('Rango especial') : t('Tu rango')}</p>
-                            <h2 id="escalera-rangos-titulo" className={styles.titulo}>{nombreDelRango(rp.clave, rp.division, t)}</h2>
-                            <p className={styles.total}>{t('{n} pts en total', { n: formatNumber(puntos) })}</p>
+                        <section className={`${styles.heroRango} ${esMaestro ? styles.heroMaestro : ''}`} aria-labelledby="escalera-rangos-titulo">
+                            <div className={styles.heroFila}>
+                                <span className={`${styles.gema} ${styles.gemaGrande} ${styles[`metal_${rp.clave}`]}`} aria-hidden="true">
+                                    {esMaestro ? <Crown size={32} strokeWidth={2.25} /> : <Trophy size={30} strokeWidth={2.25} />}
+                                </span>
+                                <div className={styles.heroTexto}>
+                                    <p className={styles.antetitulo}>{esMaestro ? t('Rango especial') : t('Tu rango')}</p>
+                                    <h2 id="escalera-rangos-titulo" className={styles.titulo}>{nombreDelRango(rp.clave, rp.division, t)}</h2>
+                                    <p className={styles.heroTotal}>{t('{n} pts en total', { n: formatNumber(puntos) })}</p>
+                                </div>
+                            </div>
+
+                            {!esMaestro && (
+                                <>
+                                    <ol className={styles.pista} aria-label={t('Divisiones de {rango}, de la IV a la I', { rango: nombreDelRango(rp.clave, null, t) })}>
+                                        {divsActual.map((d) => {
+                                            const hecha = d.division < rp.division;
+                                            const aqui = d.division === rp.division;
+                                            return (
+                                                <li
+                                                    key={d.division}
+                                                    className={`${styles.pistaNodo} ${hecha ? styles.pistaHecha : ''} ${aqui ? styles.pistaAqui : ''}`}
+                                                    aria-current={aqui ? 'step' : undefined}
+                                                    title={t('{rango}: desde {n} pts', { rango: nombreDelRango(rp.clave, d.division, t), n: formatNumber(d.desde) })}
+                                                >
+                                                    <span className={styles.pistaCirculo}>{hecha ? <Check size={14} strokeWidth={3} aria-hidden="true" /> : divisionRomana(d.division)}</span>
+                                                </li>
+                                            );
+                                        })}
+                                        <li className={`${styles.pistaNodo} ${styles.pistaFin}`}>
+                                            <ChevronRight size={16} strokeWidth={2.5} className={styles.pistaFlecha} aria-hidden="true" />
+                                            <span className={`${styles.gema} ${styles.gemaPista} ${styles[`metal_${finDePista}`]}`} aria-hidden="true">
+                                                {finDePista === MAESTRO ? <Crown size={13} strokeWidth={2.5} /> : null}
+                                            </span>
+                                            <span className={styles.pistaFinNombre}>{nombreDelRango(finDePista, null, t)}</span>
+                                        </li>
+                                    </ol>
+
+                                    <h3 id="escalera-camino" className={styles.caminoTitulo}>
+                                        {t('Camino a {rango}', { rango: nombreDelRango(rp.siguiente.clave, rp.siguiente.division, t) })}
+                                    </h3>
+                                    <div className={styles.caminoFila}>
+                                        <p className={styles.progresoFalta}>
+                                            {faltanPts > 0
+                                                ? t('Te faltan {n} pts', { n: formatNumber(faltanPts) })
+                                                : t('Ya tienes los puntos de Maestro')}
+                                        </p>
+                                        {diasAlRitmo !== null && (
+                                            <span className={styles.ritmo}>
+                                                {diasAlRitmo > 730
+                                                    ? t('a tu ritmo, más de 2 años')
+                                                    : t('a tu ritmo, {tiempo}', { tiempo: tiempoTxt(diasAlRitmo) })}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div
+                                        className={styles.barra}
+                                        role="progressbar"
+                                        aria-valuemin={rp.desde}
+                                        aria-valuemax={rp.hasta}
+                                        aria-valuenow={Math.min(puntos, rp.hasta)}
+                                        aria-label={t('Avance hacia {rango}', { rango: nombreDelRango(rp.siguiente.clave, rp.siguiente.division, t) })}
+                                    >
+                                        {rp.avance > 0 && <span className={`${styles.barraRelleno} ${styles[`metal_${rp.siguiente.clave}`]}`} />}
+                                    </div>
+                                    <div className={styles.extremos} aria-hidden="true">
+                                        <span>{ptsTexto(rp.desde)}</span>
+                                        <span>{ptsTexto(rp.hasta)}</span>
+                                    </div>
+                                    {rp.siguiente.clave === MAESTRO && (
+                                        <p className={styles.planNota}>{t('Maestro pide además semanas perfectas y una racha larga: míralo al final de la escalera.')}</p>
+                                    )}
+                                </>
+                            )}
+                            {esMaestro && (
+                                <p className={styles.cima}>{t('Llegaste a Maestro, el rango más difícil. Es tuyo para siempre.')}</p>
+                            )}
+
                             {(mejorRacha > 0 || recordDia > 0) && (
                                 <div className={styles.estadisticas}>
                                     {mejorRacha > 0 && (
@@ -161,93 +254,47 @@ function HojaDeRangos({
                                     )}
                                 </div>
                             )}
-                        </header>
-
-                        {/* [1163] cómo se sube, en tres pasos (es una secuencia: por eso numerada) */}
-                        <ol className={styles.pasos} aria-label={t('Cómo se sube')}>
-                            <li className={styles.paso}>
-                                <span className={styles.pasoNumero} aria-hidden="true">1</span>
-                                <span className={styles.pasoTexto}><strong>{t('Suma puntos')}</strong>{t('cada día que registras lo que comes')}</span>
-                            </li>
-                            <li className={styles.paso}>
-                                <span className={styles.pasoNumero} aria-hidden="true">2</span>
-                                <span className={styles.pasoTexto}><strong>{t('Baja de IV a I')}</strong>{t('cada rango tiene 4 divisiones')}</span>
-                            </li>
-                            <li className={styles.paso}>
-                                <span className={styles.pasoNumero} aria-hidden="true">3</span>
-                                <span className={styles.pasoTexto}><strong>{t('Salta de rango')}</strong>{t('después de la I viene el siguiente')}</span>
-                            </li>
-                        </ol>
-
-                        {rp.siguiente ? (
-                            <section className={styles.tarjeta} aria-labelledby="escalera-camino">
-                                <h3 id="escalera-camino" className={styles.tarjetaTitulo}>
-                                    <span className={`${styles.gema} ${styles.gemaMini} ${styles[`metal_${rp.siguiente.clave}`]}`} aria-hidden="true" />
-                                    {t('Camino a {rango}', { rango: nombreDelRango(rp.siguiente.clave, rp.siguiente.division, t) })}
-                                </h3>
-                                <p className={styles.progresoFalta}>
-                                    {faltanPts > 0
-                                        ? t('Te faltan {n} pts', { n: formatNumber(faltanPts) })
-                                        : t('Ya tienes los puntos de Maestro')}
-                                </p>
-                                <div
-                                    className={styles.barra}
-                                    role="progressbar"
-                                    aria-valuemin={rp.desde}
-                                    aria-valuemax={rp.hasta}
-                                    aria-valuenow={Math.min(puntos, rp.hasta)}
-                                    aria-label={t('Avance hacia {rango}', { rango: nombreDelRango(rp.siguiente.clave, rp.siguiente.division, t) })}
-                                >
-                                    {rp.avance > 0 && <span className={`${styles.barraRelleno} ${styles[`metal_${rp.siguiente.clave}`]}`} />}
-                                </div>
-                                <div className={styles.extremos} aria-hidden="true">
-                                    <span>{ptsTexto(rp.desde)}</span>
-                                    <span>{ptsTexto(rp.hasta)}</span>
-                                </div>
-                                {diasAlRitmo !== null && (
-                                    <p className={styles.planNota}>
-                                        {diasAlRitmo > 365
-                                            ? t('A tu ritmo (unos {r} pts al día) tardarías más de un año: una racha larga multiplica lo que ganas.',
-                                                { r: formatNumber(Math.round(ptsPorDia)) })
-                                            : tn(diasAlRitmo,
-                                                'A tu ritmo (unos {r} pts al día) llegas en {n} día.',
-                                                'A tu ritmo (unos {r} pts al día) llegas en unos {n} días.',
-                                                { n: formatNumber(diasAlRitmo), r: formatNumber(Math.round(ptsPorDia)) })}
-                                    </p>
-                                )}
-                                {rp.siguiente.clave === MAESTRO && (
-                                    <p className={styles.planNota}>{t('Maestro pide además semanas perfectas y una racha larga: míralo al final de la escalera.')}</p>
-                                )}
-                            </section>
-                        ) : (
-                            <p className={styles.cima}>{t('Llegaste a Maestro, el rango más difícil. Es tuyo para siempre.')}</p>
-                        )}
-
-                        <section className={styles.tarjeta} aria-labelledby="escalera-como">
-                            <h3 id="escalera-como" className={styles.tarjetaTitulo}>{t('Cómo ganar puntos cada día')}</h3>
-                            <ul className={styles.puntosLista}>
-                                {Object.keys(PUNTOS).filter((k) => k !== 'agua' || aguaEncendida).map((k) => (
-                                    <li key={k} className={styles.puntosFila}>
-                                        <span>{nombresPuntos[k]}</span>
-                                        <strong className={styles.puntosValor}>+{PUNTOS[k]}</strong>
-                                    </li>
-                                ))}
-                                <li className={`${styles.puntosFila} ${styles.puntosBono}`}>
-                                    <span>
-                                        <Star size={14} className={styles.estrellaLlena} aria-hidden="true" />
-                                        {t('Bono por semana perfecta (3★)')}
-                                    </span>
-                                    <strong className={styles.puntosValor}>+{BONO_SEMANA_PERFECTA}</strong>
-                                </li>
-                            </ul>
-                            <p className={styles.planNota}>{t('Los puntos no se pierden y nunca bajas de rango.')}</p>
                         </section>
 
-                        <section className={styles.tarjeta} aria-labelledby="escalera-racha">
-                            <h3 id="escalera-racha" className={styles.tarjetaTitulo}>
-                                <Flame size={16} strokeWidth={2.5} className={styles.llamita} aria-hidden="true" />
-                                {t('Tu racha multiplica los puntos')}
-                            </h3>
+                        <div className={styles.pestanas} role="tablist" aria-label={t('Cómo funciona')}>
+                            <button
+                                type="button" role="tab" id="pestana-puntos" aria-controls="panel-puntos"
+                                aria-selected={pestana === 'puntos'}
+                                className={`${styles.pestana} ${pestana === 'puntos' ? styles.pestanaActiva : ''}`}
+                                onClick={() => setPestana('puntos')}
+                            >
+                                <Star size={15} strokeWidth={2.5} aria-hidden="true" />
+                                {t('Puntos')}
+                            </button>
+                            <button
+                                type="button" role="tab" id="pestana-racha" aria-controls="panel-racha"
+                                aria-selected={pestana === 'racha'}
+                                className={`${styles.pestana} ${pestana === 'racha' ? styles.pestanaActiva : ''}`}
+                                onClick={() => setPestana('racha')}
+                            >
+                                <Flame size={15} strokeWidth={2.5} aria-hidden="true" />
+                                {t('Tu racha ×{m}', { m: formatNumber(tramo.mult, { maximumFractionDigits: 2 }) })}
+                            </button>
+                        </div>
+
+                        <section id="panel-puntos" role="tabpanel" aria-labelledby="pestana-puntos" className={styles.panel} hidden={pestana !== 'puntos'}>
+                            <ul className={styles.puntosLista}>
+                                {filasPuntos.map((f) => (
+                                    <li key={f.k} className={`${styles.puntosFila} ${f.destacado ? styles.puntosBono : ''}`}>
+                                        <span className={styles.puntosTexto}>
+                                            <span className={styles.puntosNombre}>{f.nombre}</span>
+                                            {f.detalle && <span className={styles.puntosDetalle}>{f.detalle}</span>}
+                                        </span>
+                                        <strong className={styles.puntosValor}>
+                                            {f.valor === null ? <Flame size={15} strokeWidth={2.5} aria-label={t('racha')} /> : `+${f.valor}`}
+                                        </strong>
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className={styles.planNota}>{t('Un día sin logros no suma. Clavar tu meta sin pasarte es lo que más da. Los puntos no se pierden y nunca bajas de rango.')}</p>
+                        </section>
+
+                        <section id="panel-racha" role="tabpanel" aria-labelledby="pestana-racha" className={styles.panel} hidden={pestana !== 'racha'}>
                             <ol className={styles.tramos}>
                                 {[...TRAMOS_RACHA].reverse().filter(([desde]) => desde > 0).map(([desde, mult, clave]) => (
                                     <li key={clave} className={`${styles.tramo} ${tramo.clave === clave ? styles.tramoActual : ''} ${racha >= desde ? styles.tramoLogrado : ''}`}>
@@ -298,21 +345,23 @@ function HojaDeRangos({
                                             {estado === 'bloqueado' ? <Lock size={15} strokeWidth={2.5} /> : <Trophy size={17} strokeWidth={2.25} />}
                                         </span>
                                         <div className={styles.peldanoTexto}>
-                                            <span className={styles.peldanoNombre}>{nombreDelRango(clave, null, t)}</span>
-                                            <span className={styles.peldanoDesde}>
-                                                {desde === 0 ? t('Tu punto de partida') : t('Desde {n} pts', { n: formatNumber(desde) })}
+                                            <span className={styles.peldanoCabeza}>
+                                                <span className={styles.peldanoNombre}>{nombreDelRango(clave, null, t)}</span>
+                                                <span className={styles.peldanoDesde}>
+                                                    {desde === 0 ? t('Tu punto de partida') : t('Desde {n} pts', { n: formatNumber(desde) })}
+                                                </span>
                                             </span>
-                                            <span className={styles.divisiones} aria-label={t('Divisiones de {rango}, de la IV a la I', { rango: nombreDelRango(clave, null, t) })}>
-                                                {divs.map((d) => {
-                                                    const hecha = esMaestro || puntos >= d.desde;
-                                                    const aqui = clave === rp.clave && d.division === rp.division;
+                                            {/* [1164] 4 tramos: IV III II I de izquierda a derecha, llenos según vas */}
+                                            <span className={styles.tramitos} aria-label={t('Divisiones de {rango}, de la IV a la I', { rango: nombreDelRango(clave, null, t) })}>
+                                                {divs.map((d, j) => {
+                                                    const hasta = divs[j + 1] ? divs[j + 1].desde : (RANGOS_PUNTOS[i + 1] ? RANGOS_PUNTOS[i + 1][1] : MAESTRO_PUNTOS);
+                                                    const lleno = esMaestro || i < indiceRango || (i === indiceRango && d.division < rp.division);
+                                                    const aqui = !esMaestro && i === indiceRango && d.division === rp.division;
+                                                    const valor = lleno ? 1 : aqui ? Math.max(0.04, Math.min(1, (puntos - d.desde) / (hasta - d.desde))) : 0;
                                                     return (
-                                                        <span
-                                                            key={d.division}
-                                                            className={`${styles.division} ${hecha ? styles.divisionHecha : ''} ${aqui ? styles.divisionAqui : ''}`}
-                                                            title={t('{rango}: desde {n} pts', { rango: nombreDelRango(clave, d.division, t), n: formatNumber(d.desde) })}
-                                                        >
-                                                            {divisionRomana(d.division)}
+                                                        <span key={d.division} className={styles.tramito} title={t('{rango}: desde {n} pts', { rango: nombreDelRango(clave, d.division, t), n: formatNumber(d.desde) })}>
+                                                            <progress className={`${styles.tramitoBarra} ${aqui ? styles.tramitoAqui : ''}`} max={1} value={valor} aria-hidden="true" />
+                                                            <span className={`${styles.tramitoRomano} ${aqui ? styles.tramitoRomanoAqui : ''}`}>{divisionRomana(d.division)}</span>
                                                         </span>
                                                     );
                                                 })}
@@ -334,12 +383,14 @@ function HojaDeRangos({
                                     {esMaestro ? <Crown size={18} strokeWidth={2.25} /> : <Lock size={15} strokeWidth={2.5} />}
                                 </span>
                                 <div className={styles.peldanoTexto}>
-                                    <span className={styles.peldanoNombre}>
-                                        {t('Maestro')}
-                                        <span className={styles.etiquetaEspecial}>{t('Rango especial')}</span>
-                                    </span>
-                                    <span className={styles.peldanoDesde}>
-                                        {esMaestro ? t('Lo conseguiste: el rango más difícil.') : t('Muy difícil: necesitas las tres cosas.')}
+                                    <span className={styles.peldanoCabeza}>
+                                        <span className={styles.peldanoNombre}>
+                                            {t('Maestro')}
+                                            <span className={styles.etiquetaEspecial}>{t('Rango especial')}</span>
+                                        </span>
+                                        <span className={styles.peldanoDesde}>
+                                            {esMaestro ? t('Lo conseguiste: el rango más difícil.') : t('Muy difícil: necesitas las tres cosas.')}
+                                        </span>
                                     </span>
                                     <ul className={styles.requisitos}>
                                         {req.requisitos.map((r) => (
@@ -357,16 +408,10 @@ function HojaDeRangos({
                                     </ul>
                                 </div>
                                 <span className={styles.peldanoEstado}>
-                                    {esMaestro
-                                        ? t('Estás aquí')
-                                        : t('{n} de 3', { n: req.cumplidos })}
+                                    {esMaestro ? t('Estás aquí') : t('{n} de 3', { n: req.cumplidos })}
                                 </span>
                             </li>
                         </ol>
-                        <p className={styles.notaMaestro}>
-                            {t('Maestro: {p} pts, {s} semanas perfectas y una racha de {r} días. Casi nadie llega.',
-                                { p: formatNumber(MAESTRO_PUNTOS), s: req.requisitos[1].meta, r: req.requisitos[2].meta })}
-                        </p>
                     </div>
                     </>
                     ) : (

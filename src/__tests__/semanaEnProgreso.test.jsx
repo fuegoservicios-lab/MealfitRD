@@ -179,9 +179,13 @@ describe('[SEMANA-EN-PROGRESO] la tira en pantalla', () => {
         montar();
         expect(await screen.findByRole('heading', { name: 'Semana 2' })).toBeInTheDocument();
         expect(screen.getByText('Día 4 de 7')).toBeInTheDocument();
+        expect(screen.queryByText('Semana cerrada')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Semana siguiente' })).toBeDisabled();
         fireEvent.click(screen.getByRole('button', { name: 'Semana anterior' }));
         expect(await screen.findByRole('heading', { name: 'Semana 1' })).toBeInTheDocument();
+        expect(screen.getByText('Resumen de la semana')).toBeInTheDocument();
+        expect(screen.getByText('Semana cerrada')).toBeInTheDocument();
+        expect(screen.getByText('Días en meta')).toBeInTheDocument();
         expect(screen.getByText('1 de 7 días en meta')).toBeInTheDocument();
         expect(diasEnPantalla().filter((b) => b.disabled)).toHaveLength(0);       // una semana pasada no tiene candados
         expect(screen.getByRole('button', { name: 'Semana anterior' })).toBeDisabled();
@@ -229,7 +233,7 @@ describe('[SEMANA-EN-PROGRESO] cableado', () => {
     it('la tarjeta de Progreso la monta fuera del ternario vacío/no-vacío y abre el cajón en el día tocado', () => {
         const tp = src('components/dashboard/TrackingProgress.jsx');
         expect(tp).toContain('<SemanaEnProgreso');
-        expect(tp.indexOf('<SemanaEnProgreso')).toBeLessThan(tp.indexOf('_todaysMeals.length === 0 ?'));
+        expect(tp.indexOf('<SemanaEnProgreso')).toBeLessThan(tp.indexOf('isLoggedIn && !loading && _todaysMeals.length > 0'));
         expect(tp).toContain('onAbrirDia={(iso) => { setHistoryDia(iso); setHistoryOpen(true); }}');
         expect(tp).toContain('diaInicial={historyDia}');
         expect(tp).toContain('<DiaryHistoryTrigger compacto');

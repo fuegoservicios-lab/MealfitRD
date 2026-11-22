@@ -138,6 +138,7 @@ const NewsArticlePage = lazy(() => import('./pages/NewsArticlePage'));
 // verificados (+variantes de marca) con edición admin en la misma página.
 const SupermarketPage = lazy(() => import('./pages/SupermarketPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
+const VerificadoresPage = lazy(() => import('./pages/VerificadoresPage'));
 // [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad).
 const ResponsibleDisclosure = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.ResponsibleDisclosure })));
 // [P3-ENGINE-INFO-PAGE · 2026-06-28] Página pública informativa del motor v1.0.0.
@@ -180,7 +181,7 @@ const IS_APEX_HOST = typeof window !== 'undefined' && isApexHost();
 // [P1-PLAN-LOTE-579] `/admin` también: en el apex su login perdía el destino y el panel no se alcanzaba.
 // [P1-PLAN-LOTE-680] `/probar` también: el modo invitado vive en localStorage, que es POR ORIGEN — activarlo en el apex
 // dejaría al visitante en app.* sin él, de vuelta en el login.
-const APP_ROUTE_PREFIXES = ['/login', '/register', '/reset-password', '/assessment', '/plan', '/configuracion', '/dashboard', '/history', '/admin', '/probar'];
+const APP_ROUTE_PREFIXES = ['/login', '/register', '/reset-password', '/assessment', '/plan', '/configuracion', '/dashboard', '/history', '/admin', '/verificadores', '/probar'];
 
 const ApexAppRedirect = () => {
   const location = useLocation();
@@ -716,6 +717,12 @@ function App() {
               NATIVE_NO_COMMERCE
                 ? <Navigate to="/dashboard" replace />
                 : <ProtectedRoute><AdminPage /></ProtectedRoute>
+            } />
+
+            <Route path="/verificadores" element={
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <VerificadoresPage />
             } />
 
             {/* [P3-ENGINE-INFO-PAGE · 2026-06-28] Motor v1.0.0 (pública, indexable, en el apex). */}

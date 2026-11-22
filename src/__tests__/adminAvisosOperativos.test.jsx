@@ -16,7 +16,12 @@ const data = { generado:'2026-10-02T12:09:00Z', bloques:[{ id:'atencion', seccio
     ] }] };
 const response = (body=data,status=200) => ({ ok:status<400,status,json:async()=>body });
 const requests = () => fetchWithAuth.mock.calls.filter(([url])=>url.startsWith('/api/admin/metricas'));
-const mount = async () => { let result; await act(async()=>{ result=render(<MemoryRouter><AdminPage /></MemoryRouter>); }); return result; };
+const mount = async () => {
+    let result;
+    await act(async () => { result = render(<MemoryRouter><AdminPage /></MemoryRouter>); });
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Métricas' })); });
+    return result;
+};
 let visibility;
 beforeEach(()=>{
     vi.useFakeTimers();vi.clearAllMocks();sessionStorage.clear();localStorage.clear();
