@@ -30,7 +30,7 @@ import MicrosList from './MicrosList';
 import HealthSources from '../common/HealthSources';
 import { resumirMicros, useMicrosSubtitulo } from './microsShared';
 import { formatNumber, formatPercent, useT, useTn } from '../../i18n';
-import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
+import { nombreDeRegistro, nombreDeFila } from '../../utils/nombreDeRegistro';
 import { macroReferences } from '../../utils/macroReferences';
 import { getCalorieGoalState, resolveMainGoal } from '../../utils/calorieGoalStatus';
 // [P1-PLAN-LOTE-721 · 2026-09-28] La fila abre la ficha del plato; la foto del escáner (solo en este dispositivo) sale
@@ -702,7 +702,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                                 )}
                                                 <span className={styles.mealInfo}>
                                                     {/* [P1-PLAN-LOTE-225] el nombre en el idioma del usuario (el dato no cambia) */}
-                                                    <span className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t)}</span>
+                                                    <span className={styles.mealName}>{nombreDeFila(meal, planData, t)}</span>
                                                     <span className={styles.mealMeta}>
                                                         {_mealTypeLabel(meal.meal_type, t)} · {Math.round(meal.calories) || 0} kcal
                                                     </span>

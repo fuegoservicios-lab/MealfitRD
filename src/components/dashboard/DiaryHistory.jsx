@@ -47,7 +47,7 @@ import { fetchWithAuth } from '../../config/api';
 import { confirmToast } from '../../utils/confirmToast';
 import { formatDate, formatNumber, getLocale, useT, useTn } from '../../i18n';
 import { useAssessment } from '../../context/AssessmentContext';
-import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
+import { nombreDeFila } from '../../utils/nombreDeRegistro';
 import MicrosList from './MicrosList';
 import { resumirMicros, useMicrosSubtitulo } from './microsShared';
 import LogMealModal from './LogMealModal';
@@ -857,7 +857,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     )}
                     <span className={styles.mealText}>
                     {/* [P1-PLAN-LOTE-225] el nombre en el idioma del usuario (el dato no cambia) */}
-                    <span className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t) || t('Sin nombre')}</span>
+                    <span className={styles.mealName}>{nombreDeFila(meal, planData, t) || t('Sin nombre')}</span>
                     <span className={styles.mealMacros}>
                         <span className={styles.mealKcal}>{num(meal.calories)} kcal</span>
                         {/* [P1-PLAN-LOTE-165] «P · C · G» fijas eran incorrectas en inglés (grasa = F) y en francés

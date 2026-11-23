@@ -4517,5 +4517,10 @@
   "Toca un día para ver su detalle.": "Tap a day to see its details.",
   "Registra una comida": "Log a meal",
   "Racha a salvo hoy": "Streak safe today",
-  "todo en meta, sin pasarte": "everything on target, without going over"
+  "todo en meta, sin pasarte": "everything on target, without going over",
+  "{nombre} + {n} más": "{nombre} + {n} more",
+  "{n} cosas registradas juntas": "{n} items logged together",
+  "Total": "Total",
+  "Cada una": "Each one",
+  "carbos": "carbs"
 }

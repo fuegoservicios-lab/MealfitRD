@@ -4517,5 +4517,10 @@
   "Toca un día para ver su detalle.": "Toque em um dia para ver os detalhes.",
   "Registra una comida": "Registre uma refeição",
   "Racha a salvo hoy": "Sequência garantida hoje",
-  "todo en meta, sin pasarte": "tudo na meta, sem passar"
+  "todo en meta, sin pasarte": "tudo na meta, sem passar",
+  "{nombre} + {n} más": "{nombre} + {n} mais",
+  "{n} cosas registradas juntas": "{n} itens registrados juntos",
+  "Total": "Total",
+  "Cada una": "Cada uma",
+  "carbos": "carboidratos"
 }

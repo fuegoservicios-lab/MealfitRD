@@ -80,3 +80,13 @@ export function nombreDeRegistro(nombre, planData, t, locale = getLocale()) {
     }
     return nombre;
 }
+
+/** [P1-PLAN-LOTE-1170 · 2026-11-23] El nombre de una FILA del diario. Una comida registrada junta (batido + plato en la
+ *  misma cena) trae `partes` del servidor: la fila dice «Mass gainer GNC… + 1 más» en vez de pegarlo todo. */
+export function nombreDeFila(meal, planData, t, locale = getLocale()) {
+    const partes = Array.isArray(meal?.partes) ? meal.partes.filter(Boolean) : [];
+    if (partes.length > 1) {
+        return t('{nombre} + {n} más', { nombre: nombreDeRegistro(partes[0], planData, t, locale), n: partes.length - 1 });
+    }
+    return nombreDeRegistro(meal?.meal_name, planData, t, locale);
+}

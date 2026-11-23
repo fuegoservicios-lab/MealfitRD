@@ -4517,5 +4517,10 @@
   "Toca un día para ver su detalle.": "Tocca un giorno per vedere i dettagli.",
   "Registra una comida": "Registra un pasto",
   "Racha a salvo hoy": "Serie al sicuro oggi",
-  "todo en meta, sin pasarte": "tutto nell’obiettivo, senza sforare"
+  "todo en meta, sin pasarte": "tutto nell’obiettivo, senza sforare",
+  "{nombre} + {n} más": "{nombre} + altri {n}",
+  "{n} cosas registradas juntas": "{n} voci registrate insieme",
+  "Total": "Totale",
+  "Cada una": "Ognuna",
+  "carbos": "carboidrati"
 }

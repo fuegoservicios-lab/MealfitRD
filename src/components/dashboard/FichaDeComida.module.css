@@ -1024,3 +1024,30 @@
 }
 .gramosInput::-webkit-outer-spin-button,
 .gramosInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* [P1-PLAN-LOTE-1170 · 2026-11-23] Una comida registrada junta: el total arriba con su rótulo y cada parte en su
+   tarjeta (nombre entero, kcal, P/C/G). Un usuario diario: «que diga su total y cada comida separada». */
+.totalRotulo {
+    margin: 0 0 0.15rem;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.partes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.parte {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-muted) 60%, transparent);
+}
+.parteCabeza { display: flex; align-items: flex-start; gap: 0.75rem; }
+.parteNombre { flex: 1; min-width: 0; font-size: 0.95rem; font-weight: 700; line-height: 1.3; color: var(--text-main); overflow-wrap: anywhere; }
+.parteKcal { flex: none; font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text-main); }
+.parteKcal small { font-size: 0.75rem; font-weight: 650; color: var(--text-muted); }
+.parteMacros { margin: 0; display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; font-size: 0.8125rem; color: var(--text-muted); }
+.parteMacros b { color: var(--text-main); font-weight: 750; font-variant-numeric: tabular-nums; }

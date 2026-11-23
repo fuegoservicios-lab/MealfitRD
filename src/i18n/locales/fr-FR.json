@@ -4517,5 +4517,10 @@
   "Toca un día para ver su detalle.": "Touchez un jour pour voir son détail.",
   "Registra una comida": "Enregistre un repas",
   "Racha a salvo hoy": "Série à l’abri aujourd’hui",
-  "todo en meta, sin pasarte": "tout dans l’objectif, sans dépasser"
+  "todo en meta, sin pasarte": "tout dans l’objectif, sans dépasser",
+  "{nombre} + {n} más": "{nombre} + {n} de plus",
+  "{n} cosas registradas juntas": "{n} éléments enregistrés ensemble",
+  "Total": "Total",
+  "Cada una": "Chacun",
+  "carbos": "glucides"
 }

@@ -176,6 +176,8 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     const fotoUrl = fotos[indice]?.url;
     const cambiarFoto = (paso) => setSeleccionada((indice + paso + fotos.length) % fotos.length);
     const nombre = nombreDeRegistro(meal?.meal_name, planData, t) || t('Sin nombre');
+    // [P1-PLAN-LOTE-1170] registrada junta (batido + plato): el título no las pega; cada parte va en su tarjeta
+    const nPartesLista = Array.isArray(meal?.partes) ? meal.partes.length : 0;
 
     useEffect(() => {
         if (!meal?.id) return undefined;
@@ -246,6 +248,8 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     const fuente = detalle.meal?.source;
     const vivo = totales || meal;
     const kcal = num(vivo?.calories);
+    const partes = Array.isArray(detalle.meal?.partes) ? detalle.meal.partes : [];
+    const nPartes = Math.max(partes.length, nPartesLista);
     const metaKcal = num(metas?.calories);
     const macros = [
         { clave: 'protein', rotulo: t('Proteína'), g: num(vivo?.protein), meta: num(metas?.protein), color: '#3B82F6' },
@@ -386,7 +390,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                 <div ref={bodyRef} className={styles.body} inert={ampliada || editorAbierto || undefined}>
                     {/* [P1-PLAN-LOTE-1093] el nombre va en el cuerpo y se desplaza con él: en la cabecera fija, un nombre
                         de cuatro líneas se comía media hoja mientras se miraban los ingredientes */}
-                    <h2 id="ficha-comida-titulo" className={styles.title}>{nombre}</h2>
+                    <h2 id="ficha-comida-titulo" className={styles.title}>{nPartes > 1 ? t('{n} cosas registradas juntas', { n: nPartes }) : nombre}</h2>
                     {fotoUrl && (
                         <figure className={styles.foto}>
                             <button ref={ampliarRef} type="button" className={styles.fotoBtn} onClick={() => setAmpliada(true)} aria-label={t('Ver la foto en grande')}>
@@ -410,6 +414,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                     )}
 
                     <section className={styles.energia} aria-label={t('Calorías')}>
+                        {nPartes > 1 && <p className={styles.totalRotulo}>{t('Total')}</p>}
                         <div className={styles.kcalFila}>
                             <p className={styles.kcal}>
                                 <span className={styles.kcalNum}>{formatNumber(kcal)}</span>
@@ -434,6 +439,27 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                             })}
                         </ul>
                     </section>
+
+                    {partes.length > 1 && (
+                        <section className={styles.seccion} aria-labelledby="ficha-comida-partes">
+                            <h3 id="ficha-comida-partes" className={styles.seccionTitulo}>{t('Cada una')}</h3>
+                            <ul className={styles.partes}>
+                                {partes.map((p, i) => (
+                                    <li key={i} className={styles.parte}>
+                                        <div className={styles.parteCabeza}>
+                                            <span className={styles.parteNombre}>{nombreDeRegistro(p.meal_name, planData, t)}</span>
+                                            <span className={styles.parteKcal}>{formatNumber(num(p.calories))} <small>kcal</small></span>
+                                        </div>
+                                        <p className={styles.parteMacros}>
+                                            <span><b>{formatNumber(num(p.protein))} g</b> {t('proteína')}</span>
+                                            <span><b>{formatNumber(num(p.carbs))} g</b> {t('carbos')}</span>
+                                            <span><b>{formatNumber(num(p.healthy_fats))} g</b> {t('grasas')}</span>
+                                        </p>
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+                    )}
 
                     <section className={styles.seccion} aria-labelledby="ficha-comida-ingredientes">
                         <h3 id="ficha-comida-ingredientes" className={styles.seccionTitulo}>{t('Ingredientes')}</h3>
