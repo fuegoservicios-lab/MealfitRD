@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion, useReducedMotion, useSpring, useTransform } from 'framer-motion';
-import { Check, Flame, Star, X, Zap } from 'lucide-react';
+import { Check, CircleHelp, Flame, Star, X, Zap } from 'lucide-react';
 import { formatNumber, useT } from '../../i18n';
 import { COMIDAS_DIA_COMPLETO, gananciaLogro, maximoDiario, puntosCaloriasParciales } from '../../utils/juegoPuntos';
 import LlamaDeRacha from './LlamaDeRacha';
@@ -102,17 +102,19 @@ const PuntosDeHoy = ({
             <div className={styles.logrosCabecera}>
                 <span className={styles.logrosTituloWrap}>
                     <p className={styles.logrosTitulo}>{todosHechos ? t('¡Hoy lo conseguiste todo!') : t('Cómo sumar puntos hoy')}</p>
-                    {!todosHechos && multEfectivo > 1 && (
-                        <span className={styles.maxHoy}>{t('Hasta {n} pts', { n: formatNumber(maxHoy) })}</span>
+                    {onAbrir && (
+                        <button type="button" className={styles.comoFunciona} onClick={onAbrir} aria-haspopup="dialog" aria-label={t('¿Cómo funciona?')} title={t('¿Cómo funciona?')}>
+                            <CircleHelp size={15} strokeWidth={2.25} aria-hidden="true" />
+                        </button>
                     )}
                 </span>
-                {onAbrir && (
-                    <button type="button" className={styles.comoFunciona} onClick={onAbrir} aria-haspopup="dialog">
-                        {t('¿Cómo funciona?')}
-                    </button>
+                {!todosHechos && multEfectivo > 1 && (
+                    <span className={styles.maxHoy}>{t('Hasta {n} pts', { n: formatNumber(maxHoy) })}</span>
                 )}
             </div>
-            <ul className={styles.logros} aria-label={t('Logros de hoy')}>
+            {/* [P1-PLAN-LOTE-1168] misiones del día: la racha arriba a lo ancho, los logros en tarjetas con su premio
+                grande y el día perfecto en oro abajo, también a lo ancho. */}
+            <ul className={styles.logros} aria-label={t('Logros de hoy')} data-n={visibles.length - 2}>
                 {visibles.map((k) => {
                     const hecho = logros?.[k] === true;
                     // [1164] pasado de calorías: el día perfecto ya no se puede y las calorías dan lo que dan (+8 / +3)
@@ -139,6 +141,8 @@ const PuntosDeHoy = ({
                     else if (pasadoBanda) clase.push(styles.logroCerrado);
                     else if (parcialProt || parcialKcal) clase.push(styles.logroParcial);
                     if (k === 'dia_perfecto') clase.push(styles.logroPerfecto);
+                    else if (soloRacha) clase.push(styles.logroRacha);
+                    else clase.push(styles.logroTarjeta);
 
                     let aria;
                     if (hecho) aria = `${nombres[k]}: ${t('conseguido')}`;
@@ -151,17 +155,37 @@ const PuntosDeHoy = ({
 
                     return (
                         <li key={k} className={clase.join(' ')} style={estiloPct(pct)} aria-label={aria}>
-                            {hecho ? (
-                                k === 'dia_perfecto' ? <Star size={13} strokeWidth={2.5} aria-hidden="true" /> : <Check size={13} strokeWidth={3} aria-hidden="true" />
-                            ) : soloRacha ? (
-                                <Flame size={13} strokeWidth={2.5} aria-hidden="true" />
-                            ) : pasadoBanda ? (
-                                <X size={13} strokeWidth={2.75} aria-hidden="true" />
+                            {soloRacha ? (
+                                <>
+                                    <span className={styles.logroIcono} aria-hidden="true">
+                                        {hecho ? <Check size={14} strokeWidth={3} /> : <Flame size={14} strokeWidth={2.5} />}
+                                    </span>
+                                    <span className={styles.logroNombre} aria-hidden="true">{hecho ? t('Racha a salvo hoy') : t('Registra una comida')}</span>
+                                    <span className={styles.logroMeta} aria-hidden="true">{t('mantiene tu racha')}</span>
+                                </>
+                            ) : k === 'dia_perfecto' ? (
+                                <>
+                                    <span className={styles.logroIcono} aria-hidden="true"><Star size={14} strokeWidth={2.5} /></span>
+                                    <span className={styles.logroNombre} aria-hidden="true">
+                                        {nombres[k]}
+                                        <small>{pasadoBanda ? t('hoy te pasaste de la banda') : t('todo en meta, sin pasarte')}</small>
+                                    </span>
+                                    {hecho ? <Check className={styles.logroMeta} size={15} strokeWidth={3} aria-hidden="true" />
+                                        : pasadoBanda ? <X className={styles.logroMeta} size={15} strokeWidth={2.75} aria-hidden="true" />
+                                            : <span className={`${styles.logroPts} ${styles.logroMeta}`} aria-hidden="true">+{formatNumber(ptsGanar)}</span>}
+                                </>
                             ) : (
-                                <span className={styles.logroPts} aria-hidden="true">+{formatNumber(ptsGanar)}</span>
+                                <>
+                                    {hecho ? (
+                                        <span className={styles.logroPts} aria-hidden="true"><Check size={16} strokeWidth={3} /></span>
+                                    ) : pasadoBanda ? (
+                                        <span className={styles.logroPts} aria-hidden="true"><X size={16} strokeWidth={2.75} /></span>
+                                    ) : (
+                                        <span className={styles.logroPts} aria-hidden="true">+{formatNumber(ptsGanar)}</span>
+                                    )}
+                                    <span className={styles.logroNombre} aria-hidden="true">{nombres[k]}</span>
+                                </>
                             )}
-                            <span className={styles.logroNombre} aria-hidden="true">{nombres[k]}</span>
-                            {soloRacha && !hecho && <span className={styles.logroMeta} aria-hidden="true">{t('racha')}</span>}
                             {pasadoBanda && k === 'banda' && ptsCaloriasYa > 0 && (
                                 <span className={styles.logroMeta} aria-hidden="true">+{formatNumber(ptsCaloriasYa)}</span>
                             )}
