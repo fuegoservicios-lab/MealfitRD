@@ -382,23 +382,22 @@
 
 .lineTop {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.5rem;
 }
 
-/* El nombre es LO que se registra: cabe en dos líneas antes de recortarse (a 392px «Pechuga a la plancha con arroz y
-   hab…» en una sola no dice qué plato es). */
+/* El nombre es LO que se registra. [P1-PLAN-LOTE-1169 · 2026-11-23] Se ve ENTERO: un usuario se quejó de «Pan integral
+   tostado con mantequilla de maní y…» (el corte a 2 líneas escondía justo lo que se iba a registrar). Los botones
+   se alinean arriba, con la primera línea. */
 .lineName {
     flex: 1;
     min-width: 0;
+    padding-top: 0.15rem;
     font-size: 0.95rem;
     font-weight: 700;
     line-height: 1.3;
     color: var(--text-main, #0F172A);
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    overflow-wrap: anywhere;
 }
 
 .lineDel {
