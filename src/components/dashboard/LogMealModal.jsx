@@ -133,6 +133,13 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
         const conPlan = Array.isArray(planData?.days) && planData.days.length > 0;
         return (!conPlan && comidaPorHora(new Date())) || getMealTypeExtra(t).value;
     });
+    // [P1-PLAN-LOTE-1171 · 2026-11-23] La comida «por la hora» solo vale para HOY: a las 5:30 p. m. un usuario registró
+    // su día de ayer entero y quedaron cuatro «meriendas» (batido, pan con atún, filete con pasta, pollo). Para otro día
+    // no adivinamos: la tiene que elegir él.
+    const [tipoElegido, setTipoElegido] = useState(() => {
+        const wanted = String(initialMealType || '').trim().toLowerCase();
+        return Boolean(wanted) && getMealTypes(t).some((o) => o.value === wanted);
+    });
     const [verCuando, setVerCuando] = useState(false);
     const [hecho, setHecho] = useState(null);
     // los ejemplos de la caja van cambiando: enseñan qué se puede escribir sin leer instrucciones
@@ -277,6 +284,11 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
 
     const registrar = async () => {
         if (!lines.length || saving || borradorAbierto) return;
+        if (faltaElegirComida) {   // [P1-PLAN-LOTE-1171]
+            setVerCuando(true);
+            toast.info(t('¿Qué comida fue? Elígela antes de guardar.'));
+            return;
+        }
         setSaving(true);
         try {
             const currentSessionId = safeLocalStorageGet('mealfit_current_session', null);
@@ -429,7 +441,9 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     const esFrase = buscando && pareceFrase(query);
     const mealTypeOptions = [...getMealTypes(t), getMealTypeExtra(t)];
     const opcionesDia = _getDayOptionsCon(t, initialDaysAgo);
-    const nombreComida = mealTypeOptions.find((o) => o.value === mealType)?.label || mealType;
+    const faltaElegirComida = daysAgo > 0 && !tipoElegido;   // [P1-PLAN-LOTE-1171]
+    const nombreComida = faltaElegirComida ? t('Elige la comida')
+        : (mealTypeOptions.find((o) => o.value === mealType)?.label || mealType);
     const nombreDia = opcionesDia.find((o) => o.value === daysAgo)?.label || '';
     // [P1-PLAN-LOTE-1147] el anillo del plato: cuánto de sus calorías viene de cada macro
     const anillo = useMemo(() => {
@@ -486,7 +500,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                         <div id="lm-cuando" className={styles.cuando}>
                             <section className={styles.section} aria-labelledby="lm-cual">
                                 <h3 id="lm-cual" className={styles.sectionTitle}>{t('¿Qué comida es?')}</h3>
-                                <Chips label={t('Tipo de comida')} options={mealTypeOptions} value={mealType} onChange={setMealType} />
+                                <Chips label={t('Tipo de comida')} options={mealTypeOptions} value={faltaElegirComida ? null : mealType}
+                                    onChange={(v) => { setMealType(v); setTipoElegido(true); }} />
                                 {mealType === getMealTypeExtra(t).value && (
                                     <p className={styles.hint}>{t('Extra: un antojo o picoteo fuera de tus comidas. Cuenta igual.')}</p>
                                 )}
@@ -494,6 +509,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                             <section className={styles.section} aria-labelledby="lm-dia">
                                 <h3 id="lm-dia" className={styles.sectionTitle}>{t('¿Cuándo?')}</h3>
                                 <Chips label={t('Día')} options={_getDayOptionsCon(t, initialDaysAgo)} value={daysAgo} onChange={setDaysAgo} />
+                                {faltaElegirComida && <p className={styles.hint}>{t('¿Qué comida fue? Elígela antes de guardar.')}</p>}
                             </section>
                         </div>
                     )}
@@ -522,7 +538,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                     <X size={18} strokeWidth={2.5} aria-hidden="true" />
                                 </button>
                             ) : typeof onScan === 'function' && (
-                                <button type="button" className={`${styles.cajaBoton} ${styles.cajaCamara}`} onClick={() => onScan({ mealType, daysAgo, borrador: borradorActual() })}
+                                <button type="button" className={`${styles.cajaBoton} ${styles.cajaCamara}`} onClick={() => onScan({ mealType: faltaElegirComida ? undefined : mealType, daysAgo, borrador: borradorActual() })}
                                     aria-label={t('Escanear con foto')} title={t('Escanear con foto')}>
                                     <Camera size={20} strokeWidth={2.25} aria-hidden="true" />
                                 </button>

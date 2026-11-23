@@ -791,6 +791,9 @@ const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo 
     // [P1-PLAN-LOTE-382] la comida que trae el componedor («Comí otra cosa» en el Almuerzo), si no la de la hora
     const comidaInicial = () => (_getMealTypes((s) => s).some((o) => o.value === initialMealType) ? initialMealType : _guessMealType());
     const [mealType, setMealType] = useState(comidaInicial);
+    // [P1-PLAN-LOTE-1171 · 2026-11-23] la comida «por la hora» solo vale para HOY; para otro día la elige él
+    const tipoInicialElegido = () => _getMealTypes((s) => s).some((o) => o.value === initialMealType);
+    const [tipoElegido, setTipoElegido] = useState(tipoInicialElegido);
     // [P1-PLAN-LOTE-106] el día de la comida: 0 = hoy · 1 = ayer · 2 = antier
     const [daysAgo, setDaysAgo] = useState(() => normalizarDiasAtras(initialDaysAgo));
     // [P1-PLAN-LOTE-1155] la comida y el día en UNA línea («Cena · Hoy — Cambiar»); los chips, al tocarla
@@ -889,6 +892,7 @@ const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo 
             setGuardando(false);
             setError(null);
             setMealType(comidaInicial());
+            setTipoElegido(tipoInicialElegido());
             setDaysAgo(normalizarDiasAtras(initialDaysAgo));
             setDescontarNevera(true);
             setViewfinderOpen(false);
@@ -1076,6 +1080,7 @@ const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo 
         if (platos.length !== 1 || !platos[0].destino) return;
         const { id, destino } = platos[0];
         setMealType(destino.mealType);
+        setTipoElegido(true);   // [P1-PLAN-LOTE-1171] la eligió en la tarjeta
         setDaysAgo(destino.daysAgo);
         setPlatos((prev) => prev.map((x) => (x.id === id ? conDestinoPropio(x, null) : x)));
     }, [platos]);
@@ -1180,6 +1185,11 @@ const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo 
     const registrar = useCallback(async () => {
         const porGuardar = platosRef.current.filter((p) => p.estado === 'listo' && !p.guardado);
         if (!porGuardar.length || guardando || calculandoRef.current) return;   // [P1-PLAN-LOTE-380]
+        if (platosRef.current.length === 1 && daysAgo > 0 && !tipoElegido) {   // [P1-PLAN-LOTE-1171]
+            setVerCuando(true);
+            setError(t('¿Qué comida fue? Elígela antes de guardar.'));
+            return;
+        }
         const sinNombre = porGuardar.find((p) => !String(p.nombre || '').trim());
         if (sinNombre) {
             setAbierto(sinNombre.id);
@@ -1311,7 +1321,7 @@ const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo 
             descripcion ? { description: descripcion } : undefined
         );
         onClose();
-    }, [guardando, _neveraOn, descontarNevera, userId, mealType, daysAgo, neveraConCosas, onClose, t, tn, _ponerPlato]);
+    }, [guardando, _neveraOn, descontarNevera, userId, mealType, daysAgo, tipoElegido, neveraConCosas, onClose, t, tn, _ponerPlato]);
 
     const handleOverlayClick = useCallback((e) => {
         if (e.target === e.currentTarget && !isBusy) salir();
@@ -1654,7 +1664,7 @@ const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo 
                                     disabled={guardando} onClick={() => setVerCuando((v) => !v)}>
                                     <span className={styles.cuandoIcono} aria-hidden="true"><Utensils size={15} strokeWidth={2.25} /></span>
                                     <span className={styles.cuandoTexto}>
-                                        <b>{_getMealTypes(t).find((o) => o.value === mealType)?.label || t('Elige la comida')}</b>
+                                        <b>{(daysAgo > 0 && !tipoElegido) ? t('Elige la comida') : (_getMealTypes(t).find((o) => o.value === mealType)?.label || t('Elige la comida'))}</b>
                                         {' · '}{_getDayOptionsCon(t, initialDaysAgo).find((o) => o.value === daysAgo)?.label || nombreDelDiaAtras(t, daysAgo)}
                                     </span>
                                     {' '}<span className={styles.cuandoCambiar}>{t('Cambiar')}</span>
@@ -1667,8 +1677,8 @@ const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo 
                                     <Chips
                                         label={t('Tipo de comida')}
                                         options={_getMealTypes(t)}
-                                        value={mealType}
-                                        onChange={setMealType}
+                                        value={(daysAgo > 0 && !tipoElegido) ? null : mealType}
+                                        onChange={(v) => { setMealType(v); setTipoElegido(true); }}
                                         disabled={guardando}
                                     />
                                 </section>

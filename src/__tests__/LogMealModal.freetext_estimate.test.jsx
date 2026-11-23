@@ -111,7 +111,7 @@ describe('foto desde el componedor', () => {
         expect(tp).toContain("{t('Registrar comida')}");
         const lm = src('src/components/dashboard/LogMealModal.jsx');
         // [P1-PLAN-LOTE-1147] la foto es un botón de la caja, no una pestaña
-        expect(lm).toContain("className={`${styles.cajaBoton} ${styles.cajaCamara}`} onClick={() => onScan({ mealType, daysAgo, borrador: borradorActual() })}");
+        expect(lm).toContain("className={`${styles.cajaBoton} ${styles.cajaCamara}`} onClick={() => onScan({ mealType: faltaElegirComida ? undefined : mealType, daysAgo, borrador: borradorActual() })}");
         expect(lm).not.toContain('className={styles.modes}');
         expect(lm).not.toContain("t('Foto')");
     });
