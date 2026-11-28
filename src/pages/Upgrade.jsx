@@ -442,6 +442,7 @@ const Upgrade = () => {
 
         const cardClass = [
             styles.planCard,
+            isFree && styles.planCardFree,
             isCurrent && styles.planCardCurrent,
             isPopular && styles.planCardPopular,
         ].filter(Boolean).join(' ');
@@ -458,7 +459,7 @@ const Upgrade = () => {
                     {isNativeIap ? (
                         isFree ? (
                             <>
-                                <span className={styles.planPriceCurrency}>USD$</span>
+                                <span className={styles.planPriceCurrency}>$</span>
                                 <span className={styles.planPriceAmount}>0</span>
                             </>
                         ) : (
@@ -508,7 +509,9 @@ const Upgrade = () => {
                 <ul className={styles.planFeatures}>
                     {getIncluye(tier).map(({ icon: Icono, texto }) => (
                         <li key={texto} className={styles.planFeatureItem}>
-                            <Icono size={16} strokeWidth={2.25} className={styles.planFeatureIcon} aria-hidden="true" />
+                            <span className={styles.planFeatureIconWrap} aria-hidden="true">
+                                <Icono size={14} strokeWidth={2.25} />
+                            </span>
                             <span>{texto}</span>
                         </li>
                     ))}
@@ -549,10 +552,18 @@ const Upgrade = () => {
             )}
 
             <header className={styles.stickyHeader}>
-                <Button variant="text" size="sm" onClick={() => navigate('/dashboard')} aria-label={t('Volver al dashboard')}>
+                <Button
+                    variant="text"
+                    size="sm"
+                    className={styles.headerBackBtn}
+                    onClick={() => navigate('/dashboard')}
+                    aria-label={t('Volver al dashboard')}
+                >
                     <ArrowLeft size={18} aria-hidden="true" />
                     {t('Volver')}
                 </Button>
+                <span className={styles.headerTitle}>{t('Planes')}</span>
+                <span aria-hidden="true" />
             </header>
 
             {/* --- HERO --- */}
