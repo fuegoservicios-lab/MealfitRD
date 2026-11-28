@@ -102,7 +102,9 @@ describe('lote 162 · los interruptores de avisos no viajan en el formulario', (
         const cuerpo = S.slice(i, i + 1600);
         expect(cuerpo).toContain('body: JSON.stringify({ health_profile: { [clave]: valor } }),');
         expect(cuerpo).toContain('if (!res.ok) throw new Error');
-        expect(cuerpo.indexOf('poner(!valor);')).toBeLessThan(cuerpo.indexOf("toast.success(valor ? t('Avisos activados.')"));
+        expect(cuerpo).toContain('poner(!valor);');
+        // [P1-PLAN-LOTE-1181] ya no hay aviso de «activados/desactivados»: el interruptor ya lo dice
+        expect(cuerpo).not.toContain("toast.success(valor ? t('Avisos activados.')");
         expect(cuerpo).not.toContain('safeUpdateHealthProfile(');
     });
 });

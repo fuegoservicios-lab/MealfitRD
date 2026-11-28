@@ -18,6 +18,8 @@ import { render, screen } from './utils/test-utils';
 vi.mock('../config/platform', () => ({
     isNativeApp: vi.fn(() => false),
     nativeHidesCommerce: vi.fn(() => false),
+    nativeIapAvailable: vi.fn(() => false),
+    canShowUpgrade: vi.fn(() => true),
     appleSignInEnabled: vi.fn(() => false),
     nativeHidesOAuthRedirect: vi.fn(() => false),
 }));
@@ -36,6 +38,8 @@ const read = (rel) => fs.readFileSync(path.join(SRC, rel), 'utf-8');
 
 beforeEach(() => {
     platform.nativeHidesCommerce.mockReturnValue(false);
+    platform.nativeIapAvailable.mockReturnValue(false);
+    platform.canShowUpgrade.mockReturnValue(true);
     platform.appleSignInEnabled.mockReturnValue(false);
     // [P2-I18N-ROJO-AMBIENTE-HACE-INVISIBLE-EL-ROJO-DEL-GATE · 2026-08-23] `PaymentModal`
     // LANZA a propósito sin `VITE_PAYPAL_CLIENT_ID` (P3-NEW-PAYPAL-FALLBACK: mejor modal roto
@@ -95,12 +99,12 @@ describe('[P1-IOS-NATIVE-SHELL] B. parser — cada superficie consume el ÚNICO 
         expect(offenders).toEqual(['config/platform.js']);
     });
 
-    it('App.jsx: entrada por modo y comercio bloqueado bajo NATIVE_NO_COMMERCE', () => {
+    it('App.jsx: entrada por modo y comercio bloqueado bajo NATIVE_NO_COMMERCE (y upgrade gateado por canShowUpgrade)', () => {
         const src = read('App.jsx');
-        expect(src).toMatch(/import \{ nativeHidesCommerce \} from '\.\/config\/platform'/);
+        expect(src).toMatch(/import \{ nativeHidesCommerce, canShowUpgrade \} from '\.\/config\/platform'/);
         expect(src).toMatch(/const NATIVE_NO_COMMERCE = nativeHidesCommerce\(\)/);
         expect(src).toMatch(/\(IS_APP_HOST \|\| NATIVE_NO_COMMERCE\)\s*\?\s*<AppEntryRedirect \/>/);
-        expect(src).toMatch(/path="\/dashboard\/upgrade" element=\{\s*NATIVE_NO_COMMERCE\s*\?\s*<Navigate to="\/dashboard" replace \/>/);
+        expect(src).toMatch(/path="\/dashboard\/upgrade" element=\{\s*!canShowUpgrade\(\)\s*\?\s*<Navigate to="\/dashboard" replace \/>/);
         expect(src).toMatch(/path="\/precios" element=\{\s*NATIVE_NO_COMMERCE\s*\?\s*<Navigate to="\/dashboard" replace \/>/);
     });
 
@@ -156,38 +160,35 @@ describe('[P1-IOS-NATIVE-SHELL] B. parser — cada superficie consume el ÚNICO 
             .not.toMatch(/lazy\(\(\) => import\('\.\/pages\/AboutPage'\)\)/);
     });
 
-    it('Dashboard: el badge del tier NO es un botón a /dashboard/upgrade en nativo', () => {
+    it('Dashboard: el badge del tier NO es un botón a /dashboard/upgrade cuando !canShowUpgrade()', () => {
         const src = read('pages/Dashboard.jsx');
-        // El onClick del badge pasa por el gate: en nativo no navega a ningún sitio.
-        expect(src).toMatch(/nativeHidesCommerce\(\)\s*\?\s*undefined\s*:\s*\(\) => navigate\('\/dashboard\/upgrade'\)/);
+        expect(src).toMatch(/import \{ nativeHidesCommerce, canShowUpgrade \} from '\.\.\/config\/platform'/);
+        // El onClick del badge pasa por el gate: sin IAP nativo no navega a ningún sitio.
+        expect(src).toMatch(/!canShowUpgrade\(\)\s*\?\s*undefined\s*:\s*\(\) => navigate\('\/dashboard\/upgrade'\)/);
         // Y el texto «Ver planes» tampoco se pinta.
-        expect(src).toMatch(/!nativeHidesCommerce\(\) && \(\s*<span className="plan-tier-badge-cta">\{t\('Ver planes'\)\}<\/span>/);
-        // [2026-08-22, visto en el build 8 del iPhone] La flecha › seguía pintada: un
-        // chip «GRATUITO ›» que no va a ningún sitio invita a pulsar y, para un revisor,
-        // sugiere un upgrade escondido. En nativo el chip es una etiqueta: sin flecha.
-        expect(src).toMatch(/!nativeHidesCommerce\(\) && \(\s*<ChevronRight[\s\S]{0,200}plan-tier-badge-chevron/);
+        expect(src).toMatch(/canShowUpgrade\(\) && \(\s*<span className="plan-tier-badge-cta">\{t\('Ver planes'\)\}<\/span>/);
+        // [2026-08-22, visto en el build 8 del iPhone] La flecha › seguía pintada.
+        expect(src).toMatch(/canShowUpgrade\(\) && \(\s*<ChevronRight[\s\S]{0,200}plan-tier-badge-chevron/);
     });
 
-    it('Plan: el paywall del 402 no ofrece «Mejorar plan» ni navega a upgrade en nativo', () => {
+    it('Plan: el paywall del 402 no ofrece «Mejorar plan» ni navega a upgrade cuando !canShowUpgrade()', () => {
         const src = read('pages/Plan.jsx');
-        // Hay DOS `quota_exceeded` en Plan.jsx: el primero solo PROPAGA el error
-        // (no pinta nada); el que vende es el que monta el toast. Se ancla a ese.
         const i = src.indexOf('toast.error(t("Límite de créditos alcanzado")');
         expect(i, 'no se encontró el toast del paywall').toBeGreaterThan(0);
         const bloque = src.slice(i - 400, i + 1200);
-        expect(bloque).toMatch(/nativeHidesCommerce\(\)/);
-        // La acción del toast y el navigate quedan fuera en nativo.
-        expect(bloque).toMatch(/action:\s*nativeHidesCommerce\(\)\s*\?\s*undefined/);
-        expect(bloque).toMatch(/if \(!nativeHidesCommerce\(\)\) navigate\('\/dashboard\/upgrade'/);
+        expect(bloque).toMatch(/canShowUpgrade\(\)/);
+        // La acción del toast y el navigate quedan fuera cuando !canShowUpgrade().
+        expect(bloque).toMatch(/action:\s*!canShowUpgrade\(\)\s*\?\s*undefined/);
+        expect(bloque).toMatch(/if \(canShowUpgrade\(\)\) navigate\('\/dashboard\/upgrade'/);
     });
 
     it('DashboardLayout: candado del nav, label y handlers del AccountMenu pasan por el gate', () => {
         const src = read('components/dashboard/DashboardLayout.jsx');
-        expect(src).toMatch(/import \{ nativeHidesCommerce \} from '\.\.\/\.\.\/config\/platform'/);
-        expect(src).toMatch(/to=\{nativeHidesCommerce\(\) \? '\/dashboard' : '\/dashboard\/upgrade'\}/);
-        expect(src).toMatch(/viewPlansLabel=\{nativeHidesCommerce\(\) \? null/);
-        expect(src).toMatch(/onViewPlans=\{nativeHidesCommerce\(\) \? undefined/);
-        expect(src).toMatch(/onViewPlansHover=\{nativeHidesCommerce\(\) \? undefined/);
+        expect(src).toMatch(/import \{ nativeHidesCommerce, canShowUpgrade \} from '\.\.\/\.\.\/config\/platform'/);
+        expect(src).toMatch(/to=\{canShowUpgrade\(\) \? '\/dashboard\/upgrade' : '\/dashboard'\}/);
+        expect(src).toMatch(/viewPlansLabel=\{!canShowUpgrade\(\) \? null/);
+        expect(src).toMatch(/onViewPlans=\{!canShowUpgrade\(\) \? undefined/);
+        expect(src).toMatch(/onViewPlansHover=\{!canShowUpgrade\(\) \? undefined/);
     });
 
     it('AccountMenu: el botón de planes está condicionado a la EXISTENCIA del handler', () => {
@@ -195,12 +196,10 @@ describe('[P1-IOS-NATIVE-SHELL] B. parser — cada superficie consume el ÚNICO 
         expect(src).toMatch(/\{typeof onViewPlans === 'function' && \(/);
     });
 
-    it('Settings: «Suscripción» sale del registro de secciones en nativo (ids Y config)', () => {
+    it('Settings: «Suscripción» sale del registro de secciones sin upgrade disponible (ids Y config)', () => {
         const src = read('pages/Settings.jsx');
-        // [P1-PLAN-LOTE-162] Settings importa además `nativePlatform` (solo para el COPY del permiso bloqueado en Android);
-        // lo que se vigila sigue siendo lo mismo: el comercio lo decide el gate único, importado de platform.
         expect(src).toMatch(/import \{ nativeHidesCommerce(, \w+)* \} from '\.\.\/config\/platform'/);
-        expect(src).toMatch(/\.\.\.\(nativeHidesCommerce\(\) \? \[\] : \['subscription'\]\)/);
+        expect(src).toMatch(/\.\.\.\(canShowUpgrade\(\) \? \['subscription'\] : \[\]\)/);
         expect(src).toMatch(/\]\.filter\(s => SECTION_IDS\.includes\(s\.id\)\)/);
     });
 

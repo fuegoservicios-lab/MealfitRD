@@ -7,9 +7,9 @@
 // tarjetas Bento con minigráficas y series interactivas (lectura al pasar el cursor), avisos con iconos de gravedad y
 // clave estable al refrescar, teclado completo en pestañas y carga con esqueletos.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import {
-    AlertOctagon, AlertTriangle, ArrowLeft, ArrowUpRight, CheckCircle2, ChevronDown, Clock, Info, RefreshCw,
+    AlertOctagon, AlertTriangle, ArrowUpRight, CheckCircle2, ChevronDown, Clock, Info, RefreshCw,
 } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { CABECERA_ACCION } from '../utils/adminCuentas';
@@ -29,7 +29,6 @@ const COOLDOWN_FOCO_MS = 5000;
 // [I18N-EXEMPT: panel interno del dueño, solo español]
 const TEXTOS = {
     titulo: 'Panel de administración',
-    volver: 'Volver a la app',
     periodo: 'Periodo',
     dias: (d) => `${d} días`,
     cargando: 'Cargando…',
@@ -662,10 +661,6 @@ function AdminPanel() {
                     )}
                     {vista === 'cuentas' && <p className={styles.sub}>{TEXTOS.subCuentas}</p>}
                 </div>
-                <Link to="/dashboard" className={styles.volver}>
-                    <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
-                    {TEXTOS.volver}
-                </Link>
             </header>
 
             <div className={styles.barraFija}>

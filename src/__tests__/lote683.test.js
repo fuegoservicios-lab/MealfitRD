@@ -15,7 +15,7 @@ vi.mock('../config/platform', async (orig) => ({
     isNativeApp: () => plataforma.nombre !== 'web',
 }));
 
-import { ReconocimientoNativo, crearSintesisNativa, errorWebDesdeAndroid, vozNativaDisponible } from '../utils/vozNativa';
+import { ReconocimientoNativo, crearSintesisNativa, errorWebDesdeAndroid, precalentarReconocimientoNativo, vozNativaDisponible } from '../utils/vozNativa';
 import { dictadoDisponible, motorDeDictado } from '../utils/dictado';
 import { elegirVoz, sintesisDisponible } from '../utils/vozDelCoach';
 
@@ -81,6 +81,12 @@ describe('elegir la voz nativa: solo en Android y solo si el binario trae los do
         expect(motorDeDictado(win)).toBe(ReconocimientoNativo);
         expect(dictadoDisponible({ win, esNativa: true, userAgent: 'Mozilla/5.0 (Linux; Android 14)' })).toBe(true);
         expect(sintesisDisponible(win)).toBe(true);
+    });
+
+    it('precalentarReconocimientoNativo no toca el plugin al arrancar en Android', async () => {
+        plataforma.nombre = 'android';
+        plataforma.plugins = new Set(['SpeechRecognition']);
+        expect(await precalentarReconocimientoNativo()).toBe(false);
     });
 });
 
@@ -191,6 +197,44 @@ describe('ReconocimientoNativo: cancelar a mitad del arranque', () => {
         await p.oyentes.listeningState({ state: 'stopped', reason: 'silence' });
         expect(p.enganches).toHaveLength(3);
         for (const h of p.enganches) expect(h.remove).toHaveBeenCalled();
+    });
+
+    it('traduce códigos de iOS, espera forceStop pendiente al reabrir y evita error duplicado al fallar start()', async () => {
+        expect(errorWebDesdeAndroid('UNSUPPORTED_LOCALE')).toBe('language-not-supported');
+        expect(errorWebDesdeAndroid('MICROPHONE_PERMISSION_DENIED')).toBe('not-allowed');
+        expect(errorWebDesdeAndroid('KAFASSISTANTERRORDOMAIN_1110')).toBe('no-speech');
+        expect(errorWebDesdeAndroid('KAFASSISTANTERRORDOMAIN_216')).toBe('aborted');
+
+        let liberarForceStop;
+        const p = reconocedorFalso();
+        p.forceStop.mockImplementationOnce(() => new Promise((r) => { liberarForceStop = r; }));
+        const r1 = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: p }) });
+        r1.start();
+        await esperar(); await esperar(); await esperar();
+        r1.abort();
+
+        const r2 = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: p }) });
+        r2.start();
+        await esperar(); await esperar();
+        expect(p.start).toHaveBeenCalledTimes(1); // r2 espera a que termine forceStop() de r1
+
+        liberarForceStop();
+        await esperar(); await esperar(); await esperar();
+        expect(p.start).toHaveBeenCalledTimes(2);
+
+        const pErr = reconocedorFalso();
+        pErr.start.mockImplementationOnce(async () => {
+            pErr.oyentes.error?.({ code: 'UNSUPPORTED_LOCALE', message: 'Unsupported locale' });
+            throw new Error('Unsupported locale: es-DO');
+        });
+        const errores = [];
+        const r3 = new ReconocimientoNativo({ cargar: async () => ({ SpeechRecognition: pErr }) });
+        r3.onerror = (e) => errores.push(e.error);
+        r3.onend = vi.fn();
+        r3.start();
+        await esperar(); await esperar(); await esperar();
+        expect(errores).toEqual(['language-not-supported']);
+        expect(r3.onend).toHaveBeenCalledTimes(1);
     });
 });
 

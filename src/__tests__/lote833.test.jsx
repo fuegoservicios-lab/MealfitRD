@@ -489,8 +489,8 @@ describe('[833] /admin · Cuentas: la lista de todas las cuentas', () => {
         const t = await tabla();
         const ana = filaDe(t, 'ana@correo.com');
         const rotulos = [...ana.querySelectorAll('td[data-etiqueta]')].map((td) => td.getAttribute('data-etiqueta'));
-        expect(rotulos).toEqual(['Última actividad', 'Comidas', 'Planes', 'Mensajes al coach', 'Escaneos',
-            'Gasto de IA (30 días)', 'Días activos continuos', 'Registro']);
+        expect(rotulos).toEqual(['Último uso', 'Comidas', 'Planes', 'Mensajes al coach', 'Escaneos',
+            'Gasto de IA (30 días)', 'Días activos continuos', 'Cuenta creada']);
         const css = readFileSync(resolve(process.cwd(), 'src/pages/AdminCuentasLista.module.css'), 'utf8');
         const movil = css.slice(css.indexOf('@media (max-width: 640px)'));
         expect(css.indexOf('@media (max-width: 640px)')).toBeGreaterThan(-1);

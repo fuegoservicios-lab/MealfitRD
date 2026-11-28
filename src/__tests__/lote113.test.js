@@ -11,7 +11,7 @@ const toast = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error:
 vi.mock('sonner', () => ({ toast }));
 const plugin = vi.hoisted(() => ({
     ready: vi.fn(), getVersionCode: vi.fn(), getCurrentBundle: vi.fn(), getNextBundle: vi.fn(),
-    getBundles: vi.fn(), downloadBundle: vi.fn(), setNextBundle: vi.fn(), reset: vi.fn(),
+    getBundles: vi.fn(), downloadBundle: vi.fn(), setNextBundle: vi.fn(), reset: vi.fn(), reload: vi.fn(),
 }));
 vi.mock('@capawesome/capacitor-live-update', () => ({ LiveUpdate: plugin }));
 
@@ -33,11 +33,14 @@ beforeEach(() => {
 });
 
 describe('el OTA se deja ver', () => {
-    it('avisa UNA vez por paquete preparado', async () => {
+    it('avisa UNA vez por paquete preparado con botón Actualizar ahora', async () => {
         expect(await revisarOta(plugin)).toBe('preparado');
         expect(toast).toHaveBeenCalledTimes(1);
         expect(toast.mock.calls[0][0]).toBe('Actualización lista');
-        expect(toast.mock.calls[0][1].description).toBe('Cierra la app del todo y vuelve a abrirla para aplicarla.');
+        expect(toast.mock.calls[0][1].description).toBe('Toca «Actualizar ahora» o se aplicará sola al volver a la app.');
+        expect(toast.mock.calls[0][1].action.label).toBe('Actualizar ahora');
+        toast.mock.calls[0][1].action.onClick();
+        await vi.waitFor(() => expect(plugin.reload).toHaveBeenCalledTimes(1));
         expect(await revisarOta(plugin)).toBe('preparado');
         expect(toast).toHaveBeenCalledTimes(1);
     });
@@ -48,6 +51,23 @@ describe('el OTA se deja ver', () => {
         window.dispatchEvent(new Event('mealfit:app-ready'));
         await vi.waitFor(() => expect(toast.success).toHaveBeenCalledWith('App actualizada', { duration: 4000 }));
         expect(localStorage.getItem('mf_ota_visto')).toBe('20260919-080000');
+    });
+
+    it('auto-aplica el paquete preparado al volver del segundo plano tras ≥10s', async () => {
+        expect(await revisarOta(plugin)).toBe('preparado');
+        expect(plugin.reload).not.toHaveBeenCalled();
+        let now = 1_000_000;
+        const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now);
+        try {
+            Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+            document.dispatchEvent(new Event('visibilitychange'));
+            now += 15_000;
+            Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+            document.dispatchEvent(new Event('visibilitychange'));
+            await vi.waitFor(() => expect(plugin.reload).toHaveBeenCalledTimes(1));
+        } finally {
+            nowSpy.mockRestore();
+        }
     });
 
     it('revisa al volver a la app con un minuto de calma, no con una hora', () => {

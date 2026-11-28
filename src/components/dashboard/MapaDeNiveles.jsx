@@ -31,12 +31,12 @@ import styles from './MapaDeNiveles.module.css';
 
 const UMBRALES = ESCALERA.map((e) => e.desde);
 const UMBRALES_PUNTOS = RANGOS_PUNTOS.map(([, desde]) => desde);   // [1161]
-const ICONO_MUNDO = { bronce: Medal, plata: Medal, oro: Trophy, platino: Crown, diamante: Gem };
+const ICONO_MUNDO = { bronce: Medal, plata: Medal, oro: Trophy, platino: Crown, diamante: Gem, maestro: Crown };
 export const CLAVE_CELEBRADAS = 'mealfit_mapa_celebradas';
 const AYUDA_MS = 4500;
 const CELEBRACION_MS = 3600;
 const ANCLA = 0.4;
-const BAJO_EL_MARCADOR = 52;   // alto del marcador flotante (pastillas de 30 px a 10 px del borde) + aire
+const BAJO_EL_MARCADOR = 58;   // alto del marcador flotante (pastillas de 30 px a 10 px del borde) + aire [P1-MAPA-MOVIL: la tarjeta rozaba el marcador]
 const AIRE_ABAJO = 28;          // [1162] lo que necesita la tarjeta de abajo para no quedar bajo la sombra del borde
 const MITAD_HOY = 86;           // [1162] media fila de hoy (74) + el cartel «Estás aquí» que asoma por encima
 
@@ -47,7 +47,7 @@ const ETIQUETA = (t) => ({
     vacio: t('Sin registro'),
     futuro: t('Bloqueado'),
 });
-const NOMBRE_MUNDO = (t) => ({ bronce: t('Bronce'), plata: t('Plata'), oro: t('Oro'), platino: t('Platino'), diamante: t('Diamante') });
+const NOMBRE_MUNDO = (t) => ({ bronce: t('Bronce'), plata: t('Plata'), oro: t('Oro'), platino: t('Platino'), diamante: t('Diamante'), maestro: t('Maestro') });
 
 const leerCelebradas = () => {
     try {
@@ -265,6 +265,21 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
         onElegir(hoyISO);
         irA(yHoy, true, topeHoy, fondoHoy);
     };
+    const mejorSemanaFila = useMemo(() => {
+        if (!juego?.puntos?.size) return null;
+        let mejor = null;
+        for (const f of filas) {
+            if (f.tipo !== 'trofeo') continue;
+            const p = Number(juego.puntos.get(f.semana?.numero)) || 0;
+            if (p > 0 && (!mejor || p > mejor.pts)) mejor = { fila: f, pts: p };
+        }
+        return mejor ? mejor.fila : null;
+    }, [filas, juego]);
+    const irAMejorSemana = () => {
+        if (!mejorSemanaFila) return;
+        triggerMobileHaptic('light');
+        irA(mejorSemanaFila.y, true, mejorSemanaFila.y - mejorSemanaFila.alto / 2, mejorSemanaFila.y + mejorSemanaFila.alto / 2);
+    };
 
     // Las pastillas del marcador explican lo que cuentan (una a la vez; se cierra sola o al volver a tocar).
     const [ayuda, setAyuda] = useState(null);
@@ -279,7 +294,9 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
         mundo: juego
             ? (sigMundo
                 ? t('Tu rango es tu mundo. Te faltan {n} pts para {siguiente}.', { n: formatNumber(sigMundo[1] - (mapa.puntos || 0)), siguiente: nombres[sigMundo[0]] })
-                : t('Llegaste al último mundo: Diamante.'))
+                : (rangoHud?.clave === 'maestro'
+                    ? t('Llegaste al último mundo: Maestro.')
+                    : t('Llegaste a Diamante; completa semanas perfectas y racha larga para Maestro.')))
             : escalera.siguiente
             ? tn(escalera.faltan, 'Tu rango es tu mundo. Te falta {n} estrella para {siguiente}.', 'Tu rango es tu mundo. Te faltan {n} estrellas para {siguiente}.', { n: escalera.faltan, siguiente: nombres[escalera.siguiente.clave] })
             : t('Llegaste al último mundo: Diamante.'),
@@ -319,9 +336,9 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
         onCompartir({ nivelHoy: mapa.nivelHoy, estrellas: mapa.estrellas, racha: mapa.racha, mundo: claveMundo(mapa.mundo), dias });
     };
 
-    const mundoHoy = claveMundo(mapa.mundo);
     // [1162] con el juego por puntos el marcador dice el rango CON división, igual que «Tu semana» («Plata II»)
     const rangoHud = juego ? (juego.rango || rangoPorPuntos(juego.totalPuntos ?? mapa.puntos ?? 0)) : null;
+    const mundoHoy = juego && rangoHud?.clave === 'maestro' ? 'maestro' : claveMundo(mapa.mundo);
     const chip = (cual, clase, contenido, titulo) => (
         <button type="button" className={`${styles.hudChip} ${clase}`} title={titulo}
             aria-expanded={ayuda === cual} aria-controls="mapa-ayuda" onClick={() => alternarAyuda(cual)}>
@@ -447,10 +464,17 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                 const activo = d.iso === selected;
                                 const bloqueado = d.estado === 'futuro';
                                 const salvado = d.estado === 'vacio' && Boolean(juego?.escudosUsados?.has?.(d.iso));
+                                const ptsDia = juego?.diasPuntos?.get?.(d.iso) || 0;
+                                // [P1-MAPA-MOVIL] hoy, aún abierto bajo la meta, NO lleva la insignia ↓: el día no cerró (y chocaba con el cartel)
+                                const enCurso = d.esHoy && d.estado === 'bajo';
+                                const esDiaPerfecto = Boolean(juego?.diasPerfectos?.has?.(d.iso));
                                 const fecha = mediodiaDe(d.iso);
                                 const celebrado = celebracion?.tipo === 'dia' && celebracion.iso === d.iso;
                                 const detalle = r && (r.meals_count || 0) > 0
                                     ? ` · ${t('{kcal} kcal · {n} comida(s)', { kcal: formatNumber(Math.round(r.calories || 0)), n: r.meals_count })}`
+                                    : '';
+                                const ptsAria = ptsDia > 0
+                                    ? ` · +${t('{n} pts', { n: formatNumber(ptsDia) })}${esDiaPerfecto ? ` · ${t('Día perfecto')}` : ''}`
                                     : '';
                                 return (
                                     <li key={f.clave} className={styles.nivelFila} style={pos}>
@@ -459,10 +483,10 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                         )}
                                         <button
                                             type="button"
-                                            className={`${styles.nivel} ${styles[`nivel_${d.estado}`]} ${d.esHoy ? styles.nivelHoy : ''} ${activo ? styles.nivelActivo : ''} ${celebrado ? styles.nivelCelebrado : ''} ${salvado ? styles.nivelEscudo : ''}`}
+                                            className={`${styles.nivel} ${styles[`nivel_${d.estado}`]} ${d.esHoy ? styles.nivelHoy : ''} ${d.esHoy && d.estado === 'bajo' ? styles.nivelCurso : ''} ${activo ? styles.nivelActivo : ''} ${celebrado ? styles.nivelCelebrado : ''} ${salvado ? styles.nivelEscudo : ''}`}
                                             disabled={bloqueado}
                                             aria-pressed={activo}
-                                            aria-label={`${fechaLarga(d.iso)} · ${t('Día {n}', { n: d.nivel })} · ${etiquetas[d.estado]}${salvado ? ` · ${t('Escudo protegió tu racha')}` : ''}${detalle}`}
+                                            aria-label={`${fechaLarga(d.iso)} · ${t('Día {n}', { n: d.nivel })} · ${etiquetas[d.estado]}${salvado ? ` · ${t('Escudo protegió tu racha')}` : ''}${ptsAria}${detalle}`}
                                             onClick={() => { if (!bloqueado) { triggerMobileHaptic('light'); onElegir(d.iso); } }}
                                         >
                                             {/* [1155] el número del día SIEMPRE a la vista; el estado, en una insignia (✓ en meta, ↓ bajo,
@@ -470,14 +494,24 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                                             <span className={styles.nivelCara} aria-hidden="true">
                                                 {bloqueado ? <Lock /> : fecha.getDate()}
                                             </span>
-                                            {(INSIGNIA[d.estado] || salvado) && (
+                                            {((INSIGNIA[d.estado] && !enCurso) || salvado) && (
                                                 <span className={`${styles.insignia} ${salvado ? styles.insignia_escudo : styles[`insignia_${d.estado}`]}`} aria-hidden="true">
                                                     {salvado ? <Shield strokeWidth={2.75} /> : INSIGNIA[d.estado]}
+                                                </span>
+                                            )}
+                                            {esDiaPerfecto && !bloqueado && (
+                                                <span className={styles.estrellaPerfecta} aria-hidden="true">
+                                                    <Star strokeWidth={2.5} />
                                                 </span>
                                             )}
                                         </button>
                                         <span className={`${styles.nivelPie} ${d.esHoy ? styles.nivelPieHoy : ''}`} aria-hidden="true">
                                             {d.esHoy ? t('Hoy') : formatDate(fecha, { weekday: 'short' })}
+                                            {ptsDia > 0 && (
+                                                <span className={`${styles.nivelPts} ${esDiaPerfecto ? styles.nivelPtsPerfecto : ''}`}>
+                                                    +{formatNumber(ptsDia)}
+                                                </span>
+                                            )}
                                         </span>
                                     </li>
                                 );
@@ -486,11 +520,21 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                     </div>
                 </div>
 
-                {lejosDeHoy && (
-                    <button type="button" className={styles.irAHoy} onClick={irAHoy}>
-                        <ArrowUp aria-hidden="true" strokeWidth={2.5} />
-                        {t('Ir a hoy')}
-                    </button>
+                {(lejosDeHoy || mejorSemanaFila) && (
+                    <div className={styles.mapaAtajos}>
+                        {/* [P1-MAPA-MOVIL] botones redondos de icono: con texto tapaban los niveles de la esquina */}
+                        {mejorSemanaFila && (
+                            <button type="button" className={styles.irAMejor} onClick={irAMejorSemana} aria-label={t('Mejor semana')} title={t('Mejor semana')}>
+                                <Trophy aria-hidden="true" strokeWidth={2.5} />
+                            </button>
+                        )}
+                        {lejosDeHoy && (
+                            <button type="button" className={styles.irAHoy} onClick={irAHoy} aria-label={t('Ir a hoy')} title={t('Ir a hoy')}>
+                                <ArrowUp aria-hidden="true" strokeWidth={2.5} />
+                                {t('Hoy')}
+                            </button>
+                        )}
+                    </div>
                 )}
 
                 {celebracion && (
@@ -514,6 +558,38 @@ export default function MapaDeNiveles({ inicioISO, hoyISO, selected, estadoDe, p
                     </button>
                 )}
             </div>
+
+            {juego && rangoHud && (
+                <div className={styles.rangoHudBar} role="status">
+                    <span className={`${styles.rangoHudMedalla} ${styles[`medalla_${rangoHud.clave}`] || ''}`} aria-hidden="true">
+                        <Trophy strokeWidth={2.5} />
+                    </span>
+                    <span className={styles.rangoHudCuerpo}>
+                        <span className={styles.rangoHudLinea}>
+                            <b className={styles.rangoHudActual}>
+                                {t('{n} pts', { n: formatNumber(juego.totalPuntos ?? juego.puntos?.total ?? mapa.puntos ?? 0) })}
+                            </b>
+                            {rangoHud.siguiente && (
+                                <span className={styles.rangoHudMeta}>
+                                    {t('{n} pts para {rango}', {
+                                        n: formatNumber(rangoHud.puntos_para_la_siguiente || 0),
+                                        rango: nombreDelRango(rangoHud.siguiente.clave, rangoHud.siguiente.division, t),
+                                    })}
+                                </span>
+                            )}
+                        </span>
+                        {/* [P1-MAPA-MOVIL] el avance hacia el siguiente rango, a la vista (antes solo se leía) */}
+                        {rangoHud.siguiente && Number.isFinite(Number(rangoHud.avance)) && (
+                            <progress
+                                className={styles.rangoHudProg}
+                                max={100}
+                                value={Math.round(Math.min(1, Math.max(0, Number(rangoHud.avance))) * 100)}
+                                aria-label={t('Avance hacia el siguiente rango')}
+                            />
+                        )}
+                    </span>
+                </div>
+            )}
 
             <ul className={styles.leyenda} aria-label={t('Leyenda')}>
                 {[['meta', t('En meta')], ['bajo', t('Bajo')], ['sobre', t('Sobre')], ['vacio', t('Sin registro')]].map(([e, rotulo]) => (
@@ -552,6 +628,8 @@ MapaDeNiveles.propTypes = {
     juego: PropTypes.shape({
         estrellas: PropTypes.instanceOf(Map),
         puntos: PropTypes.instanceOf(Map),
+        diasPuntos: PropTypes.instanceOf(Map),
+        diasPerfectos: PropTypes.instanceOf(Set),
         racha: PropTypes.number,
         escudosUsados: PropTypes.instanceOf(Set),
         totalPuntos: PropTypes.number,

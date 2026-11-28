@@ -46,8 +46,10 @@ android {
         // y borde a borde moderno con WindowInsetsControllerCompat sin android:navigationBarColor obsoleto.
         // [ANDROID-PLAY-SYMBOLS · 2026-11-19] 116: SYMBOL_TABLE extrae tabla de símbolos incluso de .so precompilados
         // de AndroidX/Capacitor (FULL exige secciones DWARF que esas librerías no traen).
-        versionCode 116
-        versionName "1.0.116"
+        // [ANDROID-PLAY-R8-VOZ-BACKUP · 2026-11-24] 117: reglas R8 completas (PermissionState + annotation + capgo/capawesome)
+        // y allowBackup="false" para evitar que Auto Backup restaure paquetes OTA dañados tras reinstalar.
+        versionCode 117
+        versionName "1.0.117"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

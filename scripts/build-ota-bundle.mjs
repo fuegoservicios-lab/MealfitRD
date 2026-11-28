@@ -53,6 +53,7 @@ export function construirManifiesto({ cfg, bundleId, zip }) {
         schema: 1,
         enabled: cfg.enabled,
         reset: cfg.reset,
+        mandatory: Boolean(cfg.mandatory),
         bundleId,
         url: `${OTA_BASE_URL}${bundleId}.zip`,
         checksum: createHash('sha256').update(zip).digest('hex'),

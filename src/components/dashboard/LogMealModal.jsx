@@ -57,7 +57,7 @@ import {
     getCachedMasterList, setCachedMasterList, getCachedDishes, setCachedDishes,
 } from '../../utils/pantryCache';
 import { searchFoods, previewLine, unitsFor, defaultUnitFor, defaultQtyFor } from '../../utils/foodSearch';
-import { lineasDelPlatoDescrito } from '../../utils/platoDescrito';
+import { fusionarLineasEstimadas, lineasDelPlatoDescrito } from '../../utils/platoDescrito';
 // [P1-PLAN-LOTE-225] Las líneas que no estaban en la Nevera, en el idioma del usuario.
 import { lineaDeIngredienteVisible } from '../../utils/nombresDeAlimentos';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
@@ -101,7 +101,7 @@ const _MACRO_CLASSES = {
 //  · Registrar celebra (check + confeti) y cierra.
 const ANILLO_R = 26;
 const ANILLO_LARGO = 2 * Math.PI * ANILLO_R;
-const CELEBRACION_MS = 700;
+const CELEBRACION_MS = 420;
 const CONFETI = Array.from({ length: 14 }, (_, k) => ({
     clave: k,
     tono: ['meta', 'oro', 'primario', 'acento'][k % 4],
@@ -142,14 +142,18 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     });
     const [verCuando, setVerCuando] = useState(false);
     const [hecho, setHecho] = useState(null);
-    // los ejemplos de la caja van cambiando: enseñan qué se puede escribir sin leer instrucciones
+    // los ejemplos de la caja van cambiando sin re-renderizar el componente
+    // [P2-I18N-MEMOS-CONGELADOS] sin memo (congelaba el idioma anterior): se rotulan en cada render y el intervalo los
+    // lee por ref, así que no se reinicia en cada render
     const ejemplos = [
         t('Ej.: arroz, pollo, mangú'),
         t('Ej.: arroz con pollo'),
         t('Ej.: mangú con huevo'),
         t('Ej.: 2 guineítos y café'),
     ];
-    const [ejemplo, setEjemplo] = useState(0);
+    const ejemplosRef = useRef(ejemplos);
+    ejemplosRef.current = ejemplos;
+    const ejemploIdxRef = useRef(0);
     const [daysAgo, setDaysAgo] = useState(() => Math.max(0, Math.min(7, Number(initialDaysAgo) || 0)));
     const [mealName, setMealName] = useState(() => initialBorrador?.mealName || '');
     const [deductPantry, setDeductPantry] = useState(() => Boolean(initialBorrador?.deductPantry));
@@ -171,6 +175,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     const [describiendo, setDescribiendo] = useState(null);
     const [calculando, setCalculando] = useState(false);
     const inputRef = useRef(null);
+    const plateSectionRef = useRef(null);
 
     // [P1-PLAN-LOTE-384] mientras registra no se cierra (como el escáner)
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose, disableClose: saving });
@@ -226,7 +231,11 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
 
     useEffect(() => {
         if (query || sinMovimiento()) return undefined;
-        const id = setInterval(() => setEjemplo((n) => n + 1), 3200);
+        const id = setInterval(() => {
+            const lista = ejemplosRef.current;
+            ejemploIdxRef.current = (ejemploIdxRef.current + 1) % lista.length;
+            if (inputRef.current) inputRef.current.placeholder = lista[ejemploIdxRef.current];
+        }, 3200);
         return () => clearInterval(id);
     }, [query]);
 
@@ -268,15 +277,16 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
         return acc;
     }, [lines]);
 
-    const addEntry = (entry) => {
+    const addEntry = useCallback((entry) => {
         const unit = defaultUnitFor(entry);
+        triggerMobileHaptic('light');
         setLines((prev) => [...prev, {
             id: `${entry.ref}-${prev.length}-${prev.reduce((a, x) => a + (x.ref === entry.ref ? 1 : 0), 0)}`,
             ref: entry.ref, entry, qty: defaultQtyFor(entry, unit), unit,
         }]);
         setQuery('');
         inputRef.current?.focus();
-    };
+    }, []);
 
     const hayQueDescontar = lines.some(lineaDescontable);   // [P1-PLAN-LOTE-383]
     // [P1-PLAN-LOTE-384] un «Macros a mano» o un «Descríbelo» a medio escribir: registrar sin él lo tiraba en silencio
@@ -323,16 +333,26 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                     : mensajeDeError(data, t('No se pudo registrar.'), t);
                 throw Object.assign(new Error(_msg), { paraMostrar: true });
             }
-            // Mismo evento que el escáner y el chat: la tarjeta de progreso refetchea.
-            window.dispatchEvent(new Event('mealfit:refresh-inventory'));
+            const optimisticMeal = (!data.already_logged && daysAgo === 0) ? {
+                id: data.meal_id || `opt-${Date.now()}`,
+                meal_name: mealName.trim() || (lines.map((l) => (l.ref === 'custom' ? l.name : l.entry?.label)).filter(Boolean).join(', ') || t('Comida')),
+                meal_type: mealType,
+                calories: Math.round(data.totals?.kcal ?? totales.kcal),
+                protein: Math.round(data.totals?.protein ?? totales.protein),
+                carbs: Math.round(data.totals?.carbs ?? totales.carbs),
+                healthy_fats: Math.round(data.totals?.fats ?? totales.fats),
+                consumed_at: new Date().toISOString(),
+                _optimistic: true,
+            } : null;
+            // Mismo evento que el escáner y el chat: la tarjeta de progreso refetchea (con actualización optimista).
+            window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory', { detail: optimisticMeal ? { optimisticMeal } : undefined }));
             // [P1-DIARY-CHAT-BRIDGE · 2026-11-05] Invalidar caché local de chat y notificar al Coach
             safeLocalStorageRemove(CHAT_MESSAGES_CACHE_KEY);
             window.dispatchEvent(new Event('mealfit:refresh-chat'));
             if (data.already_logged) {
                 toast.info(t('Esa comida ya estaba registrada hace un momento.'));
-            } else {
-                toast.success(t('Registrado: {kcal} kcal.', { kcal: data.totals?.kcal ?? Math.round(totales.kcal) }));
             }
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
             // [P1-PANTRY-NAME-RESOLUTION] decir QUÉ no bajó — callarlo es la mentira
             // que aquel P-fix eliminó del chat.
             if (deductPantry && (data.not_in_pantry?.length || data.failed_to_deduct?.length)) {
@@ -376,9 +396,11 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                 throw new Error(t('No pudimos estimar las macros ahora; escríbelas tú o inténtalo de nuevo.'));
             }
             const m = data.macros;
+            const gramosEst = Number(data.grams) > 0 ? Math.round(Number(data.grams)) : null;
             setCustomDraft((p) => (p ? {
                 ...p,
                 name: String(data.name || p.name).trim() || p.name,
+                grams: gramosEst || p.grams || null,
                 macros: {
                     kcal: clampMacro('calories', m.kcal),
                     protein: clampMacro('protein', m.protein),
@@ -412,11 +434,17 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
             const data = await res.json().catch(() => ({}));
             const nuevas = res.ok && !data?.operation_failed ? lineasDelPlatoDescrito(data?.lineas, dishes) : [];
             if (!nuevas.length) throw new Error('vacío');
-            setLines((prev) => [...prev, ...nuevas]);
+            setLines((prev) => fusionarLineasEstimadas(prev, nuevas));
             if (!mealName.trim() && data?.name) setMealName(String(data.name).slice(0, 200));
             setDescribiendo(null);
             if (typeof desdeLaCaja === 'string') setQuery('');
             triggerMobileHaptic('light');
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
+            requestAnimationFrame(() => {
+                try {
+                    plateSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } catch { /* ignore scroll errors */ }
+            });
         } catch {
             toast.error(t('No pudimos calcular tu plato ahora; añade los alimentos a mano o inténtalo de nuevo.'));
         } finally {
@@ -439,8 +467,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
 
     const buscando = query.trim().length >= 2;
     const esFrase = buscando && pareceFrase(query);
-    const mealTypeOptions = [...getMealTypes(t), getMealTypeExtra(t)];
-    const opcionesDia = _getDayOptionsCon(t, initialDaysAgo);
+    const mealTypeOptions = useMemo(() => [...getMealTypes(t), getMealTypeExtra(t)], [t]);
+    const opcionesDia = useMemo(() => _getDayOptionsCon(t, initialDaysAgo), [t, initialDaysAgo]);
     const faltaElegirComida = daysAgo > 0 && !tipoElegido;   // [P1-PLAN-LOTE-1171]
     const nombreComida = faltaElegirComida ? t('Elige la comida')
         : (mealTypeOptions.find((o) => o.value === mealType)?.label || mealType);
@@ -528,7 +556,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === 'Enter' && esFrase && !calculando) { e.preventDefault(); calcularPlato(query); } }}
-                                placeholder={ejemplos[ejemplo % ejemplos.length]}
+                                placeholder={ejemplos[0]}
                                 aria-label={t('Buscar alimento')}
                                 autoComplete="off"
                                 enterKeyHint={esFrase ? 'go' : 'search'}
@@ -669,7 +697,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
 
                     {/* ---- Tu plato: justo bajo la caja, para ver al momento lo que se añadió ---- */}
                     {lines.length > 0 && (
-                        <section className={`${styles.section} ${styles.bandeja}`} aria-labelledby="lm-plato">
+                        <section ref={plateSectionRef} className={`${styles.section} ${styles.bandeja}`} aria-labelledby="lm-plato">
                             <div className={styles.bandejaCabeza}>
                                 <svg className={styles.anillo} viewBox="0 0 64 64" aria-hidden="true">
                                     <circle className={styles.anilloFondo} cx="32" cy="32" r={ANILLO_R} />

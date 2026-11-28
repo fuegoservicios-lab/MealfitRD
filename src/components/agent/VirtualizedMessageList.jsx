@@ -51,7 +51,7 @@ import { daySeparatorLabel, previousDatedMessage, respondeAlUsuario } from '../.
 
 export { VIRTUALIZE_THRESHOLD };
 
-const ItemContent = ({ msg, index, currentSessionId, onRegenerate, onErrorRetry, daySeparator = null, puedeRegenerar = true }) => (
+const ItemContent = ({ msg, index, currentSessionId, onRegenerate, onErrorRetry, daySeparator = null, puedeRegenerar = true, eagerImages = false }) => (
     <div style={{ paddingBottom: '2rem' }}>
         <MemoizedMessageBubble
             msg={msg}
@@ -61,6 +61,7 @@ const ItemContent = ({ msg, index, currentSessionId, onRegenerate, onErrorRetry,
             onErrorRetry={onErrorRetry}
             daySeparator={daySeparator}
             puedeRegenerar={puedeRegenerar}
+            eagerImages={eagerImages}
         />
     </div>
 );
@@ -114,6 +115,7 @@ export const VirtualizedMessageList = React.forwardRef(({
             onErrorRetry={onErrorRetry}
             daySeparator={daySeparatorLabel(msg, previousDatedMessage(messages, index), { t, formatDate })}
             puedeRegenerar={respondeAlUsuario(messages, index)}
+            eagerImages={index >= messages.length - 6}
         />
     ), [currentSessionId, onRegenerate, onErrorRetry, messages, t]);
 

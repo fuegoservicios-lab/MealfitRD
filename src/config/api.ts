@@ -23,7 +23,7 @@ export const fijarGanchosIA = (g: GanchosIA | null) => { _ia = g; };
 //     Correcto SOLO si el SPA y FastAPI comparten origen (reverse-proxy,
 //     nginx en el VPS Oracle sirviendo ambos).
 //   - URL del backend → deploy cross-origin (un host estático sirve el SPA en
-//     mealfitrd.com, FastAPI vive en otro host). En este caso DEBE estar
+//     bioboros.com, FastAPI vive en otro host). En este caso DEBE estar
 //     seteada al build (build-time inlining de Vite).
 //
 //   Modo de fallo (P2-API-BASE-CONTRACT): si en un build cross-origin falta

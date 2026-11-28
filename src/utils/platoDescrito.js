@@ -11,6 +11,24 @@ const _n = (v) => {
 
 let secuencia = 0;
 
+const _STOPWORDS_PLATO = new Set([
+    'cocido', 'cocida', 'cocidos', 'cocidas', 'hervido', 'hervida', 'plancha', 'asado', 'asada',
+    'guisado', 'guisada', 'frito', 'frita', 'filete', 'blanco', 'blanca', 'rojas', 'rojo',
+    'negras', 'negro', 'dulce', 'verde', 'verdes', 'pequeno', 'pequena', 'mediano', 'mediana',
+    'grande', 'porcion', 'racion', 'plato', 'taza', 'vaso', 'cucharada', 'para',
+]);
+
+function _tokensPlato(linea) {
+    const raw = linea?.entry?.label || linea?.name || '';
+    const norm = String(raw)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    return new Set(
+        (norm.match(/[a-z]{4,}/g) || []).filter((w) => !_STOPWORDS_PLATO.has(w))
+    );
+}
+
 export function lineasDelPlatoDescrito(lineasApi, dishes) {
     const porSlug = new Map((dishes || []).map((d) => [d.slug, d]));
     return (Array.isArray(lineasApi) ? lineasApi : []).flatMap((l) => {
@@ -26,11 +44,43 @@ export function lineasDelPlatoDescrito(lineasApi, dishes) {
                     id, ref,
                     entry: { kind: 'dish', ref, label: d.label, sub: t('Plato criollo · ración {g} g', { g: Math.round(d.finished_g) }), item: d },
                     qty: Math.round(_n(l.qty)), unit: 'g',
+                    fromEstimate: true,
                 }];
             }
         }
         const nombre = String(l.name || '').trim().slice(0, 120);
         if (!nombre) return [];
-        return [{ id, ref: 'custom', name: nombre, macros, estimated: true, grams: _n(l.grams) || null }];
+        return [{ id, ref: 'custom', name: nombre, macros, estimated: true, grams: _n(l.grams) || null, fromEstimate: true }];
     });
+}
+
+export function fusionarLineasEstimadas(prev, nuevas) {
+    const actuales = Array.isArray(prev) ? prev : [];
+    const entrantes = Array.isArray(nuevas) ? nuevas : [];
+    if (!entrantes.length) return actuales;
+
+    const prevEstimadas = actuales.filter((l) => l?.fromEstimate);
+    if (!prevEstimadas.length) return [...actuales, ...entrantes];
+
+    const refsNuevas = new Set(entrantes.map((l) => l?.ref).filter((r) => r && r !== 'custom'));
+    const tokensNuevos = new Set();
+    for (const l of entrantes) {
+        for (const tok of _tokensPlato(l)) tokensNuevos.add(tok);
+    }
+
+    const solapa = prevEstimadas.some((l) => {
+        if (l?.ref && l.ref !== 'custom' && refsNuevas.has(l.ref)) return true;
+        for (const tok of _tokensPlato(l)) {
+            if (tokensNuevos.has(tok)) return true;
+        }
+        return false;
+    });
+
+    if (solapa) {
+        return [...actuales.filter((l) => !l?.fromEstimate), ...entrantes];
+    }
+
+    const refsActuales = new Set(actuales.map((l) => l?.ref).filter((r) => r && r !== 'custom'));
+    const filtradas = entrantes.filter((l) => l?.ref === 'custom' || !refsActuales.has(l.ref));
+    return [...actuales, ...filtradas];
 }

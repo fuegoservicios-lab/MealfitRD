@@ -90,11 +90,11 @@ describe('modo menú: con el teclado abierto, adjuntar NO lo cierra', () => {
 
 describe('el chat', () => {
     const src = leer('pages/AgentPage.jsx');
-    it('en nativo no suelta el foco para adjuntar; con o sin teclado, el mismo panel DENTRO del cuadro (lotes 1050/1060)', () => {
-        expect(src).toContain('if (abierto && !isNativeApp()) chatInputRef.current?.blur();');
-        expect(src).toContain('setAttachmentAnchorRect(attachmentTriggerRef.current?.getBoundingClientRect?.() || null);');
-        expect(src).toContain('setAttachmentSheetOwnsFocus(false);');
-        // [P1-PLAN-LOTE-1050] el menú flotante anclado por medidas se descolocaba (captura de pantalla, teclado)
+    it('en nativo suelta el foco para bajar el teclado y abre la hoja inferior (opción A, estilo ChatGPT/Gemini)', () => {
+        expect(src).toContain('if (abierto) chatInputRef.current?.blur();');
+        expect(src).toContain('if (teniaTeclado) chatInputRef.current?.blur();');
+        expect(src).toContain('setAttachmentAnchorRect(null);');
+        expect(src).toContain('setAttachmentSheetOwnsFocus(!teniaTeclado);');
         expect(src).toContain('open={showAttachmentSource && Boolean(attachmentAnchorRect)}');
         expect(src).toContain('open={showAttachmentSource && !attachmentAnchorRect}');
         expect(src).not.toContain('anchorRect={attachmentAnchorRect}');
@@ -102,7 +102,9 @@ describe('el chat', () => {
     });
     it('tras el selector del sistema repone el teclado solo si de verdad se fue', () => {
         const i = src.indexOf('const runNativeImagePicker = async (source) => {');
-        expect(src.slice(i, i + 1200)).toMatch(/finally \{[\s\S]*restoreChatKeyboardAfterAttachment\(\);/);
+        // hasta el final de la función (creció; los 1200 caracteres fijos se quedaban cortos)
+        const fin = src.indexOf('\n    };', i);
+        expect(src.slice(i, fin)).toMatch(/finally \{[\s\S]*restoreChatKeyboardAfterAttachment\(\);/);
         const j = src.indexOf('const restoreChatKeyboardAfterAttachment = () => {');
         expect(src.slice(j, j + 600)).toContain('if (!campo || medirTecladoDeVentana(window).abierto) return;');
     });

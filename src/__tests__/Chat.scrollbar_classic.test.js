@@ -31,7 +31,7 @@ describe('scrollbar clásica del chat', () => {
         expect(SRC).toContain("padding: messages.length === 0 ? '1.25rem 1.5rem 0 1.5rem' : '1.25rem 2rem 0.5rem 2rem',");
         // y el cuadro de escribir no se superpone al final del scroller en PC (botón de bajar visible)
         expect(SRC).toContain("position: isCentered ? 'absolute' : (isMobile ? 'sticky' : 'relative'),");
-        expect(SRC).toContain("marginBottom: (!isCentered && !isMobile) ? '1.25rem' : 0,");
+        expect(SRC).toContain("marginBottom: (!isCentered && !isMobile) ? (enPortada ? '10vh' : '1.25rem') : 0,");
         expect(SRC).not.toContain('.messages-container::-webkit-scrollbar {\n                    width: 6px;');
     });
 });

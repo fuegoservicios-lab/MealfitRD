@@ -444,9 +444,9 @@ const Recipes = () => {
                 <span style="font-size: 0.8em; font-weight: 800; color: #0F172A;">${value}g</span>
             </div>`;
         const macrosHTML = [
-            (meal.protein != null && meal.protein !== '') ? _macro('#10B981', escapeHtml(t('Proteínas')), escapeHtml(meal.protein)) : '',
-            (meal.carbs != null && meal.carbs !== '') ? _macro('#8B5CF6', escapeHtml(t('Carbos')), escapeHtml(meal.carbs)) : '',
-            (meal.fats != null && meal.fats !== '') ? _macro('#F43F5E', escapeHtml(t('Grasas')), escapeHtml(meal.fats)) : '',
+            (meal.protein != null && meal.protein !== '') ? _macro('rgb(15, 23, 42)', escapeHtml(t('Proteínas')), escapeHtml(meal.protein)) : '',
+            (meal.carbs != null && meal.carbs !== '') ? _macro('rgb(100, 116, 139)', escapeHtml(t('Carbos')), escapeHtml(meal.carbs)) : '',
+            (meal.fats != null && meal.fats !== '') ? _macro('rgb(203, 213, 225)', escapeHtml(t('Grasas')), escapeHtml(meal.fats)) : '',
         ].filter(Boolean).join('');
 
         return `

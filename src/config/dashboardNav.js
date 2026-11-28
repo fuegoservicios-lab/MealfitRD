@@ -32,18 +32,15 @@ export const navItemsFor = ({ trackingMode = false, nevera = true } = {}) => [
     // pestaña desaparece — igual que «Recetas»/«Progreso» arriba, la entrada nace y muere aquí, no con un guard
     // aguas abajo por consumidor.
     ...(nevera ? [{ key: 'pantry', label: t('Nevera'), path: '/dashboard/pantry' }] : []),
+    { key: 'leaderboard', label: t('Clasificatoria'), shortLabel: t('Liga'), path: '/dashboard/clasificatoria' },
     ...(trackingMode ? [] : [{ key: 'recipes', label: t('Recetas'), path: '/dashboard/recipes' }]),
-    { key: 'history', label: t('Historial'), path: '/history' },
+    ...(trackingMode ? [] : [{ key: 'history', label: t('Historial'), path: '/history' }]),
 ];
 
-// [P1-PLAN-LOTE-119 · 2026-09-19] El reparto del TELÉFONO. Con el generador encendido la nav tiene 6 entradas y la
-// barra de pestañas se veía «con demasiados apartados» (el dueño): 6 celdas de 65 px con los rótulos apretados, una
-// más de las 5 que aguanta una barra inferior. Lo que NO cabe va al menú ☰ de la cabecera, y sale por orden de
-// `SALEN_PRIMERO`: el Historial es el destino menos diario (se entra a recuperar un plan viejo, no a vivir el de hoy).
-// En modo contador son 4 y nadie se mueve — ahí el Historial es además donde viven las recetas.
-// El lateral de escritorio y el menú del Agente siguen pintando `navItemsFor` ENTERO: no tienen ese límite.
+// [P1-PLAN-LOTE-119 · 2026-09-19] El reparto del TELÉFONO. Con la barra inferior de 5 entradas como máximo, lo que NO
+// cabe va al menú ☰ de la cabecera en orden de `SALEN_PRIMERO`.
 export const TAB_BAR_MAX = 5;
-const SALEN_PRIMERO = ['history'];
+const SALEN_PRIMERO = ['history', 'recipes'];
 
 export const repartoTelefono = (items) => {
     const fuera = new Set();

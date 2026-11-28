@@ -138,8 +138,8 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
         const dotGreen = document.querySelector('[class*="calCellDotGreen"]');
         expect(dotGreen).not.toBeNull();
 
-        // Punto amarillo (calCellDotYellow) para el día incompleto (ayer: 1200 kcal)
-        const dotYellow = document.querySelector('[class*="calCellDotYellow"]');
+        // [P1-MACRO-BARS-SEMAFORO] día YA CERRADO sin cumplir (ayer: 1200 kcal) → rojo (calCellDotShort), no ámbar
+        const dotYellow = document.querySelector('[class*="calCellDotShort"]');
         expect(dotYellow).not.toBeNull();
 
         // [SEMANAS-ALINEADAS] cada fila con días ya vividos lleva su semana numerada y sus estrellas
@@ -273,7 +273,7 @@ describe('DiaryHistory - Cuadrícula de mes y barra verde de meta completada', (
 
         await waitFor(() => {
             expect(document.querySelector('[class*="calCellDotGreen"]')).not.toBeNull();
-            expect(document.querySelector('[class*="calCellDotYellow"]')).not.toBeNull();
+            expect(document.querySelector('[class*="calCellDotShort"]')).not.toBeNull();
         });
     });
 

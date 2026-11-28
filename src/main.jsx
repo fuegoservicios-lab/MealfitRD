@@ -51,6 +51,7 @@ import './index.css'
 import App from './App.jsx'
 // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Anti-loop compartido con los boundaries.
 import { shouldAutoReloadForChunkError } from './utils/chunkReloadGuard'
+import { initPwaInstallCapture } from './utils/pwaInstall'
 // [POSTHOG-ANALYTICS · 2026-07-12] Analítica de producto (gated por VITE_POSTHOG_KEY).
 import { initPostHog } from './utils/posthogClient'
 import { alCambiarAnalitica } from './utils/analytics'
@@ -68,6 +69,7 @@ import { t } from './i18n';
 // modulepreload de un asset con hash viejo). preventDefault evita el throw;
 // recargamos para traer el index.html fresco — con guard anti-loop.
 if (typeof window !== 'undefined') {
+  if (!_sinSW) initPwaInstallCapture()
   window.addEventListener('vite:preloadError', (event) => {
     if (shouldAutoReloadForChunkError()) {
       event.preventDefault()

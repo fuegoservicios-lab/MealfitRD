@@ -13,7 +13,7 @@ vi.mock('../utils/historiaConFoto', async (orig) => ({
     cargarFoto: vi.fn(async () => ({ width: 1200, height: 1600 })),
     dibujarHistoriaConFoto: vi.fn(async () => new Blob(['jpg'], { type: 'image/jpeg' })),
 }));
-vi.mock('../config/platform', async (orig) => ({ ...(await orig()), isNativeApp: vi.fn(() => false) }));
+vi.mock('../config/platform', async (orig) => ({ ...(await orig()), isNativeApp: vi.fn(() => false), nativePlatform: vi.fn(() => 'ios') }));
 vi.mock('../utils/nativeChatImagePicker', async (orig) => ({
     ...(await orig()),
     chooseNativeGalleryImage: vi.fn(async () => new File(['x'], 'g.jpg', { type: 'image/jpeg' })),
@@ -21,7 +21,7 @@ vi.mock('../utils/nativeChatImagePicker', async (orig) => ({
 }));
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }));
 
-import { isNativeApp } from '../config/platform';
+import { isNativeApp, nativePlatform } from '../config/platform';
 import { chooseNativeGalleryImage, takeNativeChatPhoto } from '../utils/nativeChatImagePicker';
 import { cargarFoto } from '../utils/historiaConFoto';
 import { AttachmentInlinePanel } from '../components/agent/AttachmentInlinePanel';
@@ -33,6 +33,7 @@ beforeEach(() => {
     globalThis.URL.createObjectURL = vi.fn(() => 'blob:x');
     globalThis.URL.revokeObjectURL = vi.fn();
     vi.mocked(isNativeApp).mockReturnValue(false);
+    vi.mocked(nativePlatform).mockReturnValue('ios');
 });
 afterEach(() => { vi.clearAllMocks(); });
 
@@ -145,6 +146,24 @@ describe('[1050] «Compartir»: nuestro selector de foto', () => {
         fireEvent.click(screen.getByRole('button', { name: /cambiar foto/i }));
         fireEvent.click(screen.getByRole('button', { name: /cámara/i }));
         await waitFor(() => expect(takeNativeChatPhoto).toHaveBeenCalledWith({ lado: 2400 }));
+    });
+
+    it('en Android nativo la cámara abre CameraViewfinder in-app sin salir a @capacitor/camera', async () => {
+        vi.mocked(isNativeApp).mockReturnValue(true);
+        vi.mocked(nativePlatform).mockReturnValue('android');
+        Object.defineProperty(navigator, 'mediaDevices', {
+            configurable: true,
+            value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: vi.fn() }] })) },
+        });
+        render(<ShareDaySheet {...props} />);
+        fireEvent.click(await screen.findByRole('button', { name: /ponle tu foto/i }));
+        fireEvent.click(screen.getByRole('button', { name: /cámara/i }));
+        expect(await screen.findByRole('dialog', { name: 'Tomar una foto' })).toBeInTheDocument();
+        expect(takeNativeChatPhoto).not.toHaveBeenCalled();
+
+        const agentSrc = leer('pages/AgentPage.jsx');
+        expect(agentSrc).toContain("if (source === 'camera' && nativePlatform() === 'android'");
+        expect(agentSrc).toContain('setChatCameraOpen(true)');
     });
 });
 

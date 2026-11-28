@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Lock, ChevronDown } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
-import { PlanIcon, ProgressIcon, PantryIcon, HistoryIcon } from '../icons/NavIcons';
+import { PlanIcon, ProgressIcon, PantryIcon, HistoryIcon, LeaderboardIcon } from '../icons/NavIcons';
 // [P1-GUEST-NAV-LOCK · 2026-06-15] Modo invitado: secciones que requieren cuenta.
 import { useAssessment } from '../../context/AssessmentContext';
 // [P1-PLAN-LOTE-680] Pestaña con candado → hoja «Guarda tu plan» (login sin salir del plan) en vez de /register.
@@ -13,6 +13,7 @@ import { navItemsFor, isTrackingMode, repartoTelefono, neveraActiva } from '../.
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del data del Historial
 import { prefetchHistoryList } from '../../utils/historyCaches';
+import { precargarClasificatoria } from '../../utils/progresoServidor';
 import { useT } from '../../i18n';
 import { useTabBarPlegable } from '../../hooks/useTabBarPlegable';
 import styles from './BottomTabBar.module.css';
@@ -25,6 +26,7 @@ const _tabIcons = {
     progress: { icon: ProgressIcon },  // [P1-PLAN-LOTE-103] «Progreso» en modo plan
     agent: { icon: AgentIcon },
     pantry: { icon: PantryIcon },
+    leaderboard: { icon: LeaderboardIcon },
     recipes: { icon: RecipesIcon },
     history: { icon: HistoryIcon },
 };
@@ -90,6 +92,7 @@ const BottomTabBar = () => {
                     prefetchRoute(tab.path);
                     // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] /history prefetchea
                     // también el data del listado — no solo el chunk JS.
+                    if (tab.path === '/dashboard/clasificatoria' && userProfile?.id) precargarClasificatoria(userProfile.id);
                     if (tab.path === '/history') prefetchHistoryList();
                 };
                 return (
@@ -121,7 +124,7 @@ const BottomTabBar = () => {
                                 />
                             )}
                         </span>
-                        <span className={styles.tabLabel}>{tab.label}</span>
+                        <span className={styles.tabLabel}>{tab.shortLabel || tab.label}</span>
                         {isActive && <span className={styles.activeIndicator} />}
                     </button>
                 );

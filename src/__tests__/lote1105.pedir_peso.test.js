@@ -23,11 +23,17 @@ describe('lote 1105 · cada cuánto te pide el peso', () => {
 });
 
 describe('lote 1104 · la cifra de gramos', () => {
-    it('centrada, con el punteado pegado al número (subrayado) y no como borde del botón', () => {
+    // [P1-FICHA-CANTIDAD-VISIBLE · 2026-11-26] El subrayado punteado no bastaba («no se nota que se puede editar»): la
+    // cifra es ahora un CAMPO entero (borde completo + lápiz), centrada. Sigue sin ser un borde-inferior suelto.
+    it('centrada y con aspecto de campo editable: borde completo y lápiz, no un subrayado ni un borde inferior', () => {
         const i = CSS.indexOf('.gramosValor {');
         const regla = CSS.slice(i, CSS.indexOf('}', i));
         expect(regla).toContain('align-items: center;');
-        expect(regla).toContain('text-decoration: underline dashed');
+        expect(regla).toMatch(/border: 1px solid/);
+        expect(regla).not.toContain('text-decoration: underline dashed');
         expect(regla).not.toContain('border-bottom');
+        const jsx = fs.readFileSync(path.resolve(process.cwd(), 'src/components/dashboard/FichaDeComida.jsx'), 'utf8');
+        expect(jsx).toContain('className={styles.gramosLapiz}');
+        expect(jsx).toContain("t('Toca una cantidad para cambiarla; las calorías se recalculan.')");
     });
 });

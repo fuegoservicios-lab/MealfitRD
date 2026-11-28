@@ -14,13 +14,23 @@ describe('referencias visibles de salud', () => {
         expect(refs.find(s => s.id === 'protein').title).toContain('adultos sanos');
         expect(refs.find(s => s.id === 'kidney').url).toContain('niddk.nih.gov');
     });
-    it('no añade referencias a saludos o acciones ajenas a salud', () => {
+    it('no añade referencias a saludos, autopresentaciones o acciones ajenas a salud', () => {
         expect(healthSourcesFor('chat', 'Hola, ¿cómo estás?')).toEqual([]);
         expect(healthSourcesFor('chat', 'Ya borré tu entrada.')).toEqual([]);
+        expect(healthSourcesFor('chat', 'Soy el asistente de nutrición con IA de **Bioboros**. Puedo ayudarte a registrar comidas, entender tus macros y responder dudas generales sobre alimentación.')).toEqual([]);
+        expect(healthSourcesFor('chat', 'Soy tu coach nutricional de **Bioboros**, aquí para ayudarte con tus comidas y metas.')).toEqual([]);
+        expect(healthSourcesFor('chat', '¿Quieres ajustar tus comidas o ver cuánto te falta hoy?')).toEqual([]);
+        expect(healthSourcesFor('chat', '¿Te refieres a qué comer ahora o a cómo acercarte a tu meta de proteína?')).toEqual([]);
     });
     it('no dispara falsos positivos por subcadenas (aguacate vs agua, engrasada vs grasa, ensalada vs sal)', () => {
         expect(healthSourcesFor('chat', 'Mezcla harina de maíz y sofríe con pavo y aguacate en sartén ligeramente engrasada.')).toEqual([]);
         expect(healthSourcesFor('chat', 'Salsa ligera para tus tacos.')).toEqual([]);
+    });
+    it('oculta fuentes en registros simples de comida/escáner pero las mantiene si hay aviso clínico', () => {
+        expect(healthSourcesFor('chat', 'Anoté tu **cena** de 4 panes con jamón y queso: aprox. 960 kcal y 48 g de proteína. Hoy llevas ~1780 kcal.')).toEqual([]);
+        expect(healthSourcesFor('chat', 'Corregí tu **almuerzo**: 520 kcal y 40 g de proteína.')).toEqual([]);
+        const withClinical = healthSourcesFor('chat', 'Anoté tu **cena** (880 kcal). Ojo: el sodio de hoy supera tu límite recomendado.');
+        expect(withClinical.map(s => s.id)).toContain('diet');
     });
     it('incluye energía, catálogo, DRI y OMS junto al plan y al contador', () => {
         for (const context of ['plan', 'tracking']) {

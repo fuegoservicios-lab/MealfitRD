@@ -54,8 +54,8 @@ const _siguiente = (iso) => {
     return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
 };
 
-/** El aviso del contador. Sin nada que decir, no pinta nada. */
-export function AvisoDiaActivo() {
+/** El aviso de día activo (renderizado en el centro de notificaciones o en pruebas). Sin nada que decir, no pinta nada. */
+export function AvisoDiaActivo({ onAccionHecha = null, onDescartar = null, enCentro = false } = {}) {
     const t = useT();
     const [estado, setEstado] = useState(() => estadoDelDiaActivo());
     const [enviando, setEnviando] = useState(false);
@@ -67,42 +67,46 @@ export function AvisoDiaActivo() {
     const descartar = useCallback((dia) => {
         setDescartado(dia);
         safeLocalStorageSet('mealfit_dia_activo_descartado', dia);
-    }, []);
+        onDescartar?.(dia);
+    }, [onDescartar]);
 
     const elegir = useCallback(async (accion) => {
         setEnviando(true);
         try {
             await elegirDiaActivo(accion);
+            onAccionHecha?.();
         } catch {
             toast.error(t('No se pudo cambiar el día. Inténtalo de nuevo.'), { id: 'dia-activo' });
         } finally {
             setEnviando(false);
         }
-    }, [t]);
+    }, [t, onAccionHecha]);
 
     if (!estado) return null;
+    const claseBase = enCentro ? `${styles.aviso} ${styles.avisoEnCentro}` : styles.aviso;
     if (estado.extendido) {
         const hoy = _diaSemana(estado.dia);
-        const manana = _diaSemana(_siguiente(estado.dia));
+        const manana = _siguiente(estado.dia);
+        const mananaTxt = _diaSemana(manana);
         const motivo = estado.motivo === 'corte_personal'
             ? t('Tu día termina más tarde (Configuración)')
             : estado.motivo === 'pedido' ? t('Lo elegiste tú') : t('No has dormido: tu día sigue');
         return (
-            <div className={styles.aviso} role="status">
+            <div className={claseBase} role="status">
                 <Moon size={18} className={styles.icono} aria-hidden="true" />
                 <div className={styles.texto}>
                     <strong>{t('Sigues en tu {dia}', { dia: hoy })}</strong>
                     <span>{motivo}</span>
                 </div>
                 <button type="button" className={styles.accion} onClick={() => elegir('empezar')} disabled={enviando}>
-                    <Sun size={16} aria-hidden="true" />{t('Empezar mi {dia}', { dia: manana })}
+                    <Sun size={16} aria-hidden="true" />{t('Empezar mi {dia}', { dia: mananaTxt })}
                 </button>
             </div>
         );
     }
     if (estado.puede_seguir && estado.anterior && descartado !== estado.anterior) {
         return (
-            <div className={`${styles.aviso} ${styles.avisoSuave}`} role="status">
+            <div className={`${claseBase} ${styles.avisoSuave}`} role="status">
                 <Moon size={18} className={styles.icono} aria-hidden="true" />
                 <div className={styles.texto}>
                     <strong>{t('¿Aún no has dormido?')}</strong>
@@ -119,5 +123,10 @@ export function AvisoDiaActivo() {
     }
     return null;
 }
+AvisoDiaActivo.propTypes = {
+    onAccionHecha: PropTypes.func,
+    onDescartar: PropTypes.func,
+    enCentro: PropTypes.bool,
+};
 
 export default SincronizarDiaActivo;

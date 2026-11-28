@@ -62,6 +62,9 @@ export function bloquesDelInforme(data, { t, fmt = (n) => String(n) }) {
             l.push(t('Días dentro de su meta de energía: {n}', { n: fmt(a.dias_en_meta) }));
             l.push(t('Días por debajo: {n} · por encima: {m}', { n: fmt(a.dias_bajo), m: fmt(a.dias_sobre) }));
         }
+        if (a.pct_en_meta_entre_semana != null && a.pct_en_meta_fin_de_semana != null) {
+            l.push(t('En meta entre semana: {a} % · fin de semana: {b} %', { a: fmt(a.pct_en_meta_entre_semana), b: fmt(a.pct_en_meta_fin_de_semana) }));
+        }
         b.push({ id: 'adherencia', titulo: t('Registro y adherencia'), lineas: l });
     }
     const e = data.energia;
@@ -69,6 +72,16 @@ export function bloquesDelInforme(data, { t, fmt = (n) => String(n) }) {
         const l = [t('Media diaria: {n} kcal', { n: fmt(e.kcal_media) })];
         if (e.meta_media != null) l.push(t('Meta media: {n} kcal ({p} % de la meta)', { n: fmt(e.meta_media), p: fmt(e.pct_de_la_meta) }));
         l.push(t('Rango: {a} a {b} kcal · desviación típica {d} kcal', { a: fmt(e.kcal_min), b: fmt(e.kcal_max), d: fmt(e.desviacion) }));
+        if (e.tendencia) {
+            l.push(t('Tendencia: primera mitad {a} kcal · segunda mitad {b} kcal', {
+                a: fmt(e.tendencia.primera_mitad_kcal), b: fmt(e.tendencia.segunda_mitad_kcal),
+            }));
+            if (e.tendencia.primera_mitad_pct_en_meta != null && e.tendencia.segunda_mitad_pct_en_meta != null) {
+                l.push(t('Adherencia: primera mitad {a} % · segunda mitad {b} % en meta', {
+                    a: fmt(e.tendencia.primera_mitad_pct_en_meta), b: fmt(e.tendencia.segunda_mitad_pct_en_meta),
+                }));
+            }
+        }
         b.push({ id: 'energia', titulo: t('Energía'), lineas: l });
     }
     const m = data.macros;
@@ -76,6 +89,14 @@ export function bloquesDelInforme(data, { t, fmt = (n) => String(n) }) {
         const l = [t('Proteína {p} g · carbohidratos {c} g · grasas {g} g (media diaria)', { p: fmt(m.proteina_g), c: fmt(m.carbos_g), g: fmt(m.grasas_g) })];
         if (m.pct_kcal) l.push(t('Reparto de la energía: proteína {p} % · carbohidratos {c} % · grasas {g} %', { p: fmt(m.pct_kcal.proteina), c: fmt(m.pct_kcal.carbos), g: fmt(m.pct_kcal.grasas) }));
         if (m.proteina_g_por_kg != null) l.push(t('Proteína por kg de peso: {n} g/kg', { n: fmt(m.proteina_g_por_kg) }));
+        if (m.proteina_por_franja_g) {
+            const etiquetasFranja = {
+                desayuno: t('Desayuno'), almuerzo: t('Almuerzo'), merienda: t('Merienda'), cena: t('Cena'),
+            };
+            const partes = Object.entries(m.proteina_por_franja_g)
+                .map(([k, v]) => `${etiquetasFranja[k] || k} ${fmt(v)} g`);
+            if (partes.length) l.push(t('Proteína media por comida: {x}', { x: partes.join(' · ') }));
+        }
         b.push({ id: 'macros', titulo: t('Macronutrientes'), lineas: l });
     }
     const mi = data.micronutrientes;
@@ -97,8 +118,10 @@ export function bloquesDelInforme(data, { t, fmt = (n) => String(n) }) {
         const l = [
             t('Comidas por día: {n}', { n: fmt(pa.comidas_por_dia) }),
             t('Días con desayuno: {p} %', { p: fmt(pa.pct_dias_con_desayuno) }),
-            t('Primera comida (mediana): {h} · última: {u}', { h: pa.hora_primera_comida, u: pa.hora_ultima_comida }),
         ];
+        if (pa.hora_primera_comida && pa.hora_ultima_comida) {
+            l.push(t('Primera comida (mediana): {h} · última: {u}', { h: pa.hora_primera_comida, u: pa.hora_ultima_comida }));
+        }
         if (pa.pct_cenas_despues_de_las_22 != null) l.push(t('Cenas después de las 22:00: {p} %', { p: fmt(pa.pct_cenas_despues_de_las_22) }));
         if (pa.entre_semana_kcal != null) l.push(t('Entre semana {a} kcal · fin de semana {b} kcal (media)', { a: fmt(pa.entre_semana_kcal), b: fmt(pa.fin_de_semana_kcal) }));
         b.push({ id: 'patrones', titulo: t('Horarios y patrones'), lineas: l });

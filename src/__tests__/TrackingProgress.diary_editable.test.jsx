@@ -16,6 +16,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
 import { fetchWithAuth } from '../config/api';
+import { formatDate } from '../i18n';
 import { confirmToast } from '../utils/confirmToast';
 import { toast } from 'sonner';
 
@@ -154,7 +155,8 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         expect(screen.getByText('1 comida registrada')).toBeInTheDocument();
         expect(container).toHaveTextContent(/200\s*\/\s*2[\s.,]?100 kcal/);
         expect(container).not.toHaveTextContent(/650\s*\/\s*2[\s.,]?100 kcal/);
-        expect(toast.success).toHaveBeenCalledTimes(1);
+        // [P1-PLAN-LOTE-1183] sin aviso de «eliminada»: la fila ya desaparece a la vista
+        expect(toast.success).not.toHaveBeenCalled();
 
         // Contrato de cache (P1-TRACKING-CACHE-CONSUMED): la actualización debe
         // pasar por el mismo `setConsumed` que persiste a localStorage — si no,
@@ -253,5 +255,22 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
 
         // Subtítulo con desglose
         expect(screen.getByText('1 comida · 1 complemento')).toBeInTheDocument();
+    });
+
+    it('muestra la hora en cada fila para distinguir registros repetidos del mismo alimento', async () => {
+        const ts1 = '2026-11-24T08:40:12.000Z';
+        const ts2 = '2026-11-24T11:06:39.000Z';
+        const m1 = { id: 'koko-1', meal_name: '1 galleta Koko', calories: 50, protein: 1, carbs: 8, healthy_fats: 2, meal_type: 'merienda', consumed_at: ts1 };
+        const m2 = { id: 'koko-2', meal_name: '1 galleta Koko', calories: 50, protein: 1, carbs: 8, healthy_fats: 2, meal_type: 'merienda', consumed_at: ts2 };
+        vi.mocked(fetchWithAuth).mockResolvedValue(_mockGetResponse([m2, m1]));
+
+        render(<TrackingProgress userId="user-koko" planData={_PLAN_DATA} />);
+        await waitFor(() => expect(screen.getAllByText('1 galleta Koko')).toHaveLength(2));
+
+        const hora1 = formatDate(new Date(ts1), { timeStyle: 'short' }).replace(/\s+/g, ' ');
+        const hora2 = formatDate(new Date(ts2), { timeStyle: 'short' }).replace(/\s+/g, ' ');
+        const metas = screen.getAllByText(/Merienda · 50 kcal ·/).map((el) => el.textContent.replace(/\s+/g, ' '));
+        expect(metas).toContain(`Merienda · 50 kcal · ${hora1}`);
+        expect(metas).toContain(`Merienda · 50 kcal · ${hora2}`);
     });
 });

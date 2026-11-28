@@ -36,14 +36,16 @@ describe('General macro references, separate from personal goals', () => {
         await screen.findByText('0 comidas registradas');
         const track = screen.getByRole('progressbar', { name: 'Grasas' });
         const row = track.parentElement;
-        expect(within(row).getByText('Referencia general 139%')).toBeInTheDocument();
+        expect(within(row).getByText('Límite máximo 139%')).toBeInTheDocument();
         expect(within(row).getByText('Meta 100%')).toBeInTheDocument();
         const scale = Number(track.getAttribute('aria-valuemax'));
         expect(scale).toBeCloseTo((2900 * .35 / 9) / 81 * 100 * 1.08);
         expect(parseFloat(track.firstElementChild.style.width)).toBeCloseTo(Math.min(100, Math.round(fats / 81 * 100) / scale * 100));
         expect(track.getAttribute('aria-valuetext')).toContain(`${Math.round(fats / 81 * 100)}%`);
-        expect(track.getAttribute('aria-valuetext')).toContain(fats > 2900 * .35 / 9 ? 'sobre la referencia' : 'de la referencia');
-        expect(track.firstElementChild.style.background).toContain('rgb(236, 72, 153)');
+        // [P1-MACRO-BARS-SEMAFORO] bajo la meta el texto mira a la meta; pasada la meta, al límite.
+        const limit = 2900 * .35 / 9;
+        expect(track.getAttribute('aria-valuetext')).toContain(fats > limit ? 'sobre el límite' : fats >= 81 ? 'del límite' : 'para la meta');
+        expect(track.firstElementChild.dataset.state).toBe(fats > limit ? 'over' : fats >= 81 * .9 ? 'done' : 'progress');
         expect(track.querySelectorAll('[aria-hidden="true"]')).toHaveLength(2);
         expect(within(row).queryByText(/peligro|seguro|límite de salud/i)).not.toBeInTheDocument();
     });
@@ -53,7 +55,7 @@ describe('General macro references, separate from personal goals', () => {
         await screen.findByText('0 comidas registradas');
         const row = screen.getByRole('progressbar', { name: 'Grasas' }).parentElement;
         expect(within(row).getByText('1 g sobre la meta')).toBeInTheDocument();
-        expect(within(row).queryByText(/Referencia general/)).not.toBeInTheDocument();
+        expect(within(row).queryByText(/Límite máximo/)).not.toBeInTheDocument();
     });
     it('shows a sodium maximum distance only with actual data and a supplied ceiling', () => {
         const { rerender } = render(<MicrosList micros={{ sodium_mg: 1103 }} coverage={{ con_datos: 1, total: 2 }}

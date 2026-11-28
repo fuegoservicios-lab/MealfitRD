@@ -71,9 +71,9 @@ describe('[P1-AGENT-MENU-SSOT] lo que la SSOT no decide', () => {
         }
     });
 
-    it('la Nevera y el Historial siguen ahí en contador (son sus pantallas)', () => {
+    it('la Nevera sigue ahí en contador y el Historial se oculta cuando el generador está apagado', () => {
         const r = rutas(menuItemsDelAgente(true));
         expect(r).toContain('/dashboard/pantry');
-        expect(r).toContain('/history');
+        expect(r).not.toContain('/history');
     });
 });

@@ -94,3 +94,19 @@ export function HistoryIcon(props) {
     );
 }
 HistoryIcon.propTypes = propTypes;
+
+/** Clasificatoria: copa de liga con tintado interior. */
+export function LeaderboardIcon(props) {
+    const c = props.color || 'currentColor';
+    return (
+        <Lienzo {...props}>
+            <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" fill={c} fillOpacity={TINTE} stroke="none" />
+            <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
+            <path d="M7 6H4.5a2 2 0 0 0 0 4H7" />
+            <path d="M17 6h2.5a2 2 0 0 1 0 4H17" />
+            <path d="M12 14v4" />
+            <path d="M8.5 21h7" />
+        </Lienzo>
+    );
+}
+LeaderboardIcon.propTypes = propTypes;

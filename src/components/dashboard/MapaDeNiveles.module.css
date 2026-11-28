@@ -107,6 +107,13 @@
 .hudRachaViva svg { color: var(--accent); fill: color-mix(in srgb, var(--accent) 55%, var(--warning)); animation: llama 1.4s ease-in-out infinite; }
 .hudMedalla { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5); }
 
+@media (max-width: 400px) {
+    .hud,
+    .hudLado { gap: 4px; }
+    .hudChip { padding: 3px 8px 3px 7px; font-size: 12px; }
+    .hudGrande { padding: 0; }
+}
+
 /* la explicación de la pastilla tocada, bajo el marcador */
 .ayuda {
     position: absolute;
@@ -178,7 +185,7 @@
 /* ─────────────────────────────── la ventana con scroll ─────────────────────────────── */
 .ventana {
     position: relative;
-    height: clamp(360px, 58vh, 580px);   /* [1155] más camino a la vista en el teléfono (eran 3 niveles) */
+    height: clamp(380px, 62vh, 600px);   /* [1155] más camino a la vista en el teléfono (eran 3 niveles); [P1-MAPA-MOVIL] 58→62vh */
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: none;
@@ -441,7 +448,7 @@
 .insignia svg { width: 13px; height: 13px; filter: none; }
 /* la insignia lleva su propio color (también fuera del nivel, p. ej. en la leyenda) */
 .insignia_meta { --c: var(--success); }
-.insignia_bajo { --c: var(--warning); }
+.insignia_bajo { --c: var(--danger); }
 .insignia_sobre { --c: var(--danger); }
 .insignia_escudo { --c: var(--primary); }
 .nivelEscudo { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary-light) 65%, transparent); }
@@ -449,8 +456,13 @@
 .nivelHoy .insignia svg { width: 15px; height: 15px; }
 
 .nivel_meta { --c: var(--success); }
-.nivel_bajo { --c: var(--warning); }
+/* [P1-MACRO-BARS-SEMAFORO · 2026-11-26] Los tres tonos de la app: verde en meta, rojo cerrado sin cumplir o pasado
+   (la insignia ↓/↑ distingue cuál), gris HOY mientras sigue abierto. */
+.nivel_bajo { --c: var(--danger); }
 .nivel_sobre { --c: var(--danger); }
+/* [P1-MAPA-MOVIL · 2026-11-27] en el mapa, HOY abierto es «tu nivel»: lleva la marca (el gris lo apagaba en mitad de la
+   escena) y sin insignia ↓, que se dibuja solo al cerrar el día */
+.nivelCurso { --c: var(--primary); }
 .nivel_vacio {
     background: rgb(15 23 42 / 0.6);
     box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary-light) 32%, transparent);
@@ -697,16 +709,23 @@
 .medalla_oro { composes: rango_oro from './SemanaEnProgreso.module.css'; }
 .medalla_platino { composes: rango_platino from './SemanaEnProgreso.module.css'; }
 .medalla_diamante { composes: rango_diamante from './SemanaEnProgreso.module.css'; }
+.medalla_maestro { composes: rango_maestro from './SemanaEnProgreso.module.css'; }
 .puertaTexto { display: flex; flex-direction: column; gap: 1px; min-width: 0; text-align: left; }
 .puertaTexto b { font-family: var(--font-heading); font-size: 14px; font-weight: 800; white-space: nowrap; }
 .puertaTexto small { font-size: 12px; color: var(--tinta-suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ─────────────────────────────── «Ir a hoy» ─────────────────────────────── */
-.irAHoy {
+/* ─────────────────────────────── «Ir a hoy» y «Mejor semana» ─────────────────────────────── */
+.mapaAtajos {
     position: absolute;
     right: 12px;
     bottom: 12px;
     z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.irAHoy,
+.irAMejor {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -714,26 +733,116 @@
     padding: 0 14px 0 10px;
     border: 0;
     border-radius: var(--radius-full);
-    background: var(--primary-fill);
-    color: rgb(255 255 255);
     font-family: var(--font-heading);
     font-size: 13px;
     font-weight: 800;
-    box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--primary) 80%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.25);
     cursor: pointer;
     animation: asomar 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     -webkit-tap-highlight-color: transparent;
 }
-.irAHoy:active { scale: 0.97; }
-.irAHoy:focus-visible { outline: 2px solid rgb(255 255 255); outline-offset: 2px; }
-.irAHoy svg { width: 16px; height: 16px; }
+.irAHoy {
+    background: var(--primary-fill);
+    color: rgb(255 255 255);
+    box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--primary) 80%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.25);
+}
+.irAMejor {
+    background: rgb(11 16 38 / 0.88);
+    color: var(--tinta);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary-light) 35%, transparent), 0 8px 20px -8px rgb(0 0 0 / 0.7);
+    -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+}
+.irAHoy:active,
+.irAMejor:active { transform: scale(0.97); }
+.irAHoy:focus-visible,
+.irAMejor:focus-visible { outline: 2px solid rgb(255 255 255); outline-offset: 2px; }
+.irAHoy svg,
+.irAMejor svg { width: 15px; height: 15px; }
+.irAMejor { justify-content: center; width: 40px; min-height: 40px; padding: 0; }
+.irAMejor svg { width: 18px; height: 18px; }
+.irAHoy { min-height: 40px; padding: 0 14px 0 11px; }
+.irAMejor svg { color: var(--warning); }
+
+.estrellaPerfecta {
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--noche-b);
+    color: var(--warning);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--warning) 65%, transparent);
+}
+.estrellaPerfecta svg { width: 11px; height: 11px; fill: var(--warning); }
+
+.nivelPts {
+    display: inline-block;
+    margin-left: 4px;
+    font-weight: 800;
+    color: var(--primary-light);
+    font-variant-numeric: tabular-nums;
+}
+.nivelPtsPerfecto { color: var(--warning); }
+
+.rangoHudBar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    font-size: 12px;
+}
+.rangoHudMedalla {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: rgb(255 255 255);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.45), 0 2px 0 rgb(0 0 0 / 0.25);
+}
+.rangoHudMedalla svg { width: 16px; height: 16px; filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.3)); }
+.rangoHudCuerpo { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.rangoHudLinea { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.rangoHudActual {
+    font-family: var(--font-heading);
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.rangoHudMeta {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+.rangoHudProg {
+    width: 100%;
+    height: 6px;
+    appearance: none;
+    border: 0;
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    background: var(--surface-sunken);
+}
+.rangoHudProg::-webkit-progress-bar { background: var(--surface-sunken); border-radius: var(--radius-full); }
+.rangoHudProg::-webkit-progress-value { background: var(--primary); border-radius: var(--radius-full); }
+.rangoHudProg::-moz-progress-bar { background: var(--primary); border-radius: var(--radius-full); }
 
 /* ─────────────────────────────── la celebración ─────────────────────────────── */
 /* una tarjeta compacta abajo en el marco: el día que se celebra (arriba, en el tercio del ancla) sigue a la vista */
 .celebracion {
     position: absolute;
     left: 50%;
-    bottom: 12px;
+    top: 54px;   /* [P1-MAPA-MOVIL] abajo tapaba justo el día que se celebra (ayer queda bajo hoy) */
     z-index: 3;
     display: grid;
     grid-template-columns: auto 1fr;
@@ -801,7 +910,7 @@
 .leyendaPunto { display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; color: rgb(255 255 255); }
 .leyendaPunto svg { width: 10px; height: 10px; }   /* [1155] las mismas insignias que los niveles */
 .punto_meta { background: var(--success); }
-.punto_bajo { background: var(--warning); }
+.punto_bajo { background: var(--danger); }
 .punto_sobre { background: var(--danger); }
 .punto_vacio { box-shadow: inset 0 0 0 1.5px var(--text-light); width: 12px; height: 12px; }
 .compartir { gap: 0.5rem; }

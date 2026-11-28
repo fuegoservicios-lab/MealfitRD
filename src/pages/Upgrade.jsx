@@ -31,6 +31,10 @@ const PaymentModal = lazy(() => import('../components/dashboard/PaymentModal'));
 // [P1-LEGAL-LINKS-APEX · 2026-08-22] Las legales viven SOLO en el apex (en capacitor:// un href relativo abriría la
 // copia JSX obsoleta).
 import { apexUrl } from '../config/site';
+import { nativeIapAvailable } from '../config/platform';
+import { initRevenueCat, getNativeOfferings, purchaseNativePlan, restoreNativePurchases } from '../features/billing/revenuecat';
+import { toast } from 'sonner';
+import iconoDeAviso from '../utils/iconoDeAviso';
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../data/routeMeta';
 import { planPagado } from '../utils/regalosCuenta';
@@ -99,11 +103,13 @@ function getFilasTabla() {
    ============================================================ */
 
 /* [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante (ver arriba). */
-function getFaqItems() {
+function getFaqItems(isNativeIap = false) {
     return [
         {
             q: t('¿Puedo cancelar en cualquier momento?'),
-            a: t('Sí. Tu suscripción se puede cancelar desde Ajustes en un click, sin penalización ni preguntas. Mantienes acceso al plan hasta el final del período facturado.'),
+            a: isNativeIap
+                ? t('Sí. Puedes cancelar tu suscripción en cualquier momento desde los ajustes de tu Apple ID en App Store. Mantienes acceso al plan hasta el final del período facturado.')
+                : t('Sí. Tu suscripción se puede cancelar desde Ajustes en un click, sin penalización ni preguntas. Mantienes acceso al plan hasta el final del período facturado.'),
         },
         {
             q: t('¿Qué pasa cuando se acaban mis créditos del mes?'),
@@ -122,7 +128,9 @@ function getFaqItems() {
         },
         {
             q: t('¿Mis datos están seguros?'),
-            a: t('Todos los pagos se procesan vía PayPal (PCI-DSS Level 1). No almacenamos tarjetas en nuestros servidores. Tus datos nutricionales están encriptados en tránsito y en reposo, y nunca se comparten con terceros.'),
+            a: isNativeIap
+                ? t('Todos los pagos se procesan de forma segura a través de Apple App Store. No almacenamos datos de tarjetas en nuestros servidores. Tus datos nutricionales están encriptados en tránsito y en reposo, y nunca se comparten con terceros.')
+                : t('Todos los pagos se procesan vía PayPal (PCI-DSS Level 1). No almacenamos tarjetas en nuestros servidores. Tus datos nutricionales están encriptados en tránsito y en reposo, y nunca se comparten con terceros.'),
         },
     ];
 }
@@ -163,13 +171,36 @@ const Upgrade = () => {
     // [P1-BILLING-ORPHAN-RECOVERY · 2026-08-22] `session` para el `custom_id` del
     // checkout: MISMA fuente que usa `upgradeUserPlan` al llamar a `/verify`, para
     // que el id que viaja a PayPal y el que se verifica sean el mismo.
-    const { planData, upgradeUserPlan, userProfile, isGuest, session } = useAssessment();
+    const { planData, upgradeUserPlan, userProfile, isGuest, session, refreshProfileAndPlan, checkPlanLimit } = useAssessment();
     const [searchParams, setSearchParams] = useSearchParams();
+    const isNativeIap = nativeIapAvailable();
 
     const [billingPeriod, setBillingPeriod] = useState('monthly');
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [openFAQ, setOpenFAQ] = useState(null);
+    const [nativeOfferings, setNativeOfferings] = useState({});
+    const [nativeLoadingOfferings, setNativeLoadingOfferings] = useState(isNativeIap);
+    const [purchasingTier, setPurchasingTier] = useState(null);
+    const [restoringPurchases, setRestoringPurchases] = useState(false);
+
+    useEffect(() => {
+        if (!isNativeIap) return;
+        let cancelled = false;
+        setNativeLoadingOfferings(true);
+        (async () => {
+            try {
+                if (session?.user?.id) await initRevenueCat(session.user.id);
+                const mapped = await getNativeOfferings();
+                if (!cancelled) setNativeOfferings(mapped || {});
+            } catch (err) {
+                console.error('Error cargando offerings de StoreKit:', err);
+            } finally {
+                if (!cancelled) setNativeLoadingOfferings(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [isNativeIap, session?.user?.id]);
 
     const isAnnual = billingPeriod === 'annual';
     // [ULTRA-MONTHLY-ONLY · 2026-06-19] Anual efectivo POR tier (Ultra excluido).
@@ -198,7 +229,7 @@ const Upgrade = () => {
         navigate(hasStarted ? '/dashboard' : '/assessment');
     };
 
-    const handleUpgradeClick = (tier, name) => {
+    const handleUpgradeClick = async (tier, name) => {
         // [P1-GUEST-PRICING · 2026-06-21] Invitado → crear cuenta antes de suscribirse
         // (el checkout/verify requiere auth).
         if (isGuest) {
@@ -212,9 +243,40 @@ const Upgrade = () => {
             navigate('/dashboard');
             return;
         }
+        const annual = isAnnualForTier(tier);
+        if (isNativeIap) {
+            const periodKey = annual ? 'annual' : 'monthly';
+            const pkgInfo = nativeOfferings?.[tier]?.[periodKey];
+            if (!pkgInfo?.aPackage) {
+                toast.error(t('Este plan no está disponible en StoreKit en este momento. Intenta de nuevo en unos segundos.'));
+                return;
+            }
+            setPurchasingTier(tier);
+            try {
+                if (session?.user?.id) await initRevenueCat(session.user.id);
+                const result = await purchaseNativePlan(pkgInfo);
+                if (result?.cancelled) return;
+                await Promise.all([
+                    refreshProfileAndPlan?.(),
+                    session?.user?.id ? checkPlanLimit?.(session.user.id) : Promise.resolve(),
+                ]);
+                const planNames = { basic: 'Bioboros Básico', plus: 'Bioboros Plus', ultra: 'Bioboros Max' };
+                toast.success(t('¡Bienvenido a {plan}!', { plan: planNames[tier] || 'Bioboros Plus' }), {
+                    description: t('Has desbloqueado acceso premium.'),
+                    duration: 5000,
+                    icon: iconoDeAviso('premium'),
+                });
+                navigate('/dashboard');
+            } catch (err) {
+                console.error('Error en compra StoreKit:', err);
+                toast.error(t('No pudimos completar la compra en App Store. Inténtalo de nuevo.'));
+            } finally {
+                setPurchasingTier(null);
+            }
+            return;
+        }
         const price = getPrice(tier);
         // [ULTRA-MONTHLY-ONLY · 2026-06-19] Periodo efectivo tier-aware (Ultra → mensual).
-        const annual = isAnnualForTier(tier);
         const periodSuffix = annual ? t(' (Anual)') : t(' (Mensual)');
         setSelectedPlan({ tier, price, name: name + periodSuffix, isAnnual: annual });
         setIsPaymentOpen(true);
@@ -226,6 +288,30 @@ const Upgrade = () => {
             p.set('billing', annual ? 'annual' : 'monthly');
             return p;
         }, { replace: true });
+    };
+
+    const handleRestorePurchases = async () => {
+        if (!isNativeIap || restoringPurchases) return;
+        setRestoringPurchases(true);
+        try {
+            if (session?.user?.id) await initRevenueCat(session.user.id);
+            const sync = await restoreNativePurchases();
+            await Promise.all([
+                refreshProfileAndPlan?.(),
+                session?.user?.id ? checkPlanLimit?.(session.user.id) : Promise.resolve(),
+            ]);
+            if (sync?.active) {
+                toast.success(t('Tu suscripción se restauró correctamente.'));
+                navigate('/dashboard');
+            } else {
+                toast.info(t('No encontramos suscripciones activas en tu Apple ID.'));
+            }
+        } catch (err) {
+            console.error('Error restaurando compras en Upgrade:', err);
+            toast.error(t('No pudimos restaurar tus compras. Inténtalo de nuevo.'));
+        } finally {
+            setRestoringPurchases(false);
+        }
     };
 
     // [PAY-MODAL-PERSIST · 2026-06-18] Cierre centralizado del checkout: baja el modal,
@@ -270,6 +356,7 @@ const Upgrade = () => {
     // rank ni navega (el cobro real lo deriva el backend del plan_id de PayPal,
     // I-Billing-1); solo valida que el tier sea conocido.
     useEffect(() => {
+        if (isNativeIap) return;
         // [P1-I18N-DASHBOARD · 2026-08-15] Se llamaba `t`, que ahora es la función
         // de traducción del ámbito de arriba: dejarlo sombreado convierte cualquier
         // `t('…')` futuro dentro de este efecto en un error mudo.
@@ -335,9 +422,23 @@ const Upgrade = () => {
     const renderPlanCard = (tier, displayName, ctaName) => {
         const isCurrent = isCurrentPlan(tier);
         const isPopular = isPopularPlan(tier);
-        const disabled = isButtonDisabled(tier);
         const isFree = tier === 'gratis';
-        const ahorro = !isFree && isAnnualForTier(tier) ? annualSavingsPct(tier) : null;
+        const periodKey = isAnnualForTier(tier) ? 'annual' : 'monthly';
+        const nativePkg = isNativeIap && !isFree ? nativeOfferings?.[tier]?.[periodKey] : null;
+        const nativeMonthlyPkg = isNativeIap && !isFree ? nativeOfferings?.[tier]?.monthly : null;
+        const nativeAnnualPkg = isNativeIap && !isFree ? nativeOfferings?.[tier]?.annual : null;
+        const isPurchasingThis = purchasingTier === tier;
+        const disabled = isButtonDisabled(tier) || (isNativeIap && !isFree && (purchasingTier !== null || nativeLoadingOfferings || !nativePkg?.aPackage));
+        const nativeSavings = isNativeIap && isAnnualForTier(tier) && nativeMonthlyPkg?.price > 0 && nativeAnnualPkg?.price > 0
+            ? Math.round((1 - nativeAnnualPkg.price / (nativeMonthlyPkg.price * 12)) * 100)
+            : null;
+        const ahorro = !isFree && isAnnualForTier(tier)
+            ? (isNativeIap ? nativeSavings : annualSavingsPct(tier))
+            : null;
+        const nativeEquivUsd = isNativeIap && isAnnualForTier(tier) && nativeAnnualPkg?.price > 0 && nativeAnnualPkg?.currencyCode === 'USD'
+            ? (nativeAnnualPkg.price / 12).toFixed(2)
+            : null;
+        const equivMonto = isNativeIap ? nativeEquivUsd : getMonthlyEquiv(tier);
 
         const cardClass = [
             styles.planCard,
@@ -354,23 +455,42 @@ const Upgrade = () => {
                 </header>
 
                 <div className={styles.planPrice}>
-                    <span className={styles.planPriceCurrency}>USD$</span>
-                    <span className={styles.planPriceAmount}>{isFree ? '0' : getPrice(tier)}</span>
-                    {!isFree && <span className={styles.planPricePeriod}>{getPeriodLabel(tier)}</span>}
+                    {isNativeIap ? (
+                        isFree ? (
+                            <>
+                                <span className={styles.planPriceCurrency}>USD$</span>
+                                <span className={styles.planPriceAmount}>0</span>
+                            </>
+                        ) : (
+                            <>
+                                <span className={styles.planPriceAmount}>{nativePkg?.priceString || '—'}</span>
+                                <span className={styles.planPricePeriod}>{getPeriodLabel(tier)}</span>
+                            </>
+                        )
+                    ) : (
+                        <>
+                            <span className={styles.planPriceCurrency}>USD$</span>
+                            <span className={styles.planPriceAmount}>{isFree ? '0' : getPrice(tier)}</span>
+                            {!isFree && <span className={styles.planPricePeriod}>{getPeriodLabel(tier)}</span>}
+                        </>
+                    )}
                 </div>
                 <div className={styles.planPriceEquivalent}>
                     {isFree && t('Gratis para siempre')}
-                    {!isFree && getMonthlyEquiv(tier) && (
+                    {!isFree && equivMonto && (
                         <>
-                            {t('equivale a ${monto}/mes', { monto: getMonthlyEquiv(tier) })}
+                            {t('equivale a ${monto}/mes', { monto: equivMonto })}
                             {ahorro ? <span className={styles.planSaving}>{t('Ahorras {pct} %', { pct: ahorro })}</span> : null}
                         </>
                     )}
+                    {!isFree && !equivMonto && ahorro ? (
+                        <span className={styles.planSaving}>{t('Ahorras {pct} %', { pct: ahorro })}</span>
+                    ) : null}
                     {!isFree && isAnnual && ANNUAL_DISABLED_TIERS.has(tier) && t('Disponible solo en facturación mensual')}
                 </div>
                 {/* [P1-LAUNCH-OFFER · 2026-07-31] Anclaje de lanzamiento (hoy apagado en config/plans.js: los precios
                     BAJARON). La fecha se DERIVA del ISO con `timeZone: 'UTC'` (P2-I18N-FECHA-LANZAMIENTO-CLAVADA). */}
-                {!isFree && ofertaViva && !isAnnualForTier(tier) && LAUNCH_OFFER.futureMonthly[tier] && (
+                {!isFree && !isNativeIap && ofertaViva && !isAnnualForTier(tier) && LAUNCH_OFFER.futureMonthly[tier] && (
                     <div className={styles.launchOffer}>
                         <span className={styles.launchOfferOld}>USD${LAUNCH_OFFER.futureMonthly[tier]}</span>
                         <span className={styles.launchOfferPill}>
@@ -401,7 +521,9 @@ const Upgrade = () => {
                     onClick={() => (isFree ? handleFreePlanClick() : handleUpgradeClick(tier, ctaName))}
                     disabled={disabled}
                 >
-                    {getButtonText(tier)}
+                    {isPurchasingThis
+                        ? t('Procesando compra...')
+                        : (isNativeIap && !isFree && nativeLoadingOfferings && !nativePkg?.aPackage ? t('Cargando precios...') : getButtonText(tier))}
                 </Button>
             </article>
         );
@@ -409,8 +531,8 @@ const Upgrade = () => {
 
     return (
         <div className={styles.root}>
-            {/* --- MODAL DE PAGO --- [P5-SPEED-PAYMENTMODAL-LAZY] chunk lazy al abrir. */}
-            {isPaymentOpen && (
+            {/* --- MODAL DE PAGO --- [P5-SPEED-PAYMENTMODAL-LAZY] chunk lazy al abrir (solo web). */}
+            {!isNativeIap && isPaymentOpen && (
                 <Suspense fallback={null}>
                     <PaymentModal
                         isOpen={isPaymentOpen}
@@ -479,6 +601,18 @@ const Upgrade = () => {
                 {renderPlanCard('ultra', tierDisplayName('ultra', t), t('Suscripción {plan}', { plan: tierDisplayName('ultra', t) }))}
             </div>
 
+            {isNativeIap && (
+                <div className={styles.restoreRow}>
+                    <Button
+                        variant="secondary"
+                        onClick={handleRestorePurchases}
+                        disabled={restoringPurchases}
+                    >
+                        {restoringPurchases ? t('Restaurando...') : t('Restaurar compras')}
+                    </Button>
+                </div>
+            )}
+
             {/* --- SIEMPRE INCLUIDO --- */}
             <section className={styles.siempre} aria-labelledby="upgrade-siempre">
                 <div className={styles.siempreHead}>
@@ -525,7 +659,7 @@ const Upgrade = () => {
             <section className={`${styles.sectionWrapper} ${styles.sectionFaq}`}>
                 <h2 className={styles.sectionTitle}>{t('Preguntas frecuentes')}</h2>
                 <div className={styles.faqList}>
-                    {getFaqItems().map((item, idx) => (
+                    {getFaqItems(isNativeIap).map((item, idx) => (
                         <FAQItem key={item.q} item={item} isOpen={openFAQ === idx} onToggle={() => setOpenFAQ(openFAQ === idx ? null : idx)} />
                     ))}
                 </div>
@@ -533,13 +667,21 @@ const Upgrade = () => {
 
             <div className={styles.trustLine}>
                 <ShieldCheck size={14} aria-hidden="true" />
-                <span>{t('Pago seguro con PayPal · Cancela cuando quieras · No vendemos tus datos')}</span>
+                <span>{isNativeIap
+                    ? t('Pago seguro vía App Store · Renovable automáticamente · Cancela cuando quieras en los ajustes de tu Apple ID')
+                    : t('Pago seguro con PayPal · Cancela cuando quieras · No vendemos tus datos')}</span>
             </div>
 
+            {isNativeIap && (
+                <p className={styles.appleLegalNote}>
+                    {t('Las suscripciones se cobran a tu cuenta de Apple ID al confirmar la compra y se renuevan automáticamente a menos que se cancelen al menos 24 horas antes del final del período actual. Puedes gestionar o cancelar tus suscripciones en la configuración de tu Apple ID. Términos de uso (EULA) y Política de privacidad disponibles abajo.')}
+                </p>
+            )}
+
             <footer className={styles.footerLinks}>
-                <a href={apexUrl('/privacy')} target="_blank" rel="noopener noreferrer">{t('Privacidad')}</a>
+                <a href={apexUrl('/privacy')} target="_blank" rel="noopener noreferrer">{isNativeIap ? t('Política de privacidad') : t('Privacidad')}</a>
                 <span aria-hidden="true">·</span>
-                <a href={apexUrl('/terms')} target="_blank" rel="noopener noreferrer">{t('Términos')}</a>
+                <a href={apexUrl('/terms')} target="_blank" rel="noopener noreferrer">{isNativeIap ? t('Términos de uso (EULA)') : t('Términos')}</a>
                 <span aria-hidden="true">·</span>
                 <a href="mailto:bioboros.support@gmail.com">{t('Soporte')}</a>
                 <span className={styles.footerNote}>{t('© 2026 {app} · Hecho en República Dominicana 🇩🇴', { app: BRAND })}</span>

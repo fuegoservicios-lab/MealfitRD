@@ -4,12 +4,12 @@
 // correos sin partirse a mitad de palabra en escritorio con columna fija al desplazar, copia rápida al
 // portapapeles, barra de selección destacada y botón para limpiar búsqueda.
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Check, Copy, Download, Search, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Copy, Download, Search, Trash2, X } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import AdminDialogoMotivo from './AdminDialogoMotivo';
 import AdminDialogoEliminar from './AdminDialogoEliminar';
 import {
-    NOMBRE_MODO, NOMBRE_PLAN, cifra, copiarTexto, fecha, marcaViva, nombreCsvDeHoy, nombreDeArchivo, pedirAdmin,
+    NOMBRE_MODO, NOMBRE_PLAN, cifra, copiarTexto, fecha, hora, marcaViva, nombreCsvDeHoy, nombreDeArchivo, pedirAdmin,
     urlCsvCuentas, urlCuentas, usd,
 } from '../utils/adminCuentas';
 import base from './AdminCuentas.module.css';
@@ -104,13 +104,13 @@ const FILTROS = [
 const ORDENES = [['actividad', 'Última actividad'], ['alta', 'Fecha de registro'], ['comidas', 'Comidas registradas'], ['gasto', 'Gasto de IA']];
 // [I18N-EXEMPT: panel interno del dueño, solo español] Columnas de cifras: en el teléfono cada una rotula su celda.
 const COLUMNAS = {
-    ultima: 'Última actividad', comidas: 'Comidas', planes: 'Planes', mensajes: 'Mensajes al coach', escaneos: 'Escaneos',
-    gasto: 'Gasto de IA (30 días)', continuos: 'Días activos continuos', alta: 'Registro',
+    ultima: 'Último uso', comidas: 'Comidas', planes: 'Planes', mensajes: 'Mensajes al coach', escaneos: 'Escaneos',
+    gasto: 'Gasto de IA (30 días)', continuos: 'Días activos continuos', alta: 'Cuenta creada',
 };
 // [I18N-EXEMPT: panel interno del dueño, solo español] Cabeceras compactas de una línea en la tabla de escritorio.
 const CABECERAS = {
-    ultima: 'Actividad', comidas: 'Comidas', planes: 'Planes', mensajes: 'Coach', escaneos: 'Escaneos',
-    gasto: 'Gasto 30d', continuos: 'Días activos continuos', alta: 'Registro',
+    ultima: 'Último uso', comidas: 'Comidas', planes: 'Planes', mensajes: 'Coach', escaneos: 'Escaneos',
+    gasto: 'Gasto 30d', continuos: 'Días activos continuos', alta: 'Cuenta creada',
 };
 
 const ESPERA_BUSQUEDA_MS = 300;
@@ -193,7 +193,14 @@ function FilaCuenta({ c, elegida, onElegir, onAbrir }) {
                     </div>
                 </div>
             </td>
-            <td data-etiqueta={COLUMNAS.ultima} className={styles.fecha}>{a.ultima ? fecha(a.ultima) : TEXTOS.sinActividad}</td>
+            <td data-etiqueta={COLUMNAS.ultima} className={styles.fecha}>
+                {a.ultima ? (
+                    <>
+                        <span className={styles.fechaDia}>{fecha(a.ultima)}</span>
+                        <span className={styles.nota}>{hora(a.ultima)}</span>
+                    </>
+                ) : TEXTOS.sinActividad}
+            </td>
             <td data-etiqueta={COLUMNAS.comidas} className={styles.num}>
                 <span className={!a.comidas_total ? styles.cero : undefined}>{cifra(a.comidas_total)}</span>
                 <span className={styles.nota}>{TEXTOS.comidas30(cifra(a.comidas_30d))}</span>
@@ -493,15 +500,21 @@ export default function AdminCuentasLista({ version = 0, oculta = false, onDispo
                 </div>
                 <div className={styles.campo}>
                     <label htmlFor={idFiltro} className={base.etiqueta}>{TEXTOS.filtro}</label>
-                    <select id={idFiltro} className={base.input} value={filtro} onChange={(e) => elegirFiltro(e.target.value)}>
-                        {FILTROS.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
-                    </select>
+                    <div className={styles.selectCaja}>
+                        <select id={idFiltro} className={`${base.input} ${styles.selectInput}`} value={filtro} onChange={(e) => elegirFiltro(e.target.value)}>
+                            {FILTROS.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
+                        </select>
+                        <ChevronDown size={15} strokeWidth={2} className={styles.selectIcono} aria-hidden="true" />
+                    </div>
                 </div>
                 <div className={styles.campo}>
                     <label htmlFor={idOrden} className={base.etiqueta}>{TEXTOS.orden}</label>
-                    <select id={idOrden} className={base.input} value={orden} onChange={(e) => elegirOrden(e.target.value)}>
-                        {ORDENES.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
-                    </select>
+                    <div className={styles.selectCaja}>
+                        <select id={idOrden} className={`${base.input} ${styles.selectInput}`} value={orden} onChange={(e) => elegirOrden(e.target.value)}>
+                            {ORDENES.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
+                        </select>
+                        <ChevronDown size={15} strokeWidth={2} className={styles.selectIcono} aria-hidden="true" />
+                    </div>
                 </div>
             </div>
             {filtro === 'verificadores_android' && (

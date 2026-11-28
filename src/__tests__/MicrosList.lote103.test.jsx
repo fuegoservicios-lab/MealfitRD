@@ -104,7 +104,7 @@ describe('la división Plan / Progreso', () => {
         expect(src('src/App.jsx')).toContain('<Route path="/dashboard/progress" element={<ProgressPage />} />');
         // al borrar en el contador, quien esté escuchando vuelve a pedir el día ([lote 105] con `source`, para que
         // la propia tarjeta no reaccione a su borrado)
-        expect(src('src/components/dashboard/TrackingProgress.jsx')).toContain("source: 'tracking-progress', userId, deletedMeal: { id: meal.id, name: meal.meal_name }");
+        expect(src('src/components/dashboard/TrackingProgress.jsx')).toContain("source: 'tracking-progress', userId, isPastDay: isPastMeal, deletedMeal: { id: meal.id, name: meal.meal_name }");
     });
 
     it('en modo plan las metas de macros son las del plan y la invitación a encenderlo vive en el centro de notificaciones', () => {

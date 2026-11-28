@@ -92,8 +92,10 @@ function macroSplit(m) {
   const t = kc.p + kc.c + kc.g;
   // [P2-DESIGN-CONSISTENCY · 2026-07-07] Macros alineados con Recetas/Historial-desktop:
   // Proteína=verde, Carbos=índigo, Grasa=rosa.
-  if (!t) return [["#34D399", 0], ["#818CF8", 0], ["#FB7185", 0]];
-  return [["#34D399", kc.p / t], ["#818CF8", kc.c / t], ["#FB7185", kc.g / t]];
+    // [P1-MACRO-BARS-SEMAFORO · 2026-11-27] Reparto de las macros (composición, no progreso): tres tonos de un mismo
+  // gris (`--macro-tono-*`) en vez de verde/índigo/rosa. El color queda para el estado (cumplido/pasado).
+  if (!t) return [["var(--macro-tono-p)", 0], ["var(--macro-tono-c)", 0], ["var(--macro-tono-g)", 0]];
+  return [["var(--macro-tono-p)", kc.p / t], ["var(--macro-tono-c)", kc.c / t], ["var(--macro-tono-g)", kc.g / t]];
 }
 
 /* --------------------------------------------------------- piezas */

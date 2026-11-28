@@ -665,7 +665,7 @@ const PantryPage = () => {
             });
             invalidateInventoryCache();
             fetchData(false);
-            toast.success(t('Porciones guardadas'));
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
         } catch {
             toast.error(t('No se pudo guardar. Inténtalo de nuevo.'));
         }
@@ -681,7 +681,7 @@ const PantryPage = () => {
             invalidateInventoryCache();
             fetchData(false);
             _scheduleRecalcShoppingList();
-            toast.success(t('Recuperado: {n}', { n: (r?.items || []).length }), { icon: iconoDeAviso('deshacer'), duration: 2500 });
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
         } catch {
             toast.error(t('No se pudo restaurar el alimento.'));
         }
@@ -1934,7 +1934,7 @@ const PantryPage = () => {
                         );
                         // Salió del estado "agotado" porque el usuario lo recuperó.
                         _removeDepleted(deletedItem);
-                        toast.success(t('{alimento} restaurado', { alimento: nombreDelAlimento(deletedItem.ingredient_name) }), { icon: iconoDeAviso('deshacer'), duration: 2000 });
+                        // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
                         // [P3-AUDIT-8] Revertir el delta: el item está de
                         // vuelta, la lista de compras debe excluirlo otra vez.
                         // [P2-NEW-12 · 2026-05-11] Debounced — undo masivo no
@@ -2228,9 +2228,7 @@ const PantryPage = () => {
                 compareText(a.ingredient_name, b.ingredient_name)
             ));
             _removeDepleted(entry);
-            toast.success(t('{alimento} repuesto ({cantidad} {unidad})', {
-                alimento: nombreDelAlimento(entry.ingredient_name), cantidad: restoreQty, unidad: glossUnitWord(entry.unit || '', t),
-            }).trim(), { icon: iconoDeAviso('hecho'), duration: 2000 });
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
             _scheduleRecalcShoppingList();
         } catch (err) {
             console.error('Restore depleted error:', err);
@@ -3834,11 +3832,7 @@ const PantryPage = () => {
                                         setQtyEditSaving(true);
                                         try {
                                             await handleUpdateQuantity(targetItem.id, target);
-                                            if (target === 0) {
-                                                toast.success(t('{alimento} marcado como agotado', { alimento: nombreDelAlimento(targetItem.ingredient_name) }));
-                                            } else {
-                                                toast.success(`${nombreDelAlimento(targetItem.ingredient_name)}: ${target} ${glossUnitWord(targetItem.unit, t)}`);
-                                            }
+                                            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
                                         } catch (err) {
                                             console.error('qty edit error', err);
                                             toast.error(t('No se pudo actualizar la cantidad'));

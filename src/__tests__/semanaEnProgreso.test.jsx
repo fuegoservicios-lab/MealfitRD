@@ -233,7 +233,13 @@ describe('[SEMANA-EN-PROGRESO] cableado', () => {
     it('la tarjeta de Progreso la monta fuera del ternario vacío/no-vacío y abre el cajón en el día tocado', () => {
         const tp = src('components/dashboard/TrackingProgress.jsx');
         expect(tp).toContain('<SemanaEnProgreso');
-        expect(tp.indexOf('<SemanaEnProgreso')).toBeLessThan(tp.indexOf('isLoggedIn && !loading && _todaysMeals.length > 0'));
+        // [P1-SEMANA-BAJO-MACROS · 2026-11-27] Va justo DESPUÉS de las macros y ANTES de «tu día» (comidas + micros),
+        // fuera de su condicional: en el teléfono los puntos quedan bajo el contador; en PC sigue en el riel derecho
+        // (celda fija de la rejilla).
+        const semana = tp.indexOf('<SemanaEnProgreso');
+        expect(semana).toBeGreaterThan(tp.indexOf('className={styles.macrosCard}'));
+        expect(semana).toBeLessThan(tp.indexOf('className={styles.diaCard}'));
+        expect(semana).toBeLessThan(tp.indexOf('<MicrosList'));
         expect(tp).toContain('onAbrirDia={(iso) => { setHistoryDia(iso); setHistoryOpen(true); }}');
         expect(tp).toContain('diaInicial={historyDia}');
         expect(tp).toContain('<DiaryHistoryTrigger compacto');

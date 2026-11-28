@@ -19,6 +19,7 @@ import { shouldAutoReloadForChunkError } from '../utils/chunkReloadGuard';
 // evalúan con el catálogo ya cargado — nunca al importar.
 import { t } from '../i18n';
 import Button from './ui/Button';
+import styles from './ErrorBoundary.module.css';
 
 const _isChunkLoadError = (error) => {
   const m = error?.message?.toLowerCase() || '';
@@ -79,6 +80,12 @@ export class RouteErrorBoundary extends React.Component {
     }
   }
 
+  componentDidUpdate(prevProps) {
+    if (this.state.hasError && prevProps.routeName !== this.props.routeName) {
+      this.setState((s) => ({ hasError: false, isChunk: false, resetKey: s.resetKey + 1 }));
+    }
+  }
+
   handleRetry = () => {
     // Key-bump: remonta el subtree de children (reset limpio) en vez de recargar.
     this.setState((s) => ({ hasError: false, isChunk: false, resetKey: s.resetKey + 1 }));
@@ -89,35 +96,34 @@ export class RouteErrorBoundary extends React.Component {
       if (this.state.isChunk) {
         // El reload global esta en camino (500ms); loader mientras tanto.
         return (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary, #64748b)' }}>
-            {t('Actualizando…')}
+          <div className={styles.routeShell}>
+            <div className={styles.card}>
+              <div className={styles.updating}>
+                <div className={styles.spinner} aria-hidden="true" />
+                <span>{t('Actualizando…')}</span>
+              </div>
+            </div>
           </div>
         );
       }
       return (
-        <div
-          role="alert"
-          style={{
-            padding: '2rem 1.25rem',
-            textAlign: 'center',
-            maxWidth: '28rem',
-            margin: '2rem auto',
-            border: '1px solid var(--border, #e2e8f0)',
-            borderRadius: '1rem',
-            background: 'var(--surface, #fff)',
-          }}
-        >
-          <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 .4rem' }}>
-            {t('Algo salió mal en esta sección')}
-          </h2>
-          <p style={{ fontSize: '.85rem', opacity: 0.7, margin: '0 0 1rem' }}>
-            {t('El resto de la app sigue funcionando. Puedes reintentar sin recargar todo.')}
-          </p>
-          <Button variant="primary" size="sm"
-            onClick={this.handleRetry}
-          >
-            {t('Reintentar')}
-          </Button>
+        <div className={styles.routeShell}>
+          <div role="alert" className={styles.card}>
+            <div className={`${styles.iconWrap} ${styles.iconWrapDanger}`} aria-hidden="true">
+              <svg className={styles.iconSvg} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className={styles.title}>
+              {t('Algo salió mal en esta sección')}
+            </h2>
+            <p className={styles.body}>
+              {t('El resto de la app sigue funcionando. Puedes reintentar sin recargar todo.')}
+            </p>
+            <Button variant="primary" size="sm" onClick={this.handleRetry}>
+              {t('Reintentar')}
+            </Button>
+          </div>
         </div>
       );
     }

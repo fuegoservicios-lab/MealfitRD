@@ -56,7 +56,7 @@ const _dataApiUrl = neonAuthUrl.replace(/\/auth\/?$/, '') + '/rest/v1';
 //   POST <base>/sign-in/social {provider, callbackURL} -> {url, redirect:true}
 // y redirigimos a `url`. Preferimos el método nativo `auth.signIn.social` si el
 // SDK lo expone; si no, caemos al REST. Verificado: el endpoint devuelve la
-// `url` de init con sólo el header Origin (mealfitrd.com es trusted_origin).
+// `url` de init con sólo el header Origin (bioboros.com es trusted_origin).
 async function _signInWithOAuth({ provider = 'google', options } = {}) {
     const callbackURL = options?.redirectTo
         || (typeof window !== 'undefined' ? `${window.location.origin}/` : '/');

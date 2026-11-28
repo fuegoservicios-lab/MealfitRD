@@ -30,6 +30,7 @@ export const cargarPagina = {
     progreso: unaVez(() => import('../pages/ProgressPage')),
     agente: unaVez(() => import('../pages/AgentPage')),
     nevera: unaVez(() => import('../pages/Pantry')),
+    clasificatoria: unaVez(() => import('../pages/ClasificatoriaPage')),
     historial: unaVez(() => import('../pages/History')),
 };
 

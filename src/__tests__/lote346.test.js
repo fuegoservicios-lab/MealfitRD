@@ -15,9 +15,12 @@ vi.mock('../config/platform', () => ({ isNativeApp: () => true, nativePlatform: 
 const opciones = vi.hoisted(() => ({}));
 vi.mock('@capacitor/camera', () => ({
     MediaTypeSelection: { Photo: 'photo' },
+    CameraSource: { Camera: 'CAMERA' },
+    CameraResultType: { Uri: 'uri' },
     Camera: {
         chooseFromGallery: vi.fn(async (o) => { Object.assign(opciones, o); marcas.push('<nativo>'); return { results: [{ webPath: 'blob:x', metadata: { format: 'jpeg' } }] }; }),
         takePhoto: vi.fn(async (o) => { Object.assign(opciones, o); return { webPath: 'blob:x' }; }),
+        getPhoto: vi.fn(async (o) => { Object.assign(opciones, o); return { webPath: 'blob:x', format: 'jpeg' }; }),
     },
 }));
 
@@ -39,7 +42,7 @@ describe('[346] marcas del viaje de la foto', () => {
         await chooseNativeChatImages(1);
         expect(opciones).toMatchObject({ targetWidth: 1600, targetHeight: 1600, quality: 85 });
         await takeNativeChatPhoto();
-        expect(opciones).toMatchObject({ targetWidth: 1600, targetHeight: 1600, quality: 85 });
+        expect(opciones).toMatchObject({ width: 1600, height: 1600, quality: 85 });
     });
 
     it('la preparación marca por dónde va (hilo principal en jsdom) y cuándo acaba', async () => {

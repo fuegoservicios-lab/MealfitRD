@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Star } from 'lucide-react';
-import { useT, useTn } from '../../i18n';
+import { formatNumber, useT, useTn } from '../../i18n';
 import { leerSemanasGuardadas, pedirSemanas } from '../../utils/progresoServidor';
 import styles from './VitrinaDeSemanas.module.css';
 
@@ -19,6 +19,7 @@ const _mismasSemanas = (a, b) => {
             a[i]?.numero !== b[i]?.numero ||
             a[i]?.estrellas !== b[i]?.estrellas ||
             a[i]?.dias_en_meta !== b[i]?.dias_en_meta ||
+            a[i]?.puntos !== b[i]?.puntos ||
             a[i]?.empieza !== b[i]?.empieza
         ) return false;
     }
@@ -70,7 +71,7 @@ const VitrinaDeSemanas = ({ userId, onElegir, version = 0 }) => {
                         role="listitem"
                         className={`${styles.semana} ${s.estrellas === 3 ? styles.perfecta : ''}`}
                         onClick={() => onElegir?.(s.empieza)}
-                        aria-label={`${t('Semana {n}', { n: s.numero })}: ${tn(s.estrellas, '{n} estrella', '{n} estrellas', { n: s.estrellas })}, ${t('{n} de {total} días en meta', { n: s.dias_en_meta, total: 7 })}`}
+                        aria-label={`${t('Semana {n}', { n: s.numero })}: ${tn(s.estrellas, '{n} estrella', '{n} estrellas', { n: s.estrellas })}, ${Number.isFinite(Number(s.puntos)) ? t('{n} pts', { n: formatNumber(s.puntos) }) : t('{n} de {total} días en meta', { n: s.dias_en_meta, total: 7 })}`}
                     >
                         <span className={styles.numero}>{t('S{n}', { n: s.numero })}</span>
                         <span className={styles.estrellas} aria-hidden="true">
@@ -78,6 +79,9 @@ const VitrinaDeSemanas = ({ userId, onElegir, version = 0 }) => {
                                 <Star key={i} size={11} strokeWidth={2.5} className={i < s.estrellas ? styles.ganada : styles.vacia} />
                             ))}
                         </span>
+                        {Number.isFinite(Number(s.puntos)) && (
+                            <span className={styles.puntos} aria-hidden="true">{t('{n} pts', { n: formatNumber(s.puntos) })}</span>
+                        )}
                     </button>
                 ))}
             </div>

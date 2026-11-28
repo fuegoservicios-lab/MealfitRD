@@ -107,7 +107,7 @@ const SidebarRecientesBase = ({
                 </button>
                 <CuentaRegresivaChat />
             </div>
-            
+
             <div className="sidebar-scrollable" style={{ flex: 1, overflowY: 'auto', padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', marginTop: '0.25rem' }}>
                     <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
@@ -146,9 +146,9 @@ const SidebarRecientesBase = ({
                     groupedSessions.map(group => (
                         <div key={group.id}>
                             {group.label && (
-                                <div style={{ 
-                                    padding: '0.5rem 1rem 0.25rem', 
-                                    fontSize: '0.75rem', 
+                                <div style={{
+                                    padding: isMobile ? '0.5rem 1rem 0.25rem' : '0.6rem 0.75rem 0.3rem',
+                                    fontSize: isMobile ? '0.75rem' : '0.7rem',
                                     fontWeight: 600,
                                     color: 'var(--text-muted)',
                                     textTransform: 'uppercase',
@@ -183,12 +183,17 @@ const SidebarRecientesBase = ({
                                     if (originalTitle.length > 45) {
                                         originalTitle = originalTitle.substring(0, 45).trim() + '...';
                                     }
-                                    
+
                                     const dateStr = s.last_activity || s.created_at;
                                     const dateObj = dateStr ? new Date(dateStr) : null;
-                                    const formattedDate = dateObj && !isNaN(dateObj) 
+                                    // [P1-PLAN-LOTE-1175 · 2026-11-27] En PC, con «Hoy» y «Ayer» como grupos, la fecha
+                                    // repetía el rótulo: solo se pinta en los grupos más viejos, y a la derecha.
+                                    const fechaRedundante = !isMobile && (group.id === 'hoy' || group.id === 'ayer');
+                                    const formattedDate = dateObj && !isNaN(dateObj) && !fechaRedundante
                                         ? formatDate(dateObj, { day: 'numeric', month: 'short' }).replace('.', '')
                                         : '';
+                                    const cargando = (isLoading && currentSessionId === s.id) || s.title === 'Generando título...';
+                                    const abierto = currentSessionId === s.id;
 
                                     return (
                                     <div key={s.id} className="chat-session-btn" style={{ position: 'relative', width: '100%' }}>
@@ -225,12 +230,16 @@ const SidebarRecientesBase = ({
                                                 // aparece en hover) → la barra de carga llega COMPLETA al borde
                                                 // (padding simétrico 1.25rem). Sin esto el bar terminaba 3.5rem antes
                                                 // y se veía "cortado" aunque fuera width:100%.
-                                                padding: ((isLoading && currentSessionId === s.id) || s.title === 'Generando título...')
+                                                // [P1-PLAN-LOTE-1175] PC: fila de UNA línea, compacta, como las listas de
+                                                // ChatGPT/Claude; la papelera aparece al pasar el ratón sobre la fecha.
+                                                padding: !isMobile
+                                                    ? '0.5rem 0.75rem'
+                                                    : cargando
                                                     ? '0.75rem 1.25rem'
                                                     : '0.75rem 3.5rem 0.75rem 1.25rem',
-                                                background: currentSessionId === s.id ? 'color-mix(in srgb, var(--primary) 14%, transparent)' : 'transparent',
-                                                border: currentSessionId === s.id ? '1px solid color-mix(in srgb, var(--primary) 30%, transparent)' : '1px solid transparent',
-                                                borderRadius: '0.75rem',
+                                                background: abierto ? 'color-mix(in srgb, var(--primary) 14%, transparent)' : 'transparent',
+                                                border: abierto && isMobile ? '1px solid color-mix(in srgb, var(--primary) 30%, transparent)' : '1px solid transparent',
+                                                borderRadius: isMobile ? '0.75rem' : '0.6rem',
                                                 cursor: 'pointer',
                                                 display: 'flex',
                                                 alignItems: 'center',
@@ -243,17 +252,18 @@ const SidebarRecientesBase = ({
                                                cuál es el chat abierto. */
                                             data-hover="fila"
                                         >
-                                            <span style={{ 
+                                            <span style={{
                                                 display: 'flex',
-                                                flexDirection: 'column',
-                                                gap: ((isLoading && currentSessionId === s.id) || s.title === 'Generando título...') ? '0' : '0.15rem',
+                                                flexDirection: isMobile ? 'column' : 'row',
+                                                alignItems: isMobile ? undefined : 'center',
+                                                gap: cargando ? '0' : (isMobile ? '0.15rem' : '0.6rem'),
                                                 flex: 1,
                                                 minWidth: 0,
                                                 overflow: 'hidden',
                                                 justifyContent: 'center',
-                                                minHeight: '2.3rem'
+                                                minHeight: isMobile ? '2.3rem' : '1.75rem'
                                             }}>
-                                                {((isLoading && currentSessionId === s.id) || s.title === 'Generando título...') ? (
+                                                {cargando ? (
                                                     /* [P3-SIDEBAR-LOADBAR-FULL · 2026-06-19] Barra de carga FULL-WIDTH con
                                                        shimmer. Antes: un sweep absoluto de 60% que, estático o a media
                                                        animación, se veía "cortado" a la izquierda (raro). Ahora es una barra
@@ -262,7 +272,7 @@ const SidebarRecientesBase = ({
                                                         width: '100%',
                                                         height: '4px',
                                                         borderRadius: '2px',
-                                                        background: currentSessionId === s.id
+                                                        background: abierto
                                                             ? 'linear-gradient(90deg, color-mix(in srgb, var(--primary) 14%, transparent) 0%, color-mix(in srgb, var(--primary) 82%, transparent) 50%, color-mix(in srgb, var(--primary) 14%, transparent) 100%)'
                                                             : 'linear-gradient(90deg, rgba(148, 163, 184, 0.12) 0%, rgba(148, 163, 184, 0.7) 50%, rgba(148, 163, 184, 0.12) 100%)',
                                                         backgroundSize: '200% 100%',
@@ -273,22 +283,27 @@ const SidebarRecientesBase = ({
                                                         <span
                                                             title={originalTitle}
                                                             style={{
-                                                            fontWeight: currentSessionId === s.id ? 600 : 500,
-                                                            fontSize: '0.95rem',
-                                                            color: currentSessionId === s.id ? 'var(--primary)' : 'var(--text-muted)',
+                                                            fontWeight: abierto ? 600 : 500,
+                                                            fontSize: isMobile ? '0.95rem' : '0.9rem',
+                                                            // [P1-PLAN-LOTE-1175] en PC el texto de la lista se lee (no gris apagado)
+                                                            color: abierto ? 'var(--primary)' : (isMobile ? 'var(--text-muted)' : 'var(--text-main)'),
                                                             whiteSpace: 'nowrap',
                                                             overflow: 'hidden',
                                                             textOverflow: 'ellipsis',
-                                                            width: '100%',
+                                                            width: isMobile ? '100%' : undefined,
+                                                            flex: isMobile ? undefined : 1,
+                                                            minWidth: 0,
                                                             display: 'block'
                                                         }}>
                                                             {originalTitle}
                                                         </span>
                                                         {formattedDate && (
-                                                            <span style={{
-                                                                fontSize: '0.75rem',
-                                                                color: currentSessionId === s.id ? 'var(--primary)' : 'var(--text-muted)',
-                                                                fontWeight: 400
+                                                            <span className={isMobile ? undefined : 'chat-fecha'} style={{
+                                                                fontSize: isMobile ? '0.75rem' : '0.72rem',
+                                                                color: abierto ? 'var(--primary)' : 'var(--text-muted)',
+                                                                fontWeight: 400,
+                                                                flex: 'none',
+                                                                whiteSpace: 'nowrap'
                                                             }}>
                                                                 {formattedDate}
                                                             </span>
@@ -297,7 +312,7 @@ const SidebarRecientesBase = ({
                                                 )}
                                             </span>
                                         </button>
-                                        
+
                                         {/* [P2-CHAT-DELETE-CONFIRM · 2026-09-03] La papelera era un botón
                                             de 44px con borde rojo en CADA fila y pegado al borde: en el
                                             teléfono, donde siempre está visible (P1-CHAT-DELETE-TOUCH),

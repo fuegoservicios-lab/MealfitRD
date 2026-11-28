@@ -56,9 +56,9 @@ export const STEP_ICONS = [
 // difícil de ver ese bug). `key`, `c` y `kcal` siguen siendo datos.
 export function getMacros() {
   return [
-    { k: t('Proteínas'), key: 'protein', c: '#34D399', kcal: 4 },
-    { k: t('Carbos'),    key: 'carbs',   c: '#818CF8', kcal: 4 },
-    { k: t('Grasas'),    key: 'fats',    c: '#FB7185', kcal: 9 },
+    { k: t('Proteínas'), key: 'protein', c: 'var(--macro-tono-p)', kcal: 4 },   // [P1-MACRO-BARS-SEMAFORO] tonos, no colores
+    { k: t('Carbos'),    key: 'carbs',   c: 'var(--macro-tono-c)', kcal: 4 },
+    { k: t('Grasas'),    key: 'fats',    c: 'var(--macro-tono-g)', kcal: 9 },
   ];
 }
 

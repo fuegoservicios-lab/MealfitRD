@@ -5,19 +5,37 @@
 // `backend/tests/fixtures/juego_puntos_casos.json` (lote1161.juego_puntos.test.js).
 import { estadoDelDia } from './progresoDeLosDias';
 
-// [P1-PLAN-LOTE-1164] puntos por CALIDAD: registrar solo mantiene la racha (0); calorías en la banda 20, cerca (±20 %) 8,
-// pasado de largo 3, muy por debajo 0; día perfecto (banda + proteína + día completo + agua si la cuentas) +10.
-export const PUNTOS = { registro: 0, completo: 5, banda: 20, proteina: 10, agua: 5 };
-export const PUNTOS_PROTEINA_PARCIAL = 5;
-export const PUNTOS_CALORIAS_CERCA = 8;
-export const PUNTOS_CALORIAS_PASADO = 3;
+// [P1-PLAN-LOTE-1164] puntos por CALIDAD v6: macros completos (proteína, carbos, grasas) + 8 micronutrientes clave.
+export const PUNTOS = { registro: 0, completo: 2, banda: 12, proteina: 10, carbos: 5, grasas: 5, micros: 6, agua: 5 };
+export const PUNTOS_PROTEINA_PARCIAL = 4;
+export const PUNTOS_CALORIAS_CERCA = 5;
+export const PUNTOS_CALORIAS_PASADO = 0;
+export const PUNTOS_MICROS_PARCIAL = 3;
 export const PUNTOS_DIA_PERFECTO = 10;
 export const CALORIAS_CERCA_FRACCION = 0.2;
+export const CALORIAS_MIN_MULT_FRACCION = 0.65;
 export const COMIDAS_DIA_COMPLETO = 3;
 export const COMIDAS_AYUNO_COMPLETO = 2;
 export const CALORIAS_AYUNO_FRACCION = 0.7;
 export const PROTEINA_PARCIAL_FRACCION = 0.7;
 export const PROTEINA_FRACCION = 0.9;
+export const CARBOS_MIN_FRACCION = 0.65;
+export const CARBOS_LOWCARB_UMBRAL = 50;
+export const CARBOS_TOPE_FRACCION = 1.15;
+export const GRASAS_TOPE_FRACCION = 1.15;
+export const MICROS_CLAVE = ['fiber_g', 'sodium_mg', 'potassium_mg', 'calcium_mg', 'iron_mg', 'vit_c_mg', 'vit_a_mcg', 'vit_d_mcg'];
+export const MICROS_PISO_FRACCION = 0.7;
+export const MICROS_SODIO_TOPE_FRACCION = 1.05;
+export const MICROS_SODIO_SEVERO_FRACCION = 1.6;
+export const MICROS_POTASIO_SEVERO_FRACCION = 1.25;
+export const MICROS_SATFAT_TOPE_FRACCION = 1.15;
+export const MICROS_SATFAT_SEVERO_FRACCION = 1.4;
+export const MICROS_AZUCAR_TOPE_FRACCION = 1.15;
+export const MICROS_AZUCAR_SEVERO_FRACCION = 1.5;
+export const FIBRA_MIN_PERFECTO_FRACCION = 0.4;
+export const MICROS_MIN_EVALUADOS = 3;
+export const MICROS_META_FRACCION = 0.5;
+export const MICROS_PARCIAL_FRACCION = 0.25;
 /** [desde días, multiplicador, clave], de mayor a menor. */
 export const TRAMOS_RACHA = [[30, 1.6, 'leyenda'], [14, 1.45, 'imparable'], [7, 1.3, 'en_llamas'], [3, 1.15, 'encendida'], [0, 1.0, null]];
 export const ESCUDO_CADA = 7;
@@ -48,15 +66,138 @@ export function divisionRomana(division) {
 const siguienteDe = (sig) => (sig ? { clave: sig.clave, division: sig.division, romano: divisionRomana(sig.division) } : null);
 
 const num = (x) => (Number.isFinite(Number(x)) ? Number(x) : 0);
+const optNum = (x) => {
+    if (x === null || x === undefined || typeof x === 'boolean') return null;
+    if (typeof x === 'string' && !x.trim()) return null;
+    const v = Number(x);
+    return Number.isFinite(v) && v >= 0 ? v : null;
+};
 /** Mitades hacia arriba, igual que `juego_puntos.redondear`. */
 export const redondear = (x) => Math.floor(num(x) + 0.5);
 
-export function logrosDelDia({ calories, protein, mealsCount, metaKcal, metaProteina, objetivo, vasos = null, metaVasos = null }) {
+const _extraCeiling = (mObj, metaMicros, key, topeFrac, severoFrac) => {
+    const raw = metaMicros[key];
+    if (raw === null || raw === undefined) return [false, false];
+    const rawT = typeof raw === 'object' ? raw.target : raw;
+    const target = optNum(rawT);
+    const val = optNum(mObj[key]);
+    if (target === null || target <= 0 || val === null) return [false, false];
+    return [val > target * topeFrac, val > target * severoFrac];
+};
+
+export function evaluarMicros(micros, metaMicros, registro, completo) {
+    const alertasBase = {
+        sodio_pasado: false,
+        sodio_muy_pasado: false,
+        potasio_pasado: false,
+        potasio_muy_pasado: false,
+        fibra_baja: false,
+        satfat_pasado: false,
+        satfat_muy_pasado: false,
+        azucar_pasado: false,
+        azucar_muy_pasado: false,
+    };
+    if (!metaMicros || typeof metaMicros !== 'object') {
+        return { micros: null, micros_parcial: false, micros_ok: 0, micros_total: 0, ...alertasBase };
+    }
+    const metasValidas = [];
+    for (const k of MICROS_CLAVE) {
+        const raw = metaMicros[k];
+        if (raw === null || raw === undefined) continue;
+        const rawT = typeof raw === 'object' ? raw.target : raw;
+        const tVal = optNum(rawT);
+        if (tVal === null || tVal <= 0) continue;
+        let kind = typeof raw === 'object' ? raw.kind : null;
+        if (kind !== 'ceiling' && kind !== 'floor') kind = k === 'sodium_mg' ? 'ceiling' : 'floor';
+        metasValidas.push([k, tVal, kind]);
+    }
+    if (!registro) {
+        const totalV = metasValidas.length >= MICROS_MIN_EVALUADOS ? metasValidas.length : 0;
+        const flagV = totalV ? false : null;
+        return { micros: flagV, micros_parcial: false, micros_ok: 0, micros_total: totalV, ...alertasBase };
+    }
+    const mObj = micros && typeof micros === 'object' ? micros : {};
+    const [satfatPasado, satfatMuyPasado] = _extraCeiling(mObj, metaMicros, 'saturated_fat_g', MICROS_SATFAT_TOPE_FRACCION, MICROS_SATFAT_SEVERO_FRACCION);
+    const [azucarPasado, azucarMuyPasado] = _extraCeiling(mObj, metaMicros, 'free_sugars_g', MICROS_AZUCAR_TOPE_FRACCION, MICROS_AZUCAR_SEVERO_FRACCION);
+    const alertasExtra = {
+        ...alertasBase,
+        satfat_pasado: satfatPasado,
+        satfat_muy_pasado: satfatMuyPasado,
+        azucar_pasado: azucarPasado,
+        azucar_muy_pasado: azucarMuyPasado,
+    };
+    if (metasValidas.length < MICROS_MIN_EVALUADOS) {
+        return { micros: null, micros_parcial: false, micros_ok: 0, micros_total: 0, ...alertasExtra };
+    }
+    let evaluados = 0;
+    let cumplidos = 0;
+    let cumplidosPositivos = 0;
+    let sodioPasado = false;
+    let sodioMuyPasado = false;
+    let potasioPasado = false;
+    let potasioMuyPasado = false;
+    let fibraBaja = false;
+    for (const [k, target, kind] of metasValidas) {
+        const val = optNum(mObj[k]);
+        if (val === null) continue;
+        evaluados += 1;
+        if (kind === 'ceiling') {
+            if (k === 'potassium_mg') {
+                if (val > target * MICROS_SODIO_TOPE_FRACCION) {
+                    potasioPasado = true;
+                    if (val > target * MICROS_POTASIO_SEVERO_FRACCION) potasioMuyPasado = true;
+                } else if (completo) {
+                    cumplidos += 1;
+                }
+            } else if (val > target * MICROS_SODIO_TOPE_FRACCION) {
+                sodioPasado = true;
+                if (val > target * MICROS_SODIO_SEVERO_FRACCION) sodioMuyPasado = true;
+            } else if (completo) {
+                cumplidos += 1;
+            }
+        } else {
+            if (k === 'fiber_g' && val < target * FIBRA_MIN_PERFECTO_FRACCION) fibraBaja = true;
+            if (val >= target * MICROS_PISO_FRACCION) {
+                cumplidos += 1;
+                cumplidosPositivos += 1;
+            }
+        }
+    }
+    const alertas = {
+        ...alertasExtra,
+        sodio_pasado: sodioPasado,
+        sodio_muy_pasado: sodioMuyPasado,
+        potasio_pasado: potasioPasado,
+        potasio_muy_pasado: potasioMuyPasado,
+        fibra_baja: fibraBaja,
+    };
+    if (evaluados < MICROS_MIN_EVALUADOS) {
+        return { micros: null, micros_parcial: false, micros_ok: 0, micros_total: 0, ...alertasExtra };
+    }
+    const microsFlag = Boolean(completo && (cumplidos / evaluados) >= MICROS_META_FRACCION);
+    const microsParcial = Boolean(!microsFlag && cumplidosPositivos >= 2 && (cumplidosPositivos / evaluados) >= MICROS_PARCIAL_FRACCION);
+    return {
+        micros: microsFlag,
+        micros_parcial: microsParcial,
+        micros_ok: completo ? cumplidos : cumplidosPositivos,
+        micros_total: evaluados,
+        ...alertas,
+    };
+}
+
+export function logrosDelDia({
+    calories, protein, carbs = 0, fats = 0, mealsCount,
+    metaKcal, metaProteina, metaCarbos = null, metaGrasas = null,
+    micros = null, metaMicros = null,
+    objetivo, vasos = null, metaVasos = null,
+}) {
     const kcal = num(calories);
     const comidas = Math.trunc(num(mealsCount));
     const mk = num(metaKcal);
     const registro = comidas > 0 || kcal > 0;
     const mp = num(metaProteina);
+    const mc = num(metaCarbos);
+    const mg = num(metaGrasas);
     const mv = num(metaVasos);
     const completo = registro && (
         comidas >= COMIDAS_DIA_COMPLETO
@@ -64,11 +205,23 @@ export function logrosDelDia({ calories, protein, mealsCount, metaKcal, metaProt
     );
     const proteina = registro && mp > 0 && num(protein) >= mp * PROTEINA_FRACCION;
     const proteinaParcial = registro && !proteina && mp > 0 && num(protein) >= mp * PROTEINA_PARCIAL_FRACCION;
+    let carbos = null;
+    let carbosPasado = false;
+    if (mc > 0) {
+        const cVal = num(carbs);
+        const carbosEnRango = (cVal <= mc * CARBOS_TOPE_FRACCION) && (mc <= CARBOS_LOWCARB_UMBRAL || cVal >= mc * CARBOS_MIN_FRACCION);
+        carbos = Boolean(completo && carbosEnRango);
+        carbosPasado = Boolean(registro && cVal > mc * CARBOS_TOPE_FRACCION);
+    }
+    const grasas = mg > 0 ? (completo && num(fats) <= mg * GRASAS_TOPE_FRACCION) : null;
+    const grasasPasado = Boolean(registro && mg > 0 && num(fats) > mg * GRASAS_TOPE_FRACCION);
+    const mRes = evaluarMicros(micros, metaMicros, registro, completo);
     const banda = registro && mk > 0
         && estadoDelDia({ calories: kcal, mealsCount: comidas, target: mk, mainGoal: objetivo || '' }) === 'meta';
     const ratio = mk > 0 ? kcal / mk : 0;
     const cerca = registro && mk > 0 && !banda && Math.abs(ratio - 1) <= CALORIAS_CERCA_FRACCION;
     const pasado = registro && mk > 0 && !banda && !cerca && ratio > 1;
+    const caloriasMuyBajo = Boolean(registro && mk > 0 && kcal < mk * CALORIAS_MIN_MULT_FRACCION);
     const agua = mv > 0 ? registro && num(vasos) >= mv : null;
     return {
         registro,
@@ -76,17 +229,56 @@ export function logrosDelDia({ calories, protein, mealsCount, metaKcal, metaProt
         banda,
         calorias_cerca: cerca,
         calorias_pasado: pasado,
+        calorias_muy_bajo: caloriasMuyBajo,
         proteina,
         proteina_parcial: proteinaParcial,
+        carbos,
+        carbos_pasado: carbosPasado,
+        grasas,
+        grasas_pasado: grasasPasado,
+        micros: mRes.micros,
+        micros_parcial: mRes.micros_parcial,
+        micros_ok: mRes.micros_ok,
+        micros_total: mRes.micros_total,
+        sodio_pasado: mRes.sodio_pasado,
+        sodio_muy_pasado: mRes.sodio_muy_pasado,
+        potasio_pasado: mRes.potasio_pasado,
+        potasio_muy_pasado: mRes.potasio_muy_pasado,
+        fibra_baja: mRes.fibra_baja,
+        satfat_pasado: mRes.satfat_pasado,
+        satfat_muy_pasado: mRes.satfat_muy_pasado,
+        azucar_pasado: mRes.azucar_pasado,
+        azucar_muy_pasado: mRes.azucar_muy_pasado,
         agua,
-        dia_perfecto: Boolean(banda && proteina && completo && agua !== false),
+        dia_perfecto: Boolean(
+            banda && proteina && completo
+            && carbos !== false && grasas !== false && mRes.micros !== false
+            && !mRes.sodio_pasado && !mRes.potasio_pasado && !mRes.fibra_baja
+            && !mRes.satfat_pasado && !mRes.azucar_pasado
+            && agua !== false
+        ),
     };
+}
+
+export function aplicaMultiplicador(logros) {
+    if (!logros?.registro) return false;
+    if (logros.grasas_pasado === true || logros.carbos_pasado === true) return false;
+    if (
+        logros.calorias_muy_bajo === true
+        || logros.sodio_muy_pasado === true
+        || logros.potasio_muy_pasado === true
+        || logros.satfat_muy_pasado === true
+        || logros.azucar_muy_pasado === true
+    ) return false;
+    if (!('grasas_pasado' in logros) && logros.grasas === false) return false;
+    return Boolean(logros.banda === true || logros.proteina === true);
 }
 
 export function puntosBase(logros) {
     if (!logros?.registro) return 0;
     let total = Object.keys(PUNTOS).reduce((s, k) => s + (logros[k] === true ? PUNTOS[k] : 0), 0);
     if (logros.proteina !== true && logros.proteina_parcial === true) total += PUNTOS_PROTEINA_PARCIAL;
+    if (logros.micros !== true && logros.micros_parcial === true) total += PUNTOS_MICROS_PARCIAL;
     if (logros.banda !== true) {
         if (logros.calorias_cerca === true) total += PUNTOS_CALORIAS_CERCA;
         else if (logros.calorias_pasado === true) total += PUNTOS_CALORIAS_PASADO;
@@ -111,7 +303,16 @@ export function tramoDeRacha(racha) {
 export function puntosDeHoy({ logros, rachaHastaAyer = 0 }) {
     const base = puntosBase(logros);
     const mult = tramoDeRacha(num(rachaHastaAyer) + 1).mult;
-    return { puntos: redondear(base * mult), base, mult, rachaConHoy: num(rachaHastaAyer) + (logros?.registro ? 1 : 0) };
+    const multActivo = aplicaMultiplicador(logros);
+    const multEfectivo = multActivo ? mult : 1;
+    return {
+        puntos: redondear(base * multEfectivo),
+        base,
+        mult,
+        multEfectivo,
+        multActivo,
+        rachaConHoy: num(rachaHastaAyer) + (logros?.registro ? 1 : 0),
+    };
 }
 
 /** Recorrido completo (para la paridad y la app sin red). Mismo algoritmo que `juego_puntos.recorrer`. */
@@ -123,7 +324,8 @@ export function recorrer(dias, hoyIso) {
         let pts = 0; let mult = 1;
         if (d.registrado) {
             racha += 1;
-            mult = tramoDeRacha(racha).mult;
+            const multRacha = tramoDeRacha(racha).mult;
+            mult = d.calidad !== false ? multRacha : 1;
             pts = redondear(num(d.base) * mult);
             if (racha % ESCUDO_CADA === 0 && escudos < ESCUDOS_MAX) { escudos += 1; ganados.push(iso); }
         } else if (iso === hoyIso) {
@@ -257,6 +459,9 @@ function conLogro(logros, clave) {
     const l = { ...logros, registro: true, [clave]: true, dia_perfecto: false };
     if (clave === 'banda') { l.calorias_cerca = false; l.calorias_pasado = false; }
     if (clave === 'proteina') l.proteina_parcial = false;
+    if (clave === 'carbos') l.carbos_pasado = false;
+    if (clave === 'grasas') l.grasas_pasado = false;
+    if (clave === 'micros') l.micros_parcial = false;
     return l;
 }
 
@@ -264,17 +469,27 @@ function conLogro(logros, clave) {
  * enseña su propia ganancia (sin duplicar el bono de día perfecto, que ya tiene su propia ficha). */
 export function gananciaLogro({ logros = {}, clave, mult = 1 }) {
     if (!clave || logros?.[clave] === true) return 0;
-    const m = num(mult) || 1;
+    const m = (logros?.grasas_pasado === true || logros?.carbos_pasado === true) ? 1 : (num(mult) || 1);
     const base = puntosBase(logros);
     if (clave === 'dia_perfecto') return Math.max(0, redondear((base + PUNTOS_DIA_PERFECTO) * m) - redondear(base * m));
     return Math.max(0, redondear(puntosBase(conLogro(logros, clave)) * m) - redondear(base * m));
 }
 
-/** Lo que ya dan las calorías hoy sin estar en la banda (cerca 8 · pasado 3), con el multiplicador. */
+/** Lo que ya dan las calorías hoy sin estar en la banda (cerca 5 · pasado 0), con el multiplicador. */
 export function puntosCaloriasParciales({ logros = {}, mult = 1 }) {
     if (logros?.banda === true) return 0;
     const p = logros?.calorias_cerca === true ? PUNTOS_CALORIAS_CERCA : logros?.calorias_pasado === true ? PUNTOS_CALORIAS_PASADO : 0;
-    return redondear(p * (num(mult) || 1));
+    const m = aplicaMultiplicador(logros) ? (num(mult) || 1) : 1;
+    return redondear(p * m);
 }
 
-export const maximoDiario = ({ mult = 1, conAgua = false }) => redondear((conAgua ? 50 : 45) * (num(mult) || 1));
+/** Lo que ya dan los micros parciales hoy (25-49% en meta), con el multiplicador. */
+export function puntosMicrosParciales({ logros = {}, mult = 1 }) {
+    if (logros?.micros === true || logros?.micros_parcial !== true) return 0;
+    const m = aplicaMultiplicador(logros) ? (num(mult) || 1) : 1;
+    return redondear(PUNTOS_MICROS_PARCIAL * m);
+}
+
+export const maximoDiario = ({ mult = 1, conAgua = false, conCarbos = true, conGrasas = true, conMicros = true }) => (
+    redondear((34 + (conCarbos ? 5 : 0) + (conGrasas ? 5 : 0) + (conMicros ? 6 : 0) + (conAgua ? 5 : 0)) * (num(mult) || 1))
+);

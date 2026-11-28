@@ -25,9 +25,15 @@ export function useResumenDeProgreso(userId) {
         const alCambiarElDiario = (e) => { if (e?.detail?.source !== 'tracking-progress') refrescar(); };
         const alVolver = () => { if (!document.hidden) refrescar(); };
         window.addEventListener('mealfit:diary-changed', alCambiarElDiario);
+        window.addEventListener('mealfit:water-changed', refrescar);
+        window.addEventListener('mealfit:profile-updated', refrescar);
+        window.addEventListener('mealfit:targets-changed', refrescar);
         document.addEventListener('visibilitychange', alVolver);
         return () => {
             window.removeEventListener('mealfit:diary-changed', alCambiarElDiario);
+            window.removeEventListener('mealfit:water-changed', refrescar);
+            window.removeEventListener('mealfit:profile-updated', refrescar);
+            window.removeEventListener('mealfit:targets-changed', refrescar);
             document.removeEventListener('visibilitychange', alVolver);
         };
     }, []);

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { iosFreeProfile } from '../utils/iosFree';
+import { syncRevenueCatSession, safeLogoutRevenueCat } from '../features/billing/revenuecat';
 // [P1-8 · 2026-07-09] Estabiliza las funciones plain expuestas (identidad constante,
 // siempre closure fresco) para poder memoizar el value sin re-render storm.
 import { useStableCallback } from '../hooks/useStableCallback';
@@ -7,7 +8,7 @@ import { fusionarPerfilEnMemoria, hidrataClaveDelPanel, limpiarRestosPorUsuario 
 import PropTypes from 'prop-types';
 import { authClient } from '../authClient';
 // [P1-FIRST-PARTY-SESSION · 2026-06-16] Cookie de sesión first-party que NUESTRO
-// backend emite en mealfitrd.com → iOS PWA conserva la sesión al cerrar la app
+// backend emite en bioboros.com → iOS PWA conserva la sesión al cerrar la app
 // (la de Neon es third-party y la borra). Ver utils/firstPartySession.js.
 import { mintFirstPartySession, checkFirstPartySession, logoutFirstPartySession, adoptOAuthVerifierFirstParty, FORM_KEY_READY_EVENT } from '../utils/firstPartySession';
 // [P2-AUDIT-3 · 2026-05-15] Helper SSOT para `localStorage.setItem` defensivo.
@@ -472,6 +473,8 @@ export const AssessmentProvider = ({ children }) => {
     // Estado del Perfil Real (Base de Datos)
     const [storedUserProfile, setUserProfile] = useState(null);
     const userProfile = useMemo(() => iosFreeProfile(storedUserProfile), [storedUserProfile]);
+
+    useEffect(() => { syncRevenueCatSession(session?.user?.id); }, [session?.user?.id]);
 
     // Navegación del Wizard (Pasos de la evaluación)
     // [P1-FORM-RESUME · 2026-06-19] Restaurar la posición persistida para reanudar
@@ -1347,6 +1350,9 @@ export const AssessmentProvider = ({ children }) => {
                 if (typeof data.nevera_activa === 'boolean') {
                     safeLocalStorageSet('mealfit_nevera_activa', String(data.nevera_activa));
                 }
+                if (typeof data.water_tracker_enabled === 'boolean') {
+                    safeLocalStorageSet('mealfit_water_tracker_enabled', String(data.water_tracker_enabled));
+                }
                 // [P1-I18N-DASHBOARD · 2026-08-15] El idioma sigue al USUARIO,
                 // no al dispositivo: `user_profiles.locale` es la fuente de
                 // verdad y este es el punto donde llega. `localStorage` ya
@@ -1458,6 +1464,9 @@ export const AssessmentProvider = ({ children }) => {
                     // un focus/visibilitychange que cambiara `nevera_activa` (p.ej. el apagado automático a las 48 h).
                     if (typeof data.nevera_activa === 'boolean') {
                         safeLocalStorageSet('mealfit_nevera_activa', String(data.nevera_activa));
+                    }
+                    if (typeof data.water_tracker_enabled === 'boolean') {
+                        safeLocalStorageSet('mealfit_water_tracker_enabled', String(data.water_tracker_enabled));
                     }
 
                     if (data.health_profile && Object.keys(data.health_profile).length > 0) {
@@ -1961,9 +1970,9 @@ export const AssessmentProvider = ({ children }) => {
             return false;
         };
 
-        // [P3-APEX-NO-SESSION · 2026-07-01] En el apex (mealfitrd.com / www) el sitio es
+        // [P3-APEX-NO-SESSION · 2026-07-01] En el apex (bioboros.com / www) el sitio es
         // marketing PURO y NUNCA adopta sesión: las rutas de app redirigen a
-        // app.mealfitrd.com (ApexAppRedirect en App.jsx) y el login vive solo ahí. Forzamos
+        // app.bioboros.com (ApexAppRedirect en App.jsx) y el login vive solo ahí. Forzamos
         // estado deslogueado SIN tocar el token del adapter — localStorage es per-origen, así
         // que app.* conserva su sesión intacta y no revocamos nada server-side (no signOut).
         // Tampoco consultamos getSession ni suscribimos onAuthStateChange aquí.
@@ -4339,6 +4348,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             const { apagarAvisosAlCerrarSesion } = await import('../utils/avisosDeComida');
             await apagarAvisosAlCerrarSesion();
         } catch { /* el logout sigue */ }
+        await safeLogoutRevenueCat();
         await logoutFirstPartySession();
         try {
             await authClient.auth.signOut();

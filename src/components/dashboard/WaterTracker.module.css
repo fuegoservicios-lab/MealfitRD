@@ -213,13 +213,40 @@
 :global(html:not([data-theme='dark'])) .streak,
 :global(html:not([data-theme='dark'])) .streak svg { color: var(--water-ink); }
 
+.stepValor { display: none; }
+
 /* ---------- Responsive (por ancho del contenedor) ---------- */
+/* [P1-PLAN-LOTE-1182 · 2026-11-27] La tarjeta ESTRECHA (columna lateral del PC, teléfono) rediseñada. El dueño, con
+   la captura del PC: «mejora el diseño». Estaba el vaso grande ARRIBA y el título debajo; 9 contornos de vaso
+   enormes y vacíos dominaban la tarjeta; Sorbo/Vaso/Botella y el −/+ caían en filas desparejas; «Reiniciar» suelto.
+   Ahora: título primero (como `flatMobile`), vaso compacto junto a los litros, vasitos pequeños en una tira, los tres
+   atajos en una fila pareja y el −/+ en su propia fila con el contador en medio. */
 @container (max-width: 540px) {
-  .inner { grid-template-columns: 1fr; padding: 18px; }
-  .vessel { flex-direction: row; justify-content: center; gap: 18px; padding: 14px; }
-  .glass { width: 104px; height: 158px; }
-  .pct { font-size: 1.9rem; }
-  .stepper { margin-left: 0; }
+  .inner { grid-template-columns: 1fr; padding: 18px; gap: 0; }
+  .body { display: contents; }
+  .head { order: -1; margin-bottom: 14px; }
+  .vessel { flex-direction: row; justify-content: flex-start; gap: 16px; padding: 12px 14px; margin-bottom: 14px; }
+  .glass { width: 72px; height: 104px; border-radius: 12px 12px 18px 18px; }
+  .pct { font-size: 1.35rem; }
+  .pctSub { font-size: .75rem; }
+  .meta { text-align: left; font-size: .9rem; line-height: 1.4; }
+  .meta b { display: block; font-family: var(--font-heading); font-size: 1.5rem; letter-spacing: -.02em; }
+
+  .cups { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cup { width: 24px; flex: none; border-radius: 6px 6px 8px 8px; }
+
+  .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+  .chip {
+    flex-direction: column; justify-content: center; gap: 1px; min-height: 52px; padding: 6px 4px;
+    font-size: .82rem; text-align: center;
+  }
+  .chip svg { display: none; }
+  .chip small { font-size: .75rem; }
+  .stepper { grid-column: 1 / -1; margin-left: 0; justify-content: space-between; }
+  .stepValor { display: block; font-size: .85rem; font-weight: 700; color: var(--text-main); font-variant-numeric: tabular-nums; }
+
+  .foot { margin-top: 10px; padding-top: 0; border-top: 0; }
+  .done { margin-top: 14px; }
 }
 
 /* [P1-PLAN-LOTE-88 · 2026-09-17] Sin «tarjetica» en el teléfono cuando el padre lo pide (`flatOnMobile`; hoy el

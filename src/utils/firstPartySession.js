@@ -1,5 +1,5 @@
 // [P1-FIRST-PARTY-SESSION · 2026-06-16] Sesión first-party que emite NUESTRO
-// backend (mealfitrd.com) para que iOS PWA conserve la sesión al cerrar la app.
+// backend (bioboros.com) para que iOS PWA conserve la sesión al cerrar la app.
 //
 // Neon Auth sirve su cookie de sesión en su PROPIO dominio (third-party); iOS la
 // borra al cerrar la app. Esta capa emite, en nuestro backend, un token de
@@ -119,7 +119,10 @@ export async function checkFirstPartySession() {
     try {
         const headers = {};
         if (tok) headers['X-MF-Session'] = tok;
-        const res = await fetchWithTimeout(api('/api/auth/me'), {
+        let otaId = '';
+        try { otaId = typeof __OTA_BUNDLE_ID__ === 'string' ? __OTA_BUNDLE_ID__ : ''; } catch { /* noop */ }
+        const mePath = otaId ? `/api/auth/me?ota=${encodeURIComponent(otaId)}` : '/api/auth/me';
+        const res = await fetchWithTimeout(api(mePath), {
             method: 'GET',
             credentials: 'include',
             headers,

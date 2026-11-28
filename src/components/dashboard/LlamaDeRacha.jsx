@@ -3,14 +3,12 @@
 import PropTypes from 'prop-types';
 import { Flame, Shield } from 'lucide-react';
 import { formatNumber, useT, useTn } from '../../i18n';
-import { nombreDelTramo } from '../../utils/juegoPuntos';
 import styles from './PuntosDeHoy.module.css';
 
 const LlamaDeRacha = ({ racha = 0, tramo, escudos = 0, escudosMax = 2, onAbrir = null }) => {
     const t = useT();
     const tn = useTn();
     const mult = formatNumber(tramo?.mult || 1, { maximumFractionDigits: 2 });
-    const tituloTramo = tramo?.clave ? nombreDelTramo(tramo.clave, t) : t('Racha');
     const etiqueta = [
         tn(racha, '{n} día seguido registrando', '{n} días seguidos registrando', { n: racha }),
         t('multiplicador ×{m}', { m: mult }),
@@ -24,25 +22,31 @@ const LlamaDeRacha = ({ racha = 0, tramo, escudos = 0, escudosMax = 2, onAbrir =
             aria-label={etiqueta}
             title={etiqueta}
         >
-            <span className={styles.fuego} aria-hidden="true">
-                <Flame size={22} strokeWidth={2.25} />
+            <span className={styles.llamaTop} aria-hidden="true">
+                <span className={styles.fuego}>
+                    <Flame size={16} strokeWidth={2.25} />
+                </span>
+                <span className={styles.llamaInfo}>
+                    <span className={styles.llamaEtiqueta}>{t('Racha')}</span>
+                    <span className={styles.llamaTexto}>
+                        <strong className={styles.llamaDias}>{formatNumber(racha)}</strong>
+                        <span className={styles.llamaUnidad}>{tn(racha, 'día', 'días', { n: racha })}</span>
+                    </span>
+                </span>
             </span>
-            <span className={styles.llamaEtiqueta} aria-hidden="true">{tituloTramo}</span>
-            <span className={styles.llamaTexto} aria-hidden="true">
-                <strong className={styles.llamaDias}>{formatNumber(racha)}</strong>
-                <span className={styles.llamaUnidad}>{tn(racha, 'día', 'días', { n: racha })}</span>
-            </span>
-            <span className={styles.mult} aria-hidden="true">×{mult}</span>
-            <span className={styles.escudos} aria-hidden="true">
-                {Array.from({ length: escudosMax }, (_, i) => (
-                    <Shield
-                        key={i}
-                        size={14}
-                        strokeWidth={2.5}
-                        className={i < escudos ? styles.escudoLleno : styles.escudoVacio}
-                    />
-                ))}
-                <span className={styles.escudosCuenta}>{escudos}/{escudosMax}</span>
+            <span className={styles.llamaPie} aria-hidden="true">
+                <span className={styles.mult}>×{mult}</span>
+                <span className={styles.escudos}>
+                    {Array.from({ length: escudosMax }, (_, i) => (
+                        <Shield
+                            key={i}
+                            size={12}
+                            strokeWidth={2.5}
+                            className={i < escudos ? styles.escudoLleno : styles.escudoVacio}
+                        />
+                    ))}
+                    <span className={styles.escudosCuenta}>{escudos}/{escudosMax}</span>
+                </span>
             </span>
         </Contenedor>
     );

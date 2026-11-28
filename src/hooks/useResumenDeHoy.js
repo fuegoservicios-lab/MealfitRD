@@ -80,6 +80,7 @@ export function useResumenDeHoy(userId, activo) {
                 const nuevo = {
                     totales: tot ? { calories: tot.calories, protein: tot.protein, carbs: tot.carbs, fats: tot.healthy_fats ?? tot.fats } : null,
                     comidas: Array.isArray(c?.meals) ? c.meals.map((x) => String(x.meal_type || '').toLowerCase()) : null,
+                    nombresComidas: Array.isArray(c?.meals) ? c.meals.map((x) => String(x.meal_name || '').trim()).filter(Boolean) : [],
                     // solo lo que usan el saludo y los atajos (los micros no hacen falta en la caché)
                     metas: m?.ok ? { ok: true, calories: m.calories, macros: m.macros } : null,
                 };

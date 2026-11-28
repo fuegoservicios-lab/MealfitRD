@@ -37,6 +37,7 @@ export const TITLES = {
     '/plan': `Diseñando tu plan · ${BRAND}`,
     '/dashboard': `Mi plan · ${BRAND}`,
     '/dashboard/pantry': `Mi nevera · ${BRAND}`,
+    '/dashboard/clasificatoria': `Clasificatoria · ${BRAND}`,
     '/dashboard/recipes': `Recetas · ${BRAND}`,
     '/dashboard/agent': `Asistente · ${BRAND}`,
     '/dashboard/settings': `Configuración · ${BRAND}`,

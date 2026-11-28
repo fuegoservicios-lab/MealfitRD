@@ -9,7 +9,7 @@ import BotAvatar from './BotAvatar';
 // el primer render de markdown.
 import LazyMarkdown from '../common/LazyMarkdown';
 import HealthSources from '../common/HealthSources';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react';
 import { ejeDelGesto, decidirGestoVisor, arrastreDelVisor } from '../../utils/imageViewerGesture';
 import { useT, formatDate } from '../../i18n';
 import { timeLabel } from '../../utils/chatTimeline';
@@ -63,7 +63,7 @@ const ErrorRetryButton = ({ onClick, reload = false }) => {
     );
 };
 
-export const MemoizedMessageBubble = React.memo(({ msg, onErrorRetry, daySeparator = null }) => {
+export const MemoizedMessageBubble = React.memo(({ msg, onErrorRetry, daySeparator = null, eagerImages = false }) => {
     const t = useT();
     const [viewerIndex, setViewerIndex] = useState(null);
     const [brokenImages, setBrokenImages] = useState(() => new Set());
@@ -238,7 +238,10 @@ export const MemoizedMessageBubble = React.memo(({ msg, onErrorRetry, daySeparat
                     overflowWrap: 'break-word',
                     wordBreak: 'break-word',
                     // [P2-CHAT-ERROR-MINIMAL] el error ya no es una caja roja: texto apagado con un icono, sin fondo ni borde
-                    background: msg.role === 'user' ? 'var(--bg-muted)' : 'var(--bg-card)',
+                    // [P1-PLAN-LOTE-1177 · 2026-11-27] El coach, sin fondo: `--bg-card` era el color de la TARJETA del chat
+                    // (invisible sobre ella); con el chat abierto sobre el fondo de la app (P1-COACH-ABIERTO) pintaba una
+                    // caja gris por mensaje (el dueño: «ese gris de fondo se ve horrible»). Como ChatGPT: texto suelto.
+                    background: msg.role === 'user' ? 'var(--bg-muted)' : 'transparent',
                     padding: msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.6rem 0' : '1rem 0'),
                     borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : '0',
                     border: msg.role === 'user' ? '1px solid var(--border)' : 'none',
@@ -268,9 +271,10 @@ export const MemoizedMessageBubble = React.memo(({ msg, onErrorRetry, daySeparat
                                     }}
                                 >
                                     <ChatImage
-                                        url={attachment.url || attachment.image_url}
+                                        url={attachment.thumbUrl || attachment.thumb_url || attachment.url || attachment.image_url}
                                         alt={t('Imagen enviada {number}', { number: mediaIndex + 1 })}
-                                        loading="lazy"
+                                        loading={eagerImages ? 'eager' : 'lazy'}
+                                        fetchPriority={eagerImages ? 'high' : undefined}
                                         decoding="async"
                                         onBroken={() => setBrokenImages((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))}
                                     />
@@ -376,6 +380,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, onErrorRetry, daySeparat
         prevProps.msg.attachments === nextProps.msg.attachments &&
         prevProps.msg.isImage === nextProps.msg.isImage &&
         prevProps.daySeparator === nextProps.daySeparator &&
+        prevProps.eagerImages === nextProps.eagerImages &&
         prevProps.msg.created_at === nextProps.msg.created_at &&
         prevProps.currentSessionId === nextProps.currentSessionId
     );

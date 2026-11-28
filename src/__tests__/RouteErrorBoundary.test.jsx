@@ -6,6 +6,9 @@
  * ruta a Sentry. Los chunk-load errors siguen delegando al reload global.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -56,5 +59,26 @@ describe('RouteErrorBoundary (P1-7)', () => {
         Flaky.explode = false;
         await user.click(screen.getByRole('button', { name: /reintentar/i }));
         expect(screen.getByText('contenido recuperado')).toBeInTheDocument();
+    });
+
+    it('se resetea automáticamente al cambiar de routeName tras un crash', () => {
+        function Flaky({ ok }) {
+            return <Boom explode={!ok} />;
+        }
+        const { rerender } = render(
+            <RouteErrorBoundary routeName="/dashboard/agent"><Flaky ok={false} /></RouteErrorBoundary>,
+        );
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+        rerender(<RouteErrorBoundary routeName="/dashboard"><Flaky ok /></RouteErrorBoundary>);
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.getByText('contenido recuperado')).toBeInTheDocument();
+    });
+
+    it('usa tokens reales del sistema de diseño (sin --surface ni #fff en línea)', () => {
+        const here = dirname(fileURLToPath(import.meta.url));
+        const src = readFileSync(join(here, '..', 'components', 'RouteErrorBoundary.jsx'), 'utf8');
+        expect(src).not.toMatch(/var\(--surface\b/);
+        expect(src).not.toMatch(/var\(--text-secondary\b/);
+        expect(src).not.toContain('#fff');
     });
 });

@@ -140,6 +140,7 @@ const TITULOS_APP = (t) => ({
     '/plan': t('Diseñando tu plan'),
     '/dashboard': t('Mi plan'),
     '/dashboard/pantry': t('Mi nevera'),
+    '/dashboard/clasificatoria': t('Clasificatoria'),
     '/dashboard/recipes': t('Recetas'),
     '/dashboard/agent': t('Asistente'),
     '/dashboard/settings': t('Configuración'), // [P1-PLAN-LOTE-718] la ventana y el menú dicen «Configuración»

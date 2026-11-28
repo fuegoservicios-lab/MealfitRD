@@ -490,7 +490,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
                 throw new Error('error al ajustar plato');
             }
             onCambiar((p) => platoConAjusteIA(p, data));
-            toast.success(t('Plato ajustado con éxito.'));
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
         } catch {
             toast.error(t('No pudimos ajustar el plato con esa indicación; inténtalo de nuevo o edita los ingredientes.'));
         } finally {
@@ -517,7 +517,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
                 throw new Error('error al agregar ingrediente');
             }
             onCambiar((p) => conComponenteAgregado(p, data.item));
-            toast.success(t('Alimento añadido a tu plato.'));
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
         } catch {
             toast.error(t('No pudimos estimar ese alimento; inténtalo de nuevo o ajusta las calorías a mano.'));
         } finally {
@@ -635,6 +635,9 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onO
             <section className={styles.section} aria-labelledby={`${ids}-cuanto`}>
                 <h3 id={`${ids}-cuanto`} className={styles.sectionTitle}>{t('¿Cuánto comiste?')}</h3>
                 {plato.food_facts && <p>{t('Una porción de la etiqueta: {porcion}', { porcion: plato.food_facts.serving_text })}</p>}
+                {!plato.food_facts && !(plato.ingredientes?.length) && /del frente|no se lee la tabla nutricional/i.test(plato.descripcion || '') && (
+                    <p>{t('Macros estimadas del frente; si quieres sumar micros, escanea la tabla nutricional.')}</p>
+                )}
                 {/* [P1-MEAL-SCAN-POLISH] Porción en fila (`fieldRow`): los multiplicadores a lo ancho. */}
                 <div className={styles.fieldRow}>
                     <span className={styles.fieldLabel}>{t('Porción')}</span>
@@ -1250,6 +1253,10 @@ const ScanMealModal = ({ isOpen, onClose, onBack = null, userId, initialDaysAgo 
                 _ponerPlato(p.id, { guardado: true });
                 // [P1-PLAN-LOTE-721] fuego y olvido: la comida ya quedó; sin foto (HEIC en escritorio, sin espacio) no pasa nada
                 if (data.meal_id && !data.already_logged) void guardarFotoDeComida(userId, data.meal_id, p.file).catch(() => {});
+                // [P1-PLAN-LOTE-1184] …y en el servidor: se ve en tus otros dispositivos y en el chat del coach
+                if (data.meal_id && !data.already_logged && p.file) {
+                    void import('../../utils/fotosDelServidor').then((m) => m.subirFotoDeComida(data.meal_id, p.file)).catch(() => {});
+                }
             } catch (err) {
                 console.error('Error registrando comida:', err);
                 if (registrados.length) window.dispatchEvent(new Event('mealfit:refresh-inventory'));

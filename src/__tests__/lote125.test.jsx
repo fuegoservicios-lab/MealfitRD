@@ -12,7 +12,7 @@ import {
     mensajeDeErrorDeDictado,
     unirDictado,
 } from '../utils/dictado';
-import { useDictado } from '../hooks/useDictado';
+import { DICTADO_ARRANQUE_MS, DICTADO_REINTENTO_PAUSA_MS, useDictado } from '../hooks/useDictado';
 
 const leer = (rel) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf-8').replace(/\r\n/g, '\n');
 
@@ -87,6 +87,7 @@ describe('lote 125 · el ciclo de vida del micrófono', () => {
     let motores;
 
     beforeEach(() => {
+        localStorage.clear();
         vi.useFakeTimers();
         motores = [];
         class MotorFalso {
@@ -166,15 +167,81 @@ describe('lote 125 · el ciclo de vida del micrófono', () => {
         expect(vista.result.current.escuchando).toBe(false);
     });
 
-    it('si el motor rechaza el idioma se prueba el siguiente; un permiso negado se dice y se apaga', () => {
+    it('si el motor rechaza el idioma se prueba el siguiente y se recuerda; un permiso negado se dice y se apaga', () => {
         const { vista } = montar('');
         act(() => vista.result.current.alternar());
         act(() => { motores[0].onerror({ error: 'language-not-supported' }); motores[0].onend(); });
         expect(motores).toHaveLength(2);
         expect(motores[1].lang).toBe('es-US');
+        expect(localStorage.getItem('mf_dictado_lang_es-DO')).toBe('1');
         act(() => { motores[1].onerror({ error: 'not-allowed' }); motores[1].onend(); });
         expect(vista.result.current.escuchando).toBe(false);
         expect(vista.result.current.error).toBe('Permite el micrófono para dictar');
+
+        // Siguiente apertura en frío ya empieza directo en el idioma que sí sirvió (es-US)
+        const { vista: vista2 } = montar('');
+        act(() => vista2.result.current.alternar());
+        expect(motores[2].lang).toBe('es-US');
+    });
+
+    it('marca `iniciando` al instante si start() es asíncrono y reintenta tras pausa si se queda colgado en frío', () => {
+        class MotorLento {
+            constructor() { motores.push(this); this.parado = false; this.abortado = false; }
+            start() {}
+            stop() { this.parado = true; }
+            abort() { this.abortado = true; }
+        }
+        window.SpeechRecognition = MotorLento;
+        const { vista } = montar('');
+        act(() => vista.result.current.alternar());
+        expect(vista.result.current.iniciando).toBe(true);
+        expect(vista.result.current.escuchando).toBe(false);
+
+        act(() => { vi.advanceTimersByTime(DICTADO_ARRANQUE_MS + 10); });
+        expect(motores[0].abortado).toBe(true);
+        expect(motores).toHaveLength(1);
+
+        act(() => { vi.advanceTimersByTime(DICTADO_REINTENTO_PAUSA_MS + 10); });
+        expect(motores).toHaveLength(2);
+
+        act(() => { motores[1].onstart?.(); });
+        expect(vista.result.current.iniciando).toBe(false);
+        expect(vista.result.current.escuchando).toBe(true);
+    });
+
+    it('cancelar durante la pausa entre reintentos aborta el reintento y useDictado no muta audioSession', () => {
+        class MotorLento {
+            constructor() { motores.push(this); this.parado = false; this.abortado = false; }
+            start() {}
+            stop() { this.parado = true; }
+            abort() { this.abortado = true; }
+        }
+        window.SpeechRecognition = MotorLento;
+        const { vista } = montar('');
+        act(() => vista.result.current.alternar());
+        act(() => { vi.advanceTimersByTime(DICTADO_ARRANQUE_MS + 10); });
+        expect(motores).toHaveLength(1);
+
+        act(() => vista.result.current.alternar());
+        expect(vista.result.current.iniciando).toBe(false);
+        act(() => { vi.advanceTimersByTime(DICTADO_REINTENTO_PAUSA_MS + 50); });
+        expect(motores).toHaveLength(1);
+        expect(leer('src/hooks/useDictado.js')).not.toContain('audioSession');
+    });
+
+    it('cerrar y reabrir de inmediato crea un motor nuevo al instante sin temporizador pendiente', () => {
+        const { vista, pintar } = montar('');
+        act(() => vista.result.current.alternar());
+        act(() => motores[0].onresult({ results: resultados(['hola']) }));
+        pintar();
+        act(() => vista.result.current.alternar());
+        act(() => motores[0].onend());
+        expect(vista.result.current.escuchando).toBe(false);
+
+        act(() => vista.result.current.alternar());
+        expect(motores).toHaveLength(2);
+        expect(vista.result.current.escuchando).toBe(true);
+        expect(vista.result.current.iniciando).toBe(false);
     });
 });
 
@@ -189,7 +256,7 @@ describe('lote 125 · el chat, el Historial y la Nevera', () => {
         expect(ap).toContain('onPointerDown={(e) => e.preventDefault()}');
         expect(ap).toMatch(/if \(isListening\) \{\n\s+dictado\.cancelar\(\);/);
         expect(ap).toContain("placeholder={isListening ? t('Te escucho…') :");
-        expect(ap).toContain('onChange={(e) => { if (isListening) dictado.cancelar(); setInput(e.target.value); }}');
+        expect(ap).toContain('if (isListening) dictado.cancelar(); setInput(e.target.value);');
         const css = ap.slice(ap.indexOf('.chat-mic-btn {'), ap.indexOf('.chat-offline-status {'));
         expect(css).toContain('@media (prefers-reduced-motion: reduce)');
         expect(css).not.toContain('`');

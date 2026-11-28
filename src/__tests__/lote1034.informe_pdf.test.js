@@ -17,12 +17,27 @@ describe('[1034] PDF del informe', () => {
             titulo: 'Informe para tu medico',
             subtitulo: 'Del 19 oct al 17 nov',
             aviso: 'AVISO-FIJO no es un diagnostico',
-            bloques: [{ titulo: 'Energia', lineas: Array.from({ length: 90 }, (_, i) => `Linea ${i}`) }],
+            bloques: [
+                { id: 'resumen', titulo: 'Resumen', lineas: ['Resumen clinico breve del periodo.'] },
+                { titulo: 'Energia', lineas: Array.from({ length: 90 }, (_, i) => `Linea ${i}`) },
+            ],
+            graficas: [
+                {
+                    titulo: 'Energia media por semana',
+                    filas: [
+                        { etiqueta: 'S1', valorTexto: '1900 kcal', pct: 80, metaPct: 85 },
+                        { etiqueta: 'S2', valorTexto: '2050 kcal', pct: 88, metaPct: 85 },
+                    ],
+                },
+            ],
         });
         expect(blob.size).toBeGreaterThan(500);
         const txt = await textoDe(blob);
         expect(txt.startsWith('%PDF')).toBe(true);
         expect((txt.match(/AVISO-FIJO/g) || []).length).toBeGreaterThanOrEqual(2);   // el pie en CADA página (2+)
+        expect(txt).toContain('Resumen clinico breve');
+        expect(txt).toContain('1900 kcal');
         expect(txt).toContain('Linea 89');
+        expect(txt).toMatch(/1 \/ \d+/);
     });
 });

@@ -13,33 +13,31 @@ const plan = { calories: 2900, macros: { protein: 150, carbs: 394, fats: 81 } };
 describe('Plan goals are not health ceilings', () => {
     beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); });
 
+    // [P1-MACRO-BARS-SEMAFORO · 2026-11-26] El color es el ESTADO (progress/done/over), ya no el nutriente.
     it.each([
-        [2850, 130, 397, 82, 'rgb(16, 185, 129)'], // [BB-024] 2850/2900 = 98.3% -> Green Zone (90-105%)
-        [2900, 150, 394, 81, 'rgb(16, 185, 129)'], // [BB-024] 2900/2900 = 100% -> Green Zone (90-105%)
-        [4350, 225, 591, 122, 'rgb(249, 115, 22)'], // [BB-024] 4350/2900 = 150% -> Exceso > 110% tono naranja cálido
-        [0, 0, 0, 0, 'rgb(245, 158, 11)'], // 0% -> Amarillo ámbar en curso
-    ])('preserves nutrient colors and honest percentages at %j kcal', async (calories, protein, carbs, fats, expectedCalColor) => {
+        // kcal, prot, carb, grasa, estados esperados [kcal, prot, carb, grasa]
+        [2850, 130, 397, 82, ['done', 'progress', 'done', 'done']], // 98 % kcal; prot 87 % aún en curso
+        [2900, 150, 394, 81, ['done', 'done', 'done', 'done']],
+        [4350, 225, 591, 122, ['over', 'over', 'over', 'over']], // 150 %: sin límite AMDR, >120 % de la meta es exceso
+        [0, 0, 0, 0, ['progress', 'progress', 'progress', 'progress']],
+    ])('colors bars by state and keeps honest percentages at %j kcal', async (calories, protein, carbs, fats, states) => {
         fetchWithAuth.mockResolvedValue({ json: async () => ({ totals: { calories, protein, carbs, fats } }) });
         render(<TrackingProgress userId="goal-colors" planData={plan} />);
         await screen.findByText('0 comidas registradas');
-        expect(screen.getByText(/Calorías y macros: metas del plan/)).toBeInTheDocument();
         const rows = [
-            ['Calorías', calories, 2900, expectedCalColor],
-            ['Proteína', protein, 150, 'rgb(59, 130, 246)'],
-            ['Carbohidratos', carbs, 394, 'rgb(16, 185, 129)'],
-            ['Grasas', fats, 81, 'rgb(236, 72, 153)'],
+            ['Calorías', calories, 2900],
+            ['Proteína', protein, 150],
+            ['Carbohidratos', carbs, 394],
+            ['Grasas', fats, 81],
         ];
-        for (const [label, value, goal, color] of rows) {
+        rows.forEach(([label, value, goal], i) => {
             const track = screen.getByRole('progressbar', { name: label });
             const fill = track.firstElementChild;
-            expect(fill.style.background).toContain(color);
-            expect(track.style.borderColor).toBe('');
+            expect(fill.dataset.state).toBe(states[i]);
+            expect(fill.style.background).toBe('');
             expect(track.getAttribute('aria-valuetext')).toContain(`${Math.round(value / goal * 100)}%`);
-            if (value > goal && label !== 'Calorías') {
-                expect(fill.style.width).toBe('100%');
-                expect(fill.style.boxShadow).toBe('none');
-            }
-        }
+            if (value > goal && label !== 'Calorías') expect(fill.style.width).toBe('100%');
+        });
     });
 
     describe('[BB-024 / P1-CALORIE-BAR-GOAL-SEMANTICS] Banda de Éxito y Semántica de Calorías', () => {
@@ -51,7 +49,7 @@ describe('Plan goals are not health ceilings', () => {
             await screen.findByText('0 comidas registradas');
 
             const calTrack = screen.getByRole('progressbar', { name: 'Calorías' });
-            expect(calTrack.firstElementChild.style.background).toContain('rgb(16, 185, 129)');
+            expect(calTrack.firstElementChild.dataset.state).toBe('done');
             expect(screen.getByText('Meta del día alcanzada')).toBeInTheDocument();
         });
 
@@ -61,7 +59,7 @@ describe('Plan goals are not health ceilings', () => {
             await screen.findByText('0 comidas registradas');
 
             const calTrack = screen.getByRole('progressbar', { name: 'Calorías' });
-            expect(calTrack.firstElementChild.style.background).toContain('rgb(245, 158, 11)');
+            expect(calTrack.firstElementChild.dataset.state).toBe('progress');
             expect(screen.getByText('Faltan 500 kcal para la meta')).toBeInTheDocument();
         });
 
@@ -71,7 +69,7 @@ describe('Plan goals are not health ceilings', () => {
             await screen.findByText('0 comidas registradas');
 
             const calTrack = screen.getByRole('progressbar', { name: 'Calorías' });
-            expect(calTrack.firstElementChild.style.background).toContain('rgb(249, 115, 22)');
+            expect(calTrack.firstElementChild.dataset.state).toBe('over');
             expect(screen.getByText('600 kcal sobre la meta')).toBeInTheDocument();
             expect(screen.queryByText('Meta del día alcanzada')).toBeNull();
         });
@@ -82,7 +80,7 @@ describe('Plan goals are not health ceilings', () => {
             await screen.findByText('0 comidas registradas');
 
             const calTrack = screen.getByRole('progressbar', { name: 'Calorías' });
-            expect(calTrack.firstElementChild.style.background).toContain('rgb(16, 185, 129)');
+            expect(calTrack.firstElementChild.dataset.state).toBe('done');
             expect(screen.getByText('Meta del día alcanzada')).toBeInTheDocument();
         });
 
@@ -92,7 +90,7 @@ describe('Plan goals are not health ceilings', () => {
             await screen.findByText('0 comidas registradas');
 
             const calTrack = screen.getByRole('progressbar', { name: 'Calorías' });
-            expect(calTrack.firstElementChild.style.background).toContain('rgb(249, 115, 22)');
+            expect(calTrack.firstElementChild.dataset.state).toBe('over');
             expect(screen.getByText('160 kcal sobre la meta')).toBeInTheDocument();
             expect(screen.queryByText('Meta del día alcanzada')).toBeNull();
         });
@@ -103,7 +101,7 @@ describe('Plan goals are not health ceilings', () => {
             await screen.findByText('0 comidas registradas');
 
             const calTrack = screen.getByRole('progressbar', { name: 'Calorías' });
-            expect(calTrack.firstElementChild.style.background).toContain('rgb(16, 185, 129)');
+            expect(calTrack.firstElementChild.dataset.state).toBe('done');
             expect(screen.getByText('Meta del día alcanzada')).toBeInTheDocument();
         });
     });

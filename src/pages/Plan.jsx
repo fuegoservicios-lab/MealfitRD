@@ -15,7 +15,7 @@ import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api
 // [P1-PLAN-LOTE-844] El permiso para la IA de terceros, antes de generar o reintentar.
 import { asegurarConsentimientoIA, faltaPermisoIA } from '../consent/consentimientoIA';
 // [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] Gate único de comercio (config/platform.js).
-import { nativeHidesCommerce } from '../config/platform';
+import { nativeHidesCommerce, canShowUpgrade } from '../config/platform';
 import { initialViaQueueEnabled, idempotencyKeyFor, clearIdempotencyKey } from '../config/generation';
 import Wordmark from '../components/common/Wordmark';
 import { peekPendingStatusWithRetry } from '../utils/pendingStatusRetry';
@@ -1712,17 +1712,17 @@ const Plan = () => {
                             // del límite pero no vende: sin acción «Mejorar plan» ni navegación
                             // a upgrade (Apple 3.1.1 / 3.1.3(b): ni vender ni ENLAZAR a compra).
                             toast.error(t("Límite de créditos alcanzado"), {
-                                description: nativeHidesCommerce()
+                                description: !canShowUpgrade()
                                     ? t("Has usado los créditos de este mes. Se renuevan al inicio del próximo ciclo.")
                                     : (error.message || t("Mejora tu plan para seguir generando.")),
-                                action: nativeHidesCommerce() ? undefined : {
+                                action: !canShowUpgrade() ? undefined : {
                                     label: t("Mejorar plan"),
                                     onClick: () => navigate('/dashboard/upgrade'),
                                 },
                                 duration: 6000, id: 'plan-ready',
                             });
                         });
-                        if (!nativeHidesCommerce()) navigate('/dashboard/upgrade', { replace: true });
+                        if (canShowUpgrade()) navigate('/dashboard/upgrade', { replace: true });
                         // [P1-PLAN-LOTE-137 · 2026-09-20] En la app nativa no hay a dónde vender, pero quedarse aquí
                         // tampoco: `status` ya es 'generating' y la pantalla seguía «Diseñando tu plan» sin nada
                         // generándose, hasta que el usuario pulsara Cancelar (⇒ formulario). Al panel: su contador o

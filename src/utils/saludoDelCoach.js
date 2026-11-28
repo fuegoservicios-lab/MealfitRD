@@ -11,6 +11,7 @@
 // así que el saludo no «salta» al llegar los números si no cambiaron.
 import { formatNumber } from '../i18n';
 import { getBiologicalDateStr } from './diaBiologico';
+import { elegirOpcionesSeguras } from './filtroAlimentosSaludo';
 
 const _hash = (s) => {
     let h = 2166136261;
@@ -69,69 +70,135 @@ function _saludo({ franja, hora, nombre, deNuevo, semilla, t }) {
     return _elegir(lista, semilla, 'saludo');
 }
 
-function _observacion({ franja, hora, resumen, semilla, t }) {
+function _observacion({ franja, hora, resumen, perfil, semilla, t }) {
     if (franja === 'madrugada') {
-        // el día acaba de empezar: los números de «hoy» están en cero; lo útil es qué comer si hay hambre de verdad
-        return _elegir([
-            t('Si el cuerpo te pide algo, que sea ligero: un yogur, una fruta o un vaso de leche no te descuadran.'),
-            t('Si de verdad hay hambre, algo pequeño con proteína, como un yogur o un huevo hervido, es mejor que picar sin rumbo.'),
-            t('Si te entra hambre, una fruta o un yogur te calman sin pesarte para dormir.'),
-        ], semilla, 'madrugada');
+        // el día acaba de empezar: los números de «hoy» están en cero; sugerimos algo ligero 100 % compatible
+        const opt = elegirOpcionesSeguras({ perfil, tipo: 'madrugada', semilla, t });
+        const texto = opt
+            ? _elegir([
+                t('Si de verdad tienes hambre, algo ligero como {opt} te calma sin pesarte para dormir.', { opt }),
+                t('Si el cuerpo pide algo a esta hora, mejor ligero ({opt}) que picar sin rumbo.', { opt }),
+            ], semilla, 'madrugada')
+            : t('Si de verdad tienes hambre a esta hora, ve por algo ligero que te siente bien sin pesarte para dormir.');
+        return { texto, yaInvita: false };
     }
     const totales = resumen?.totales;
     const metas = resumen?.metas;
     const comidas = Array.isArray(resumen?.comidas) ? resumen.comidas : null;
+    const nombresComidas = Array.isArray(resumen?.nombresComidas) ? resumen.nombresComidas : [];
+
+    // Día en blanco ANTES de calcular brechas: nunca decir «faltan 98 g de proteína» si aún no anotó nada hoy.
+    if (comidas && comidas.length === 0) {
+        return { texto: _nadaAnotado({ franja, hora, semilla, t }), yaInvita: true };
+    }
     if (!totales || !metas || !metas.calories) {
-        return comidas && comidas.length === 0 ? _nadaAnotado({ hora, semilla, t }) : '';
+        return { texto: '', yaInvita: false };
     }
     const kcal = Math.round(_n(totales.calories));
     const meta = Math.round(_n(metas.calories));
+    const quedan = Math.max(0, meta - kcal);
     const grasa = Math.round(_n(totales.fats));
     const metaGrasa = Math.round(_n(metas.fats));
     const faltaProteina = Math.round(_n(metas.protein) - _n(totales.protein));
 
     if (kcal > meta * 1.05) {
         const n = kcal - meta;
-        return _elegir([
-            t('Hoy ya pasaste tu meta por {n} kcal. Sin drama: un día no define nada; si comes algo más, que sea ligero.', { n: formatNumber(n) }),
-            t('Llevas {n} kcal por encima de tu meta de hoy. Mañana se equilibra; por hoy, algo ligero si te da hambre.', { n: formatNumber(n) }),
-        ], semilla, 'exceso');
+        return {
+            texto: _elegir([
+                t('Hoy pasaste tu meta por {n} kcal — sin drama, un día no define nada. Si te da hambre más tarde, que sea algo ligero.', { n: formatNumber(n) }),
+                t('Llevas {n} kcal por encima de tu meta hoy. Mañana se nivela; por ahora, algo ligero si el cuerpo pide más.', { n: formatNumber(n) }),
+            ], semilla, 'exceso'),
+            yaInvita: false,
+        };
+    }
+    if (hora >= 14 && metas.protein && quedan <= 280 && faltaProteina >= 20) {
+        const opt = elegirOpcionesSeguras({ perfil, tipo: 'ligera', yaComidoHoy: nombresComidas, semilla, t });
+        const texto = opt
+            ? t('Te quedan {quedan} kcal y {n} g de proteína; para no pasarte, conviene algo magro como {opt}.', {
+                quedan: formatNumber(quedan), n: faltaProteina, opt,
+            })
+            : t('Te quedan {quedan} kcal y {n} g de proteína; para no pasarte, conviene ir directo a una proteína magra ligera.', {
+                quedan: formatNumber(quedan), n: faltaProteina,
+            });
+        return { texto, yaInvita: false };
     }
     if (metaGrasa && grasa > metaGrasa + 5) {
-        return _elegir([
-            t('La grasa ya va en {g} de {meta} g, así que para lo que queda del día conviene algo a la plancha, al horno o hervido.', { g: grasa, meta: metaGrasa }),
-            t('Hoy vas alto de grasa ({g} de {meta} g): para lo que falta, mejor preparaciones sin fritura.', { g: grasa, meta: metaGrasa }),
-        ], semilla, 'grasa');
+        return {
+            texto: _elegir([
+                t('La grasa ya va en {g} de {meta} g; en lo que queda del día, mejor a la plancha, al horno o hervido.', { g: grasa, meta: metaGrasa }),
+                t('Hoy vas alto de grasa ({g} de {meta} g): para lo que falta, mejor preparaciones sin fritura.', { g: grasa, meta: metaGrasa }),
+            ], semilla, 'grasa'),
+            yaInvita: false,
+        };
     }
     if (hora >= 14 && metas.protein && faltaProteina >= 20) {
-        return faltaProteina >= 40
+        if (faltaProteina >= 65) {
+            const opt = elegirOpcionesSeguras({ perfil, tipo: 'fuerte', yaComidoHoy: nombresComidas, semilla, t });
+            const texto = opt
+                ? t('Aún te faltan {n} g de proteína hoy. Si te quedó alguna comida sin anotar, pásamela y cuadramos; si no, prioriza una buena base de {opt} en tu próxima comida.', { n: faltaProteina, opt })
+                : t('Aún te faltan {n} g de proteína hoy. Si te quedó alguna comida sin anotar, pásamela y cuadramos; si no, dale protagonismo a la proteína en tu próxima comida.', { n: faltaProteina });
+            return { texto, yaInvita: false };
+        }
+        if (faltaProteina >= 40) {
+            const opt = elegirOpcionesSeguras({ perfil, tipo: 'fuerte', yaComidoHoy: nombresComidas, semilla, t });
+            const texto = opt
+                ? _elegir([
+                    t('Te faltan {n} g de proteína hoy; algo como {opt} te deja muy cerca de la meta.', { n: faltaProteina, opt }),
+                    t('Quedan {n} g de proteína por cubrir; una buena porción de {opt} te acerca bastante.', { n: faltaProteina, opt }),
+                ], semilla, 'proteina')
+                : t('Te faltan {n} g de proteína hoy; conviene que sea la base de tu próxima comida.', { n: faltaProteina });
+            return { texto, yaInvita: false };
+        }
+        const opt = elegirOpcionesSeguras({ perfil, tipo: 'ligera', yaComidoHoy: nombresComidas, semilla, t });
+        const texto = opt
             ? _elegir([
-                t('Te faltan {n} g de proteína: una pechuga de pollo o un filete de pescado te acercan bastante.', { n: faltaProteina }),
-                t('Vas corto de proteína: faltan {n} g. Pollo, pescado o atún son lo más rápido para cerrarla.', { n: faltaProteina }),
+                t('Solo te faltan {n} g de proteína; con {opt} la cierras fácil.', { n: faltaProteina, opt }),
+                t('Para completar la proteína te faltan {n} g; {opt} lo resuelven rápido.', { n: faltaProteina, opt }),
             ], semilla, 'proteina')
-            : _elegir([
-                t('Te faltan {n} g de proteína: un par de huevos o un yogur griego lo resuelven.', { n: faltaProteina }),
-                t('Para cerrar la proteína te faltan {n} g; un par de huevos o un yogur griego te acercan.', { n: faltaProteina }),
-            ], semilla, 'proteina');
+            : t('Solo te faltan {n} g de proteína para completar tu meta de hoy.', { n: faltaProteina });
+        return { texto, yaInvita: false };
     }
-    if (comidas && comidas.length === 0) return _nadaAnotado({ hora, semilla, t });
     if (hora >= 19 && Math.abs(kcal - meta) <= meta * 0.1) {
-        return _elegir([
-            t('Vas redondo: {kcal} de {meta} kcal. ¡Buen trabajo!', { kcal: formatNumber(kcal), meta: formatNumber(meta) }),
-            t('Hoy lo tienes en su sitio: {kcal} de {meta} kcal.', { kcal: formatNumber(kcal), meta: formatNumber(meta) }),
-        ], semilla, 'redondo');
+        return {
+            texto: _elegir([
+                t('Vas clavado hoy: {kcal} de {meta} kcal. ¡Buen cierre!', { kcal: formatNumber(kcal), meta: formatNumber(meta) }),
+                t('Hoy lo tienes en su sitio: {kcal} de {meta} kcal.', { kcal: formatNumber(kcal), meta: formatNumber(meta) }),
+            ], semilla, 'redondo'),
+            yaInvita: false,
+        };
     }
-    const quedan = Math.max(0, meta - kcal);
-    return _elegir([
-        t('Llevas {kcal} de {meta} kcal; te quedan {quedan} para el resto del día.', { kcal: formatNumber(kcal), meta: formatNumber(meta), quedan: formatNumber(quedan) }),
-        t('Vas por {kcal} de {meta} kcal y {p} g de proteína.', { kcal: formatNumber(kcal), meta: formatNumber(meta), p: Math.round(_n(totales.protein)) }),
-    ], semilla, 'progreso');
+    return {
+        texto: _elegir([
+            t('Llevas {kcal} de {meta} kcal; te quedan {quedan} para el resto del día.', { kcal: formatNumber(kcal), meta: formatNumber(meta), quedan: formatNumber(quedan) }),
+            t('Vas por {kcal} de {meta} kcal y {p} g de proteína.', { kcal: formatNumber(kcal), meta: formatNumber(meta), p: Math.round(_n(totales.protein)) }),
+        ], semilla, 'progreso'),
+        yaInvita: false,
+    };
 }
 
-function _nadaAnotado({ hora, semilla, t }) {
-    return hora < 11
-        ? _elegir([t('Día nuevo: todavía no hay nada anotado.'), t('Hoy todavía está en blanco.')], semilla, 'blanco')
-        : _elegir([t('Hoy todavía no has anotado nada.'), t('Todavía no hay nada registrado hoy.')], semilla, 'blanco');
+function _nadaAnotado({ franja, hora, semilla, t }) {
+    if (hora < 11) {
+        return _elegir([
+            t('Todavía sin registros hoy. ¿Con qué arrancas el desayuno?'),
+            t('Hoy arrancamos de cero. ¿Ya sabes qué desayunar o armamos una idea rápida?'),
+        ], semilla, 'blanco');
+    }
+    if (franja === 'almuerzo') {
+        return _elegir([
+            t('Todavía no tienes nada anotado hoy. Si ya comiste algo, pásamelo y cuadramos; si no, ¿qué te provoca almorzar?'),
+            t('Aún sin registros hoy. ¿Ya almorzaste o armamos una idea para el almuerzo?'),
+        ], semilla, 'blanco');
+    }
+    if (franja === 'cena') {
+        return _elegir([
+            t('Tu diario de hoy sigue en blanco. Si ya comiste antes, dime qué fue y cuadramos; si no, ¿qué te provoca cenar?'),
+            t('Todavía no tienes comidas anotadas hoy. ¿Ya cenaste o pensamos qué preparar?'),
+        ], semilla, 'blanco');
+    }
+    return _elegir([
+        t('Todavía no tienes nada anotado hoy. Si ya comiste, cuéntame y actualizo tus números; ¿o te provoca merendar algo?'),
+        t('Aún sin registros hoy. ¿Comiste algo antes o buscamos una idea para merendar?'),
+    ], semilla, 'blanco');
 }
 
 const _PLAN = {
@@ -142,16 +209,28 @@ const _PLAN = {
 };
 
 const _INVITA = {
-    desayuno: (t) => [t('¿Qué vas a desayunar? Si quieres, te ayudo a decidir.'), t('Cuando desayunes, mándame una foto y lo anoto yo. ¿Te ayudo con alguna idea?')],
-    almuerzo: (t) => [t('¿Qué vas a almorzar? Si quieres, te ayudo a decidir.'), t('Cuando almuerces, mándame una foto y lo anoto yo. ¿Te ayudo con alguna idea?')],
-    merienda: (t) => [t('¿Te provoca algo para merendar? Te doy ideas.'), t('¿Una merienda? Dime qué se te antoja y lo ajustamos a tu día.')],
-    cena: (t) => [t('¿Qué vas a cenar? Si quieres, te ayudo a decidir.'), t('Cuando cenes, mándame una foto y lo anoto yo. ¿Te ayudo con alguna idea?')],
+    desayuno: (t) => [
+        t('¿Qué tienes en mente para desayunar?'),
+        t('¿Ya desayunaste o vas por eso? Si prefieres, mándame foto y lo anoto.'),
+    ],
+    almuerzo: (t) => [
+        t('¿Qué vas a almorzar hoy? Si quieres, armamos una idea.'),
+        t('¿Ya almorzaste o estás decidiendo? Si quieres, mándame foto y lo registro.'),
+    ],
+    merienda: (t) => [
+        t('¿Te provoca algo para merendar?'),
+        t('¿Te provoca merendar algo? Dime qué tienes a mano y lo cuadramos.'),
+    ],
+    cena: (t) => [
+        t('¿Qué tienes en mente para cenar?'),
+        t('¿Ya cenaste o estás pensando qué preparar? Mándame foto cuando comas y cierro tu día.'),
+    ],
 };
 
 const _PREFIJO_NEVERA = {
-    desayuno: (t) => t('Para el desayuno, podemos improvisar.'),
-    almuerzo: (t) => t('Para el almuerzo, podemos improvisar.'),
-    cena: (t) => t('Para la cena, podemos improvisar.'),
+    desayuno: (t) => t('Hora de desayunar.'),
+    almuerzo: (t) => t('Hora de almorzar.'),
+    cena: (t) => t('Hora de cenar.'),
 };
 
 /**
@@ -161,11 +240,12 @@ const _PREFIJO_NEVERA = {
  * @param {boolean} [p.modoContador]
  * @param {string} [p.plato]         el plato del plan para esta franja (en modo plan)
  * @param {boolean} [p.nevera]       la Nevera está activa
- * @param {object} [p.resumen]       { totales, metas (en números), comidas: [meal_type] }
+ * @param {object} [p.resumen]       { totales, metas (en números), comidas: [meal_type], nombresComidas: [string] }
+ * @param {object} [p.perfil]        perfil alimentario extraído con `extraerPerfilAlimentario`
  * @param {string} [p.semilla]       usuario|día|media hora
  * @param {Function} p.t
  */
-export function saludoDelCoach({ hora, nombre = '', modoContador = false, plato = '', nevera = true, resumen = null, semilla = '', t }) {
+export function saludoDelCoach({ hora, nombre = '', modoContador = false, plato = '', nevera = true, resumen = null, perfil = null, semilla = '', t }) {
     const franja = franjaDeLaHora(hora);
     const comidas = Array.isArray(resumen?.comidas) ? resumen.comidas : null;
     const deNuevo = !!(comidas && comidas.length > 0 && hora >= 11);
@@ -181,10 +261,12 @@ export function saludoDelCoach({ hora, nombre = '', modoContador = false, plato 
         partes.push(_elegir(_PLAN[franja](t, plato), semilla, 'plan'));
         partes.push(_elegir([t('¿Lo preparas o prefieres cambiarlo?'), t('¿Te paso la receta paso a paso?'), t('¿Lo tienes listo o armamos otra opción?')], semilla, 'invita-plan'));
     } else {
-        const obs = _observacion({ franja, hora, resumen, semilla, t });
-        if (obs) partes.push(obs);
-        if (franja === 'madrugada') {
-            partes.push(_elegir([t('¿En qué te ayudo?'), t('¿Te ayudo con algo o ya toca dormir?')], semilla, 'invita'));
+        const obs = _observacion({ franja, hora, resumen, perfil, semilla, t });
+        if (obs.texto) partes.push(obs.texto);
+        if (obs.yaInvita) {
+            // La observación ya cierra con una pregunta natural adaptada al día en blanco
+        } else if (franja === 'madrugada') {
+            partes.push(_elegir([t('¿En qué te ayudo?'), t('¿Te ayudo con algo o ya vas cerrando el día?')], semilla, 'invita'));
         } else if (yaComioEsta) {
             partes.push(_elegir([t('¿En qué más te ayudo?'), t('¿Quieres que revise cómo va tu día?')], semilla, 'invita'));
         } else {

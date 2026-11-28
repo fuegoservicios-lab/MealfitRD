@@ -161,6 +161,20 @@ describe('revisarOta', () => {
         plugin.getCurrentBundle.mockResolvedValue({ bundleId: '20260918-000000' });
         expect(await revisarOta(plugin)).toBe('reset');
         expect(plugin.reset).toHaveBeenCalled();
+        expect(plugin.reload).not.toHaveBeenCalled();
+    });
+    it('si mandatory=true recarga tras preparar o resetear', async () => {
+        http.get.mockResolvedValue({ status: 200, data: manifest({ mandatory: true }) });
+        expect(await revisarOta(plugin)).toBe('recargado');
+        expect(plugin.setNextBundle).toHaveBeenCalledWith({ bundleId: ID });
+        expect(plugin.reload).toHaveBeenCalledTimes(1);
+
+        plugin.reload.mockClear();
+        http.get.mockResolvedValue({ status: 200, data: manifest({ reset: true, mandatory: true }) });
+        plugin.getCurrentBundle.mockResolvedValue({ bundleId: '20260918-000000' });
+        expect(await revisarOta(plugin)).toBe('recargado');
+        expect(plugin.reset).toHaveBeenCalled();
+        expect(plugin.reload).toHaveBeenCalledTimes(1);
     });
 });
 

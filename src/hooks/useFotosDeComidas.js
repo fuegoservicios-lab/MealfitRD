@@ -189,6 +189,8 @@ export function useEnlazarFotosDelChat(userId) {
         const enlazar = () => {
             if (document.visibilityState === 'hidden') return;
             import('../utils/fotosDelChat').then((m) => m.vincularFotosDelChat(userId)).catch(() => {});
+            // [P1-PLAN-LOTE-1184] y las del escáner guardadas en el servidor (tomadas en OTRO dispositivo)
+            import('../utils/fotosDelServidor').then((m) => m.traerFotosDelServidor(userId)).catch(() => {});
         };
         enlazar();
         document.addEventListener('visibilitychange', enlazar);

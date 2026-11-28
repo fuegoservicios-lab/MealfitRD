@@ -8,7 +8,7 @@ import { useDashboardAccountActions } from '../context/DashboardAccountActions';
 import AgentAccountMenu from '../components/agent/AgentAccountMenu';
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] SSOT del modo (perfil → espejo local).
 import { isTrackingMode, navItemsFor, neveraActiva } from '../config/dashboardNav';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Trash2, Check, Mic, PhoneCall, AudioLines, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Trash2, Check, Mic, PhoneCall, AudioLines, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity, Trophy, Lock } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { sendClientPerfTelemetry, sendStreamCutTelemetry, paqueteDelCliente } from '../utils/chatPerf';
 // [P1-PLAN-LOTE-726] la foto de plato que se manda al chat pasa a la ficha de la comida que el coach registra. Import
@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 // wrapper que mueve la lib a un chunk async separado.
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
 import IconoDelChat from '../components/agent/IconoDelChat';
+import { PortadaSaludo, PortadaAtajos } from '../components/agent/PortadaDelCoach';   // [P1-COACH-PORTADA]
 import { ChatStopButton } from '../components/agent/ChatStopButton';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener).
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -123,6 +124,7 @@ const MIC_REPONER_TECLADO_MS = [350, 700, 1200, 2000];
 // Ventana en la que un clic tras un toque YA atendido en touchend se considera el mismo gesto.
 const MIC_CLIC_FANTASMA_MS = 700;
 import { useChatAttachments } from '../hooks/useChatAttachments';
+import { precargarImagenesDelChat } from '../hooks/useChatImageSrc';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency, precalentarWorkerDeImagen, workerDeImagenDisponible } from '../utils/chatImageProcessing';
 import { vistaPreviaDelAdjunto, esIOS } from '../utils/vistaPreviaDelAdjunto';
@@ -133,7 +135,8 @@ import {
     respuestaEscrita, respuestasPorFoto, textoDelTurno,
 } from '../utils/fotoAntesDelCoach';
 import RespuestasDeLaFoto from '../components/agent/RespuestasDeLaFoto';
-import { isNativeApp } from '../config/platform';
+import { isNativeApp, nativePlatform } from '../config/platform';
+const CameraViewfinder = lazy(() => import('../components/common/CameraViewfinder'));
 import {
     chooseNativeChatImages,
     isNativePickerCancellation,
@@ -175,6 +178,7 @@ import { atajosDelChat, metasEnNumeros } from '../utils/atajosDelChat';
 import HojaInformeMedico from '../components/informe/HojaInformeMedico';   // [P1-PLAN-LOTE-1074] atajo del chat
 import { useResumenDeHoy, leerResumenDeHoy } from '../hooks/useResumenDeHoy';
 import { saludoDelCoach, franjaDeLaHora, momentoDelDia, actualizarMensajePredeterminado, soloAvisoProactivoVencido } from '../utils/saludoDelCoach';
+import { extraerPerfilAlimentario } from '../utils/filtroAlimentosSaludo';
 import { nativeHidesCommerce } from '../config/platform';
 
 import { codigoDeTope, mensajeDeTope } from '../utils/topes';   // [P1-PLAN-LOTE-1116]
@@ -427,9 +431,12 @@ const _burbujaDeFotoPendiente = (texto, items) => {
         const url = [item.image_url, item.url, item.thumbDataUrl]
             .find((u) => typeof u === 'string' && u && !u.startsWith('blob:'));
         return url ? {
-            id: item.attachment_id || item.id, clientKey: item.id, url, fullUrl: item.image_url || url,
+            id: item.attachment_id || item.id, clientKey: item.id, url,
+            thumbUrl: item.thumbUrl || item.thumb_url || item.thumbDataUrl || url,
+            fullUrl: item.image_url || url,
             name: item.name || item.file?.name || item.sourceFile?.name, description: item.description, kind: item.kind,
             image_url: item.image_url,
+            thumb_url: item.thumb_url || item.thumbUrl,
         } : null;
     }).filter(Boolean);
     return {
@@ -443,6 +450,7 @@ const _durableRetryAttachments = (items) => (items || []).map((item) => ({
     attachment_id: item.attachment_id,
     url: item.url || item.image_url,
     image_url: item.image_url,
+    thumb_url: item.thumb_url || item.thumbUrl,
     description: item.description,
     kind: item.kind,
     meal_name: item.meal_name || undefined,
@@ -509,6 +517,7 @@ export const menuItemsDelAgente = (enModoContador, userProfile) => {
         plan: LayoutDashboard,
         progress: Activity,
         pantry: Refrigerator,
+        leaderboard: Trophy,
         recipes: Utensils,
         history: Clock,
     };
@@ -603,6 +612,7 @@ export const generateIntelligentWelcome = (userProfile, formData, planData, resu
     const metas = metasEnNumeros(!enModoContador && planData?.calories ? planData : resumen?.metas);
     const fechaHoy = getBiologicalDateStr(now);
     const semilla = `${userProfile?.id || 'anon'}|${fechaHoy}|${momento}`;
+    const perfilAlimentario = extraerPerfilAlimentario(userProfile, formData);
 
     // [P1-AGENT-WELCOME-NO-TIME · 2026-05-20] Sin la hora literal ("Son las 04:29 a. m."): el welcome se regenera
     // cada 30 min y la hora mostrada se desfasaba. El saludo de la franja da el contexto sin precisión innecesaria.
@@ -613,10 +623,1010 @@ export const generateIntelligentWelcome = (userProfile, formData, planData, resu
         plato: exactMealName,
         nevera: neveraOn,
         resumen: resumen ? { ...resumen, metas } : null,
+        perfil: perfilAlimentario,
         semilla,
         t,
     })}`;
 };
+
+const AgentMainStyles = React.memo(() => (
+    <style>{`
+                /* [P2-CHAT-JUMP-TO-LATEST-DESKTOP · 2026-09-04] «Ir al último mensaje»: píldora
+                   flotante anclada al cuadro de escribir (position: absolute respecto al
+                   .input-wrapper, que es sticky en PC y relative en móvil). Un solo estilo. */
+                .jump-to-latest {
+                    position: absolute;
+                    top: -3rem;
+                    left: 50%;
+                    transform: translateX(-50%);  /* v2: centrada, como Claude/ChatGPT */
+                    z-index: 18;
+                    width: 36px;
+                    height: 36px;
+                    padding: 0;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 999px;
+                    border: 1px solid var(--border);
+                    background: var(--bg-card);
+                    color: var(--text-main);
+                    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+                    cursor: pointer;
+                    transition: box-shadow 0.15s ease, filter 0.15s ease;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                .jump-to-latest:hover { box-shadow: 0 10px 28px rgba(15, 23, 42, 0.26); filter: brightness(1.04); }
+                .jump-to-latest:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.55); outline-offset: 2px; }
+                /* [P1-CHAT-DELETE-TOUCH · 2026-08-10] La papelera de cada conversación
+                   se revelaba SOLO con :hover, y en un teléfono no hay hover: desde el
+                   móvil no se podía borrar NINGUNA conversación. Con el tope de 40
+                   sesiones, la lista solo crecía.
+
+                   Se añade visibility y no solo opacity: opacity 0 + pointer-events none
+                   deja el botón en el orden de tabulación, así que con teclado o VoiceOver
+                   se podía activar a ciegas un borrado que no se ve.
+                   (Sin acentos graves aquí dentro: este CSS vive en un template literal
+                   de JS y un backtick lo cierra y rompe el build.) */
+                .chat-session-btn .chat-actions-hover {
+                    opacity: 0;
+                    visibility: hidden;
+                    pointer-events: none;
+                }
+                .chat-session-btn:hover .chat-actions-hover,
+                .chat-session-btn:focus-within .chat-actions-hover {
+                    opacity: 1;
+                    visibility: visible;
+                    pointer-events: auto;
+                }
+                /* [P1-PLAN-LOTE-1175] en PC la fecha va a la derecha de la fila: cede su sitio a la papelera */
+                .chat-session-btn:hover .chat-fecha,
+                .chat-session-btn:focus-within .chat-fecha {
+                    visibility: hidden;
+                }
+                /* [P2-CHAT-TIMELINE · 2026-09-03] El hilo NUNCA desplaza en horizontal: con
+                   overflow-y auto en linea, overflow-x computa a auto y cualquier desborde
+                   de un píxel pinta una barra horizontal gruesa al pie del hilo (Windows). Las
+                   tablas y bloques de codigo del markdown ya tienen su propio scroll interno.
+                   (Sin acentos graves en este comentario: vive dentro de un template literal.) */
+                .messages-container { overflow-x: hidden !important; }
+                /* [P2-CHAT-QUICK-CHIPS · 2026-09-03] Acciones rápidas sobre la caja. */
+                .chat-respuestas-foto {
+                    max-width: 800px;
+                    margin: 0 auto 0.5rem;
+                    padding: 0.7rem 0.9rem;
+                    border-radius: 1rem;
+                    border: 1px solid var(--border);
+                    background: var(--bg-card);
+                    width: calc(100% - 2rem);
+                    box-sizing: border-box;
+                }
+                .chat-respuestas-foto-titulo { font-size: 0.8rem; font-weight: 700; color: var(--text-muted, inherit); }
+                /* [P1-PLAN-LOTE-690] Omitir preguntas: discreto, bajo las opciones */
+                .chat-respuestas-foto-omitir {
+                    margin-top: 0.55rem; padding: 0.35rem 0; border: 0; background: none; cursor: pointer;
+                    font: inherit; font-size: 0.8rem; font-weight: 600; color: var(--text-muted, inherit);
+                    text-decoration: underline; text-underline-offset: 3px;
+                }
+                /* [P1-PLAN-LOTE-763] La pregunta obligatoria de la foto en el sitio de la caja de escribir (telefono).
+                   Con la misma superficie que la caja (fondo y borde de la pastilla de escribir): es la caja que se
+                   convierte en la pregunta, y en oscuro se distingue de la conversacion (sin borde se fundia con
+                   ella). Entra subiendo, como un teclado. La caja oculta lleva el atributo hidden: nada la muestra. */
+                .chat-dudas-panel {
+                    width: 100%;
+                    margin: 0 auto;
+                    padding: 0.9rem 1rem 0.55rem;
+                    border: 1px solid var(--border-light, rgba(148, 163, 184, 0.16));
+                    border-radius: 1.35rem;
+                    background: var(--bg-card);
+                    box-shadow: 0 -10px 30px -14px rgba(2, 6, 23, 0.55);
+                    animation: chat-dudas-panel-entra 0.26s cubic-bezier(0.32, 0.72, 0, 1);
+                }
+                .chat-dudas-panel .chat-respuestas-foto-titulo {
+                    display: block;
+                    font-size: 0.93rem;
+                    letter-spacing: -0.01em;
+                    color: var(--text-main);
+                    border-bottom: 1px solid var(--border-light, rgba(148, 163, 184, 0.14));
+                }
+                .chat-dudas-scroll { scrollbar-width: none; }
+                .chat-dudas-scroll::-webkit-scrollbar { display: none; }
+                .chat-dudas-panel .chat-respuestas-foto-omitir {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0.45rem auto 0;
+                    min-height: 40px;
+                    padding: 0.35rem 1rem;
+                    border-radius: 999px;
+                    font-size: 0.84rem;
+                    text-decoration: none;
+                    opacity: 0.85;
+                    transition: opacity 150ms ease, background-color 150ms ease;
+                }
+                .chat-dudas-panel .chat-respuestas-foto-omitir:hover {
+                    opacity: 1;
+                    background: color-mix(in srgb, var(--text-main) 6%, transparent);
+                }
+                .input-wrapper > [hidden] { display: none !important; }
+                @keyframes chat-dudas-panel-entra {
+                    from { opacity: 0; transform: translateY(14px); }
+                    to { opacity: 1; transform: none; }
+                }
+                @media (prefers-reduced-motion: reduce) { .chat-dudas-panel { animation: none; } }
+                .chat-quick-chips {
+                    display: flex;
+                    gap: 0.45rem;
+                    max-width: 800px;
+                    margin: 0 auto 0.65rem;
+                    padding: 0 0 0.15rem;
+                    overflow-x: auto;
+                    scrollbar-width: none;
+                    -webkit-overflow-scrolling: touch;
+                    flex: none;
+                }
+                .chat-quick-chips::-webkit-scrollbar { display: none; }
+                .chat-quick-chip {
+                    flex: none;
+                    padding: 0.5rem 0.85rem;
+                    border-radius: 999px;
+                    border: 1px solid var(--border);
+                    background: var(--bg-card);
+                    color: var(--text-main);
+                    font-family: inherit;
+                    font-size: 0.82rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    white-space: nowrap;
+                    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+                }
+                /* [P1-PLAN-LOTE-411] las dos acciones (abren su hoja, no gastan mensajes) se distinguen de las preguntas */
+                .chat-quick-chip.chat-quick-chip-accion {
+                    border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+                    background: color-mix(in srgb, var(--primary) 12%, var(--bg-card));
+                    color: var(--primary);
+                    font-weight: 600;
+                }
+                .chat-quick-chip:hover,
+                .chat-quick-chip:focus-visible {
+                    border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+                    background: color-mix(in srgb, var(--primary) 10%, var(--bg-card));
+                    color: var(--primary);
+                    outline: none;
+                }
+                .chat-quick-chip:active { transform: translateY(1px); }
+                /* [P2-CHAT-DELETE-CONFIRM · 2026-09-03] La papelera solo se tiñe al pasar o pulsar. */
+                .chat-delete-btn:hover,
+                .chat-delete-btn:active,
+                .chat-delete-btn:focus-visible {
+                    color: var(--danger) !important;
+                    background: var(--danger-bg) !important;
+                }
+                /* Donde no hay puntero fino (teléfono, tablet) la acción es visible
+                   siempre: es la única forma de alcanzarla. */
+                @media (hover: none) {
+                    .chat-session-btn .chat-actions-hover {
+                        opacity: 1;
+                        visibility: visible;
+                        pointer-events: auto;
+                    }
+                }
+
+                /* [P1-PLAN-LOTE-128] El «+» vuelve a ser un GLIFO LIMPIO, sin circulo. El dueno: «me gustaba antes…
+                   ese gris no le queda y cuando lo presiono no me gusta tampoco». El circulo gris (lote 127) existia
+                   para igualar margenes con ENVIAR cuando compartian fila; con la caja apilada sobra, y la referencia
+                   del dueno lleva el «+» suelto. Al pulsar: solo encoge y toma el color de marca — sin fondo. Y el
+                   hover SOLO donde hay puntero de verdad: en tactil el :hover se queda pegado tras el toque, que
+                   era el gris que seguia ahi despues de presionar. */
+                .attachment-btn {
+                    background: transparent;
+                    color: var(--text-muted);
+                    border: none;
+                    border-radius: 50%;
+                    width: 44px;
+                    height: 44px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+                    flex-shrink: 0;
+                    outline: none;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                /* El dictado muestra micrófono en reposo y solo barras mientras escucha. */
+                .chat-mic-btn {
+                    position: relative;
+                    background: transparent;
+                    color: var(--text-muted);
+                    border: none;
+                    border-radius: 50%;
+                    width: 44px;
+                    height: 44px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    flex-shrink: 0;
+                    outline: none;
+                    -webkit-tap-highlight-color: transparent;
+                    transition: color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+                }
+                .chat-mic-btn:hover { color: var(--primary); background: var(--bg-muted); }
+                .chat-mic-btn:active { transform: scale(0.97); }
+                .chat-mic-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
+                /* [BB-046 · 2026-11-09] Dictando = estilo ChatGPT/Gemini: botón de parada oscuro con halo azul compacto y cuadrado blanco (el modo voz se oculta mientras se dicta). */
+                .chat-mic-btn.escuchando {
+                    color: #fff;
+                    background: #1e293b;
+                    border: 2px solid #3b82f6;
+                    box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.4), 0 0 4px rgba(59, 130, 246, 0.2);
+                    animation: chat-mic-pulse 2s ease-in-out infinite;
+                }
+                .chat-mic-btn.iniciando {
+                    color: var(--text-main);
+                    background: var(--bg-muted);
+                    border: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
+                }
+                .chat-mic-activity {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 21px;
+                    height: 21px;
+                    pointer-events: none;
+                }
+                @keyframes chat-mic-pulse {
+                    0%, 100% {
+                        box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35), 0 0 3px rgba(59, 130, 246, 0.15);
+                    }
+                    50% {
+                        box-shadow: 0 0 0 2.5px rgba(59, 130, 246, 0.65), 0 0 6px rgba(59, 130, 246, 0.3);
+                    }
+                }
+                /* [P1-PLAN-LOTE-682] El boton del modo voz: relleno como ENVIAR (es la accion principal con la caja
+                   vacia) y con un brillo que respira para que se descubra sin explicarlo. */
+                .chat-voz-btn {
+                    position: relative;
+                    color: #fff;
+                    background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+                    border: none;
+                    border-radius: 50%;
+                    width: 44px;
+                    height: 44px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    flex-shrink: 0;
+                    margin-right: 2px;
+                    outline: none;
+                    -webkit-tap-highlight-color: transparent;
+                    box-shadow: 0 6px 18px -6px rgba(79, 70, 229, 0.7);
+                    transition: transform 0.12s ease, opacity 0.15s ease;
+                }
+                .chat-voz-btn::after {
+                    content: '';
+                    position: absolute;
+                    inset: -3px;
+                    border-radius: 50%;
+                    border: 2px solid rgba(99, 102, 241, 0.45);
+                    animation: chat-voz-brillo 2.8s ease-in-out infinite;
+                    pointer-events: none;
+                }
+                .chat-voz-btn:active { transform: scale(0.97); }
+                .chat-voz-btn:disabled { opacity: 0.5; cursor: default; }
+                .chat-voz-btn:disabled::after { animation: none; opacity: 0; }
+                .chat-voz-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
+                .chat-voz-btn[data-bloqueado="true"] {
+                    opacity: 0.62;
+                    filter: saturate(0.45);
+                }
+                .chat-voz-btn[data-bloqueado="true"]::after {
+                    animation: none;
+                    opacity: 0;
+                }
+                .chat-voz-lock {
+                    position: absolute;
+                    right: -2px;
+                    bottom: -2px;
+                    width: 18px;
+                    height: 18px;
+                    border-radius: var(--radius-full);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: var(--bg-card);
+                    color: var(--text-main);
+                    border: 1.5px solid var(--border);
+                    pointer-events: none;
+                }
+                @keyframes chat-voz-brillo {
+                    0%, 100% { transform: scale(1); opacity: 0; }
+                    50% { transform: scale(1.18); opacity: 1; }
+                }
+                .input-wrapper.dictando .input-box-dictable {
+                    border-color: color-mix(in srgb, #3b82f6 55%, var(--border)) !important;
+                    box-shadow: none !important;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .chat-mic-btn { transition: none; }
+                    .chat-mic-btn.escuchando { animation: none; box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.4); }
+                    .chat-mic-btn.iniciando .spin-fast { animation: none; }
+                    .chat-voz-btn { transition: none; }
+                    .chat-voz-btn::after { animation: none; opacity: 0; }
+                }
+                .chat-offline-status {
+                    width: fit-content;
+                    max-width: 100%;
+                    margin: 0 auto 0.45rem;
+                    padding: 0.3rem 0.7rem;
+                    border-radius: 999px;
+                    background: color-mix(in srgb, #f59e0b 14%, var(--bg-card));
+                    color: var(--text-main);
+                    font-size: 0.78rem;
+                    font-weight: 650;
+                    text-align: center;
+                }
+                @media (hover: hover) and (pointer: fine) {
+                    .attachment-btn:not(.disabled):hover {
+                        color: var(--primary);
+                        background: var(--bg-muted);
+                    }
+                }
+                .attachment-btn:not(.disabled):active {
+                    transform: scale(0.97);
+                    color: var(--primary);
+                }
+                .attachment-btn.disabled {
+                    opacity: 0.5;
+                    cursor: default;
+                }
+                .attachment-rail {
+                    display: flex;
+                    gap: 0.65rem;
+                    overflow-x: auto;
+                    overscroll-behavior-x: contain;
+                    scrollbar-width: none;
+                    /* [P2-CHAT-THUMB-ALIGN · 2026-09-05] Los 3rem de sangría izquierda dejaban la miniatura
+                       flotando en mitad del cajón, sin alinearse con nada: ni con el «+» de adjuntar (que
+                       empieza 40 px antes) ni con el borde del compositor. Alineada ahora con el borde
+                       interior, que es donde el ojo espera la esquina. El resto de la sangría se mantiene. */
+                    padding: 0.35rem 0.4rem 0.55rem 2px;
+                    scroll-snap-type: x proximity;
+                }
+                .attachment-rail::-webkit-scrollbar { display: none; }
+                /* [P2-CHAT-ATTACHMENT-THUMB · 2026-09-04] La miniatura llevaba una X roja de 44 px que
+                   se comía la esquina («se ve demasiado grande, muy feo»). Ahora: miniatura con marco y
+                   sombra suave, y un chip de cierre pequeño (22 px, oscuro, rojo solo al pasar) con el
+                   área táctil de 44 px puesta en un pseudo-elemento invisible. */
+                /* [P2-CHAT-ATTACHMENT-THUMB v2] tamaño «como ChatGPT» (el dueño lo pidió con captura):
+                   128 px en escritorio, 104 px en móvil, sin marco interior, esquinas de 16 px y el
+                   chip de cierre DENTRO de la esquina. */
+                .attachment-preview {
+                    position: relative;
+                    flex: 0 0 128px;
+                    width: 128px;
+                    height: 128px;
+                    padding: 0;
+                    margin-top: 4px;
+                    border-radius: 16px;
+                    border: 1px solid var(--border);
+                    background: var(--bg-card);
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+                    overflow: hidden;
+                    scroll-snap-align: start;
+                }
+                @media (max-width: 480px) {
+                    .attachment-preview { flex-basis: 104px; width: 104px; height: 104px; border-radius: 14px; }
+                }
+                html[data-kb-open] .attachment-rail {
+                    gap: 0.5rem;
+                    padding: 0.2rem 0.35rem 0.35rem 2px;
+                }
+                html[data-kb-open] .attachment-preview {
+                    flex-basis: 64px;
+                    width: 64px;
+                    height: 64px;
+                    margin-top: 2px;
+                    border-radius: 12px;
+                }
+                html[data-kb-open] .attachment-remove {
+                    top: 4px;
+                    right: 4px;
+                    width: 20px;
+                    height: 20px;
+                }
+                html[data-theme="dark"] .chat-composer-input { color-scheme: dark; }
+                html[data-theme="light"] .chat-composer-input { color-scheme: light; }
+                .attachment-preview > img {
+                    width: 100%;
+                    height: 100%;
+                    display: block;
+                    border-radius: inherit;
+                    object-fit: cover;
+                }
+                .attachment-placeholder {
+                    width: 100%;
+                    height: 100%;
+                    display: grid;
+                    place-items: center;
+                    border-radius: 9px;
+                    background: var(--bg-muted);
+                    color: var(--text-muted);
+                }
+                .attachment-preview.preparing > img { opacity: 0.78; }
+                .attachment-spinner,
+                .attachment-error {
+                    position: absolute;
+                    inset: 0;
+                    margin: auto;
+                    color: white;
+                    filter: drop-shadow(0 1px 3px rgba(0,0,0,.65));
+                }
+                .attachment-error {
+                    width: 24px;
+                    height: 24px;
+                    display: grid;
+                    place-items: center;
+                    border-radius: 999px;
+                    background: #dc2626;
+                    font-weight: 800;
+                    filter: none;
+                }
+                .attachment-remove {
+                    position: absolute;
+                    top: 6px;
+                    right: 6px;
+                    width: 24px;
+                    height: 24px;
+                    padding: 0;
+                    display: grid;
+                    place-items: center;
+                    border: 0;
+                    border-radius: 999px;
+                    background: rgba(15, 23, 42, 0.78);
+                    backdrop-filter: blur(4px);
+                    color: white;
+                    cursor: pointer;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+                    transition: background 0.15s ease, transform 0.15s ease;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                /* área táctil de 44 px sin agrandar el chip */
+                .attachment-remove::after {
+                    content: '';
+                    position: absolute;
+                    inset: -10px;
+                    border-radius: 999px;
+                }
+                .attachment-remove:hover:not(:disabled),
+                .attachment-remove:focus-visible {
+                    background: var(--danger-fill, #dc2626);
+                }
+                .attachment-remove:focus-visible {
+                    outline: 2px solid rgba(79, 70, 229, 0.65);
+                    outline-offset: 2px;
+                }
+                .attachment-remove:disabled { opacity: 0.5; cursor: default; }
+            `}</style>
+));
+const AgentExtraStyles = React.memo(() => (
+    <style>{`
+                .markdown-chat { font-size: 0.95rem; line-height: 1.6; max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
+                .markdown-chat p { margin-top: 0; margin-bottom: 0.75rem; max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
+                .markdown-chat p:last-child { margin-bottom: 0; }
+                .markdown-chat ul, .markdown-chat ol { margin-top: 0; margin-bottom: 0.75rem; padding-left: 1.5rem; max-width: 100%; }
+                .markdown-chat ul:last-child, .markdown-chat ol:last-child { margin-bottom: 0; }
+                .markdown-chat li { margin-bottom: 0.25rem; max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
+                .markdown-chat strong { font-weight: 700; color: inherit; }
+                .markdown-chat pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+                .markdown-chat code { max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
+                .markdown-chat table { max-width: 100%; display: block; overflow-x: auto; }
+                .markdown-chat img { max-width: 100%; height: auto; }
+
+                .spin-fast { animation: spin 1s linear infinite; }
+                .spin-slow { animation: spin 4s linear infinite; }
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+                @keyframes pulse-mic { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+                .pulse-anim-mic { animation: pulse-mic 1.5s infinite ease-in-out; }
+                @keyframes shimmer { to { background-position: 200% center; } }
+                @keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+                .wave-anim { animation: wave 2.5s infinite; transform-origin: 70% 70%; }
+                @keyframes wave {
+                    0% { transform: rotate(0deg); }
+                    10% { transform: rotate(14deg); }
+                    20% { transform: rotate(-8deg); }
+                    30% { transform: rotate(14deg); }
+                    40% { transform: rotate(-4deg); }
+                    50% { transform: rotate(10deg); }
+                    60% { transform: rotate(0deg); }
+                    100% { transform: rotate(0deg); }
+                }
+
+                /* Oculta la barra interna junto al micrófono, conservando el scroll del texto. */
+                .chat-composer-input {
+                    scrollbar-width: none;
+                }
+                @media (max-width: 1024px) {
+                    .chat-composer-input::placeholder { font-size: 0.875rem; }
+                }
+                .chat-composer-input::-webkit-scrollbar {
+                    display: none;
+                    width: 0;
+                    height: 0;
+                }
+
+                /* --- Scrollbar clásica (Sidebar & PC Chat) ---
+                   [P2-CHAT-SCROLLBAR-CLASSIC · 2026-09-04] El dueño pidió una barra «como la de
+                   siempre»: pista visible, pulgar redondeado siempre visible y las flechitas de
+                   subir/bajar en los extremos (el pulgar fino de 6 px sobre fondo transparente no se
+                   veía y no se sabía dónde hacer clic). Los selectores llevan html delante para
+                   ganar al atenuado global del tema oscuro de index.css (misma especificidad, esta
+                   hoja carga después). En móvil sigue oculta (bloque de abajo). */
+                /* Solo Firefox (no tiene ::-webkit-scrollbar). En Chromium, scrollbar-width y
+                   scrollbar-color sobre el MISMO elemento desactivan todas las pseudo-clases
+                   ::-webkit-scrollbar-* (Chrome 121+): por eso las flechas no salían. */
+                @supports not selector(::-webkit-scrollbar) {
+                    html .sidebar-scrollable, html .messages-container {
+                        scrollbar-width: auto;
+                        scrollbar-color: rgba(148, 163, 184, 0.7) rgba(148, 163, 184, 0.12);
+                    }
+                }
+                html .sidebar-scrollable::-webkit-scrollbar, html .messages-container::-webkit-scrollbar {
+                    width: 12px;
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-track, html .messages-container::-webkit-scrollbar-track {
+                    background: rgba(148, 163, 184, 0.10);
+                    border-left: 1px solid rgba(148, 163, 184, 0.14);
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-thumb, html .messages-container::-webkit-scrollbar-thumb {
+                    background-color: rgba(148, 163, 184, 0.62);
+                    border-radius: 8px;
+                    border: 2px solid transparent;
+                    background-clip: padding-box;
+                    min-height: 40px;
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-thumb:hover, html .messages-container::-webkit-scrollbar-thumb:hover {
+                    background-color: rgba(203, 213, 225, 0.85);
+                }
+                /* flechitas: un botón en cada extremo, con el triángulo pintado en SVG */
+                html .sidebar-scrollable::-webkit-scrollbar-button, html .messages-container::-webkit-scrollbar-button {
+                    display: block;
+                    height: 14px;
+                    width: 12px;
+                    background-color: rgba(148, 163, 184, 0.10);
+                    background-repeat: no-repeat;
+                    background-position: center;
+                    background-size: 8px 8px;
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:decrement, html .messages-container::-webkit-scrollbar-button:vertical:decrement {
+                    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><path d='M4 1.5 L7.5 6.5 L0.5 6.5 Z' fill='rgb(148,163,184)'/></svg>");
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:increment, html .messages-container::-webkit-scrollbar-button:vertical:increment {
+                    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><path d='M0.5 1.5 L7.5 1.5 L4 6.5 Z' fill='rgb(148,163,184)'/></svg>");
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:hover, html .messages-container::-webkit-scrollbar-button:hover {
+                    background-color: rgba(148, 163, 184, 0.22);
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:start:increment, html .messages-container::-webkit-scrollbar-button:vertical:start:increment,
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:end:decrement, html .messages-container::-webkit-scrollbar-button:vertical:end:decrement {
+                    display: none;
+                }
+
+                .chat-header-identidad {
+                    position: absolute;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    max-width: calc(100% - 7.5rem);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.15rem;
+                    pointer-events: auto;
+                }
+                .chat-aviso-ia-cabecera {
+                    color: var(--text-muted);
+                    font-size: 0.75rem;
+                    line-height: 1.35;
+                    /* [P1-PLAN-LOTE-1062] frase completa: cabe entre los dos botones redondos en hasta 2 líneas */
+                    max-width: min(16.5rem, 62vw);
+                    text-align: center;
+                    text-wrap: balance;
+                }
+
+                /* ====== MOBILE REDESIGN ====== */
+                @media (max-width: 1024px) {
+                    /* [P1-KB-HUECO-SIN-PINTAR · 2026-08-23] EL glitch del cierre, visto en la
+                       captura del dueño de un fotograma intermedio (8:51): mientras el teclado
+                       baja, el contenedor del chat todavía no ha crecido y bajo la barra de
+                       pestañas asoma una franja MÁS OSCURA. No era un salto de posición: era
+                       el body, que usa --bg-page (#0B1120) mientras el chat usa --bg-card
+                       (#111827). Cualquier píxel que el chat no cubra durante la animación
+                       delata ese cambio de tono, y eso es lo que se ve como parpadeo.
+                       Mientras el chat esté en pantalla, el fondo de la página ES el suyo: da
+                       igual quién llegue primero, porque debajo hay el mismo color.
+                       :has() acota la regla a esta ruta (mismo patrón que Login.css) — sin
+                       él, el resto del dashboard cambiaría de fondo. */
+                    html:has(.agent-route-active),
+                    body:has(.agent-route-active) {
+                        background-color: var(--bg-card) !important;
+                    }
+                    /* [P1-CHAT-KB-DOCUMENT-LOCK · 2026-08-24] El historial conserva
+                       su scroll propio; lo que se inmoviliza es el documento exterior.
+                       Sin position fixed, overflow hidden no basta en Safari iOS: el
+                       navegador todavía permite encadenar el gesto al layout viewport. */
+                    html[data-kb-scroll-lock],
+                    html[data-kb-scroll-lock] body {
+                        height: 100% !important;
+                        overflow: hidden !important;
+                        overscroll-behavior: none !important;
+                    }
+                    html[data-kb-scroll-lock] body {
+                        position: fixed !important;
+                        inset: 0 !important;
+                        width: 100% !important;
+                    }
+                    .agent-container {
+                        border-radius: 0 !important;
+                        border: none !important;
+                        box-shadow: none !important;
+                        margin: 0 !important;
+                        max-width: none !important;
+                        width: 100% !important;
+                        flex: 1 !important;
+                        background: var(--bg-card) !important;
+                    }
+                    /* --- Cabecera TRANSPARENTE ---
+                       [P1-PLAN-LOTE-121 · 2026-09-19] El dueño: «quiero que el encabezado sea transparente y no diga
+                       Bioboros 1 para así poder tener más espacio para que el usuario pueda ver el chat». Era una
+                       franja opaca de 4.5rem + zona segura con su raya: el chat empezaba debajo. Ahora NO hay franja:
+                       quedan los dos botones flotando como fichas y la conversación pasa POR DEBAJO de ellos.
+                         · El fondo es un degradado: opaco sobre la barra de estado (la hora y la batería no se leen
+                           sobre texto que se mueve) y transparente a la altura de los botones.
+                         · pointer-events: none en la franja y auto en sus hijos: el hueco entre los dos botones
+                           ya no es cabecera, es chat — se puede tocar y arrastrar lo que hay debajo.
+                         · Sin backdrop-filter: el desenfoque recompuesto mientras algo se mueve es la fuente de los
+                           artefactos de iOS que este archivo ya pagó (P1-KB-SIN-DESENFOQUE). */
+                    .mobile-chat-header {
+                        background: linear-gradient(to bottom,
+                            var(--bg-card) 0%,
+                            var(--bg-card) max(env(safe-area-inset-top), 24px),
+                            color-mix(in srgb, var(--bg-card) 72%, transparent) 62%,
+                            transparent 100%) !important;
+                        backdrop-filter: none !important;
+                        -webkit-backdrop-filter: none !important;
+                        border-bottom: 0 !important;
+                        pointer-events: none;
+                        padding: 0.35rem 1rem !important;
+                        padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
+                        padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
+                        padding-top: calc(0.35rem + max(env(safe-area-inset-top), 24px)) !important;
+                        position: absolute !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        right: 0 !important;
+                        z-index: 20 !important;
+                    }
+                    /* --- Sidebar top safe-area --- */
+                    .sidebar-header-padding {
+                        padding-top: calc(0.75rem + max(env(safe-area-inset-top), 24px)) !important;
+                    }
+                    .mobile-chat-header > * { pointer-events: auto; }
+                    /* El rótulo «Bioboros 1» no informa de nada dentro de la app y ocupaba el centro de la franja.
+                       Sigue en escritorio, donde el espacio no escasea. */
+                    .agent-header-title { display: none !important; }
+                    /* Los botones, como fichas: sobre una franja opaca bastaba el icono; flotando sobre el texto del
+                       chat necesitan su propio fondo para leerse. Los márgenes negativos alineaban ÓPTICAMENTE un
+                       icono sin contorno con el borde; una ficha con contorno se alinea por su caja. */
+                    .chat-header-btn {
+                        background: color-mix(in srgb, var(--bg-card) 92%, transparent) !important;
+                        border: 1px solid var(--border) !important;
+                        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.14);
+                        margin-left: 0 !important;
+                    }
+                    .nav-menu-wrapper { margin-right: 0 !important; }
+                    /* --- Messages area --- */
+                    .messages-container {
+                        padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
+                        padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
+                        /* La franja queda fuera del scroll: ningún mensaje pasa detrás del aviso. */
+                        margin-top: calc(3.7rem + max(env(safe-area-inset-top), 24px)) !important;
+                        padding-top: 1.25rem !important;
+                        padding-bottom: 0.5rem !important;
+                        background: var(--bg-card) !important;
+                        -ms-overflow-style: none;
+                        scrollbar-width: none;
+                        overscroll-behavior-y: contain;
+                        -webkit-overflow-scrolling: touch;
+                    }
+                    .messages-container::-webkit-scrollbar { display: none; }
+                    /* [P1-CHAT-MOBILE-FIT · 2026-08-10] Los mensajes se apilan desde ABAJO,
+                       pegados a la caja de escribir. Antes el contenedor repartía todo el
+                       alto sobrante ARRIBA del input: con un solo turno quedaban ~700px de
+                       vacío entre lo último dicho y donde se escribe — el hueco enorme de
+                       la captura del dueño.
+
+                       El margen automático va en el HIJO, no un justify-content flex-end en
+                       el contenedor: con flex-end, en cuanto el contenido desborda, el
+                       principio del scroll queda inalcanzable en varios motores. El margen
+                       automático se resuelve a 0 solo cuando hay desbordamiento — que es
+                       exactamente el comportamiento que se quiere.
+
+                       Va dentro del @media a propósito: en escritorio el contenedor centra
+                       y ancla arriba (bloque de min-width 1025px), y ahí no hay queja.
+                       (Sin acentos graves en este comentario: vive dentro de un template
+                       literal de JS y un backtick aquí cierra el literal y rompe el build.) */
+                    .msg-log { margin-top: auto !important; }
+                    /* [P1-PLAN-LOTE-1179 · 2026-11-27] La PORTADA no se apila abajo: se centra en el hueco entre la
+                       cabecera y las tarjetas (anclada abajo dejaba ~200 px vacios arriba y los numeros pegados a
+                       las tarjetas). Con margenes automaticos a los dos lados: si no cabe, se resuelven a 0. */
+                    .agent-container[data-portada] .msg-log { margin-bottom: auto !important; }
+                    /* [P1-CHAT-HEADER-GAP · 2026-08-24] El gap de 2rem del log también
+                       se aplicaba entre el último mensaje y el sentinel invisible. Ese
+                       hueco desperdiciado abajo empujaba el primer turno bajo el header
+                       al anclar la conversación al final. Se cancela solo para el sentinel;
+                       la separación entre mensajes permanece intacta. */
+                    .messages-end-sentinel {
+                        margin-top: -2rem;
+                    }
+                    /* [P2-CHAT-WELCOME-UP · 2026-08-24] Solo la bienvenida se eleva
+                       visualmente 24 px. El transform no ocupa espacio de layout y no
+                       toca el compositor, el scroll ni las mediciones del teclado. */
+                    .message-row-welcome {
+                        transform: translateY(-1.5rem);
+                    }
+                    /* Con el teclado visible necesita un poco más de aire sobre el
+                       compositor: 64 px totales, sin animación ni cambio de layout. */
+                    html[data-kb-open] .message-row-welcome {
+                        transform: translateY(-4rem);
+                    }
+                    /* --- User bubble ---
+                       [P1-CHAT-MOBILE-CONTRAST · 2026-08-10] El defecto que reportó el
+                       dueño: su propio mensaje se leía CASI INVISIBLE en el teléfono.
+
+                       Esta regla fijaba el FONDO con !important y NO el color. El color
+                       lo pone el inline de MessageBubble ('var(--text-main)'), que en tema
+                       oscuro es #F1F5F9 — casi blanco sobre lavanda casi blanco: **1,0:1**,
+                       cuando WCAG pide 4,5:1. No es que se leyera mal: no se leía.
+
+                       Y solo pasaba en el móvil porque '.msg-bubble-user' NO EXISTE fuera
+                       de este @media (max-width: 1024px) — es el único sitio del archivo
+                       donde se declara. El escritorio nunca vio el defecto.
+
+                       LA LECCIÓN, que es la que se guarda: color y fondo son un PAR. Fijar
+                       uno con !important y dejar que el otro lo herede del tema es fabricar
+                       una combinación que nadie eligió. Por eso el color viaja ahora en la
+                       misma regla, y el tema oscuro lleva su propia pareja completa. */
+                    /* [THEME-GUARDED · pareja oscura más abajo en este mismo <style>] */
+                    .msg-bubble-user {
+                        background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%) !important;
+                        color: #1E1B4B !important;
+                        border: none !important;
+                        border-radius: 1.25rem 1.25rem 0.3rem 1.25rem !important;
+                        padding: 0.8rem 1.1rem !important;
+                        box-shadow: 0 2px 8px rgba(79,70,229,0.08) !important;
+                        max-width: 85% !important;
+                        font-size: 0.95rem !important;
+                    }
+                    /* En oscuro la burbuja es oscura: una pastilla lavanda clara dentro de
+                       un chat negro no solo desentona, obliga a invertir el texto y a
+                       mantener dos parejas de color en la cabeza. 12,5:1 medido. */
+                    html[data-theme="dark"] .msg-bubble-user {
+                        background: linear-gradient(135deg, #1E293B 0%, #312E5B 100%) !important;
+                        color: var(--text-main) !important;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.35) !important;
+                    }
+                    /* El texto del usuario hereda; los hijos con color propio (enlaces,
+                       código inline dentro del mensaje) no, y ahí volvería el mismo par
+                       roto por otra puerta. */
+                    .msg-bubble-user * {
+                        color: inherit !important;
+                    }
+                    /* [P1-PLAN-LOTE-169 · 2026-09-23] Foto del usuario FUERA de la burbuja (MessageBubble): el grupo
+                       (foto + burbuja del texto) toma el ancho que tenía la burbuja, y la burbuja de dentro no vuelve
+                       a encogerse al 85 % de algo que ya está al 85 %. */
+                    .msg-user-grupo {
+                        max-width: 85% !important;
+                    }
+                    .msg-user-grupo > .msg-bubble-user {
+                        max-width: 100% !important;
+                    }
+                    /* --- Bot bubble --- */
+                    .msg-bubble-bot {
+                        background: transparent !important;
+                        border-left: 3px solid rgba(79,70,229,0.25) !important;
+                        border-radius: 0 !important;
+                        padding: 0.9rem 0 0.6rem 0.9rem !important;
+                        font-size: 0.93rem !important;
+                    }
+                    /* El filete indigo del bot compone a ~1,2:1 sobre el fondo oscuro:
+                       invisible. '--primary' en oscuro (#818CF8) da 6,9:1 y cumple el 3:1
+                       que WCAG 1.4.11 pide a un elemento no textual que porta significado
+                       (aquí distingue quién habla). */
+                    html[data-theme="dark"] .msg-bubble-bot {
+                        border-left-color: var(--primary) !important;
+                    }
+                    /* --- Bot avatar --- */
+                    .bot-avatar-mobile {
+                        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%) !important;
+                        box-shadow: 0 2px 12px rgba(79,70,229,0.3) !important;
+                        width: 28px !important; height: 28px !important;
+                        font-size: 0.95rem !important;
+                    }
+                    /* --- Input bar floating --- */
+                    .input-wrapper {
+                        position: relative !important;
+                        bottom: auto !important;
+                        /* [P1-CHAT-TABBAR-BACK · 2026-08-10] El chat reserva por dentro el
+                           alto de la barra de pestañas que vuelve a esta ruta: 64px de
+                           'min-height' + el 'env(safe-area-inset-bottom)' que la barra ya
+                           añade por su cuenta. Se reserva AQUÍ y no en el 'mainContent'
+                           porque '.noPaddingMobile' anula el 'padding-bottom' del layout
+                           — esa fue justamente la razón por la que la barra se quitó en
+                           vez de acomodarla.
+
+                           Los 2,5rem que había eran aire muerto: en Safari vertical
+                           'env(safe-area-inset-bottom)' vale 0 (el scroll de la página
+                           está bloqueado, así que la barra del navegador no se repliega) y
+                           el relleno quedaba en 40px de nada bajo la caja de escribir.
+                           Ahora ese espacio lo ocupa navegación de verdad.
+
+                           ⚠ Ese «vale 0» es SOLO de Safari vertical. En la PWA instalada y
+                           en el WebView nativo, con viewport-fit=cover, vale el alto del
+                           indicador de inicio (~34px). No recalibres esta reserva contra el
+                           número de Safari. Con teclado abierto no se suma: ver la regla
+                           html[data-kb-open] .input-wrapper de abajo. */
+                        /* [P1-CHAT-AIRE-INFERIOR · 2026-08-23] El aire propio de la caja
+                           pasa de 0.8rem a 1.4rem: los 64px de la reserva son la barra de
+                           pestañas, no aire — la caja quedaba pegada a su borde superior
+                           (captura del dueño, 2026-08-23 5:50). */
+                        /* [P1-PLAN-LOTE-118] con la barra plegada la caja baja lo que la barra devuelve */
+                        padding: 0.8rem 1.25rem calc(1.4rem + 64px - var(--tabbar-recupera, 0px) + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
+                        padding-left: max(1.25rem, env(safe-area-inset-left, 0px)) !important;
+                        padding-right: max(1.25rem, env(safe-area-inset-right, 0px)) !important;
+                        background: var(--bg-card) !important;
+                        /* [P1-KB-SIN-DESENFOQUE · 2026-08-23] EL glitch del cierre. Habia
+                           un blur(20px) de fondo AQUI, y el fondo de esta caja es OPACO
+                           (--bg-card): no habia nada translucido que desenfocar, asi que el
+                           desenfoque no aportaba un solo pixel visible. Lo que si hacia era
+                           obligar a Safari a recomponer una capa de desenfoque en CADA
+                           fotograma mientras el contenedor cambia de alto, y eso en iOS se ve
+                           como la caja a medio pintar y translucida — que es exactamente lo
+                           que el dueno fotografio a mitad del cierre (8:51). En reposo no
+                           cambia NADA; lo que desaparece es la clase entera de artefactos. */
+                        border-top: none !important;
+                        box-shadow: 0 -4px 30px rgba(0,0,0,0.06) !important;
+                        /* [P1-KB-SIN-GLITCH · 2026-08-23] Era 0.2s ease-out: una curva y
+                           una duracion DISTINTAS de las del contenedor del chat y de las de la
+                           barra de pestanas. Tres piezas de la misma escena con tres tiempos es
+                           exactamente lo que se ve como glitch al bajar. Ahora las tres usan la
+                           curva y la duracion del teclado de iOS. */
+                        transition: padding-bottom var(--kb-ms, 0.25s) cubic-bezier(0.32, 0.72, 0, 1) !important;
+                        border-radius: 0 !important;
+                    }
+                    /* [P2-CHAT-JUMP-TO-LATEST-DESKTOP] el botón vive dentro del .input-wrapper: sin
+                       reglas de bottom contra la barra de pestañas ni el teclado. */
+                    /* [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23 · corregido el 23] Con teclado no
+                       hay barra de pestañas (ver BottomTabBar.module.css): la caja suelta la
+                       reserva y queda pegada al teclado, que es donde se escribe.
+                       La primera version de esta regla se comio la llave de cierre de
+                       .input-wrapper y se llevo dentro sus seis declaraciones de aspecto
+                       (blur, borde, sombra, radio): el composer perdía su acabado con el
+                       teclado CERRADO, que es el 99% del tiempo. Aqui va SOLO el relleno. */
+                    html[data-kb-open] .input-wrapper {
+                        /* [P1-CHAT-AIRE-INFERIOR · 2026-08-23] 0.8rem → 1.1rem: con el
+                           teclado abierto la caja quedaba lamiendo su borde superior. */
+                        padding-bottom: 1.1rem !important;
+                    }
+                    /* [P1-PLAN-LOTE-131] En el relevo de la coreografia el relleno cambia de golpe, a proposito: lo que se ve
+                       lo lleva (o lo acaba de soltar) un transform, y animar ademas el relleno moveria la caja dos veces. */
+                    html[data-kb-sin-anim] .input-wrapper {
+                        transition: none !important;
+                    }
+                    /* [KB-ANDROID-SECO] En Android ni el relleno ni el ALTO del chat se animan al ABRIR: la ventana ya salto.
+                       [KB-ANDROID-CIERRE-SUAVE · 2026-11-12] La regla cuelga de data-kb-open: al CERRAR esa llave ya no esta
+                       y la transicion vuelve. El cierre llega con el resize de la ventana (la caja ya cabe en pantalla), asi
+                       que en vez de caer de un salto baja en 180 ms junto con la barra de pestanas. */
+                    html[data-kb-seco][data-kb-open] .input-wrapper,
+                    html[data-kb-seco][data-kb-open] .agent-container {
+                        transition: none !important;
+                    }
+                    /* --- Welcome screen --- */
+                    .welcome-heading {
+                        font-size: 1.6rem !important;
+                    }
+                    .welcome-sub {
+                        font-size: 1.8rem !important;
+                        background: linear-gradient(135deg, #64748b 0%, #94a3b8 50%, #4F46E5 100%) !important;
+                        -webkit-background-clip: text !important;
+                        -webkit-text-fill-color: transparent !important;
+                        background-clip: text !important;
+                    }
+                    .empty-state-pills {
+                        display: grid !important;
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 0.6rem !important;
+                        width: 100% !important;
+                    }
+                    .suggestion-pill {
+                        width: 100% !important;
+                        padding: 0.85rem 0.75rem !important;
+                        border-radius: 1rem !important;
+                        font-size: 0.85rem !important;
+                        flex-direction: column !important;
+                        gap: 0.35rem !important;
+                        text-align: center !important;
+                        background: var(--bg-card) !important;
+                        border: 1px solid var(--border) !important;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+                        transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+                    }
+                    .suggestion-pill:active {
+                        transform: scale(0.97) !important;
+                        box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
+                    }
+                    .suggestion-pill-icon {
+                        font-size: 1.5rem !important;
+                    }
+                    /* --- Sidebar --- */
+                    .agent-sidebar {
+                        position: absolute;
+                        top: 0; left: 0; height: 100%;
+                        z-index: 30;
+                        box-shadow: 4px 0 24px rgba(0,0,0,0.12);
+                        border-radius: 0;
+                        /* [P1-CHAT-TABBAR-BACK · 2026-08-10] El cajón llega hasta el borde
+                           inferior, donde ahora vive la barra de pestañas: sin esta reserva
+                           las últimas conversaciones de la lista quedan debajo de ella y no
+                           se pueden tocar. Mismo cálculo que '.input-wrapper'. */
+                        padding-bottom: calc(64px - var(--tabbar-recupera, 0px) + env(safe-area-inset-bottom, 0px));
+                        box-sizing: border-box;
+                    }
+                    .sidebar-overlay {
+                        position: absolute;
+                        top: 0; left: 0; right: 0; bottom: 0;
+                        background: rgba(0,0,0,0.5);
+                        z-index: 25;
+                        backdrop-filter: blur(3px);
+                        -webkit-backdrop-filter: blur(3px);
+                        border: 0;
+                        padding: 0;
+                    }
+                }
+                @media (min-width: 1025px) {
+                    .sidebar-overlay { display: none; }
+                    .messages-container {
+                        justify-content: flex-start !important;
+                        align-items: center !important;
+                    }
+                    .empty-state-wrapper {
+                        margin-top: 10vh !important;
+                        margin-bottom: auto !important;
+                        max-width: 800px !important;
+                        align-items: center !important;
+                        text-align: center;
+                    }
+                    .welcome-heading {
+                        justify-content: center !important;
+                        width: 100%;
+                    }
+                    .empty-state-pills {
+                        flex-direction: row !important;
+                        flex-wrap: wrap !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                    }
+                    .nav-menu-wrapper {
+                        display: none !important;
+                    }
+                    .mobile-only-btn {
+                        display: none !important;
+                    }
+                }
+            `}</style>
+));
 
 const AgentPage = () => {
     // [P1-I18N-DASHBOARD · 2026-08-15] El hook (y no el `t` de módulo importado
@@ -643,6 +1653,9 @@ const AgentPage = () => {
     const location = useLocation();
     const { setLocale, locale: localeActivo, catalogVersion } = useI18n();   // [P1-PLAN-LOTE-900] «cámbiala a inglés»
     const isAgentRouteActive = location.pathname.startsWith('/dashboard/agent');
+    const isAgentRouteActiveRef = useRef(isAgentRouteActive);
+    isAgentRouteActiveRef.current = isAgentRouteActive;
+    const chatRefreshPendingRef = useRef(false);
     const [titlePollCount, setTitlePollCount] = useState(0);
     const [showNavMenu, setShowNavMenu] = useState(false);
     const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine !== false);
@@ -1509,7 +2522,10 @@ const AgentPage = () => {
     const esperandoChatDelDiaRef = useRef(esperaInicialDelDia);
     const [isLoadingHistory, setIsLoadingHistory] = useState(esperaInicialDelDia);
     const _prefetchedHistoryRef = useRef(null);
-    const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
+    // [P1-PLAN-LOTE-1176 · 2026-11-27] La lista de chats arranca CERRADA también en PC (antes abierta con > 768 px). El
+    // dueño: «quiero que esto esté cerrado de manera predeterminada […] no es necesario que esté abierto». El chat del día
+    // se renueva solo; la lista se abre con el botón del reloj de arriba a la izquierda.
+    const [showSidebar, setShowSidebar] = useState(false);
     const sidebarRef = useRef(null);
     const sidebarTriggerRef = useRef(null);
 
@@ -1619,6 +2635,19 @@ const AgentPage = () => {
     useEffect(() => {
         messagesRef.current = messages;
     }, [messages]);
+    useEffect(() => {
+        const urls = [];
+        for (let idx = messagesRef.current.length - 1; idx >= 0 && urls.length < 6; idx -= 1) {
+            const atts = messagesRef.current[idx]?.attachments;
+            if (Array.isArray(atts)) {
+                for (const a of atts) {
+                    const u = a?.thumbUrl || a?.thumb_url || a?.url || a?.image_url;
+                    if (u) urls.push(u);
+                }
+            }
+        }
+        if (urls.length) precargarImagenesDelChat(urls);
+    }, []);
     const resumenHoyRef = useRef(null);
 
     // [P1-AGENT-CACHE-MESSAGES · 2026-05-20] Persist messages en cada change.
@@ -1872,6 +2901,7 @@ const AgentPage = () => {
     const [attachmentSheetOwnsFocus, setAttachmentSheetOwnsFocus] = useState(true);
     const [attachmentAnchorRect, setAttachmentAnchorRect] = useState(null);
     const [showAttachmentSource, setShowAttachmentSource] = useState(false);
+    const [chatCameraOpen, setChatCameraOpen] = useState(false);
     const [informeAbierto, setInformeAbierto] = useState(false);   // [P1-PLAN-LOTE-1074] la hoja del informe, desde el atajo
     // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Ref al textarea para refocus
     // post-send (solo cuando tenía focus pre-send — preserva mobile UX
@@ -1889,9 +2919,10 @@ const AgentPage = () => {
         // [P1-PLAN-LOTE-306] El worker que prepara la foto arranca ahora, mientras eliges: si no, su arranque caía
         // encima de la vuelta del teclado.
         precalentarWorkerDeImagen();
-        // [P1-PLAN-LOTE-111] En la app nativa el teclado NO se cierra para adjuntar (menú sobre el «+», como
-        // Gemini). En la web sí: el menú de iOS se dibuja mal con el teclado en pantalla (P1-CHAT-PICKER-...).
-        if (abierto && !isNativeApp()) chatInputRef.current?.blur();
+        // [P1-PLAN-LOTE-111] En la web el teclado se cierra: el menú de iOS se dibuja mal con él en pantalla
+        // (P1-CHAT-PICKER-...). En la app nativa también desde la «Opción A» (hoja inferior de adjuntos, como ChatGPT/
+        // Gemini): ya no hay menú flotante sobre el «+» que conviva con el teclado.
+        if (abierto) chatInputRef.current?.blur();
     }, []);
 
     const waitForAttachmentKeyboardClose = useCallback((shouldWait) => {
@@ -2014,6 +3045,8 @@ const AgentPage = () => {
     // `recognitionRef` queda solo para los restos del Modo Llamada (P1-DEADCODE-TTS): nadie lo llena.
     const dictado = useDictado({ valor: input, alCambiar: setInput, locale: getLocale(), esNativa: isNativeApp() });
     const isListening = dictado.escuchando;
+    const isMicStarting = dictado.iniciando;
+    const isMicActive = isListening || isMicStarting;
     const micErrorMsg = dictado.error ? t(dictado.error) : null;
     const recognitionRef = useRef(null);
     // [P1-PLAN-LOTE-127 · 2026-09-19] El dueño, ya con el build que trae el micrófono: «cuando abro el teclado y
@@ -2037,7 +3070,7 @@ const AgentPage = () => {
     const reponerTecladoTrasMicRef = useRef(false);
     const micPorToqueRef = useRef(0);
     const accionarMic = () => {
-        if (!isListening) {
+        if (!isMicActive) {
             reponerTecladoTrasMicRef.current = Boolean(tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto);
             marcarSondaTeclado(reponerTecladoTrasMicRef.current ? 'micKB' : 'mic');
         }
@@ -2202,7 +3235,14 @@ const AgentPage = () => {
     // agrandarlo, que lo decida él»). La primera vez, el bocadillo lo dice con palabras hasta que empieza a hablar.
     const [vozMinimizada, setVozMinimizada] = useState(true);
     const [pistaDeLaBurbuja, setPistaDeLaBurbuja] = useState(false);
+    const MODO_VOZ_DESHABILITADO = true;
     const abrirModoVoz = () => {
+        if (MODO_VOZ_DESHABILITADO) {
+            toast.info(t('Modo de voz deshabilitado'), {
+                description: t('Esta función está deshabilitada temporalmente. Puedes usar el micrófono para dictar.'),
+            });
+            return;
+        }
         if (isTurnActiveRef.current) return;
         // [P1-PLAN-LOTE-844 · 2026-09-29] Lo que se dice en el modo voz va a la IA (el texto al coach, sus respuestas a
         // la voz de Gemini): sin permiso, primero la hoja. Aceptar no abre el modo voz solo: necesita el TOQUE (iOS no
@@ -2213,7 +3253,7 @@ const AgentPage = () => {
             });
             return;
         }
-        if (dictado.escuchando) dictado.cancelar();
+        if (dictado.escuchando || dictado.iniciando) dictado.cancelar();
         try { chatInputRef.current?.blur(); } catch (_e) { /* sin foco que soltar */ }
         trackEvent('coach_voz_abierto');
         setVozMinimizada(true);
@@ -2274,6 +3314,7 @@ const AgentPage = () => {
         };
     }, [t, localeActivo, catalogVersion]);
     const handleFileSelect = (e) => {
+        if (showAttachmentSource) setShowAttachmentSource(false);
         addFiles(e.target.files);
     };
 
@@ -2295,6 +3336,12 @@ const AgentPage = () => {
     const runNativeImagePicker = async (source) => {
         const remaining = Math.max(1, CHAT_IMAGE_MAX_COUNT - attachments.length);
         setShowAttachmentSource(false);
+        // En Android nativo, salir a una app externa de cámara reinicia o cierra la app al volver/abrir en ciertos dispositivos;
+        // usamos el visor in-app (getUserMedia), igual que «Escanear comida» y «Nevera», sin usar el plugin nativo de cámara.
+        if (source === 'camera' && nativePlatform() === 'android' && typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+            setChatCameraOpen(true);
+            return;
+        }
         try {
             const files = source === 'camera'
                 ? await takeNativeChatPhoto()
@@ -2329,11 +3376,11 @@ const AgentPage = () => {
                 || medirTecladoDeVentana(window).abierto;
             attachmentPickerHadKeyboardRef.current = false;
             reopenKeyboardAfterAttachmentRef.current = teniaTeclado;
-            // [P1-PLAN-LOTE-1060] El dueño (17-nov): sin teclado «debe ser igual al diseño de cuando lo abro con el teclado
-            // abierto». Con y sin teclado, el MISMO panel encima del cuadro, que no toca el foco. La hoja inferior queda
-            // solo de respaldo si no se encuentra el «+».
-            setAttachmentSheetOwnsFocus(false);
-            setAttachmentAnchorRect(attachmentTriggerRef.current?.getBoundingClientRect?.() || null);
+            // Opción A: cierra el teclado al abrir `+` y despliega la hoja inferior pegada al borde inferior (como
+            // ChatGPT/Gemini) en lugar del cajón flotante encima del cuadro de escribir.
+            if (teniaTeclado) chatInputRef.current?.blur();
+            setAttachmentSheetOwnsFocus(!teniaTeclado);
+            setAttachmentAnchorRect(null);
             setShowAttachmentSource(true);
             return;
         }
@@ -3039,6 +4086,7 @@ const AgentPage = () => {
                                 ...item,
                                 id: item.attachment_id || item.id,
                                 url: item.url || item.image_url,
+                                thumbUrl: item.thumb_url || item.thumbUrl || item.url || item.image_url,
                             })).filter((item) => item.url)
                             : [];
 
@@ -3146,6 +4194,17 @@ const AgentPage = () => {
                     } else {
                         setMessages(_conPend.mensajes);
                     }
+                    const _thumbUrls = [];
+                    for (let idx = _conPend.mensajes.length - 1; idx >= 0 && _thumbUrls.length < 6; idx -= 1) {
+                        const atts = _conPend.mensajes[idx]?.attachments;
+                        if (Array.isArray(atts)) {
+                            for (const a of atts) {
+                                const u = a?.thumbUrl || a?.thumb_url || a?.url || a?.image_url;
+                                if (u) _thumbUrls.push(u);
+                            }
+                        }
+                    }
+                    if (_thumbUrls.length) precargarImagenesDelChat(_thumbUrls);
                 } else {
                     // [P1-PLAN-LOTE-695] Chat nuevo cuyo primer mensaje es la foto pendiente: el servidor aún no
                     // tiene nada, y la foto no puede caer por el saludo.
@@ -3221,13 +4280,24 @@ const AgentPage = () => {
     // [P1-DIARY-CHAT-BRIDGE · 2026-11-05] Refrescar chat en vivo cuando se registra comida manual desde el diario
     useEffect(() => {
         const alRefrescarChat = () => {
-            if (currentSessionIdRef.current && !isLoadingRef.current) {
+            if (!currentSessionIdRef.current || isLoadingRef.current) return;
+            if (isAgentRouteActiveRef.current) {
+                chatRefreshPendingRef.current = false;
                 fetchSessionMessages(currentSessionIdRef.current);
+            } else {
+                chatRefreshPendingRef.current = true;
             }
         };
         window.addEventListener('mealfit:refresh-chat', alRefrescarChat);
         return () => window.removeEventListener('mealfit:refresh-chat', alRefrescarChat);
     }, [fetchSessionMessages]);
+
+    useEffect(() => {
+        if (isAgentRouteActive && chatRefreshPendingRef.current && currentSessionIdRef.current && !isLoadingRef.current) {
+            chatRefreshPendingRef.current = false;
+            fetchSessionMessages(currentSessionIdRef.current);
+        }
+    }, [isAgentRouteActive, fetchSessionMessages]);
 
     // [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Borrar un chat era UN toque sin vuelta atrás, y en el
     // teléfono la papelera vive a 1 cm del título en cada fila. Ahora el toque abre una hoja de
@@ -3694,6 +4764,8 @@ const AgentPage = () => {
         // volvería a escribir en la caja el mensaje que se acaba de enviar.
         if (isListening) {
             dictado.cancelar();
+        } else if (isMicStarting) {
+            dictado.cancelar();
         }
 
         // Asegurar que el currentSessionId esté en la lista de localStorage.
@@ -3791,6 +4863,13 @@ const AgentPage = () => {
         const sourceMessages = Array.isArray(options.sourceMessages)
             ? options.sourceMessages
             : messagesRef.current;
+        const welcomeMessageForContext = (
+            sourceMessages.length === 1 &&
+            sourceMessages[0]?.isWelcome &&
+            typeof sourceMessages[0]?.content === 'string'
+        )
+            ? sourceMessages[0].content.trim().slice(0, 400)
+            : undefined;
         const newMessages = (options.truncateIndex !== undefined
             ? sourceMessages.slice(0, options.truncateIndex)
             : [...sourceMessages]
@@ -3870,6 +4949,7 @@ const AgentPage = () => {
         let _cortadoPorSilencio = false;
         let _vigilanteDelSilencio = null;
         let _cortarEsteStream = null;   // [P1-PLAN-LOTE-761]
+        let _cancelStreamRaf = () => {};
         const _pushTurnError = (args) => {
             if (!_isCurrentTurn() || _turnErrorShown) return;
             if (_sawDone) {
@@ -3986,6 +5066,8 @@ const AgentPage = () => {
                         attachment_id: data.attachment_id || item.id,
                         url: data.image_url || item.thumbDataUrl,
                         image_url: data.image_url || '',
+                        thumb_url: data.thumb_url || '',
+                        thumbUrl: item.thumbDataUrl || data.thumb_url || data.image_url || '',
                         description: data.analysis_failed ? null : data.description,
                         kind: data.photo_kind || 'plato',
                         meal_name: data.meal_name || '',
@@ -4034,6 +5116,7 @@ const AgentPage = () => {
                         id: item.attachment_id || item.id,
                         clientKey: item.id, // [P1-PLAN-LOTE-123] la misma clave que la burbuja local: relevo sin remontar
                         url: item.url || item.thumbDataUrl,
+                        thumbUrl: item.thumbUrl || item.thumb_url || item.url || item.thumbDataUrl,
                         fullUrl: item.image_url || item.url || item.thumbDataUrl,
                         name: item.file?.name || item.sourceFile?.name,
                         description: item.description,
@@ -4041,6 +5124,7 @@ const AgentPage = () => {
                         supplement_facts: item.supplement_facts,
                         food_facts: item.food_facts,
                         image_url: item.image_url,
+                        thumb_url: item.thumb_url,
                     })).filter((item) => item.url);
                     return { ...message, attachments: remote, imageUrl: remote[0]?.url || message.imageUrl };
                 }));
@@ -4195,6 +5279,7 @@ const AgentPage = () => {
                         tz_offset: now.getTimezoneOffset(),
                         is_call_mode: !!callModeRef.current,
                         bundle: paqueteDelCliente(),   // [P1-PLAN-LOTE-1040 · A-33] paquetes vivos
+                        welcome_message: welcomeMessageForContext || undefined,
                     })
                 });
 
@@ -4205,6 +5290,41 @@ const AgentPage = () => {
                     let isMessageCreated = false;
                     let buffer = "";
                     let lastSpokenIndex = 0;
+                    let pendingStreamDisplay = null;
+                    let streamRafId = null;
+                    const cancelScheduledStream = () => {
+                        if (streamRafId !== null && typeof cancelAnimationFrame === 'function') {
+                            cancelAnimationFrame(streamRafId);
+                        }
+                        streamRafId = null;
+                    };
+                    _cancelStreamRaf = cancelScheduledStream;
+                    const flushPendingStreamChunk = () => {
+                        cancelScheduledStream();
+                        if (pendingStreamDisplay === null) return;
+                        const contentToCommit = pendingStreamDisplay;
+                        pendingStreamDisplay = null;
+                        if (!_isCurrentTurn()) return;
+                        setMessages(prev => {
+                            const updated = [...prev];
+                            if (updated.length > 0 && updated[updated.length - 1].isStreaming) {
+                                updated[updated.length - 1] = { ...updated[updated.length - 1], content: contentToCommit };
+                            }
+                            return updated;
+                        });
+                    };
+                    const scheduleStreamChunk = (contentToCommit) => {
+                        pendingStreamDisplay = contentToCommit;
+                        if (typeof requestAnimationFrame !== 'function') {
+                            flushPendingStreamChunk();
+                            return;
+                        }
+                        if (streamRafId !== null) return;
+                        streamRafId = requestAnimationFrame(() => {
+                            streamRafId = null;
+                            flushPendingStreamChunk();
+                        });
+                    };
 
                     // [P1-PLAN-LOTE-157 · 2026-09-22] Techo de SILENCIO del turno.
                     //
@@ -4382,15 +5502,11 @@ const AgentPage = () => {
                                                 }
                                             }
                                         } else {
-                                            setMessages(prev => {
-                                                const updated = [...prev];
-                                                if (updated.length > 0 && updated[updated.length - 1].isStreaming) {
-                                                    updated[updated.length - 1] = { ...updated[updated.length - 1], content: displayContent };
-                                                }
-                                                return updated;
-                                            });
+                                            scheduleStreamChunk(displayContent);
                                         }
                                     } else if (dataObj.type === 'done') {
+                                        cancelScheduledStream();
+                                        pendingStreamDisplay = null;
                                         // [P3-CHAT-FOCUS-TELEM · 2026-05-19]
                                         // [P1-PLAN-LOTE-1001 · G-01 · 2026-11-14] Corr + firstPaintMs -> /api/chat/client-metrics
                                         const _doneAt = (typeof performance !== 'undefined' && performance.now)
@@ -4624,6 +5740,7 @@ const AgentPage = () => {
                                         }, 1000);
 
                                     } else if (dataObj.type === 'error') {
+                                        flushPendingStreamChunk();
                                         // [P1-CHAT-ERROR-DIFF · 2026-05-19]
                                         // Error emitido por el LangGraph mid-stream
                                         // (tool falló, exception interna). Retryable.
@@ -4666,6 +5783,7 @@ const AgentPage = () => {
                     // conserva marcado `_incomplete`; si estaba vacía, se quita) y, si el turno no
                     // mostró ya un error, se ofrece reintentar.
                     if (!_sawDone && _isCurrentTurn()) {
+                        flushPendingStreamChunk();
                         setIsLoading(false);
                         setStreamingStatus(null);
                         setMessages(prev => closeStreamingBubbles(prev));
@@ -4748,6 +5866,7 @@ const AgentPage = () => {
                 clientMessageId,
             });
         } finally {
+            _cancelStreamRaf();
             if (turnGateRef.current.isCurrent(turnId)) {
                 setIsLoading(false);
                 _setTurnActive(false);
@@ -5128,7 +6247,7 @@ const AgentPage = () => {
 
     const renderInputArea = (isCentered = false) => (
         <div
-            className={`input-wrapper${isListening ? ' dictando' : ''}`}
+            className={`input-wrapper${isMicActive ? ' dictando' : ''}`}
             data-kb-anima=""
             ref={inputWrapperRef}
             onPointerDownCapture={() => { composerPointerDownRef.current = true; }}
@@ -5156,13 +6275,13 @@ const AgentPage = () => {
             padding: isMobile
                 ? (isCentered ? '1.5rem 1.25rem 2.5rem 1.25rem' : '1.25rem 2rem 1.75rem 2rem')
                 : (isCentered ? '2rem 3rem 3rem 3rem' : '1.5rem 3rem 1.5rem 3rem'),
-            background: isCentered ? 'var(--bg-card)' : 'var(--bg-card)',
-            backdropFilter: isCentered ? 'none' : 'blur(12px)',
+            background: isMobile ? 'var(--bg-card)' : 'transparent',
+            backdropFilter: isCentered || !isMobile ? 'none' : 'blur(12px)',
             borderTopLeftRadius: isCentered ? '2rem' : '0',
             borderTopRightRadius: isCentered ? '2rem' : '0',
             borderBottomLeftRadius: isMobile ? '0' : '1.5rem',
             borderBottomRightRadius: isMobile ? '0' : '1.5rem',
-            borderTop: isCentered ? 'none' : '1px solid var(--border)',
+            borderTop: isCentered || !isMobile ? 'none' : '1px solid var(--border)',
             boxShadow: isCentered ? '0 -2px 20px rgba(0,0,0,0.04)' : 'none',
             // [P2-CHAT-SCROLLBAR-CLASSIC v4 · 2026-09-04] En PC el wrapper era sticky a 1.25rem del borde:
             // el sticky lo subía 20 px sobre el final del scroller y tapaba el botón de BAJAR de la
@@ -5170,7 +6289,7 @@ const AgentPage = () => {
             // cuadro y la barra queda entera. En móvil sigue sticky a 0 (teclado, P1-CHAT-KEYBOARD-TABBAR).
             position: isCentered ? 'absolute' : (isMobile ? 'sticky' : 'relative'),
             bottom: isCentered ? 0 : (isMobile ? 0 : 'auto'),
-            marginBottom: (!isCentered && !isMobile) ? '1.25rem' : 0,
+            marginBottom: (!isCentered && !isMobile) ? (enPortada ? '10vh' : '1.25rem') : 0,
             left: 0,
             right: 0,
             width: '100%',
@@ -5264,6 +6383,7 @@ const AgentPage = () => {
                     ))}
                 </div>
             )}
+            {enPortada && isMobile && <PortadaAtajos atajos={atajos} onAtajo={ejecutarAtajo} compacto />}
             <HojaInformeMedico abierta={informeAbierto} onCerrar={() => setInformeAbierto(false)} />
             {/* [P1-PLAN-LOTE-322] Las dudas de la foto, respondibles con un toque, cuando el coach ya contestó.
                 [P1-PLAN-LOTE-763] En el teléfono, la que espera ocupa el sitio de la caja (oculta aquí debajo). */}
@@ -5349,7 +6469,8 @@ const AgentPage = () => {
                     // glifo suelto dentro de un botón invisible: medido, 28 px del borde al «+» contra 11 px del borde
                     // a ENVIAR (el dueño: «no hay simetría en la parte izquierda donde está el signo de +»).
                     padding: '0.5rem',
-                    boxShadow: 'none',
+                    // [P1-COACH-ABIERTO] en PC la caja flota sobre el fondo: una sombra suave la despega
+                    boxShadow: isMobile ? 'none' : '0 18px 48px -24px rgb(0 0 0 / 0.6)',
                     border: isCentered ? '1px solid var(--border)' : '1px solid var(--border)',
                     transition: 'all 0.2s ease',
                     minWidth: 0,
@@ -5498,14 +6619,14 @@ const AgentPage = () => {
                             // muy por encima de cualquier input de chat normal.
                             maxLength={8192}
                             // [P1-PLAN-LOTE-125] teclear mientras se dicta apaga el dictado: manda lo que escribe el usuario
-                            onChange={(e) => { if (isListening) dictado.cancelar(); setInput(e.target.value); }}
+                            onChange={(e) => { if (showAttachmentSource) setShowAttachmentSource(false); if (isMicStarting) dictado.cancelar(); if (isListening) dictado.cancelar(); setInput(e.target.value); }}
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
                             // [P1-PLAN-LOTE-688] con el modo voz activo (minimizado) no se escribe: se habla
                             readOnly={isCallModeActive}
-                            placeholder={isListening ? t('Te escucho…') : (pistaDeRespuesta || micErrorMsg || (isCallModeActive ? t('Modo voz activo') : chatInvitation))}
+                            placeholder={isListening ? t('Te escucho…') : (isMicStarting ? t('Activando micrófono…') : (pistaDeRespuesta || micErrorMsg || (isCallModeActive ? t('Modo voz activo') : chatInvitation)))}
                             aria-label={t('Mensaje para el coach')}
-                            onFocus={() => { if (isMobile) setTimeout(scrollToBottom, 300); }}  // [P2-CHAT-ANCHOR-SENT-TOP] en PC no salta
+                            onFocus={() => { if (showAttachmentSource) setShowAttachmentSource(false); if (isMobile) setTimeout(scrollToBottom, 300); }}  // [P2-CHAT-ANCHOR-SENT-TOP] en PC no salta
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se
                             // dispara al teclear, así que no veía los cambios
@@ -5573,10 +6694,10 @@ const AgentPage = () => {
                                 {dictado.disponible && !isCallModeActive && (
                                     <button
                                         type="button"
-                                        className={`chat-mic-btn ${isListening ? 'escuchando' : ''}`}
-                                        aria-label={isListening ? t('Detener dictado') : t('Dictar por voz')}
-                                        title={isListening ? t('Detener dictado') : t('Dictar por voz')}
-                                        aria-pressed={isListening}
+                                        className={`chat-mic-btn ${isListening ? 'escuchando' : (isMicStarting ? 'iniciando' : '')}`}
+                                        aria-label={isMicActive ? t('Detener dictado') : t('Dictar por voz')}
+                                        title={isMicActive ? t('Detener dictado') : t('Dictar por voz')}
+                                        aria-pressed={isMicActive}
                                         onPointerDown={(e) => e.preventDefault()}
                                         onMouseDown={(e) => e.preventDefault()}
                                         onTouchEnd={handleMicTouchEnd}
@@ -5586,6 +6707,10 @@ const AgentPage = () => {
                                             <span className="chat-mic-activity" aria-hidden="true">
                                                 <Square size={13} fill="currentColor" strokeWidth={0} />
                                             </span>
+                                        ) : isMicStarting ? (
+                                            <span className="chat-mic-activity" aria-hidden="true">
+                                                <Loader2 size={18} strokeWidth={2.2} className="spin-fast" />
+                                            </span>
                                         ) : (
                                             <Mic size={21} strokeWidth={2.1} aria-hidden="true" />
                                         )}
@@ -5593,20 +6718,26 @@ const AgentPage = () => {
                                 )}
                                 {/* [P1-PLAN-LOTE-682] El modo voz: conversar hablando, con el coach contestando en voz alta.
                                     Ocupa el sitio de ENVIAR cuando la caja está vacía (con texto, manda enviar).
-                                    [BB-046] Se oculta mientras se dicta (!isListening) para no competir con el botón de detener. */}
-                                {vozCoach.disponible && !isListening && !input.trim() && attachments.length === 0 && (
+                                    [BB-046] Se oculta mientras se dicta (!isListening / !isMicStarting) para no competir con el botón de detener. */}
+                                {!isMicStarting && <>{vozCoach.disponible && !isListening && !input.trim() && attachments.length === 0 && (
                                     <button
                                         type="button"
                                         className="chat-voz-btn"
-                                        aria-label={t('Conversar por voz con tu coach')}
-                                        title={t('Modo voz')}
+                                        data-bloqueado={MODO_VOZ_DESHABILITADO ? 'true' : undefined}
+                                        aria-label={MODO_VOZ_DESHABILITADO ? t('Modo de voz deshabilitado') : t('Conversar por voz con tu coach')}
+                                        title={MODO_VOZ_DESHABILITADO ? t('Modo de voz deshabilitado') : t('Modo voz')}
                                         onPointerDown={(e) => e.preventDefault()}
                                         onClick={abrirModoVoz}
                                         disabled={isTurnActive}
                                     >
                                         <AudioLines size={21} strokeWidth={2.2} aria-hidden="true" />
+                                        {MODO_VOZ_DESHABILITADO && (
+                                            <span className="chat-voz-lock" aria-hidden="true">
+                                                <Lock size={10} strokeWidth={2.75} />
+                                            </span>
+                                        )}
                                     </button>
-                                )}
+                                )}</>}
                                 {(input.trim() || attachments.length > 0) && (
                                     <button
                                         type="button"
@@ -5641,6 +6772,7 @@ const AgentPage = () => {
                 </div>
 
             </div>
+            {enPortada && !isMobile && <PortadaAtajos atajos={atajos} onAtajo={ejecutarAtajo} />}
             {/* Reproductor Nativo Montado en el DOM para Evitar Bloqueos de iOS Safari */}
             <audio ref={audioPlayerRef} playsInline style={{ display: 'none' }} id="tts-audio-player" />
         </div>
@@ -5666,7 +6798,11 @@ const AgentPage = () => {
         const root = document.documentElement;
         const handleResize = () => {
             if (window.innerWidth > 1024) {
-                root.style.setProperty('--app-height', 'calc(100dvh - 7.25rem)');
+                // [P1-COACH-ABIERTO · 2026-11-27] chat abierto, sin tarjeta ni margin-top propio.
+                // [P1-PLAN-LOTE-1175] …y a pantalla entera: el <main> del coach va SIN padding en todas las anchuras
+                // (App.jsx pasa `noPaddingMobile` a la ruta del coach y el layout lo aplica en línea), así que restar
+                // 5rem dejaba una franja vacía de 80 px al pie (la columna de chats acababa antes que la pantalla).
+                root.style.setProperty('--app-height', '100dvh');
             } else {
                 root.style.removeProperty('--app-height');
             }
@@ -5738,9 +6874,16 @@ const AgentPage = () => {
         const todayStr = hoyLocal();
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        // [P1-PLAN-LOTE-1175 · 2026-11-27] «Ayer» y «Esta semana» como grupos (el dueño: «esto no me gusta cómo se ve en
+        // PC»): con solo «Hoy» y un bloque sin rótulo, cada fila tenía que cargar su fecha en una segunda línea.
+        const ayerStr = hoyLocal(new Date(Date.now() - 24 * 60 * 60 * 1000));
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
         const groups = {
             'Hoy': [],
+            'Ayer': [],
+            'Esta semana': [],
             'Últimos 30 días': [],
             'Más antiguos': []
         };
@@ -5756,8 +6899,13 @@ const AgentPage = () => {
                 return;
             }
 
-            if (diaLocalDe(dateStr) === todayStr) {
+            const diaDeLaSesion = diaLocalDe(dateStr);
+            if (diaDeLaSesion === todayStr) {
                 groups['Hoy'].push(s);
+            } else if (diaDeLaSesion === ayerStr) {
+                groups['Ayer'].push(s);
+            } else if (d >= sevenDaysAgo) {
+                groups['Esta semana'].push(s);
             } else if (d >= thirtyDaysAgo) {
                 groups['Últimos 30 días'].push(s);
             } else {
@@ -5780,6 +6928,8 @@ const AgentPage = () => {
         // pelearse con el linter.
         return [
             { id: 'hoy', items: groups['Hoy'] },
+            { id: 'ayer', items: groups['Ayer'] },
+            { id: 'semana', items: groups['Esta semana'] },
             { id: '30dias', items: groups['Últimos 30 días'] },
             { id: 'antiguos', items: groups['Más antiguos'] }
         ].filter(g => g.items.length > 0);
@@ -5790,11 +6940,14 @@ const AgentPage = () => {
     // [P1-PLAN-LOTE-1055] …y memorizado por sus etiquetas (cadenas: cambian con el idioma), para que «Recientes»
     // (React.memo) no se repinte en cada tecla. Por lo mismo, las funciones que recibe van con identidad estable.
     const etiquetaHoy = t('Hoy');
+    const etiquetaAyer = t('Ayer');
+    const etiquetaSemana = t('Esta semana');
+    const etiqueta30 = t('Últimos 30 días');
     const etiquetaAntiguos = t('Más antiguos');
     const gruposConEtiqueta = useMemo(() => {
-        const ETIQUETA_GRUPO = { hoy: etiquetaHoy, '30dias': '', antiguos: etiquetaAntiguos };
+        const ETIQUETA_GRUPO = { hoy: etiquetaHoy, ayer: etiquetaAyer, semana: etiquetaSemana, '30dias': etiqueta30, antiguos: etiquetaAntiguos };
         return groupedSessions.map((g) => ({ ...g, label: ETIQUETA_GRUPO[g.id] ?? '' }));
-    }, [groupedSessions, etiquetaHoy, etiquetaAntiguos]);
+    }, [groupedSessions, etiquetaHoy, etiquetaAyer, etiquetaSemana, etiqueta30, etiquetaAntiguos]);
     const handleNewChatEstable = useStableCallback(handleNewChat);
     const handleVolverAHoyEstable = useStableCallback(handleVolverAHoy);
     const handleDeleteChatEstable = useStableCallback(handleDeleteChat);
@@ -5807,8 +6960,16 @@ const AgentPage = () => {
     // las dudas de una foto en pantalla no se ven: esa tarjeta es lo que toca contestar.
     // [P1-PLAN-LOTE-695] …las de ESTE chat: al abrir otro, las del anterior siguen en el estado y ocultaban los atajos
     const _dudasDeEsteChat = dudasDeLaFoto.length > 0 && dudasDeLaFotoSesionRef.current === currentSessionId;
+    // [P1-COACH-PORTADA · 2026-11-27] El hilo del día con SOLO el saludo: portada (saludo titular, tu día, sugerencias).
+    // [P1-PLAN-LOTE-1174 · 2026-11-27] …o con solo AVISOS del coach (el chat que abre la notificación del almuerzo): el
+    // dueño, en PC, veía una burbuja suelta y la pantalla vacía, mientras a quien no le llegó aviso le salía la portada
+    // («¿por qué a Sherwin de Android se le ve así y a mí no?»). No era Android/iOS: era tener un aviso en el hilo. Mientras
+    // tú no hayas escrito, el hilo sigue siendo portada; los avisos van debajo de tu día, como burbujas.
+    const _soloDelCoach = messages.length > 0 && messages.every((m) => m?.role === 'model' && !m._isErrorBubble
+        && !m.isStreaming && !m.isIncomplete && !m.isImage);
+    const enPortada = !isLoadingHistory && !chatDeOtroDia && !isTurnActive && _soloDelCoach && !_dudasDeEsteChat;
     const atajosVisibles = isMobile && messages.length > 0 && !isTurnActive
-        && !isLoadingHistory && !input.trim() && !_dudasDeEsteChat;
+        && !isLoadingHistory && !input.trim() && !_dudasDeEsteChat && !enPortada;
     // [P1-PLAN-LOTE-763 · 2026-09-28] El dueño: «la pregunta que te hace la IA cuando escaneas una comida […] que se vea
     // donde está el teclado, y el teclado se debe cerrar cuando está la pregunta obligatoria». En el teléfono la tarjeta
     // salía ENCIMA de la caja de escribir y, con el teclado arriba, quedaba apretada entre los dos. Ahora la pregunta que
@@ -5868,6 +7029,24 @@ const AgentPage = () => {
             t,
         });
     }, [enModoContador, planData, resumenHoy, messages.length, t, localeActivo, catalogVersion, welcomeClockKey]);
+    // [P1-COACH-PORTADA] tu día en la portada y lo que hace cada tarjeta (lo mismo que su píldora en el teléfono)
+    const metasDelDia = metasEnNumeros(!enModoContador && planData?.calories ? planData : resumenHoy.metas);
+    // [P1-PLAN-LOTE-1174] el titular de la portada: el saludo del hilo o, si el hilo solo tiene avisos, uno nuevo
+    const saludoDePortada = useMemo(() => {
+        void welcomeClockKey;
+        if (!enPortada) return '';
+        if (messages[0]?.isWelcome) return messages[0].content;
+        return generateIntelligentWelcome(userProfile, formData, planData, resumenHoy);
+    }, [enPortada, messages, userProfile, formData, planData, resumenHoy, welcomeClockKey]);
+    const avisosDePortada = useMemo(() => (enPortada ? messages.filter((m) => !m?.isWelcome) : []), [enPortada, messages]);
+    const ejecutarAtajo = (a) => {
+        if (a.tipo === 'accion') {
+            if (a.accion === 'escanear') void openAttachmentPicker();
+            else if (a.accion === 'informe') { chatInputRef.current?.blur(); setInformeAbierto(true); }
+            return;
+        }
+        handleSend(a.mensaje);
+    };
     const _sigActual = useMemo(() => _orphanSig(messages), [_orphanSig, messages]);
     const _ocultarCorteEnCurso = useMemo(() => {
         const _descartadoActual = _recoveryRef.current.doneSig === _sigActual
@@ -5899,6 +7078,7 @@ const AgentPage = () => {
             onErrorRetry={retryErrorMessage}
             daySeparator={daySeparatorLabel(msg, previousDatedMessage(visibleMessages, i), { t, formatDate })}
             puedeRegenerar={respondeAlUsuario(visibleMessages, i)}
+            eagerImages={i >= visibleMessages.length - 6}
         />
         // eslint-disable-next-line react-hooks/exhaustive-deps -- idioma y día cambian `t`/`formatDate` sin cambiar su identidad
     )), [visibleMessages, currentSessionId, handleRegenerate, retryErrorMessage, localeActivo, catalogVersion, welcomeClockKey]);
@@ -5908,434 +7088,11 @@ const AgentPage = () => {
         : (streamingStatus || null);
     return (
         <>
-            <style>{`
-                /* [P2-CHAT-JUMP-TO-LATEST-DESKTOP · 2026-09-04] «Ir al último mensaje»: píldora
-                   flotante anclada al cuadro de escribir (position: absolute respecto al
-                   .input-wrapper, que es sticky en PC y relative en móvil). Un solo estilo. */
-                .jump-to-latest {
-                    position: absolute;
-                    top: -3rem;
-                    left: 50%;
-                    transform: translateX(-50%);  /* v2: centrada, como Claude/ChatGPT */
-                    z-index: 18;
-                    width: 36px;
-                    height: 36px;
-                    padding: 0;
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    border-radius: 999px;
-                    border: 1px solid var(--border);
-                    background: var(--bg-card);
-                    color: var(--text-main);
-                    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
-                    cursor: pointer;
-                    transition: box-shadow 0.15s ease, filter 0.15s ease;
-                    -webkit-tap-highlight-color: transparent;
-                }
-                .jump-to-latest:hover { box-shadow: 0 10px 28px rgba(15, 23, 42, 0.26); filter: brightness(1.04); }
-                .jump-to-latest:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.55); outline-offset: 2px; }
-                /* [P1-CHAT-DELETE-TOUCH · 2026-08-10] La papelera de cada conversación
-                   se revelaba SOLO con :hover, y en un teléfono no hay hover: desde el
-                   móvil no se podía borrar NINGUNA conversación. Con el tope de 40
-                   sesiones, la lista solo crecía.
-
-                   Se añade visibility y no solo opacity: opacity 0 + pointer-events none
-                   deja el botón en el orden de tabulación, así que con teclado o VoiceOver
-                   se podía activar a ciegas un borrado que no se ve.
-                   (Sin acentos graves aquí dentro: este CSS vive en un template literal
-                   de JS y un backtick lo cierra y rompe el build.) */
-                .chat-session-btn .chat-actions-hover {
-                    opacity: 0;
-                    visibility: hidden;
-                    pointer-events: none;
-                }
-                .chat-session-btn:hover .chat-actions-hover,
-                .chat-session-btn:focus-within .chat-actions-hover {
-                    opacity: 1;
-                    visibility: visible;
-                    pointer-events: auto;
-                }
-                /* [P2-CHAT-TIMELINE · 2026-09-03] El hilo NUNCA desplaza en horizontal: con
-                   overflow-y auto en linea, overflow-x computa a auto y cualquier desborde
-                   de un píxel pinta una barra horizontal gruesa al pie del hilo (Windows). Las
-                   tablas y bloques de codigo del markdown ya tienen su propio scroll interno.
-                   (Sin acentos graves en este comentario: vive dentro de un template literal.) */
-                .messages-container { overflow-x: hidden !important; }
-                /* [P2-CHAT-QUICK-CHIPS · 2026-09-03] Acciones rápidas sobre la caja. */
-                .chat-respuestas-foto {
-                    max-width: 800px;
-                    margin: 0 auto 0.5rem;
-                    padding: 0.7rem 0.9rem;
-                    border-radius: 1rem;
-                    border: 1px solid var(--border);
-                    background: var(--bg-card);
-                    width: calc(100% - 2rem);
-                    box-sizing: border-box;
-                }
-                .chat-respuestas-foto-titulo { font-size: 0.8rem; font-weight: 700; color: var(--text-muted, inherit); }
-                /* [P1-PLAN-LOTE-690] Omitir preguntas: discreto, bajo las opciones */
-                .chat-respuestas-foto-omitir {
-                    margin-top: 0.55rem; padding: 0.35rem 0; border: 0; background: none; cursor: pointer;
-                    font: inherit; font-size: 0.8rem; font-weight: 600; color: var(--text-muted, inherit);
-                    text-decoration: underline; text-underline-offset: 3px;
-                }
-                /* [P1-PLAN-LOTE-763] La pregunta obligatoria de la foto en el sitio de la caja de escribir (telefono).
-                   Con la misma superficie que la caja (fondo y borde de la pastilla de escribir): es la caja que se
-                   convierte en la pregunta, y en oscuro se distingue de la conversacion (sin borde se fundia con
-                   ella). Entra subiendo, como un teclado. La caja oculta lleva el atributo hidden: nada la muestra. */
-                .chat-dudas-panel {
-                    width: 100%;
-                    margin: 0 auto;
-                    padding: 0.9rem 1rem 0.55rem;
-                    border: 1px solid var(--border-light, rgba(148, 163, 184, 0.16));
-                    border-radius: 1.35rem;
-                    background: var(--bg-card);
-                    box-shadow: 0 -10px 30px -14px rgba(2, 6, 23, 0.55);
-                    animation: chat-dudas-panel-entra 0.26s cubic-bezier(0.32, 0.72, 0, 1);
-                }
-                .chat-dudas-panel .chat-respuestas-foto-titulo {
-                    display: block;
-                    font-size: 0.93rem;
-                    letter-spacing: -0.01em;
-                    color: var(--text-main);
-                    border-bottom: 1px solid var(--border-light, rgba(148, 163, 184, 0.14));
-                }
-                .chat-dudas-scroll { scrollbar-width: none; }
-                .chat-dudas-scroll::-webkit-scrollbar { display: none; }
-                .chat-dudas-panel .chat-respuestas-foto-omitir {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin: 0.45rem auto 0;
-                    min-height: 40px;
-                    padding: 0.35rem 1rem;
-                    border-radius: 999px;
-                    font-size: 0.84rem;
-                    text-decoration: none;
-                    opacity: 0.85;
-                    transition: opacity 150ms ease, background-color 150ms ease;
-                }
-                .chat-dudas-panel .chat-respuestas-foto-omitir:hover {
-                    opacity: 1;
-                    background: color-mix(in srgb, var(--text-main) 6%, transparent);
-                }
-                .input-wrapper > [hidden] { display: none !important; }
-                @keyframes chat-dudas-panel-entra {
-                    from { opacity: 0; transform: translateY(14px); }
-                    to { opacity: 1; transform: none; }
-                }
-                @media (prefers-reduced-motion: reduce) { .chat-dudas-panel { animation: none; } }
-                .chat-quick-chips {
-                    display: flex;
-                    gap: 0.45rem;
-                    max-width: 800px;
-                    margin: 0 auto 0.65rem;
-                    padding: 0 0 0.15rem;
-                    overflow-x: auto;
-                    scrollbar-width: none;
-                    -webkit-overflow-scrolling: touch;
-                    flex: none;
-                }
-                .chat-quick-chips::-webkit-scrollbar { display: none; }
-                .chat-quick-chip {
-                    flex: none;
-                    padding: 0.5rem 0.85rem;
-                    border-radius: 999px;
-                    border: 1px solid var(--border);
-                    background: var(--bg-card);
-                    color: var(--text-main);
-                    font-family: inherit;
-                    font-size: 0.82rem;
-                    font-weight: 600;
-                    cursor: pointer;
-                    white-space: nowrap;
-                    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
-                }
-                /* [P1-PLAN-LOTE-411] las dos acciones (abren su hoja, no gastan mensajes) se distinguen de las preguntas */
-                .chat-quick-chip.chat-quick-chip-accion {
-                    border-color: color-mix(in srgb, var(--primary) 45%, transparent);
-                    background: color-mix(in srgb, var(--primary) 12%, var(--bg-card));
-                    color: var(--primary);
-                    font-weight: 600;
-                }
-                .chat-quick-chip:hover,
-                .chat-quick-chip:focus-visible {
-                    border-color: color-mix(in srgb, var(--primary) 55%, transparent);
-                    background: color-mix(in srgb, var(--primary) 10%, var(--bg-card));
-                    color: var(--primary);
-                    outline: none;
-                }
-                .chat-quick-chip:active { transform: translateY(1px); }
-                /* [P2-CHAT-DELETE-CONFIRM · 2026-09-03] La papelera solo se tiñe al pasar o pulsar. */
-                .chat-delete-btn:hover,
-                .chat-delete-btn:active,
-                .chat-delete-btn:focus-visible {
-                    color: var(--danger) !important;
-                    background: var(--danger-bg) !important;
-                }
-                /* Donde no hay puntero fino (teléfono, tablet) la acción es visible
-                   siempre: es la única forma de alcanzarla. */
-                @media (hover: none) {
-                    .chat-session-btn .chat-actions-hover {
-                        opacity: 1;
-                        visibility: visible;
-                        pointer-events: auto;
-                    }
-                }
-
-                /* [P1-PLAN-LOTE-128] El «+» vuelve a ser un GLIFO LIMPIO, sin circulo. El dueno: «me gustaba antes…
-                   ese gris no le queda y cuando lo presiono no me gusta tampoco». El circulo gris (lote 127) existia
-                   para igualar margenes con ENVIAR cuando compartian fila; con la caja apilada sobra, y la referencia
-                   del dueno lleva el «+» suelto. Al pulsar: solo encoge y toma el color de marca — sin fondo. Y el
-                   hover SOLO donde hay puntero de verdad: en tactil el :hover se queda pegado tras el toque, que
-                   era el gris que seguia ahi despues de presionar. */
-                .attachment-btn {
-                    background: transparent;
-                    color: var(--text-muted);
-                    border: none;
-                    border-radius: 50%;
-                    width: 44px;
-                    height: 44px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-                    flex-shrink: 0;
-                    outline: none;
-                    -webkit-tap-highlight-color: transparent;
-                }
-                /* El dictado muestra micrófono en reposo y solo barras mientras escucha. */
-                .chat-mic-btn {
-                    position: relative;
-                    background: transparent;
-                    color: var(--text-muted);
-                    border: none;
-                    border-radius: 50%;
-                    width: 44px;
-                    height: 44px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    flex-shrink: 0;
-                    outline: none;
-                    -webkit-tap-highlight-color: transparent;
-                    transition: color 0.15s ease, background 0.15s ease, transform 0.12s ease;
-                }
-                .chat-mic-btn:hover { color: var(--primary); background: var(--bg-muted); }
-                .chat-mic-btn:active { transform: scale(0.97); }
-                .chat-mic-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
-                /* [BB-046 · 2026-11-09] Dictando = estilo ChatGPT/Gemini: botón de parada oscuro con halo azul compacto y cuadrado blanco (el modo voz se oculta mientras se dicta). */
-                .chat-mic-btn.escuchando {
-                    color: #fff;
-                    background: #1e293b;
-                    border: 2px solid #3b82f6;
-                    box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.4), 0 0 4px rgba(59, 130, 246, 0.2);
-                    animation: chat-mic-pulse 2s ease-in-out infinite;
-                }
-                .chat-mic-activity {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 21px;
-                    height: 21px;
-                    pointer-events: none;
-                }
-                @keyframes chat-mic-pulse {
-                    0%, 100% {
-                        box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35), 0 0 3px rgba(59, 130, 246, 0.15);
-                    }
-                    50% {
-                        box-shadow: 0 0 0 2.5px rgba(59, 130, 246, 0.65), 0 0 6px rgba(59, 130, 246, 0.3);
-                    }
-                }
-                /* [P1-PLAN-LOTE-682] El boton del modo voz: relleno como ENVIAR (es la accion principal con la caja
-                   vacia) y con un brillo que respira para que se descubra sin explicarlo. */
-                .chat-voz-btn {
-                    position: relative;
-                    color: #fff;
-                    background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
-                    border: none;
-                    border-radius: 50%;
-                    width: 44px;
-                    height: 44px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    flex-shrink: 0;
-                    margin-right: 2px;
-                    outline: none;
-                    -webkit-tap-highlight-color: transparent;
-                    box-shadow: 0 6px 18px -6px rgba(79, 70, 229, 0.7);
-                    transition: transform 0.12s ease, opacity 0.15s ease;
-                }
-                .chat-voz-btn::after {
-                    content: '';
-                    position: absolute;
-                    inset: -3px;
-                    border-radius: 50%;
-                    border: 2px solid rgba(99, 102, 241, 0.45);
-                    animation: chat-voz-brillo 2.8s ease-in-out infinite;
-                    pointer-events: none;
-                }
-                .chat-voz-btn:active { transform: scale(0.97); }
-                .chat-voz-btn:disabled { opacity: 0.5; cursor: default; }
-                .chat-voz-btn:disabled::after { animation: none; opacity: 0; }
-                .chat-voz-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
-                @keyframes chat-voz-brillo {
-                    0%, 100% { transform: scale(1); opacity: 0; }
-                    50% { transform: scale(1.18); opacity: 1; }
-                }
-                .input-wrapper.dictando .input-box-dictable {
-                    border-color: color-mix(in srgb, #3b82f6 55%, var(--border)) !important;
-                    box-shadow: none !important;
-                }
-                @media (prefers-reduced-motion: reduce) {
-                    .chat-mic-btn { transition: none; }
-                    .chat-mic-btn.escuchando { animation: none; box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.4); }
-                    .chat-voz-btn { transition: none; }
-                    .chat-voz-btn::after { animation: none; opacity: 0; }
-                }
-                .chat-offline-status {
-                    width: fit-content;
-                    max-width: 100%;
-                    margin: 0 auto 0.45rem;
-                    padding: 0.3rem 0.7rem;
-                    border-radius: 999px;
-                    background: color-mix(in srgb, #f59e0b 14%, var(--bg-card));
-                    color: var(--text-main);
-                    font-size: 0.78rem;
-                    font-weight: 650;
-                    text-align: center;
-                }
-                @media (hover: hover) and (pointer: fine) {
-                    .attachment-btn:not(.disabled):hover {
-                        color: var(--primary);
-                        background: var(--bg-muted);
-                    }
-                }
-                .attachment-btn:not(.disabled):active {
-                    transform: scale(0.97);
-                    color: var(--primary);
-                }
-                .attachment-btn.disabled {
-                    opacity: 0.5;
-                    cursor: default;
-                }
-                .attachment-rail {
-                    display: flex;
-                    gap: 0.65rem;
-                    overflow-x: auto;
-                    overscroll-behavior-x: contain;
-                    scrollbar-width: none;
-                    /* [P2-CHAT-THUMB-ALIGN · 2026-09-05] Los 3rem de sangría izquierda dejaban la miniatura
-                       flotando en mitad del cajón, sin alinearse con nada: ni con el «+» de adjuntar (que
-                       empieza 40 px antes) ni con el borde del compositor. Alineada ahora con el borde
-                       interior, que es donde el ojo espera la esquina. El resto de la sangría se mantiene. */
-                    padding: 0.35rem 0.4rem 0.55rem 2px;
-                    scroll-snap-type: x proximity;
-                }
-                .attachment-rail::-webkit-scrollbar { display: none; }
-                /* [P2-CHAT-ATTACHMENT-THUMB · 2026-09-04] La miniatura llevaba una X roja de 44 px que
-                   se comía la esquina («se ve demasiado grande, muy feo»). Ahora: miniatura con marco y
-                   sombra suave, y un chip de cierre pequeño (22 px, oscuro, rojo solo al pasar) con el
-                   área táctil de 44 px puesta en un pseudo-elemento invisible. */
-                /* [P2-CHAT-ATTACHMENT-THUMB v2] tamaño «como ChatGPT» (el dueño lo pidió con captura):
-                   128 px en escritorio, 104 px en móvil, sin marco interior, esquinas de 16 px y el
-                   chip de cierre DENTRO de la esquina. */
-                .attachment-preview {
-                    position: relative;
-                    flex: 0 0 128px;
-                    width: 128px;
-                    height: 128px;
-                    padding: 0;
-                    margin-top: 4px;
-                    border-radius: 16px;
-                    border: 1px solid var(--border);
-                    background: var(--bg-card);
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
-                    overflow: hidden;
-                    scroll-snap-align: start;
-                }
-                @media (max-width: 480px) {
-                    .attachment-preview { flex-basis: 104px; width: 104px; height: 104px; border-radius: 14px; }
-                }
-                .attachment-preview > img {
-                    width: 100%;
-                    height: 100%;
-                    display: block;
-                    border-radius: inherit;
-                    object-fit: cover;
-                }
-                .attachment-placeholder {
-                    width: 100%;
-                    height: 100%;
-                    display: grid;
-                    place-items: center;
-                    border-radius: 9px;
-                    background: var(--bg-muted);
-                    color: var(--text-muted);
-                }
-                .attachment-preview.preparing > img { opacity: 0.78; }
-                .attachment-spinner,
-                .attachment-error {
-                    position: absolute;
-                    inset: 0;
-                    margin: auto;
-                    color: white;
-                    filter: drop-shadow(0 1px 3px rgba(0,0,0,.65));
-                }
-                .attachment-error {
-                    width: 24px;
-                    height: 24px;
-                    display: grid;
-                    place-items: center;
-                    border-radius: 999px;
-                    background: #dc2626;
-                    font-weight: 800;
-                    filter: none;
-                }
-                .attachment-remove {
-                    position: absolute;
-                    top: 6px;
-                    right: 6px;
-                    width: 24px;
-                    height: 24px;
-                    padding: 0;
-                    display: grid;
-                    place-items: center;
-                    border: 0;
-                    border-radius: 999px;
-                    background: rgba(15, 23, 42, 0.78);
-                    backdrop-filter: blur(4px);
-                    color: white;
-                    cursor: pointer;
-                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-                    transition: background 0.15s ease, transform 0.15s ease;
-                    -webkit-tap-highlight-color: transparent;
-                }
-                /* área táctil de 44 px sin agrandar el chip */
-                .attachment-remove::after {
-                    content: '';
-                    position: absolute;
-                    inset: -10px;
-                    border-radius: 999px;
-                }
-                .attachment-remove:hover:not(:disabled),
-                .attachment-remove:focus-visible {
-                    background: var(--danger-fill, #dc2626);
-                }
-                .attachment-remove:focus-visible {
-                    outline: 2px solid rgba(79, 70, 229, 0.65);
-                    outline-offset: 2px;
-                }
-                .attachment-remove:disabled { opacity: 0.5; cursor: default; }
-            `}</style>
+            <AgentMainStyles />
             <div className="agent-container"
                 data-kb-anima=""
+                data-coach-abierto={!isMobile ? '' : undefined}
+                data-portada={enPortada ? '' : undefined}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
@@ -6358,7 +7115,7 @@ const AgentPage = () => {
                     // componente invisible contaminaría el alto de las demás rutas.
                     height: isMobile
                         ? 'calc(var(--app-height, 100dvh) - var(--kb-inset, 0px))'
-                        : 'var(--app-height, calc(100dvh - 7.25rem))',  // [P3-AGENT-DESKTOP-CLIP · 2026-05-19] ver useEffect arriba
+                        : 'var(--app-height, 100dvh)',  // [P3-AGENT-DESKTOP-CLIP · 2026-05-19 → P1-COACH-ABIERTO] ver useEffect arriba
                     // [P1-KB-BAJADA-FLUIDA · 2026-08-23] El alto cambiaba de golpe: con el
                     // cerrojo de cierre eso pasa a ocurrir en el `blur` —o sea, JUSTO cuando
                     // iOS empieza a bajar el teclado— así que un salto seco se ve como un
@@ -6369,15 +7126,16 @@ const AgentPage = () => {
                     // sólo podría retrasar un cambio de layout legítimo.
                     // [KB-ANDROID-SECO] En Android la apaga, al abrir, la regla `html[data-kb-seco][data-kb-open] .agent-container` (mas abajo).
                     transition: isMobile ? 'height var(--kb-ms, 0.25s) cubic-bezier(0.32, 0.72, 0, 1)' : undefined,
-                    background: 'var(--bg-card)',
-                    borderRadius: isMobile ? '0' : '1.5rem',
-                    boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',
-                    border: isMobile ? 'none' : '1px solid var(--border)',
+                    // [P1-COACH-ABIERTO · 2026-11-27] En PC el chat es ABIERTO, como ChatGPT, Gemini o Claude: sin la
+                    // tarjeta flotante (borde, sombra, radio y márgenes), a todo el alto y ancho de la sección, sobre el
+                    // fondo de la app. Los mensajes conservan su columna de 800 px (lectura cómoda).
+                    background: isMobile ? 'var(--bg-card)' : 'transparent',
+                    borderRadius: '0',
+                    boxShadow: 'none',
+                    border: 'none',
                     overflow: 'hidden',
-                    margin: isMobile ? '0' : '2.25rem auto 0',
-                    // [P1-PLAN-LOTE-1167 · 2026-11-22] 1.440 en PC, como Nevera e Historial: al cambiar de sección la
-                    // tarjeta ya no salta de ancho. Los mensajes siguen con su tope de 800 px (lectura cómoda).
-                    maxWidth: isMobile ? '100vw' : '1440px',
+                    margin: '0',
+                    maxWidth: isMobile ? '100vw' : 'none',
                     width: '100%',
                     minWidth: 0,
                     boxSizing: 'border-box',
@@ -6519,17 +7277,20 @@ const AgentPage = () => {
                     flex: 1,
                     display: 'flex',
                     flexDirection: 'column',
+                    // [P1-COACH-PORTADA] en PC, con solo el saludo, saludo y caja van juntos en el centro
+                    // [P1-PLAN-LOTE-1174] `safe`: si la portada no cabe, se pega arriba en vez de salirse por encima
+                    justifyContent: enPortada && !isMobile ? 'safe center' : undefined,
                     minWidth: 0, // previene overflow en flex
                     maxWidth: '100%',
                     position: 'relative',
-                    background: 'var(--bg-card)',
+                    background: isMobile ? 'var(--bg-card)' : 'transparent',
                     overflow: 'hidden'
                 }}>
                     {/* Chat Header */}
                     <div className="mobile-chat-header" style={{
                         padding: '0.75rem 1.25rem',
                         paddingTop: isMobile ? 'calc(0.75rem + max(env(safe-area-inset-top), 24px))' : '0.75rem',
-                        background: messages.length === 0 ? 'var(--bg-card)' : 'var(--bg-card)',
+                        background: isMobile ? 'var(--bg-card)' : 'transparent',
                         backdropFilter: 'none',
                         display: 'flex',
                         alignItems: 'center',
@@ -6538,7 +7299,7 @@ const AgentPage = () => {
                         top: 0,
                         width: '100%',
                         zIndex: 10,
-                        borderBottom: messages.length === 0 ? 'none' : '1px solid var(--border)'
+                        borderBottom: messages.length === 0 || !isMobile || enPortada ? 'none' : '1px solid var(--border)'
                     }}>
                         {/* Left: Menu */}
                         <button
@@ -6651,7 +7412,9 @@ const AgentPage = () => {
                         ref={messagesContainerRef}
                         onScroll={handleMessagesScroll}
                         style={{
-                            flex: 1,
+                            // [P1-PLAN-LOTE-1174] `0 1 auto`: en PC la portada puede encogerse y desplazarse (con `0 0`
+                            // no encogía y, centrada, se salía por arriba tapando la cabecera)
+                            flex: enPortada && !isMobile ? '0 1 auto' : 1,
                             // [P2-CHAT-SCROLLBAR-CLASSIC v3 · 2026-09-04] La cabecera es absoluta: su alto iba como
                             // padding DENTRO del scroller y tapaba el botón de subir de la barra clásica (el
                             // scroller empezaba detrás de la cabecera). Ahora, como ya hacía el móvil
@@ -6668,9 +7431,11 @@ const AgentPage = () => {
                             maxWidth: '100%',
                             display: 'flex',
                             flexDirection: 'column',
-                            justifyContent: 'flex-start',
+                            // [P1-PLAN-LOTE-1174] `safe center`: con `center` a secas, lo que no cabe queda por ENCIMA del
+                            // scroll, inalcanzable (en el teléfono el saludo desaparecía)
+                            justifyContent: enPortada ? 'safe center' : 'flex-start',
                             alignItems: messages.length === 0 ? 'flex-start' : 'center',
-                            background: messages.length === 0 ? 'var(--bg-card)' : 'var(--bg-card)',
+                            background: isMobile ? 'var(--bg-card)' : 'transparent',
                             scrollBehavior: 'smooth',
                             visibility: threadSettling ? 'hidden' : 'visible'  // [P2-CHAT-RELOAD-BOTTOM v4]
                         }}
@@ -6827,7 +7592,11 @@ const AgentPage = () => {
                                     width: '100%',
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    gap: '2rem',
+                                    // [P1-PLAN-LOTE-1178 · 2026-11-27] En la portada, sin hueco: los dos marcadores
+                                    // invisibles del final (spacer + sentinel) sumaban 2×2rem y la portada, que cabe,
+                                    // se podía desplazar, y el logo chocaba con el borde de arriba («el scroll cuando no
+                                    // tengo ningún mensaje es innecesario»).
+                                    gap: enPortada ? 0 : '2rem',
                                     paddingBottom: '0.5rem'
                                 }}
                                 className="msg-log"
@@ -6836,6 +7605,12 @@ const AgentPage = () => {
                                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: 'var(--text-muted)', gap: '0.5rem' }}>
                                         <Loader2 className="spin-fast" size={20} /> {t('Cargando mensajes...')}
                                     </div>
+                                ) : enPortada ? (
+                                    // [P1-COACH-PORTADA] con solo el saludo, el saludo es la portada (no una burbuja suelta)
+                                    // [P1-PLAN-LOTE-1174] los avisos del coach van dentro, como tarjeta, debajo de tu día
+                                    <PortadaSaludo saludo={saludoDePortada} metas={metasDelDia}
+                                        totales={resumenHoy?.totales} comidas={resumenHoy?.comidas} compacto={isMobile}
+                                        avisos={avisosDePortada} />
                                 ) : burbujasDelHilo}
                                 {showCoachPensando && (
                                     /* [COACH-EMBLEMA · 2026-11-13] La espera dice solo cosas ciertas: el estado que
@@ -6903,517 +7678,32 @@ const AgentPage = () => {
                 restoreFocus={attachmentSheetOwnsFocus}
             />
 
-            <style>{`
-                .markdown-chat { font-size: 0.95rem; line-height: 1.6; max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
-                .markdown-chat p { margin-top: 0; margin-bottom: 0.75rem; max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
-                .markdown-chat p:last-child { margin-bottom: 0; }
-                .markdown-chat ul, .markdown-chat ol { margin-top: 0; margin-bottom: 0.75rem; padding-left: 1.5rem; max-width: 100%; }
-                .markdown-chat ul:last-child, .markdown-chat ol:last-child { margin-bottom: 0; }
-                .markdown-chat li { margin-bottom: 0.25rem; max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
-                .markdown-chat strong { font-weight: 700; color: inherit; }
-                .markdown-chat pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
-                .markdown-chat code { max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
-                .markdown-chat table { max-width: 100%; display: block; overflow-x: auto; }
-                .markdown-chat img { max-width: 100%; height: auto; }
+            {chatCameraOpen && (
+                <Suspense fallback={null}>
+                    <CameraViewfinder
+                        isOpen={chatCameraOpen}
+                        title={t('Tomar una foto')}
+                        hint=""
+                        hideReticle
+                        fileName={`imagen-${Date.now()}.jpg`}
+                        onCapture={(file) => {
+                            setChatCameraOpen(false);
+                            if (file) addFiles([file], { prepararTrasMs: reopenKeyboardAfterAttachmentRef.current && !workerDeImagenDisponible() ? ESPERA_PREPARAR_FOTO_MS : 0 });
+                            restoreChatKeyboardAfterAttachment();
+                        }}
+                        onClose={() => {
+                            setChatCameraOpen(false);
+                            restoreChatKeyboardAfterAttachment();
+                        }}
+                        onFallbackToFile={() => {
+                            setChatCameraOpen(false);
+                            void runNativeImagePicker('gallery');
+                        }}
+                    />
+                </Suspense>
+            )}
 
-                .spin-fast { animation: spin 1s linear infinite; }
-                .spin-slow { animation: spin 4s linear infinite; }
-                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-                @keyframes pulse-mic { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
-                .pulse-anim-mic { animation: pulse-mic 1.5s infinite ease-in-out; }
-                @keyframes shimmer { to { background-position: 200% center; } }
-                @keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-                @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-                .wave-anim { animation: wave 2.5s infinite; transform-origin: 70% 70%; }
-                @keyframes wave {
-                    0% { transform: rotate(0deg); }
-                    10% { transform: rotate(14deg); }
-                    20% { transform: rotate(-8deg); }
-                    30% { transform: rotate(14deg); }
-                    40% { transform: rotate(-4deg); }
-                    50% { transform: rotate(10deg); }
-                    60% { transform: rotate(0deg); }
-                    100% { transform: rotate(0deg); }
-                }
-
-                /* Oculta la barra interna junto al micrófono, conservando el scroll del texto. */
-                .chat-composer-input {
-                    scrollbar-width: none;
-                }
-                @media (max-width: 1024px) {
-                    .chat-composer-input::placeholder { font-size: 0.875rem; }
-                }
-                .chat-composer-input::-webkit-scrollbar {
-                    display: none;
-                    width: 0;
-                    height: 0;
-                }
-
-                /* --- Scrollbar clásica (Sidebar & PC Chat) ---
-                   [P2-CHAT-SCROLLBAR-CLASSIC · 2026-09-04] El dueño pidió una barra «como la de
-                   siempre»: pista visible, pulgar redondeado siempre visible y las flechitas de
-                   subir/bajar en los extremos (el pulgar fino de 6 px sobre fondo transparente no se
-                   veía y no se sabía dónde hacer clic). Los selectores llevan html delante para
-                   ganar al atenuado global del tema oscuro de index.css (misma especificidad, esta
-                   hoja carga después). En móvil sigue oculta (bloque de abajo). */
-                /* Solo Firefox (no tiene ::-webkit-scrollbar). En Chromium, scrollbar-width y
-                   scrollbar-color sobre el MISMO elemento desactivan todas las pseudo-clases
-                   ::-webkit-scrollbar-* (Chrome 121+): por eso las flechas no salían. */
-                @supports not selector(::-webkit-scrollbar) {
-                    html .sidebar-scrollable, html .messages-container {
-                        scrollbar-width: auto;
-                        scrollbar-color: rgba(148, 163, 184, 0.7) rgba(148, 163, 184, 0.12);
-                    }
-                }
-                html .sidebar-scrollable::-webkit-scrollbar, html .messages-container::-webkit-scrollbar {
-                    width: 12px;
-                }
-                html .sidebar-scrollable::-webkit-scrollbar-track, html .messages-container::-webkit-scrollbar-track {
-                    background: rgba(148, 163, 184, 0.10);
-                    border-left: 1px solid rgba(148, 163, 184, 0.14);
-                }
-                html .sidebar-scrollable::-webkit-scrollbar-thumb, html .messages-container::-webkit-scrollbar-thumb {
-                    background-color: rgba(148, 163, 184, 0.62);
-                    border-radius: 8px;
-                    border: 2px solid transparent;
-                    background-clip: padding-box;
-                    min-height: 40px;
-                }
-                html .sidebar-scrollable::-webkit-scrollbar-thumb:hover, html .messages-container::-webkit-scrollbar-thumb:hover {
-                    background-color: rgba(203, 213, 225, 0.85);
-                }
-                /* flechitas: un botón en cada extremo, con el triángulo pintado en SVG */
-                html .sidebar-scrollable::-webkit-scrollbar-button, html .messages-container::-webkit-scrollbar-button {
-                    display: block;
-                    height: 14px;
-                    width: 12px;
-                    background-color: rgba(148, 163, 184, 0.10);
-                    background-repeat: no-repeat;
-                    background-position: center;
-                    background-size: 8px 8px;
-                }
-                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:decrement, html .messages-container::-webkit-scrollbar-button:vertical:decrement {
-                    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><path d='M4 1.5 L7.5 6.5 L0.5 6.5 Z' fill='rgb(148,163,184)'/></svg>");
-                }
-                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:increment, html .messages-container::-webkit-scrollbar-button:vertical:increment {
-                    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><path d='M0.5 1.5 L7.5 1.5 L4 6.5 Z' fill='rgb(148,163,184)'/></svg>");
-                }
-                html .sidebar-scrollable::-webkit-scrollbar-button:hover, html .messages-container::-webkit-scrollbar-button:hover {
-                    background-color: rgba(148, 163, 184, 0.22);
-                }
-                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:start:increment, html .messages-container::-webkit-scrollbar-button:vertical:start:increment,
-                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:end:decrement, html .messages-container::-webkit-scrollbar-button:vertical:end:decrement {
-                    display: none;
-                }
-
-                .chat-header-identidad {
-                    position: absolute;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    max-width: calc(100% - 7.5rem);
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 0.15rem;
-                    pointer-events: auto;
-                }
-                .chat-aviso-ia-cabecera {
-                    color: var(--text-muted);
-                    font-size: 0.75rem;
-                    line-height: 1.35;
-                    /* [P1-PLAN-LOTE-1062] frase completa: cabe entre los dos botones redondos en hasta 2 líneas */
-                    max-width: min(16.5rem, 62vw);
-                    text-align: center;
-                    text-wrap: balance;
-                }
-
-                /* ====== MOBILE REDESIGN ====== */
-                @media (max-width: 1024px) {
-                    /* [P1-KB-HUECO-SIN-PINTAR · 2026-08-23] EL glitch del cierre, visto en la
-                       captura del dueño de un fotograma intermedio (8:51): mientras el teclado
-                       baja, el contenedor del chat todavía no ha crecido y bajo la barra de
-                       pestañas asoma una franja MÁS OSCURA. No era un salto de posición: era
-                       el body, que usa --bg-page (#0B1120) mientras el chat usa --bg-card
-                       (#111827). Cualquier píxel que el chat no cubra durante la animación
-                       delata ese cambio de tono, y eso es lo que se ve como parpadeo.
-                       Mientras el chat esté en pantalla, el fondo de la página ES el suyo: da
-                       igual quién llegue primero, porque debajo hay el mismo color.
-                       :has() acota la regla a esta ruta (mismo patrón que Login.css) — sin
-                       él, el resto del dashboard cambiaría de fondo. */
-                    html:has(.agent-route-active),
-                    body:has(.agent-route-active) {
-                        background-color: var(--bg-card) !important;
-                    }
-                    /* [P1-CHAT-KB-DOCUMENT-LOCK · 2026-08-24] El historial conserva
-                       su scroll propio; lo que se inmoviliza es el documento exterior.
-                       Sin position fixed, overflow hidden no basta en Safari iOS: el
-                       navegador todavía permite encadenar el gesto al layout viewport. */
-                    html[data-kb-scroll-lock],
-                    html[data-kb-scroll-lock] body {
-                        height: 100% !important;
-                        overflow: hidden !important;
-                        overscroll-behavior: none !important;
-                    }
-                    html[data-kb-scroll-lock] body {
-                        position: fixed !important;
-                        inset: 0 !important;
-                        width: 100% !important;
-                    }
-                    .agent-container {
-                        border-radius: 0 !important;
-                        border: none !important;
-                        box-shadow: none !important;
-                        margin: 0 !important;
-                        max-width: none !important;
-                        width: 100% !important;
-                        flex: 1 !important;
-                        background: var(--bg-card) !important;
-                    }
-                    /* --- Cabecera TRANSPARENTE ---
-                       [P1-PLAN-LOTE-121 · 2026-09-19] El dueño: «quiero que el encabezado sea transparente y no diga
-                       Bioboros 1 para así poder tener más espacio para que el usuario pueda ver el chat». Era una
-                       franja opaca de 4.5rem + zona segura con su raya: el chat empezaba debajo. Ahora NO hay franja:
-                       quedan los dos botones flotando como fichas y la conversación pasa POR DEBAJO de ellos.
-                         · El fondo es un degradado: opaco sobre la barra de estado (la hora y la batería no se leen
-                           sobre texto que se mueve) y transparente a la altura de los botones.
-                         · pointer-events: none en la franja y auto en sus hijos: el hueco entre los dos botones
-                           ya no es cabecera, es chat — se puede tocar y arrastrar lo que hay debajo.
-                         · Sin backdrop-filter: el desenfoque recompuesto mientras algo se mueve es la fuente de los
-                           artefactos de iOS que este archivo ya pagó (P1-KB-SIN-DESENFOQUE). */
-                    .mobile-chat-header {
-                        background: linear-gradient(to bottom,
-                            var(--bg-card) 0%,
-                            var(--bg-card) max(env(safe-area-inset-top), 24px),
-                            color-mix(in srgb, var(--bg-card) 72%, transparent) 62%,
-                            transparent 100%) !important;
-                        backdrop-filter: none !important;
-                        -webkit-backdrop-filter: none !important;
-                        border-bottom: 0 !important;
-                        pointer-events: none;
-                        padding: 0.35rem 1rem !important;
-                        padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
-                        padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
-                        padding-top: calc(0.35rem + max(env(safe-area-inset-top), 24px)) !important;
-                        position: absolute !important;
-                        top: 0 !important;
-                        left: 0 !important;
-                        right: 0 !important;
-                        z-index: 20 !important;
-                    }
-                    /* --- Sidebar top safe-area --- */
-                    .sidebar-header-padding {
-                        padding-top: calc(0.75rem + max(env(safe-area-inset-top), 24px)) !important;
-                    }
-                    .mobile-chat-header > * { pointer-events: auto; }
-                    /* El rótulo «Bioboros 1» no informa de nada dentro de la app y ocupaba el centro de la franja.
-                       Sigue en escritorio, donde el espacio no escasea. */
-                    .agent-header-title { display: none !important; }
-                    /* Los botones, como fichas: sobre una franja opaca bastaba el icono; flotando sobre el texto del
-                       chat necesitan su propio fondo para leerse. Los márgenes negativos alineaban ÓPTICAMENTE un
-                       icono sin contorno con el borde; una ficha con contorno se alinea por su caja. */
-                    .chat-header-btn {
-                        background: color-mix(in srgb, var(--bg-card) 92%, transparent) !important;
-                        border: 1px solid var(--border) !important;
-                        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.14);
-                        margin-left: 0 !important;
-                    }
-                    .nav-menu-wrapper { margin-right: 0 !important; }
-                    /* --- Messages area --- */
-                    .messages-container {
-                        padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
-                        padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
-                        /* La franja queda fuera del scroll: ningún mensaje pasa detrás del aviso. */
-                        margin-top: calc(3.7rem + max(env(safe-area-inset-top), 24px)) !important;
-                        padding-top: 1.25rem !important;
-                        padding-bottom: 0.5rem !important;
-                        background: var(--bg-card) !important;
-                        -ms-overflow-style: none;
-                        scrollbar-width: none;
-                        overscroll-behavior-y: contain;
-                        -webkit-overflow-scrolling: touch;
-                    }
-                    .messages-container::-webkit-scrollbar { display: none; }
-                    /* [P1-CHAT-MOBILE-FIT · 2026-08-10] Los mensajes se apilan desde ABAJO,
-                       pegados a la caja de escribir. Antes el contenedor repartía todo el
-                       alto sobrante ARRIBA del input: con un solo turno quedaban ~700px de
-                       vacío entre lo último dicho y donde se escribe — el hueco enorme de
-                       la captura del dueño.
-
-                       El margen automático va en el HIJO, no un justify-content flex-end en
-                       el contenedor: con flex-end, en cuanto el contenido desborda, el
-                       principio del scroll queda inalcanzable en varios motores. El margen
-                       automático se resuelve a 0 solo cuando hay desbordamiento — que es
-                       exactamente el comportamiento que se quiere.
-
-                       Va dentro del @media a propósito: en escritorio el contenedor centra
-                       y ancla arriba (bloque de min-width 1025px), y ahí no hay queja.
-                       (Sin acentos graves en este comentario: vive dentro de un template
-                       literal de JS y un backtick aquí cierra el literal y rompe el build.) */
-                    .msg-log { margin-top: auto !important; }
-                    /* [P1-CHAT-HEADER-GAP · 2026-08-24] El gap de 2rem del log también
-                       se aplicaba entre el último mensaje y el sentinel invisible. Ese
-                       hueco desperdiciado abajo empujaba el primer turno bajo el header
-                       al anclar la conversación al final. Se cancela solo para el sentinel;
-                       la separación entre mensajes permanece intacta. */
-                    .messages-end-sentinel {
-                        margin-top: -2rem;
-                    }
-                    /* [P2-CHAT-WELCOME-UP · 2026-08-24] Solo la bienvenida se eleva
-                       visualmente 24 px. El transform no ocupa espacio de layout y no
-                       toca el compositor, el scroll ni las mediciones del teclado. */
-                    .message-row-welcome {
-                        transform: translateY(-1.5rem);
-                    }
-                    /* Con el teclado visible necesita un poco más de aire sobre el
-                       compositor: 64 px totales, sin animación ni cambio de layout. */
-                    html[data-kb-open] .message-row-welcome {
-                        transform: translateY(-4rem);
-                    }
-                    /* --- User bubble ---
-                       [P1-CHAT-MOBILE-CONTRAST · 2026-08-10] El defecto que reportó el
-                       dueño: su propio mensaje se leía CASI INVISIBLE en el teléfono.
-
-                       Esta regla fijaba el FONDO con !important y NO el color. El color
-                       lo pone el inline de MessageBubble ('var(--text-main)'), que en tema
-                       oscuro es #F1F5F9 — casi blanco sobre lavanda casi blanco: **1,0:1**,
-                       cuando WCAG pide 4,5:1. No es que se leyera mal: no se leía.
-
-                       Y solo pasaba en el móvil porque '.msg-bubble-user' NO EXISTE fuera
-                       de este @media (max-width: 1024px) — es el único sitio del archivo
-                       donde se declara. El escritorio nunca vio el defecto.
-
-                       LA LECCIÓN, que es la que se guarda: color y fondo son un PAR. Fijar
-                       uno con !important y dejar que el otro lo herede del tema es fabricar
-                       una combinación que nadie eligió. Por eso el color viaja ahora en la
-                       misma regla, y el tema oscuro lleva su propia pareja completa. */
-                    /* [THEME-GUARDED · pareja oscura más abajo en este mismo <style>] */
-                    .msg-bubble-user {
-                        background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%) !important;
-                        color: #1E1B4B !important;
-                        border: none !important;
-                        border-radius: 1.25rem 1.25rem 0.3rem 1.25rem !important;
-                        padding: 0.8rem 1.1rem !important;
-                        box-shadow: 0 2px 8px rgba(79,70,229,0.08) !important;
-                        max-width: 85% !important;
-                        font-size: 0.95rem !important;
-                    }
-                    /* En oscuro la burbuja es oscura: una pastilla lavanda clara dentro de
-                       un chat negro no solo desentona, obliga a invertir el texto y a
-                       mantener dos parejas de color en la cabeza. 12,5:1 medido. */
-                    html[data-theme="dark"] .msg-bubble-user {
-                        background: linear-gradient(135deg, #1E293B 0%, #312E5B 100%) !important;
-                        color: var(--text-main) !important;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.35) !important;
-                    }
-                    /* El texto del usuario hereda; los hijos con color propio (enlaces,
-                       código inline dentro del mensaje) no, y ahí volvería el mismo par
-                       roto por otra puerta. */
-                    .msg-bubble-user * {
-                        color: inherit !important;
-                    }
-                    /* [P1-PLAN-LOTE-169 · 2026-09-23] Foto del usuario FUERA de la burbuja (MessageBubble): el grupo
-                       (foto + burbuja del texto) toma el ancho que tenía la burbuja, y la burbuja de dentro no vuelve
-                       a encogerse al 85 % de algo que ya está al 85 %. */
-                    .msg-user-grupo {
-                        max-width: 85% !important;
-                    }
-                    .msg-user-grupo > .msg-bubble-user {
-                        max-width: 100% !important;
-                    }
-                    /* --- Bot bubble --- */
-                    .msg-bubble-bot {
-                        background: transparent !important;
-                        border-left: 3px solid rgba(79,70,229,0.25) !important;
-                        border-radius: 0 !important;
-                        padding: 0.9rem 0 0.6rem 0.9rem !important;
-                        font-size: 0.93rem !important;
-                    }
-                    /* El filete indigo del bot compone a ~1,2:1 sobre el fondo oscuro:
-                       invisible. '--primary' en oscuro (#818CF8) da 6,9:1 y cumple el 3:1
-                       que WCAG 1.4.11 pide a un elemento no textual que porta significado
-                       (aquí distingue quién habla). */
-                    html[data-theme="dark"] .msg-bubble-bot {
-                        border-left-color: var(--primary) !important;
-                    }
-                    /* --- Bot avatar --- */
-                    .bot-avatar-mobile {
-                        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%) !important;
-                        box-shadow: 0 2px 12px rgba(79,70,229,0.3) !important;
-                        width: 28px !important; height: 28px !important;
-                        font-size: 0.95rem !important;
-                    }
-                    /* --- Input bar floating --- */
-                    .input-wrapper {
-                        position: relative !important;
-                        bottom: auto !important;
-                        /* [P1-CHAT-TABBAR-BACK · 2026-08-10] El chat reserva por dentro el
-                           alto de la barra de pestañas que vuelve a esta ruta: 64px de
-                           'min-height' + el 'env(safe-area-inset-bottom)' que la barra ya
-                           añade por su cuenta. Se reserva AQUÍ y no en el 'mainContent'
-                           porque '.noPaddingMobile' anula el 'padding-bottom' del layout
-                           — esa fue justamente la razón por la que la barra se quitó en
-                           vez de acomodarla.
-
-                           Los 2,5rem que había eran aire muerto: en Safari vertical
-                           'env(safe-area-inset-bottom)' vale 0 (el scroll de la página
-                           está bloqueado, así que la barra del navegador no se repliega) y
-                           el relleno quedaba en 40px de nada bajo la caja de escribir.
-                           Ahora ese espacio lo ocupa navegación de verdad.
-
-                           ⚠ Ese «vale 0» es SOLO de Safari vertical. En la PWA instalada y
-                           en el WebView nativo, con viewport-fit=cover, vale el alto del
-                           indicador de inicio (~34px). No recalibres esta reserva contra el
-                           número de Safari. Con teclado abierto no se suma: ver la regla
-                           html[data-kb-open] .input-wrapper de abajo. */
-                        /* [P1-CHAT-AIRE-INFERIOR · 2026-08-23] El aire propio de la caja
-                           pasa de 0.8rem a 1.4rem: los 64px de la reserva son la barra de
-                           pestañas, no aire — la caja quedaba pegada a su borde superior
-                           (captura del dueño, 2026-08-23 5:50). */
-                        /* [P1-PLAN-LOTE-118] con la barra plegada la caja baja lo que la barra devuelve */
-                        padding: 0.8rem 1.25rem calc(1.4rem + 64px - var(--tabbar-recupera, 0px) + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
-                        padding-left: max(1.25rem, env(safe-area-inset-left, 0px)) !important;
-                        padding-right: max(1.25rem, env(safe-area-inset-right, 0px)) !important;
-                        background: var(--bg-card) !important;
-                        /* [P1-KB-SIN-DESENFOQUE · 2026-08-23] EL glitch del cierre. Habia
-                           un blur(20px) de fondo AQUI, y el fondo de esta caja es OPACO
-                           (--bg-card): no habia nada translucido que desenfocar, asi que el
-                           desenfoque no aportaba un solo pixel visible. Lo que si hacia era
-                           obligar a Safari a recomponer una capa de desenfoque en CADA
-                           fotograma mientras el contenedor cambia de alto, y eso en iOS se ve
-                           como la caja a medio pintar y translucida — que es exactamente lo
-                           que el dueno fotografio a mitad del cierre (8:51). En reposo no
-                           cambia NADA; lo que desaparece es la clase entera de artefactos. */
-                        border-top: none !important;
-                        box-shadow: 0 -4px 30px rgba(0,0,0,0.06) !important;
-                        /* [P1-KB-SIN-GLITCH · 2026-08-23] Era 0.2s ease-out: una curva y
-                           una duracion DISTINTAS de las del contenedor del chat y de las de la
-                           barra de pestanas. Tres piezas de la misma escena con tres tiempos es
-                           exactamente lo que se ve como glitch al bajar. Ahora las tres usan la
-                           curva y la duracion del teclado de iOS. */
-                        transition: padding-bottom var(--kb-ms, 0.25s) cubic-bezier(0.32, 0.72, 0, 1) !important;
-                        border-radius: 0 !important;
-                    }
-                    /* [P2-CHAT-JUMP-TO-LATEST-DESKTOP] el botón vive dentro del .input-wrapper: sin
-                       reglas de bottom contra la barra de pestañas ni el teclado. */
-                    /* [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23 · corregido el 23] Con teclado no
-                       hay barra de pestañas (ver BottomTabBar.module.css): la caja suelta la
-                       reserva y queda pegada al teclado, que es donde se escribe.
-                       La primera version de esta regla se comio la llave de cierre de
-                       .input-wrapper y se llevo dentro sus seis declaraciones de aspecto
-                       (blur, borde, sombra, radio): el composer perdía su acabado con el
-                       teclado CERRADO, que es el 99% del tiempo. Aqui va SOLO el relleno. */
-                    html[data-kb-open] .input-wrapper {
-                        /* [P1-CHAT-AIRE-INFERIOR · 2026-08-23] 0.8rem → 1.1rem: con el
-                           teclado abierto la caja quedaba lamiendo su borde superior. */
-                        padding-bottom: 1.1rem !important;
-                    }
-                    /* [P1-PLAN-LOTE-131] En el relevo de la coreografia el relleno cambia de golpe, a proposito: lo que se ve
-                       lo lleva (o lo acaba de soltar) un transform, y animar ademas el relleno moveria la caja dos veces. */
-                    html[data-kb-sin-anim] .input-wrapper {
-                        transition: none !important;
-                    }
-                    /* [KB-ANDROID-SECO] En Android ni el relleno ni el ALTO del chat se animan al ABRIR: la ventana ya salto.
-                       [KB-ANDROID-CIERRE-SUAVE · 2026-11-12] La regla cuelga de data-kb-open: al CERRAR esa llave ya no esta
-                       y la transicion vuelve. El cierre llega con el resize de la ventana (la caja ya cabe en pantalla), asi
-                       que en vez de caer de un salto baja en 180 ms junto con la barra de pestanas. */
-                    html[data-kb-seco][data-kb-open] .input-wrapper,
-                    html[data-kb-seco][data-kb-open] .agent-container {
-                        transition: none !important;
-                    }
-                    /* --- Welcome screen --- */
-                    .welcome-heading {
-                        font-size: 1.6rem !important;
-                    }
-                    .welcome-sub {
-                        font-size: 1.8rem !important;
-                        background: linear-gradient(135deg, #64748b 0%, #94a3b8 50%, #4F46E5 100%) !important;
-                        -webkit-background-clip: text !important;
-                        -webkit-text-fill-color: transparent !important;
-                        background-clip: text !important;
-                    }
-                    .empty-state-pills {
-                        display: grid !important;
-                        grid-template-columns: 1fr 1fr !important;
-                        gap: 0.6rem !important;
-                        width: 100% !important;
-                    }
-                    .suggestion-pill {
-                        width: 100% !important;
-                        padding: 0.85rem 0.75rem !important;
-                        border-radius: 1rem !important;
-                        font-size: 0.85rem !important;
-                        flex-direction: column !important;
-                        gap: 0.35rem !important;
-                        text-align: center !important;
-                        background: var(--bg-card) !important;
-                        border: 1px solid var(--border) !important;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
-                        transition: transform 0.15s ease, box-shadow 0.15s ease !important;
-                    }
-                    .suggestion-pill:active {
-                        transform: scale(0.97) !important;
-                        box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
-                    }
-                    .suggestion-pill-icon {
-                        font-size: 1.5rem !important;
-                    }
-                    /* --- Sidebar --- */
-                    .agent-sidebar {
-                        position: absolute;
-                        top: 0; left: 0; height: 100%;
-                        z-index: 30;
-                        box-shadow: 4px 0 24px rgba(0,0,0,0.12);
-                        border-radius: 0;
-                        /* [P1-CHAT-TABBAR-BACK · 2026-08-10] El cajón llega hasta el borde
-                           inferior, donde ahora vive la barra de pestañas: sin esta reserva
-                           las últimas conversaciones de la lista quedan debajo de ella y no
-                           se pueden tocar. Mismo cálculo que '.input-wrapper'. */
-                        padding-bottom: calc(64px - var(--tabbar-recupera, 0px) + env(safe-area-inset-bottom, 0px));
-                        box-sizing: border-box;
-                    }
-                    .sidebar-overlay {
-                        position: absolute;
-                        top: 0; left: 0; right: 0; bottom: 0;
-                        background: rgba(0,0,0,0.5);
-                        z-index: 25;
-                        backdrop-filter: blur(3px);
-                        -webkit-backdrop-filter: blur(3px);
-                        border: 0;
-                        padding: 0;
-                    }
-                }
-                @media (min-width: 1025px) {
-                    .sidebar-overlay { display: none; }
-                    .messages-container {
-                        justify-content: flex-start !important;
-                        align-items: center !important;
-                    }
-                    .empty-state-wrapper {
-                        margin-top: 10vh !important;
-                        margin-bottom: auto !important;
-                        max-width: 800px !important;
-                        align-items: center !important;
-                        text-align: center;
-                    }
-                    .welcome-heading {
-                        justify-content: center !important;
-                        width: 100%;
-                    }
-                    .empty-state-pills {
-                        flex-direction: row !important;
-                        flex-wrap: wrap !important;
-                        align-items: center !important;
-                        justify-content: center !important;
-                    }
-                    .nav-menu-wrapper {
-                        display: none !important;
-                    }
-                    .mobile-only-btn {
-                        display: none !important;
-                    }
-                }
-            `}</style>
+            <AgentExtraStyles />
         </>
     );
 };

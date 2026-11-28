@@ -28,6 +28,7 @@ const preloaders = {
     '/dashboard': () => import('../pages/Dashboard'),
     '/dashboard/agent': () => import('../pages/AgentPage'),
     '/dashboard/pantry': cargarPagina.nevera,
+    '/dashboard/clasificatoria': cargarPagina.clasificatoria,
     '/dashboard/recipes': cargarApartado.recetas,
     '/dashboard/settings': cargarApartado.ajustes,
     // [P3-10 · 2026-07-09] Faltaba: AccountMenu llama prefetchRoute

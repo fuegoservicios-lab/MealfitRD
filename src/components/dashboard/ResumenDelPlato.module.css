@@ -38,7 +38,8 @@
 
 .macros { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .macro {
-    --m: var(--success);
+    /* [P1-MACRO-BARS-SEMAFORO] fichas neutras: el color queda para el estado */
+    --m: var(--text-muted);
     padding: 4px 10px;
     border-radius: var(--radius-full);
     background: color-mix(in srgb, var(--m) 14%, transparent);
@@ -47,8 +48,7 @@
     white-space: nowrap;
 }
 .macro b { color: var(--text-main); font-weight: 800; }
-.macro_c { --m: var(--warning); }
-.macro_g { --m: var(--accent); }
+
 
 @media (prefers-reduced-motion: reduce) {
     .parte { transition: none; }

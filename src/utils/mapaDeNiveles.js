@@ -113,6 +113,10 @@ export const ALTO_DIA = 80;
 // montaba sobre la tarjeta de la semana (el dueño: «mira cómo eso choca») o sobre el nivel bloqueado de arriba. Su
 // tramo es más alto (simétrico: las zonas de los mundos siguen pegadas fila con fila).
 export const ALTO_HOY = 148;
+// [P1-MAPA-MOVIL · 2026-11-27] Los días BLOQUEADOS (los que faltan de la semana) van más juntos: en el teléfono un
+// jueves dejaba viernes y sábado ocupando un tercio de la ventana y empujaba fuera lo recorrido, que es lo que motiva.
+// El bloqueado justo encima de HOY conserva el alto normal (su cartel «Estás aquí» necesita ese aire).
+export const ALTO_FUTURO = 54;
 export const ALTO_TROFEO = 92;   // [1146] la tarjeta lleva ahora la barra de 7 días con los hitos de estrella
 export const ALTO_PUERTA = 70;
 export const MARGEN_SUP = 84;   // aire para el marcador flotante y el cartel «Estás aquí»
@@ -132,8 +136,9 @@ export function filasDelMapa(semanas) {
         }
         filas.push({ tipo: 'trofeo', semana: s, mundo, x: 50, y: y + ALTO_TROFEO / 2, alto: ALTO_TROFEO, clave: `t-${s.domingo}` });
         y += ALTO_TROFEO;
-        s.dias.forEach((d) => {
-            const altoFila = d.esHoy ? ALTO_HOY : ALTO_DIA;
+        s.dias.forEach((d, i) => {
+            const pegadoAHoy = Boolean(s.dias[i + 1]?.esHoy);
+            const altoFila = d.esHoy ? ALTO_HOY : (d.estado === 'futuro' && !pegadoAHoy ? ALTO_FUTURO : ALTO_DIA);
             filas.push({ tipo: 'dia', dia: d, semana: s, mundo, x: CURVA[k % CURVA.length], y: y + altoFila / 2, alto: altoFila, clave: d.iso });
             k += 1;
             y += altoFila;

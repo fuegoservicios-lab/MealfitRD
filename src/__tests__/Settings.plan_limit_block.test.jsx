@@ -24,7 +24,7 @@ describe('Plan & Objetivo: estado sin créditos', () => {
     it('el CTA lleva a la sección de suscripción y no existe en nativo (Apple 3.1.1)', () => {
         const i = SRC.indexOf('const renderPlanLimitBlock');
         const block = SRC.slice(i, i + 1800);
-        expect(block).toContain('{!nativeHidesCommerce() && (');
+        expect(block).toContain('{canShowUpgrade() && (');
         expect(block).toContain("onClick={() => navigateToSection('subscription')}");
         expect(block).toContain("t('Mejorar plan')");
     });

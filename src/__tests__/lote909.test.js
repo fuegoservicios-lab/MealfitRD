@@ -17,7 +17,7 @@ vi.mock('../config/platform', () => ({
 }));
 
 import {
-    avisarFalloDeVoz, avisarFalloDeVozEnVivo, avisarEstadoDeVozUnaVez, _reiniciarDiagnosticoVoz, DIAGNOSTICO_MAX_POR_ARRANQUE,
+    avisarFalloDeVoz, avisarFalloDeVozEnVivo, avisarEstadoDeVozUnaVez, motorActual, _reiniciarDiagnosticoVoz, DIAGNOSTICO_MAX_POR_ARRANQUE,
 } from '../utils/diagnosticoVoz';
 import { ReconocimientoNativo } from '../utils/vozNativa';
 
@@ -65,6 +65,11 @@ describe('diagnosticoVoz', () => {
         expect(estado.pedidas[0].cuerpo).toMatchObject({
             donde: 'estado', plugin_reconocimiento: false, plugin_sintesis: false, dictado_disponible: false,
         });
+        _reiniciarDiagnosticoVoz();
+        estado.pedidas = [];
+        estado.plataforma = 'ios';
+        estado.plugins = new Set(['SpeechRecognition']);
+        expect(motorActual()).toBe('plugin_ios');
         _reiniciarDiagnosticoVoz();
         estado.pedidas = [];
         estado.plataforma = 'web';

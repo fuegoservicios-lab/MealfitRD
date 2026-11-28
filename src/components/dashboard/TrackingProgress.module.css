@@ -333,20 +333,59 @@
     overflow-wrap: anywhere;
 }
 
+/* [P1-MACRO-BARS-SEMAFORO · 2026-11-26] El color de una barra es su ESTADO, no su nutriente. Tres tintas y nada más:
+   gris en curso, verde cumplida, rojo pasada. Todo sale de tokens (--success*, --danger*, --text-*), así el tema
+   oscuro se resuelve solo; las tintas de relleno se oscurecen lo justo para que el % blanco de dentro se lea. */
+.state_progress {
+    --bar-ink: var(--text-muted);
+    --bar-tint: var(--bg-muted);
+    --bar-ring: var(--border);
+    --bar-icon: var(--text-main);
+    --bar-text: var(--text-muted);
+}
+.state_done {
+    --bar-ink: color-mix(in srgb, var(--success) 74%, black);
+    --bar-tint: var(--success-bg);
+    --bar-ring: var(--success-border);
+    --bar-icon: var(--success-text);
+    --bar-text: var(--success-text);
+}
+.state_over {
+    --bar-ink: var(--danger-fill);
+    --bar-tint: var(--danger-bg);
+    --bar-ring: var(--danger-border);
+    --bar-icon: var(--danger-text);
+    --bar-text: var(--danger-text);
+}
+:global(html[data-theme="dark"]) .state_progress {
+    --bar-ink: color-mix(in srgb, var(--text-muted) 58%, var(--bg-card));
+}
+:global(html[data-theme="dark"]) .state_done {
+    --bar-ink: color-mix(in srgb, var(--success) 62%, black);
+}
+
 .barIcon {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 32px;
+    height: 32px;
     border-radius: 10px;
     flex-shrink: 0;
-    transition: transform 0.2s ease;
+    background: var(--bar-tint);
+    color: var(--bar-icon);
+    box-shadow: inset 0 0 0 1px var(--bar-ring);
+    transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
+.barLarge .barIcon { width: 38px; height: 38px; }
 
 .barLabel {
     font-weight: 700;
-    color: #334155;
+    font-size: 0.875rem;
+    color: var(--text-main);
     letter-spacing: -0.01em;
 }
+.barLarge .barLabel { font-size: 1rem; }
 
 /* [P1-MACRO-BARS-UNIFORM · 2026-08-11] Aquí vivía el par largo/corto del nombre del
    macro («Carbohidratos» / «Carbos»). Existía para que el nombre cupiera en una columna
@@ -362,16 +401,22 @@
 
 .barConsumed {
     font-weight: 800;
+    font-size: 1.25rem;
+    color: var(--text-main);
     letter-spacing: -0.02em;
     transition: color 0.3s ease;
     font-variant-numeric: tabular-nums;
 }
+.barLarge .barConsumed { font-size: 1.5rem; }
+.barConsumedEmpty { color: var(--text-muted); }
 
 .barGoal {
-    font-weight: 700;
-    color: #475569;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
     font-variant-numeric: tabular-nums;
 }
+.barLarge .barGoal { font-size: 0.875rem; }
 
 /* [P3-TRACKING-PERC-DESKTOP · 2026-05-20] Track bumpeado 10-12px → 22px
    GLOBALMENTE (antes solo mobile). El % blanco dentro del fill (estilo
@@ -383,13 +428,16 @@
     border-radius: 99px;
     overflow: hidden;
     position: relative;
-    border: 1px solid #E2E8F0;
+    border: 1px solid var(--border);
+    background: var(--bg-muted);
 }
 
+/* Relleno plano en la tinta del estado: sin degradado ni halo. */
 .fill {
     height: 100%;
     border-radius: 99px;
-    transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+    background: var(--bar-ink, var(--text-muted));
+    transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.4s ease;
 }
 
 .goalMarker, .referenceMarker {
@@ -398,19 +446,27 @@
     bottom: 2px;
     width: 0;
     border-left: 2px solid var(--text-main);
-    opacity: .75;
+    opacity: .55;
     /* Keep the center clear so a percentage crossing a tick remains legible. */
     mask-image: linear-gradient(black 0 24%, transparent 24% 76%, black 76% 100%);
     z-index: 2;
     pointer-events: none;
 }
 .referenceMarker { border-left-style: dashed; }
-.barGuide {
+/* [P1-MACRO-BARS-SEMAFORO] Un solo renglón bajo la barra: estado a la izquierda (en la tinta del estado), leyenda
+   de las marcas a la derecha y en gris. Antes eran dos renglones y la leyenda iba primero. */
+.barFoot {
     display: flex;
+    align-items: baseline;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: .25rem .75rem;
-    margin-top: .5rem;
+}
+.barGuide {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .75rem;
+    margin-left: auto;
     color: var(--text-muted);
     font-size: .75rem;
     line-height: 1.4;
@@ -419,16 +475,20 @@
 .barGuide > span { display: inline-flex; align-items: center; gap: .3rem; }
 /* [PROGRESO-HOJA · 2026-11-11] Sin referencia la barra no pinta marcas: «Meta 100%» sola era una leyenda de nada. */
 .barGuideSolo { display: none; }
-.goalKey, .referenceKey { height: 9px; border-left: 2px solid currentColor; }
+.goalKey, .referenceKey { height: 9px; border-left: 2px solid currentColor; opacity: .7; }
 .referenceKey { border-left-style: dashed; }
 .barRemaining {
-    margin: .2rem 0 0;
-    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    margin: 0;
+    color: var(--bar-text, var(--text-muted));
     font-size: .75rem;
+    font-weight: 600;
     line-height: 1.45;
     font-variant-numeric: tabular-nums;
 }
-.referenceExceeded { color: var(--warning-text, #92400e); }
+.statusIcon { flex-shrink: 0; }
 
 /* [P3-TRACKING-PERC-DESKTOP · 2026-05-20] Pill `.percRow` oculta globalmente.
    El % vive dentro del fill (battery style). Mantenemos la clase para que
@@ -497,6 +557,28 @@
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
+}
+
+.mealsSectionHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding-left: 0.2rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted, #64748B);
+}
+
+.mealsEmptyDay {
+    margin: 0;
+    padding: 0.85rem 1rem;
+    border-radius: 14px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    color: var(--text-muted, #64748B);
+    font-size: 0.84rem;
+    font-weight: 600;
+    text-align: center;
 }
 
 /* [PROGRESO-HOJA · 2026-11-11] Las comidas del día son UNA hoja con divisiones finas (el mismo lenguaje que la
@@ -1022,7 +1104,8 @@
 }
 
 :global(html[data-theme="dark"]) .mealsList,
-:global(html[data-theme="dark"]) .complementsList {
+:global(html[data-theme="dark"]) .complementsList,
+:global(html[data-theme="dark"]) .mealsEmptyDay {
     background: var(--bg-muted);
     border-color: var(--border);
 }
@@ -1127,6 +1210,27 @@
     border-top: 1px solid var(--border, #E2E8F0);
 }
 
+/* [P1-DIA-UNIFICADO · 2026-11-26] «Tu día»: comidas y micros en una sola pieza, bajo las macros. En el teléfono es un
+   bloque continuo separado de las macros por la misma línea fina; las comidas y los micros, por otra. */
+.diaCard {
+    display: flex;
+    flex-direction: column;
+    margin-top: 1.5rem;
+    padding-top: 1.35rem;
+    border-top: 1px solid var(--border);
+}
+.diaCard > .microsSection {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+}
+.diaCard > .mealsSection + .microsSection {
+    margin-top: 1.35rem;
+    padding-top: 1.35rem;
+    border-top: 1px solid var(--border);
+}
+.diaCard .microsHead { margin-bottom: 0.75rem; }
+
 .microsHead {
     display: flex;
     align-items: center;
@@ -1141,9 +1245,10 @@
     border-radius: 9px;
     display: grid;
     place-items: center;
-    color: #fff;
-    background: linear-gradient(150deg, #A78BFA, #6D28D9);
-    box-shadow: 0 4px 12px -5px rgba(109, 40, 217, .6);
+    /* [P1-MACRO-BARS-SEMAFORO] neutro, como los iconos de las macros: el color queda para el estado */
+    color: var(--text-main);
+    background: var(--bg-muted);
+    box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .microsTitle {
@@ -1172,14 +1277,10 @@
    - Fila 5: Micros a todo lo ancho (3-4 columnas). */
 .cardHost { container-type: inline-size; }
 .disposicion,
-.macrosCard,
-.semanaSlot { display: contents; }
-.titlePc { display: none; }
-
+.macrosCard { display: contents; }
+/* [P1-DIA-UNIFICADO] en el teléfono la semana va al final, tras lo de hoy */
+.semanaSlot { display: block; margin-top: 1.75rem; }
 @container (min-width: 910px) {
-    .titleMovil { display: none; }
-    .titlePc { display: inline; }
-
     .card,
     :global(html[data-theme="dark"]) .card {
         background: transparent;
@@ -1202,8 +1303,7 @@
         grid-template-columns: minmax(0, 1fr) auto;
     }
     .disposicion:not(:has(.semanaSlot)) > .macrosCard,
-    .disposicion:not(:has(.semanaSlot)) > .mealsSection,
-    .disposicion:not(:has(.semanaSlot)) > .microsSection,
+    .disposicion:not(:has(.semanaSlot)) > .diaCard,
     .disposicion:not(:has(.semanaSlot)) > .etaChip {
         grid-column: 1 / -1;
     }
@@ -1279,38 +1379,13 @@
         padding-bottom: 0.95rem;
         border-bottom: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
     }
-    .macrosCard .barLarge > .barRemaining {
-        margin-top: 0;
-    }
     .macrosCard .macroGrid {
         grid-template-columns: 1fr;
-        gap: 0.9rem;
+        gap: 1.1rem;
         padding-top: 0;
     }
     .macrosCard .barSmall {
-        display: grid;
-        grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-        column-gap: 0.75rem;
-        row-gap: 0.35rem;
-        align-items: baseline;
-    }
-    .macrosCard .barSmall > .barHeader,
-    .macrosCard .barSmall > .track {
-        grid-column: 1 / -1;
-    }
-    .macrosCard .barSmall > .barGuide {
-        justify-content: flex-start;
-        gap: 0.2rem 0.6rem;
-        margin-top: 0.1rem;
-        opacity: 0.82;
-    }
-    .macrosCard .barSmall > .barRemaining {
-        margin: 0.1rem 0 0;
-        text-align: right;
-    }
-    .macrosCard .barSmall > .barGuideSolo + .barRemaining {
-        grid-column: 1 / -1;
-        text-align: left;
+        gap: 0.4rem;
     }
     .macrosCard > .targetHelp {
         margin-top: 0;
@@ -1321,19 +1396,16 @@
         margin-left: auto;
     }
 
-    /* Columna izquierda (feed nutricional continuo): Comidas de hoy (solo si hay comidas) */
-    .mealsSection {
+    /* [P1-DIA-UNIFICADO · 2026-11-26] Columna izquierda, bajo las macros: UNA tarjeta con las comidas y sus micros
+       (antes eran dos piezas sueltas: una lista flotante con su rótulo fuera y una tarjeta de micros aparte). */
+    .diaCard {
         grid-column: 1;
+        grid-row: 3;
+        min-width: 0;
         margin-top: 0;
-        padding: 0;
-        border: 0;
-        background: transparent;
-        box-shadow: none;
-    }
-    .mealsSection .mealsList,
-    .mealsSection .complementsList {
-        border-radius: var(--radius-xl);
+        padding: 1.3rem 1.5rem 1.4rem;
         border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
         background: var(--bg-card);
         box-shadow: var(--shadow-sm);
     }
@@ -1346,34 +1418,67 @@
         grid-row: 2 / span 2;
         align-self: stretch;
         min-width: 0;
+        margin-top: 0;
     }
-    .disposicion:has(.mealsSection) .semanaSlot,
     .disposicion:has(.etaChip) .semanaSlot {
         grid-row: 2 / span 3;
-    }
-    .disposicion:has(.mealsSection):has(.etaChip) .semanaSlot {
-        grid-row: 2 / span 4;
     }
     .semanaSlot > * {
         position: sticky;
         top: 1.25rem;
     }
 
-    /* Columna izquierda: Micros justo debajo de Macros/Comidas, sin huecos */
-    .disposicion > .microsSection {
-        grid-column: 1;
-        margin-top: 0;
-        padding: 1.4rem 1.6rem 1.5rem;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-xl);
-        background: var(--bg-card);
-        box-shadow: var(--shadow-sm);
-    }
 
     /* Columna izquierda: Pie (etaChip / HealthSources) */
     .disposicion > .etaChip {
         grid-column: 1;
+        grid-row: 4;
         justify-self: start;
         margin-top: 0;
     }
+}
+
+/* [P1-DIA-EN-EL-CONTADOR · 2026-11-27] Mirando un día pasado: la fecha en la línea del subtítulo (con la marca, para que
+   no se confunda con hoy), «Volver a hoy» en lugar de registrar, y el rojo de un día que cerró por debajo. */
+.cardHost { scroll-margin-top: 72px; }
+.subtitlePasado {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary);
+    font-weight: 700;
+}
+.subtitlePasado svg { flex: none; }
+.subtitlePasado span { display: inline-block; min-width: 0; }
+.subtitlePasado span::first-letter { text-transform: uppercase; }
+:global(html[data-theme="dark"]) .subtitlePasado { color: var(--primary); }
+.volverHoyBtn {
+    grid-column: 1 / -1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 18px;
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    color: var(--primary);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 150ms ease, transform 120ms ease;
+}
+.volverHoyBtn:active { transform: scale(0.97); }
+.volverHoyBtn:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+@media (hover: hover) {
+    .volverHoyBtn:hover { background: color-mix(in srgb, var(--primary) 20%, transparent); }
+}
+.state_short {
+    --bar-ink: var(--danger-fill);
+    --bar-tint: var(--danger-bg);
+    --bar-ring: var(--danger-border);
+    --bar-icon: var(--danger-text);
+    --bar-text: var(--danger-text);
 }

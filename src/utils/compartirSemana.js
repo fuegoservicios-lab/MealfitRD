@@ -15,11 +15,14 @@ const ESTADOS = new Set(['meta', 'bajo', 'pasado', 'vacio', 'futuro']);
 const NOMBRE_RANGO = () => ({
     bronce: t('Bronce'), plata: t('Plata'), oro: t('Oro'), platino: t('Platino'), diamante: t('Diamante'), maestro: t('Maestro'),
 });
-// Tinta FIJA de los anillos (es un JPEG con su propio fondo, no interfaz): la MISMA paleta de la historia del día
-// en meta el verde, corto el ámbar, las estrellas el oro de las calorías; «pasado», el rojo de la tira de la app
-// (`.dia_pasado .arco`, el mismo degradado que su barra).
+// Tinta FIJA de los anillos (es un JPEG con su propio fondo, no interfaz); las estrellas, el oro de las calorías.
 const { COLOR } = PINCEL;
-const TONO = { meta: COLOR.carbs, bajo: COLOR.calories, pasado: ['#FB7185', '#EF4444'] };
+// [P1-MACRO-BARS-SEMAFORO · 2026-11-26] Los mismos tres tonos que la app: verde = en meta, gris = HOY aún abierto,
+// rojo = día cerrado sin cumplir o pasado. `estado` no cambia (lo usan el conteo y la racha); `abierto` decide el tono.
+const GRIS = ['rgb(203, 213, 225)', 'rgb(148, 163, 184)'];
+const ROJO = ['rgb(248, 113, 113)', 'rgb(220, 38, 38)'];
+export const tonoDeDia = (d) => (d.estado === 'bajo' ? (d.abierto ? 'curso' : 'fallado') : d.estado);
+const TONO = { meta: COLOR.carbs, curso: GRIS, fallado: ROJO, pasado: ROJO };
 const ORO = COLOR.calories;
 
 /** Los números que se comparten, ya decididos. `semana` = lo que la tarjeta «Tu semana» ya tiene pintado. */
@@ -32,6 +35,7 @@ export function resumenDeSemana(semana) {
         iso: String(d?.iso || ''),
         letra: d?.letra || letra(d?.iso),
         estado: ESTADOS.has(d?.estado) ? d.estado : 'vacio',
+        abierto: !!d?.abierto,
         ratio: Math.max(0, Math.min(1, Number(d?.ratio) || 0)),
     }));
     const enMeta = Math.max(0, Math.min(DIAS, Number.isFinite(Number(s.enMeta)) ? Number(s.enMeta) : dias.filter((d) => d.estado === 'meta').length));
@@ -59,14 +63,14 @@ export function resumenDeSemana(semana) {
     };
 }
 
-const _EMOJI_DIA = { meta: '✅', bajo: '🟡', pasado: '🟠', vacio: '⚪', futuro: '▫️' };
+const _EMOJI_DIA = { meta: '✅', curso: '⏳', fallado: '🔴', pasado: '🔴', vacio: '⚪', futuro: '▫️' };
 
 /** El mensaje para WhatsApp (la reserva cuando no se puede compartir la imagen). */
 export function textoDeSemana(r) {
     const lineas = [
         t('🏆 Mi semana en {app} · Semana {n}', { app: BRAND, n: r.numero }) + (r.periodo ? ` (${r.periodo})` : ''),
         '',
-        r.dias.map((d) => _EMOJI_DIA[d.estado] || '⚪').join(''),
+        r.dias.map((d) => _EMOJI_DIA[tonoDeDia(d)] || '⚪').join(''),
         t('✅ {n} de {total} días en meta', { n: r.enMeta, total: DIAS }),
         t('⭐ {n} de {total} estrellas', { n: r.estrellas, total: ESTRELLAS_MAX }),
     ];
@@ -136,7 +140,7 @@ const _tira = (ctx, r, x0, x1, cy, R, grosor, tamLetra) => {
             ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
             ctx.restore();
         } else {
-            PINCEL.anillo(ctx, cx, cy, R, grosor, d.estado === 'bajo' ? Math.max(8, d.ratio * 100) : 100, TONO[d.estado]);
+            PINCEL.anillo(ctx, cx, cy, R, grosor, d.estado === 'bajo' ? Math.max(8, d.ratio * 100) : 100, TONO[tonoDeDia(d)]);
             if (d.estado === 'meta') _palomita(ctx, cx, cy, R);
         }
         PINCEL.texto(ctx, d.letra.toUpperCase(), cx, cy + R + tamLetra + 14, {

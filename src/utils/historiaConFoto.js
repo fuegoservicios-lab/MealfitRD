@@ -11,6 +11,7 @@ import { BRAND } from '../data/routeMeta';
 import { BLOQUE_INICIAL, acotarBloque, aplicarBloque, cajaTransformada } from './bloqueDeCifras';
 import { definirPiezas, pintarPiezas, estadoDePieza, cajaDePieza } from './piezasDeHistoria';
 import { CLAVES_DE_DISENO, disenoDe, composicionDe, tintarFoto } from './disenosDeHistoria';
+import { tonoDeMacroCompartida } from './tonoDeMacro';
 
 export const ANCHO = 1080;
 export const ALTO = 1920;
@@ -248,7 +249,7 @@ const _titular = (ctx, r, ac = COLOR.calories) => {
         const x = M + i * col;
         _texto(ctx, _valorMacro(mc), x, BASE - 150, { tam: 60, peso: 800 });
         ctx.save();
-        ctx.fillStyle = COLOR[mc.clave][0]; ctx.shadowColor = COLOR[mc.clave][1]; ctx.shadowBlur = 14;
+        ctx.fillStyle = tonoDeMacroCompartida(mc)[0]; ctx.shadowColor = tonoDeMacroCompartida(mc)[1]; ctx.shadowBlur = 14;
         ctx.beginPath(); ctx.arc(x + 9, BASE - 112, 9, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
         _rotulo(ctx, mc.etiqueta, x + 30, BASE - 103, { tam: 22, max: col - 50 });
@@ -332,7 +333,7 @@ const _cristal = (ctx, r, ac = COLOR.calories) => {
         _texto(ctx, mc.etiqueta, x0, yy, { tam: 30, peso: 700, color: CLARO, max: ancho - 190, sombra: false });
         _texto(ctx, mc.meta > 0 ? `${formatNumber(mc.valor)} / ${formatNumber(mc.meta)} g` : _valorMacro(mc), x0 + ancho, yy,
             { tam: 30, peso: 800, alinear: 'right', sombra: false });
-        _barra(ctx, x0, yy + 24, ancho, 14, mc.meta > 0 ? mc.pct : 100, COLOR[mc.clave]);
+        _barra(ctx, x0, yy + 24, ancho, 14, mc.meta > 0 ? mc.pct : 100, tonoDeMacroCompartida(mc));
     });
     if (metaCumplida(r)) _insignia(ctx, ANCHO / 2, y - 52, 'center');
 };
@@ -354,7 +355,7 @@ const _anilloGrande = (ctx, r, ac = COLOR.calories) => {
     r.macros.forEach((mc, i) => {
         const x = M + col / 2 + i * col;
         const y = BASE - 190;
-        _anillo(ctx, x, y, 62, 12, mc.meta > 0 ? mc.pct : 100, COLOR[mc.clave]);
+        _anillo(ctx, x, y, 62, 12, mc.meta > 0 ? mc.pct : 100, tonoDeMacroCompartida(mc));
         _texto(ctx, _valorMacro(mc), x, y + 12, { tam: 34, peso: 800, alinear: 'center' });
         _rotulo(ctx, mc.etiqueta, x, y + 62 + 40, { tam: 20, alinear: 'center', max: col - 20 });
     });

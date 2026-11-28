@@ -422,7 +422,8 @@
 }
 
 .goalLegendAmber {
-    background: #EAB308;
+    background: transparent;
+    box-shadow: inset 0 0 0 2px var(--danger);
 }
 
 .goalLegendOrange {
@@ -498,17 +499,16 @@
 .quotaFill {
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #FDE047, #EAB308);
+    background: var(--text-muted);
     transition: background 0.25s ease, box-shadow 0.25s ease;
 }
 
 .quotaFillComplete {
-    background: linear-gradient(90deg, #34D399, #10B981) !important;
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+    background: var(--success) !important;
 }
 
 .quotaFillOver {
-    background: linear-gradient(90deg, #FB7185, #EF4444) !important;
+    background: var(--danger) !important;
 }
 
 .macroRow {
@@ -559,6 +559,7 @@
 }
 
 .macroFill { height: 100%; border-radius: 999px; }
+.macroFillCurso { background: var(--text-muted); }
 
 /* ------------------------------------------ el día por sus franjas */
 
@@ -601,6 +602,45 @@
 :global(html:not([data-theme="dark"])) .slotEmpty {
     background: #F8FAFC;
     border: 1px dashed var(--border, #E2E8F0);
+}
+
+.slotClickable {
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+
+.slotClickable:hover {
+    border-color: color-mix(in srgb, var(--primary) 42%, transparent);
+    background: color-mix(in srgb, var(--primary) 7%, transparent);
+}
+
+.slotClickable:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.slotClickable:active {
+    transform: scale(0.97);
+}
+
+.slotAddIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+    color: var(--text-muted);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.slotClickable:hover .slotAddIcon {
+    background: color-mix(in srgb, var(--primary) 18%, transparent);
+    color: var(--primary);
 }
 
 /* La regla vertical ES el estado: sólida y con color si la franja tiene
@@ -1288,8 +1328,11 @@
     filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.55));
 }
 
-.calCellDotYellow { stroke: #EAB308; }
-.calCellDotOrange { stroke: #EF4444; }
+/* [P1-MACRO-BARS-SEMAFORO · 2026-11-26] Gris = hoy aún abierto. Un día ya cerrado por debajo pinta ROJO (calCellDotShort),
+   igual que pasarse: los mismos tres tonos que las barras de macros. */
+.calCellDotYellow { stroke: color-mix(in srgb, var(--text-muted) 75%, transparent); }
+.calCellDotOrange,
+.calCellDotShort { stroke: var(--danger); }
 
 .calCellDimmed { opacity: 0.22; }
 .calCellDimmed.calCellOtherMonth, .calCellDimmed.calCellFuture { opacity: 0.12; }
@@ -1300,6 +1343,42 @@
 /* la leyenda es ahora un filtro: tocar «En meta» resalta esos días del mes */
 .monthSummary { padding-top: 0.55rem; }
 .monthSummary .weekLine { text-align: center; padding-bottom: 0.2rem; }
+.mesPts {
+    font-weight: 800;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+}
+.quotaRight {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+.quotaRight .quotaCompleteBadge,
+.quotaRight .quotaOverBadge {
+    margin-left: 0;
+}
+.quotaPtsBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.22rem 0.55rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 26%, transparent);
+    white-space: nowrap;
+}
+.quotaPtsPerfect {
+    color: var(--ink-warn);
+    background: color-mix(in srgb, var(--ink-warn) 14%, transparent);
+    border-color: color-mix(in srgb, var(--ink-warn) 32%, transparent);
+}
 
 .goalChip {
     min-height: 34px;

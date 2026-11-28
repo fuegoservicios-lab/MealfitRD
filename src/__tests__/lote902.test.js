@@ -65,12 +65,16 @@ describe('Android con los plugins: el nativo gana aunque el WebView traiga la AP
     });
 });
 
-describe('donde no hay plugin, nada cambia', () => {
-    it('web e iOS usan la API del navegador', () => {
+describe('donde no hay plugin o en iOS', () => {
+    it('web e iOS sin plugin usan la API del navegador; iOS con SpeechRecognition usa el reconocedor nativo y síntesis del WebView', () => {
         expect(motorDeDictado(webView())).toBe(ReconocimientoDelWebView);
         plataforma.nombre = 'ios';
-        plataforma.plugins = new Set(['SpeechRecognition', 'SpeechSynthesis']);
         expect(motorDeDictado(webView())).toBe(ReconocimientoDelWebView);
+
+        plataforma.plugins = new Set(['SpeechRecognition', 'SpeechSynthesis']);
+        expect(reconocimientoNativoDisponible()).toBe(true);
+        expect(sintesisNativaDisponible()).toBe(false);
+        expect(motorDeDictado(webView())).toBe(ReconocimientoNativo);
         const win = webView();
         crearVozDelCoach({ win }).encolar('Hola.');
         expect(sintesisMock.creada).toBe(0);

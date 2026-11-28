@@ -1159,10 +1159,7 @@ const History = () => {
                 await reanudarTrasReactivar();
                 return;
             }
-            toast.success(t('¡Plan reactivado!'), {
-                id: toastId,
-                description: t('Tu dashboard se ha actualizado.')
-            });
+            toast.dismiss(toastId);   // [P1-PLAN-LOTE-1183] te lleva al dashboard: el plan reactivado ya se ve
             navigate('/dashboard');
         } catch (err) {
             console.error('Error restoring plan:', err);
@@ -1217,7 +1214,7 @@ const History = () => {
             // re-fetch limpio + evita el flash "card aparece y desaparece".
             invalidateHistoryListCache();
 
-            toast.success(t('Plan eliminado exitosamente'), { id: toastId });
+            toast.dismiss(toastId);   // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
         } catch (err) {
             console.error('Error deleting plan:', err);
             toast.error(t('No se pudo eliminar el plan'), { id: toastId });
@@ -1313,7 +1310,7 @@ const History = () => {
                         : selectedPlan.plan_data,
                 });
             }
-            toast.success(t('Nombre actualizado'));
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
         } catch (err) {
             console.error('Error al actualizar nombre', err);
             toast.error(t('Error al actualizar nombre'));

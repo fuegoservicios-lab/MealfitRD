@@ -231,12 +231,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                 }
             }
             invalidateInventoryCache();
-            toast.success(tn(
-                chosen.length,
-                '{n} alimento agregado desde la foto',
-                '{n} alimentos agregados desde la foto',
-                { n: chosen.length },
-            ));
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
             setScanResults(null);
             try { await onInventoryChanged?.(); } catch { /* la superficie refetchea */ }
         } finally {

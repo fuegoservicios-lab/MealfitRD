@@ -53,9 +53,10 @@ describe('[P2-PHOTO-BUBBLE-CLEAN] burbuja de foto', () => {
         expect(b.style.padding).not.toBe('0px');
     });
 
-    it('la burbuja del bot no se ve afectada', () => {
+    // [P1-PLAN-LOTE-1177] el coach va SIN fondo (texto suelto, como ChatGPT): el gris era el de la tarjeta vieja
+    it('la burbuja del bot no se ve afectada (sin fondo desde el lote 1177)', () => {
         const b = pintar({ role: 'model', content: 'respuesta' });
-        expect(b.style.background).not.toBe('transparent');
+        expect(b.style.background).toBe('transparent');
     });
 
     it('foto sola: el contenido en blanco no cuenta como texto', () => {

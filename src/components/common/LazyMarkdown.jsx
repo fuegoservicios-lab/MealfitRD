@@ -39,11 +39,14 @@ const ReactMarkdownWithSanitize = lazy(async () => {
     import('react-markdown'),
     import('rehype-sanitize'),
   ]);
+  const DEFAULT_REHYPE_PLUGINS = [rehypeSanitize];
   const Wrapped = ({ children, rehypePlugins, ...props }) => {
     // [P1-MARKDOWN-SANITIZE · 2026-05-19] sanitize SIEMPRE primero. Si el
     // caller pasa `rehypePlugins`, se concatenan después (sanitize ya filtró
     // el HTML inseguro antes de que ningún otro plugin lo vea).
-    const plugins = [rehypeSanitize, ...(Array.isArray(rehypePlugins) ? rehypePlugins : [])];
+    const plugins = Array.isArray(rehypePlugins) && rehypePlugins.length
+      ? [rehypeSanitize, ...rehypePlugins]
+      : DEFAULT_REHYPE_PLUGINS;
     return (
       <ReactMarkdown rehypePlugins={plugins} {...props}>
         {children}
@@ -53,7 +56,7 @@ const ReactMarkdownWithSanitize = lazy(async () => {
   return { default: Wrapped };
 });
 
-export default function LazyMarkdown({ children, ...props }) {
+function LazyMarkdown({ children, ...props }) {
   return (
     <Suspense
       fallback={
@@ -66,3 +69,5 @@ export default function LazyMarkdown({ children, ...props }) {
     </Suspense>
   );
 }
+
+export default React.memo(LazyMarkdown);

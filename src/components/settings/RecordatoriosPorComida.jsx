@@ -105,7 +105,7 @@ const RecordatoriosPorComida = ({ claseInterruptor, claseDeslizador, onGuardado 
             guardandoRef.current = false;
         }
         if (!ok) return;
-        toast.success(t('Recordatorios guardados.'), { id: 'recordatorios-comida' });
+        // [P1-PLAN-LOTE-1181] sin aviso: el cambio ya se ve (el dueño: «no veo a Anthropic haciendo eso»)
         // El teléfono reprograma con lo que diga el servidor (en web no hace nada).
         try { await onGuardado?.(); } catch { /* el próximo arranque lo resincroniza */ }
     }, [onGuardado, t]);

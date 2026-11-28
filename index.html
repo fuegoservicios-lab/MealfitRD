@@ -209,15 +209,19 @@
         var theme = dark ? 'dark' : 'light';
         if (paperPath(location.pathname)) theme = 'paper';
         document.documentElement.setAttribute('data-theme', theme);
+        if (document.documentElement.style) {
+          document.documentElement.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
+        }
       } catch (e) {
         // El fallback defensivo sigue siendo 'dark', pero la ruta manda: en la
         // superficie papel un fallback a 'dark' NO es defensivo, es la
         // regresión. `paperPath` está declarada arriba, fuera del try, justamente
         // para que esta línea no pueda quedarse sin ella.
-        document.documentElement.setAttribute(
-          'data-theme',
-          paperPath(location.pathname) ? 'paper' : 'dark'
-        );
+        var fallbackTheme = paperPath(location.pathname) ? 'paper' : 'dark';
+        document.documentElement.setAttribute('data-theme', fallbackTheme);
+        if (document.documentElement.style) {
+          document.documentElement.style.colorScheme = fallbackTheme === 'dark' ? 'dark' : 'light';
+        }
       }
     })();
   </script>
@@ -226,6 +230,7 @@
   <title>Bioboros | Nutrición Personalizada con IA</title>
   <meta name="description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
   <meta name="theme-color" content="#FBFBFA" />
+  <meta name="color-scheme" content="dark light" />
   <meta name="application-name" content="Bioboros" />
   <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
   <!-- [P0-2-SECURITY-META] Hardening de seguridad y privacidad: previene fugas de paths/tokens en Referer a links externos y sniffing de MIME -->
@@ -383,9 +388,9 @@
   <link rel="preload" href="/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2" as="font" type="font/woff2" crossorigin />
   <style>
     /* Color del lienzo antes de cargar el CSS de React y al retirar el splash. */
-    html[data-theme="dark"] { background-color: #0B1120; }
-    html[data-theme="light"] { background-color: #F8FAFC; }
-    html[data-theme="paper"] { background-color: #FBFBFA; }
+    html[data-theme="dark"] { background-color: #0B1120; color-scheme: dark; }
+    html[data-theme="light"] { background-color: #F8FAFC; color-scheme: light; }
+    html[data-theme="paper"] { background-color: #FBFBFA; color-scheme: light; }
     #pwa-splash {
       display: flex;
       flex-direction: column;

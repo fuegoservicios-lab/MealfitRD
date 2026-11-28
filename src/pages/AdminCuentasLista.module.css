@@ -48,6 +48,28 @@
 .limpiarBtn:hover { color: var(--text-main); background: color-mix(in srgb, var(--text-muted) 14%, transparent); }
 .limpiarBtn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 
+.selectCaja { position: relative; display: flex; align-items: center; }
+.selectCaja .selectInput {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2.35rem;
+    cursor: pointer;
+    text-overflow: ellipsis;
+}
+.selectCaja .selectInput option { background: var(--bg-card); color: var(--text-main); }
+.selectIcono {
+    position: absolute;
+    right: 0.85rem;
+    color: var(--text-muted);
+    pointer-events: none;
+    transition: color 140ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+    .selectCaja .selectInput:hover:not(:disabled) { border-color: color-mix(in srgb, var(--primary) 50%, var(--border)); }
+    .selectCaja:hover .selectIcono { color: var(--text-main); }
+}
+.selectCaja:focus-within .selectIcono { color: var(--primary); }
+
 .seleccion {
     display: flex;
     align-items: center;
@@ -193,6 +215,7 @@
 .cuentaInfo { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .correoLinea { display: flex; align-items: center; flex-wrap: nowrap; gap: 0.35rem; min-width: 0; }
 .tabla .fecha { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--text-muted); font-weight: 500; font-size: 0.8125rem; }
+.fechaDia { display: block; color: var(--text-main); font-weight: 600; }
 
 .correo {
     font: inherit;
@@ -249,7 +272,7 @@
 .confirmacion input { margin-top: 0.2rem; flex: none; accent-color: var(--primary-fill); }
 
 @media (prefers-reduced-motion: reduce) {
-    .desplazable, .seleccion, .tabla tbody tr, .copiarBtn, .limpiarBtn { transition: none; }
+    .desplazable, .seleccion, .tabla tbody tr, .copiarBtn, .limpiarBtn, .selectIcono { transition: none; }
 }
 
 @media (max-width: 860px) {

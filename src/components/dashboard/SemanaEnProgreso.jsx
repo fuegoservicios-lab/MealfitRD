@@ -22,10 +22,10 @@
 // división I-III) de los puntos totales. Los puntos de HOY se calculan en vivo con el espejo `utils/juegoPuntos.js`
 // sobre la racha del servidor hasta ayer; los de los días pasados y semanas viejas son los del servidor. Con un
 // servidor viejo (sin `puntos`) la tarjeta pinta como antes.
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, ChevronLeft, ChevronRight, Flame, Loader2, Lock, Plus, Share2, Shield, Star, Trophy } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Flame, Loader2, Lock, Minus, Plus, Share2, Shield, Star, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { formatDate, formatNumber, useT, useTn } from '../../i18n';
@@ -46,6 +46,7 @@ import {
     tramoDeRacha,
 } from '../../utils/juegoPuntos';
 import CierreDeSemana from './CierreDeSemana';
+import { getMacroGoalState } from '../../utils/macroGoalStatus';
 import styles from './SemanaEnProgreso.module.css';
 
 // La hoja (y el dibujo de la semana) solo se descargan al tocar «Compartir»: no pesan en el panel.
@@ -55,6 +56,14 @@ const RADIO = 17;
 const CIRCUNFERENCIA = 2 * Math.PI * RADIO;
 const _claveCache = (userId) => `mealfit_semana_progreso_${userId}`;
 const _claveInicio = (userId) => `mealfit_semana_inicio_${userId}`;
+
+// [P1-MACRO-BARS-SEMAFORO · 2026-11-26] El TONO con el que se pinta un día (el `estado` del dato no cambia: lo usan el
+// juego, compartir y los tests). Hoy por debajo sigue abierto → gris «en curso»; un día YA CERRADO por debajo de la
+// meta → rojo, igual que pasarse. Verde solo si se cumplió. Los mismos tres colores que las barras de macros.
+const tonoDelDia = (d) => {
+    if (d.estado === 'bajo') return d.esHoy ? 'curso' : 'fallado';
+    return d.estado;
+};
 
 const estiloAvance = (a) => ({ '--avance': `${Math.round(Math.max(0, Math.min(1, Number(a) || 0)) * 100)}%` });
 
@@ -67,7 +76,8 @@ const _leerCache = (userId) => {
 };
 
 const SemanaEnProgreso = ({
-    userId, hoy = null, targetCalories = 0, targetMacros = null, mainGoal = '', onAbrirDia = null, calendario = null,
+    userId, hoy = null, targetCalories = 0, targetMacros = null, targetMicros = null, mainGoal = '', onAbrirDia = null, onDiaSeleccionado = null, calendario = null,
+    detalleCompacto = false, limpiarSeleccion = 0,
 }) => {
     const t = useT();
     const tn = useTn();
@@ -82,6 +92,20 @@ const SemanaEnProgreso = ({
     const servidor = useResumenDeProgreso(userId);
     const [semanasViejas, setSemanasViejas] = useState(null);
     const [escaleraAbierta, setEscaleraAbierta] = useState(false);
+    const [aguaVivo, setAguaVivo] = useState(null);
+    useEffect(() => {
+        setAguaVivo(null);
+    }, [servidor?.hoy_puntos?.logros?.agua, servidor?.hoy]);
+    useEffect(() => {
+        const alCambiarAgua = (e) => {
+            const d = e?.detail;
+            if (!d || typeof d.glasses !== 'number') return;
+            const goal = Number(d.goal) > 0 ? Number(d.goal) : 8;
+            setAguaVivo(Boolean(d.completed ?? d.glasses >= goal));
+        };
+        window.addEventListener('mealfit:water-changed', alCambiarAgua);
+        return () => window.removeEventListener('mealfit:water-changed', alCambiarAgua);
+    }, []);
     const [compartiendo, setCompartiendo] = useState(false);
     // [P1-PLAN-LOTE-1099] compartir UN día desde «Tu semana»: { iso } mientras se pide, { iso, dia } listo
     const [diaACompartir, setDiaACompartir] = useState(null);
@@ -112,8 +136,13 @@ const SemanaEnProgreso = ({
 
     // Lo que cambie el diario (registrar, borrar, el coach) o volver a la app al día siguiente refresca la tira.
     useEffect(() => {
-        // Lo que borra la propia tarjeta de hoy no pide nada: su anillo ya se movió con los datos en vivo (`hoy`).
-        const refrescar = (e) => { if (e?.detail?.source !== 'tracking-progress') setVersion((v) => v + 1); };
+        // Lo que borra la propia tarjeta de hoy no pide nada: su anillo ya se movió con los datos en vivo (`hoy`),
+        // salvo que haya borrado/editado un día pasado.
+        const refrescar = (e) => {
+            if (e?.detail?.source !== 'tracking-progress' || e?.detail?.isPastDay) {
+                setVersion((v) => v + 1);
+            }
+        };
         const alVolver = () => { if (!document.hidden) setVersion((v) => v + 1); };
         window.addEventListener('mealfit:refresh-inventory', refrescar);
         window.addEventListener('mealfit:diary-changed', refrescar);
@@ -168,24 +197,50 @@ const SemanaEnProgreso = ({
     const juego = Boolean(servidor && servidor.puntos && servidor.hoy_puntos);
     const enCursoServidor = juego && Number(servidor.semana?.numero) === semanaActual;
     // El resumen guardado puede ser de AYER (la app abre con la caché antes de refrescar): entonces su «hoy» ya es un
-    // día cerrado — su racha completa es la de «hasta ayer» y sus puntos de hoy no se restan.
+    // día cerrado — su racha completa es la de «hasta ayer» y sus puntos de hoy no se restan. Sin embargo, en un día
+    // biológico extendido, `hoyISO` ya coincide con una entrada en `servidor.semana.dias`: siempre descontamos esos
+    // puntos antes de sumar `hoyVivo.puntos` para nunca duplicar puntos del mismo día.
+    const diaHoyServidor = juego && enCursoServidor
+        ? (servidor.semana?.dias || []).find((d) => d.iso === hoyISO) || null
+        : null;
     const mismoDia = juego && servidor.hoy === hoyISO;
-    const deAyer = juego && !mismoDia && String(servidor.hoy || '') < hoyISO;
+    const deAyer = juego && !mismoDia && String(servidor.hoy || '') < hoyISO
+        && !(diaHoyServidor && diaHoyServidor.estado && diaHoyServidor.estado !== 'vacio');
     const rachaBase = juego ? Number(deAyer ? servidor.racha : servidor.racha_hasta_ayer) || 0 : 0;
-    const ptsHoyServidor = mismoDia ? Number(servidor.hoy_puntos?.puntos) || 0 : 0;
+    const ptsHoyServidor = mismoDia
+        ? Number(servidor.hoy_puntos?.puntos) || 0
+        : (diaHoyServidor && diaHoyServidor.puntos != null ? Number(diaHoyServidor.puntos) || 0 : 0);
     const hoyVivo = useMemo(() => {
         if (!juego) return null;
         const lg = logrosDelDia({
-            calories: hoy?.calories, protein: hoy?.protein, mealsCount: hoy?.mealsCount,
-            metaKcal: targetCalories, metaProteina: targetMacros?.protein, objetivo: mainGoal,
+            calories: hoy?.calories,
+            protein: hoy?.protein,
+            carbs: hoy?.carbs,
+            fats: hoy?.fats,
+            mealsCount: hoy?.mealsCount,
+            metaKcal: targetCalories,
+            metaProteina: targetMacros?.protein,
+            metaCarbos: targetMacros?.carbs,
+            metaGrasas: targetMacros?.fats,
+            micros: hoy?.micros,
+            metaMicros: targetMicros || servidor.meta_micros || null,
+            objetivo: mainGoal,
         });
         // el agua la sabe el servidor (su contador vive aparte); de otro día, solo si está encendida
         const aguaServidor = servidor.hoy_puntos?.logros?.agua ?? null;
-        lg.agua = mismoDia ? aguaServidor : (aguaServidor === null ? null : false);
+        let aguaEstado = mismoDia ? aguaServidor : (aguaServidor === null ? null : false);
+        if (aguaEstado !== null && aguaVivo !== null) aguaEstado = aguaVivo;
+        lg.agua = aguaEstado;
         if (lg.agua && !lg.registro) lg.agua = false;
-        lg.dia_perfecto = Boolean(lg.banda && lg.proteina && lg.completo && lg.agua !== false);
+        lg.dia_perfecto = Boolean(
+            lg.banda && lg.proteina && lg.completo
+            && lg.carbos !== false && lg.grasas !== false && lg.micros !== false
+            && !lg.sodio_pasado && !lg.potasio_pasado && !lg.fibra_baja
+            && !lg.satfat_pasado && !lg.azucar_pasado
+            && lg.agua !== false
+        );
         return { ...puntosDeHoy({ logros: lg, rachaHastaAyer: rachaBase }), logros: lg };
-    }, [juego, servidor, hoy, targetCalories, targetMacros, mainGoal, mismoDia, rachaBase]);
+    }, [juego, servidor, hoy, targetCalories, targetMacros, targetMicros, mainGoal, mismoDia, rachaBase, aguaVivo]);
     const puntosSemana = (() => {
         if (!juego) return null;
         if (enCurso && enCursoServidor) {
@@ -273,6 +328,40 @@ const SemanaEnProgreso = ({
     const fechaLarga = (d) => (d.esCalendarioHoy
         ? t('Hoy')
         : formatDate(mediodiaDe(d.iso), { weekday: 'long', day: 'numeric', month: 'long' }));
+    const onDiaSeleccionadoRef = useRef(onDiaSeleccionado);
+    onDiaSeleccionadoRef.current = onDiaSeleccionado;
+    const selIso = sel?.iso || null;
+    const selEsHoy = Boolean(sel?.esHoy);
+    const selEtiqueta = sel ? fechaLarga(sel) : '';
+    // [P1-DIA-EN-EL-CONTADOR · 2026-11-27] el contador grande pinta el día tocado con LAS MISMAS cifras que su anillo
+    const selCal = Number(sel?.calories) || 0;
+    const selPro = Number(sel?.protein) || 0;
+    const selCarb = Number(sel?.carbs) || 0;
+    const selFat = Number(sel?.fats) || 0;
+    const selMeta = Number(sel?.target) || 0;
+    const selMetaPro = Number(sel?.targetMacros?.protein) || 0;
+    const selMetaCarb = Number(sel?.targetMacros?.carbs) || 0;
+    const selMetaFat = Number(sel?.targetMacros?.fats) || 0;
+    const selComidas = Number(sel?.mealsCount) || 0;
+    const selEstado = sel?.estado || null;
+    useEffect(() => {
+        if (!onDiaSeleccionadoRef.current) return;
+        onDiaSeleccionadoRef.current(
+            selIso ? {
+                iso: selIso, esHoy: selEsHoy, etiqueta: selEtiqueta, estado: selEstado, mealsCount: selComidas,
+                calories: selCal, protein: selPro, carbs: selCarb, fats: selFat,
+                target: selMeta, targetMacros: { protein: selMetaPro, carbs: selMetaCarb, fats: selMetaFat },
+            } : null,
+        );
+    }, [selIso, selEsHoy, selEtiqueta, hoyISO, selEstado, selComidas, selCal, selPro, selCarb, selFat, selMeta,
+        selMetaPro, selMetaCarb, selMetaFat]);
+    // «Volver a hoy» desde el contador: el padre sube el contador y la semana suelta el día elegido
+    const limpiarPrevio = useRef(limpiarSeleccion);
+    useEffect(() => {
+        if (limpiarPrevio.current === limpiarSeleccion) return;
+        limpiarPrevio.current = limpiarSeleccion;
+        setElegido(null);
+    }, [limpiarSeleccion]);
     const fechaCorta = (iso) => formatDate(mediodiaDe(iso), { day: 'numeric', month: 'short' });
 
     const macros = sel ? [
@@ -280,6 +369,14 @@ const SemanaEnProgreso = ({
         { clave: 'carbs', nombre: t('Carbos'), valor: sel.carbs, meta: Number(sel.targetMacros?.carbs) || 0 },
         { clave: 'fats', nombre: t('Grasas'), valor: sel.fats, meta: Number(sel.targetMacros?.fats) || 0 },
     ] : [];
+
+    // [P1-MACRO-BARS-SEMAFORO] cada macro del día tocado con la misma regla que la tarjeta de hoy; un día cerrado que
+    // no llegó al 90 % de la meta queda en rojo (hoy, en gris: todavía puede llegar)
+    const tonoDelMacro = (m) => {
+        const e = getMacroGoalState(m.valor, m.meta);
+        if (e === 'progress') return sel && !sel.esHoy && m.meta > 0 ? 'fallado' : 'curso';
+        return e === 'done' ? 'meta' : 'pasado';
+    };
 
     const titulo = t('Semana {n}', { n: semana });
     const rango = servidor?.rango || null;
@@ -308,7 +405,7 @@ const SemanaEnProgreso = ({
         numero: semana,
         enCurso,
         periodo: `${fechaCorta(dias[0].iso)} – ${fechaCorta(dias[DIAS_DE_LA_SEMANA - 1].iso)}`,
-        dias: dias.map((d) => ({ iso: d.iso, estado: d.estado, ratio: d.ratio, letra: formatDate(mediodiaDe(d.iso), { weekday: 'narrow' }) })),
+        dias: dias.map((d) => ({ iso: d.iso, estado: d.estado, abierto: !!d.esHoy, ratio: d.ratio, letra: formatDate(mediodiaDe(d.iso), { weekday: 'narrow' }) })),
         enMeta,
         estrellas,
         // la racha es la de HOY: solo cuenta en la semana en curso
@@ -415,6 +512,7 @@ const SemanaEnProgreso = ({
                 <PuntosDeHoy
                     puntos={hoyVivo.puntos}
                     mult={hoyVivo.mult}
+                    multActivo={hoyVivo.multActivo}
                     logros={hoyVivo.logros}
                     racha={rachaVivo}
                     tramo={tramoDeRacha(rachaVivo)}
@@ -423,6 +521,8 @@ const SemanaEnProgreso = ({
                     onAbrir={() => setEscaleraAbierta(true)}
                     hoy={hoy}
                     targetProtein={Number(targetMacros?.protein) || 0}
+                    targetCarbs={Number(targetMacros?.carbs) || 0}
+                    targetFats={Number(targetMacros?.fats) || 0}
                     estadoHoy={estadoHoy}
                     recordDia={Number(servidor.puntos?.record_dia) || 0}
                 />
@@ -602,7 +702,7 @@ const SemanaEnProgreso = ({
                     const futuro = d.estado === 'futuro';
                     const salvado = d.estado === 'vacio' && escudosUsados.has(d.iso);
                     const lleno = Math.max(0, Math.min(1, d.ratio));
-                    const clases = [styles.dia, styles[`dia_${d.estado}`]];
+                    const clases = [styles.dia, styles[`dia_${tonoDelDia(d)}`]];
                     if (d.esHoy) clases.push(styles.diaHoy);
                     if (activo) clases.push(styles.diaActivo);
                     if (salvado) clases.push(styles.diaEscudo);
@@ -651,6 +751,9 @@ const SemanaEnProgreso = ({
                                     {d.estado === 'pasado' && (
                                         <span className={styles.exceso}><Plus size={9} strokeWidth={4} aria-hidden="true" /></span>
                                     )}
+                                    {tonoDelDia(d) === 'fallado' && (
+                                        <span className={styles.exceso}><Minus size={9} strokeWidth={4} aria-hidden="true" /></span>
+                                    )}
                                 </span>
                             </span>
                             {puntosDelDia.get(d.iso) > 0 && (
@@ -693,10 +796,44 @@ const SemanaEnProgreso = ({
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
                     >
+                        {detalleCompacto ? (
+                        <div className={`${styles.detalleDentro} ${styles.detalleCompacto}`}>
+                            <div className={styles.compactoTexto}>
+                                <span className={styles.fecha}>{fechaLarga(sel)}</span>
+                                <span className={`${styles.chip} ${styles[`chip_${tonoDelDia(sel)}`] || ''}`}>
+                                    {sel.estado === 'meta' && <Check size={13} strokeWidth={3} aria-hidden="true" />}
+                                    {textoEstado(sel)}
+                                </span>
+                                {sel.estado === 'vacio' && (
+                                    <span className={styles.compactoNota}>
+                                        {escudosUsados.has(sel.iso) ? t('Un escudo protegió tu racha este día.') : t('Ese día no anotaste comidas.')}
+                                    </span>
+                                )}
+                            </div>
+                            <div className={styles.compactoAcciones}>
+                                {sel.estado !== 'vacio' && sel.estado !== 'futuro' && (
+                                    <button type="button" className={styles.compactoIcono}
+                                        onClick={() => compartirDia(sel.iso)} disabled={!!diaACompartir && !diaACompartir.dia}
+                                        aria-label={sel.iso === hoyISO ? t('Compartir mi día') : t('Compartir este día')}
+                                        title={sel.iso === hoyISO ? t('Compartir mi día') : t('Compartir este día')}>
+                                        {diaACompartir && !diaACompartir.dia
+                                            ? <Loader2 size={16} className="spin-animation" aria-hidden="true" />
+                                            : <Share2 size={16} strokeWidth={2.5} aria-hidden="true" />}
+                                    </button>
+                                )}
+                                {onAbrirDia && (
+                                    <button type="button" className={styles.compactoVer} onClick={() => onAbrirDia(sel.iso)}>
+                                        {t('Ver este día')}
+                                        <ChevronRight size={15} strokeWidth={2.5} aria-hidden="true" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        ) : (
                         <div className={styles.detalleDentro}>
                             <div className={styles.detalleCima}>
                                 <span className={styles.fecha}>{fechaLarga(sel)}</span>
-                                <span className={`${styles.chip} ${styles[`chip_${sel.estado}`]}`}>
+                                <span className={`${styles.chip} ${styles[`chip_${tonoDelDia(sel)}`] || ''}`}>
                                     {sel.estado === 'meta' && <Check size={13} strokeWidth={3} aria-hidden="true" />}
                                     {textoEstado(sel)}
                                 </span>
@@ -720,12 +857,12 @@ const SemanaEnProgreso = ({
                                             {tn(sel.mealsCount, '{n} comida', '{n} comidas', { n: sel.mealsCount })}
                                         </span>
                                     </p>
-                                    <div className={`${styles.barra} ${styles[`barra_${sel.estado}`]}`}>
+                                    <div className={`${styles.barra} ${styles[`barra_${tonoDelDia(sel)}`] || ''}`}>
                                         <span style={{ width: `${Math.min(100, Math.round(sel.ratio * 100))}%` }} />
                                     </div>
                                     <ul className={styles.macros}>
                                         {macros.map((m) => (
-                                            <li key={m.clave} className={styles[`macro_${m.clave}`]}>
+                                            <li key={m.clave} className={styles[`macro_${tonoDelMacro(m)}`] || ''}>
                                                 <span className={styles.macroNombre}>{m.nombre}</span>
                                                 <span className={styles.macroValor}>
                                                     {formatNumber(m.valor)}{m.meta > 0 ? ` / ${formatNumber(m.meta)}` : ''} g
@@ -755,6 +892,7 @@ const SemanaEnProgreso = ({
                                 </button>
                             )}
                         </div>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -766,12 +904,16 @@ SemanaEnProgreso.propTypes = {
     userId: PropTypes.string,
     hoy: PropTypes.shape({
         calories: PropTypes.number, protein: PropTypes.number, carbs: PropTypes.number, fats: PropTypes.number,
-        mealsCount: PropTypes.number,
+        micros: PropTypes.object, mealsCount: PropTypes.number,
     }),
     targetCalories: PropTypes.number,
     targetMacros: PropTypes.object,
+    targetMicros: PropTypes.object,
     mainGoal: PropTypes.string,
     onAbrirDia: PropTypes.func,
+    onDiaSeleccionado: PropTypes.func,
+    detalleCompacto: PropTypes.bool,
+    limpiarSeleccion: PropTypes.number,
     calendario: PropTypes.node,
 };
 

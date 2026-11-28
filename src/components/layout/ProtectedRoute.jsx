@@ -26,10 +26,10 @@ const ProtectedRoute = ({ children, landing = false }) => {
     // al funnel del plan gratuito abajo.
     if (!session && !isGuest) {
         // [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] La landing de marketing del apex
-        // (mealfitrd.com/) es PÚBLICA: un visitante anónimo VE la landing — NO se
+        // (bioboros.com/) es PÚBLICA: un visitante anónimo VE la landing — NO se
         // le redirige a /login. Esencial para el split (apex = marketing) y para
         // SEO (Google indexa la landing, no el formulario de login). El login +
-        // dashboard viven en app.mealfitrd.com. El resto de rutas siguen gateadas.
+        // dashboard viven en app.bioboros.com. El resto de rutas siguen gateadas.
         if (landing) {
             return children;
         }

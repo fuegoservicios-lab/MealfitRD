@@ -98,7 +98,9 @@ describe('lote 167 · lo que estaba fijo en los cinco idiomas', () => {
 
     it('al guardar el idioma se reprograman los avisos del teléfono', () => {
         const s = leer('src/pages/Settings.jsx');
-        const i = s.indexOf("toast.success(t('Idioma guardado.'), { duration: 2000 });");
-        expect(s.slice(i, i + 500)).toContain('sincronizarAvisosLocales().catch(() => {});');
+        // [P1-PLAN-LOTE-1181] sin aviso de «Idioma guardado.» (la app ya cambia de idioma): se ancla al PATCH
+        const i = s.indexOf('body: JSON.stringify({ fields: { locale: code } }),');
+        expect(i).toBeGreaterThan(0);
+        expect(s.slice(i, i + 900)).toContain('sincronizarAvisosLocales().catch(() => {});');
     });
 });

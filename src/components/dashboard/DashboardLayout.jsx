@@ -1,5 +1,5 @@
 import { Fragment, Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { nativeHidesCommerce } from '../../config/platform';
+import { nativeHidesCommerce, canShowUpgrade } from '../../config/platform';
 import PropTypes from 'prop-types';
 // [P2-MOTION-REDUCED-USER · 2026-07-09] framer-motion respeta prefers-reduced-
 // motion del SO en TODO el árbol del dashboard (el kill-switch CSS de index.css
@@ -12,7 +12,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Settings, LogOut, Menu, X, Lock, Info, ChevronRight, HelpCircle } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
-import { PlanIcon, ProgressIcon, PantryIcon, HistoryIcon } from '../icons/NavIcons';
+import { PlanIcon, ProgressIcon, PantryIcon, HistoryIcon, LeaderboardIcon } from '../icons/NavIcons';
 import { useAssessment } from '../../context/AssessmentContext';
 import { DashboardAccountActionsContext } from '../../context/DashboardAccountActions';
 // [P1-PLAN-LOTE-680] Pestaña con candado → hoja «Guarda tu plan» (login sin salir del plan) en vez de /register.
@@ -62,6 +62,7 @@ import { prefetchRoute } from '../../utils/routePreload';
 import { prefetchHistoryList } from '../../utils/historyCaches';
 import { precargarInventarioDeNevera } from '../../utils/inventarioDeNevera';
 import { cargarCatalogoDeNevera } from '../../utils/catalogoDeNevera';
+import { precargarClasificatoria } from '../../utils/progresoServidor';
 import { useT } from '../../i18n';
 import styles from './DashboardLayout.module.css';
 import Wordmark from '../common/Wordmark';
@@ -85,6 +86,12 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         const timer = setTimeout(prepararNevera, 350);
         return () => clearTimeout(timer);
     }, [puedePrecargarNevera, prepararNevera, session?.user?.id]);
+    useEffect(() => {
+        const uid = session?.user?.id;
+        if (!uid || isGuest || navigator?.connection?.saveData) return undefined;
+        const timer = setTimeout(() => { precargarClasificatoria(uid); }, 1200);
+        return () => clearTimeout(timer);
+    }, [isGuest, session?.user?.id]);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMobileMoreMenuOpen, setIsMobileMoreMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -201,6 +208,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         progress: { icon: ProgressIcon },  // [P1-PLAN-LOTE-103] «Progreso» en modo plan
         agent: { icon: AgentIcon },
         pantry: { icon: PantryIcon },
+        leaderboard: { icon: LeaderboardIcon },
         recipes: { icon: RecipesIcon },
         history: { icon: HistoryIcon },
     };
@@ -234,9 +242,11 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         ? t('Invitado')
         : !isPremium
         ? t('Gratuito')
+        : userProfile?.plan_tier === 'admin' ? 'Admin'
         : userProfile?.plan_tier === 'ultra' ? 'Max'
         : userProfile?.plan_tier === 'plus' ? 'Plus'
         : t('Básico');
+    const isAdminTier = isPremium && userProfile?.plan_tier === 'admin';
     const isUltraTier = isPremium && userProfile?.plan_tier === 'ultra';
     const accountAvatarNode = avatarId
         ? <MinimalAvatar id={avatarId} size={34} style={{ borderRadius: '50%', width: '100%', height: '100%' }} />
@@ -313,9 +323,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         if (item.locked) {
                             return (
                                 <Link
-                                    /* [P1-IOS-NATIVE-SHELL] en nativo el candado no enlaza al
-                                       comercio (Apple 3.1.1): queda inerte en el dashboard. */
-                                    to={nativeHidesCommerce() ? '/dashboard' : '/dashboard/upgrade'}
+                                    /* [P1-IOS-NATIVE-SHELL] en nativo sin IAP el candado no enlaza al
+                                       comercio (Apple 3.1.1); con IAP nativo abre /dashboard/upgrade. */
+                                    to={canShowUpgrade() ? '/dashboard/upgrade' : '/dashboard'}
                                     key={item.path}
                                     className={styles.navItem}
                                     onClick={closeMenu}
@@ -336,6 +346,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         const _doPrefetch = () => {
                             prefetchRoute(item.path);
                             if (item.path === '/dashboard/pantry') prepararNevera();
+                            if (item.path === '/dashboard/clasificatoria' && session?.user?.id && !isGuest) precargarClasificatoria(session.user.id);
                             if (_isHistory) prefetchHistoryList();
                         };
                         return (
@@ -374,13 +385,13 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                    de tier (Gratuito/Básico/Plus); Ultra ya está en el tope → "Ver planes". */
                                 /* [P1-IOS-NATIVE-SHELL · 2026-08-21] null ⇒ AccountMenu no pinta
                                    el CTA de planes: en la app nativa no existe comercio. */
-                                viewPlansLabel={nativeHidesCommerce() ? null : (isUltraTier ? t('Ver planes') : t('Mejorar plan'))}
+                                viewPlansLabel={!canShowUpgrade() ? null : ((isUltraTier || isAdminTier) ? t('Ver planes') : t('Mejorar plan'))}
                                 avatar={accountAvatarNode}
                                 subLabel={accountSubLabel}
                                 settingsSlot={isGuest ? <GuestAppearanceToggle /> : null}
                                 logoutLabel={logoutLabel}
-                                onViewPlans={nativeHidesCommerce() ? undefined : () => { setIsAccountMenuOpen(false); closeMenu(); navigate('/dashboard/upgrade'); }}
-                                onViewPlansHover={nativeHidesCommerce() ? undefined : () => prefetchRoute('/dashboard/upgrade')}
+                                onViewPlans={!canShowUpgrade() ? undefined : () => { setIsAccountMenuOpen(false); closeMenu(); navigate('/dashboard/upgrade'); }}
+                                onViewPlansHover={!canShowUpgrade() ? undefined : () => prefetchRoute('/dashboard/upgrade')}
                                 onSettings={openSettingsDialog}
                                 onSettingsHover={() => prefetchRoute('/dashboard/settings')}
                                 onLogout={() => { setIsAccountMenuOpen(false); setShowLogoutModal(true); }}
@@ -527,6 +538,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 if (bloqueada) return;
                                 prefetchRoute(item.path);
                                 if (item.path === '/dashboard/pantry') prepararNevera();
+                                if (item.path === '/dashboard/clasificatoria' && session?.user?.id && !isGuest) precargarClasificatoria(session.user.id);
                                 if (item.path === '/history') prefetchHistoryList();
                             };
                             return (

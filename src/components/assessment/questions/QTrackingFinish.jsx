@@ -20,14 +20,17 @@ import { useT } from '../../../i18n';
 import { safeLocalStorageSet } from '../../../utils/safeLocalStorage';
 import { confirmToast } from '../../../utils/confirmToast';
 import Button from '../../ui/Button';
+import styles from './QTrackingFinish.module.css';
 
 // [P1-PLAN-LOTE-846 · 2026-09-29] `onMenorDeEdad`: el cierre del contador también corta si la edad es de un menor (antes
 // de guardar nada), y si el servidor responde 422 `underage` se pinta el mismo corte.
 export const QTrackingFinish = ({ onMenorDeEdad } = {}) => {
     const navigate = useNavigate();
-    const { formData, refreshProfileAndPlan, loadingSensitive, planData } = useAssessment();
+    const { formData, refreshProfileAndPlan, loadingSensitive, planData, userProfile } = useAssessment();
     const t = useT();
     const [saving, setSaving] = useState(false);
+    const hasExistingName = Boolean((userProfile?.full_name || '').trim());
+    const [displayName, setDisplayName] = useState(() => (userProfile?.full_name || '').trim());
 
     const terminar = async () => {
         if (saving) return;
@@ -129,10 +132,16 @@ export const QTrackingFinish = ({ onMenorDeEdad } = {}) => {
                 hp.tz_offset_minutes = _tzOffsetAhora;
             }
 
+            const trimmedName = displayName.trim();
+            const patchBody = { health_profile: hp };
+            if (trimmedName && !hasExistingName) {
+                patchBody.fields = { full_name: trimmedName };
+            }
+
             const r1 = await fetchWithAuth('/api/profile', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ health_profile: hp }),
+                body: JSON.stringify(patchBody),
             });
             // El mensaje del Error se pinta tal cual en el toast del catch.
             // [P1-PLAN-LOTE-164] Los errores PROPIOS llevan la marca `paraMostrar`: son los únicos que se pintan tal
@@ -165,7 +174,7 @@ export const QTrackingFinish = ({ onMenorDeEdad } = {}) => {
             // localStorage ya quedó puesto y el rebote de hoy no es peor que abortar.
             try { await refreshProfileAndPlan(); } catch { /* best-effort */ }
 
-            toast.success(t('Listo: tus metas están calculadas. Anota tu primera comida.'));
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
             navigate('/dashboard/agent', { replace: true });
             // [137] Con plan vivo, el `planData` en memoria sigue diciendo el estado de ANTES de la pausa (y su sondeo
             // de bloques sigue vivo): la misma recarga que cierra el interruptor de Configuración (P1-PAUSE-STALE-PLANDATA).
@@ -180,13 +189,30 @@ export const QTrackingFinish = ({ onMenorDeEdad } = {}) => {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem', alignItems: 'flex-start' }}>
+        <div className={styles.contenedor}>
             {/* [P1-PLAN-LOTE-166 · 2026-09-22] Decía «dashboard» (en español la app lo llama «panel») y que las preguntas
                 saltadas «se preguntan ahí»: desde el lote 164 encender el plan pregunta SOLO lo que falta, y se hace desde
                 la tarjeta del panel o desde Configuración. */}
-            <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: 1.55 }}>
+            <p className={styles.intro}>
                 {t('Con tus respuestas calculamos cuántas calorías y proteínas te tocan cada día. En tu panel anotas lo que comes, ves tu progreso y le preguntas al coach. Si algún día quieres un plan de comidas con recetas y lista de compras, lo activas desde tu panel o en Configuración, y solo te preguntamos lo que falte.')}
             </p>
+            {!hasExistingName && (
+                <div className={styles.campoNombre}>
+                    <label htmlFor="tracking-display-name" className={styles.etiquetaNombre}>
+                        {t('¿Cómo quieres que te llamemos?')}
+                    </label>
+                    <input
+                        id="tracking-display-name"
+                        type="text"
+                        maxLength={40}
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder={t('Tu nombre o apodo (opcional)')}
+                        className={styles.inputNombre}
+                        disabled={saving}
+                    />
+                </div>
+            )}
             <Button variant="primary"
                 data-hover="boton"
                 onClick={terminar}

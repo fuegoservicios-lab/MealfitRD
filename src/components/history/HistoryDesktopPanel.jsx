@@ -147,8 +147,10 @@ function macroSplit(m) {
   // [P2-DESIGN-CONSISTENCY · 2026-07-07] Paleta de macros alineada con Recetas
   // (canónica): Proteína=verde --secondary, Carbos=índigo --primary, Grasa=rosa
   // --accent. Antes P/C estaban intercambiados (P azul, C verde) vs Recetas.
-  if (!t) return [["#34D399", 0], ["#818CF8", 0], ["#FB7185", 0]];
-  return [["#34D399", kc.p / t], ["#818CF8", kc.c / t], ["#FB7185", kc.g / t]];
+    // [P1-MACRO-BARS-SEMAFORO · 2026-11-27] Reparto de las macros (composición, no progreso): tres tonos de un mismo
+  // gris (`--macro-tono-*`) en vez de verde/índigo/rosa. El color queda para el estado (cumplido/pasado).
+  if (!t) return [["var(--macro-tono-p)", 0], ["var(--macro-tono-c)", 0], ["var(--macro-tono-g)", 0]];
+  return [["var(--macro-tono-p)", kc.p / t], ["var(--macro-tono-c)", kc.c / t], ["var(--macro-tono-g)", kc.g / t]];
 }
 
 /* --------------------------------------------------------- piezas */
@@ -162,7 +164,7 @@ function MacroBar({ macros, legend = true }) {
       </span>
       {legend && hasData && (
         <div style={{ display: "flex", gap: 13 }}>
-          {[["#34D399", "P", macros.p], ["#818CF8", "C", macros.c], ["#FB7185", "G", macros.g]].map(([c, l, v]) => (
+          {[["var(--macro-tono-p)", "P", macros.p], ["var(--macro-tono-c)", "C", macros.c], ["var(--macro-tono-g)", "G", macros.g]].map(([c, l, v]) => (
             <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: ".75rem", fontWeight: 700, color: "var(--text-muted)" }}>
               <i style={{ width: 8, height: 8, borderRadius: 3, background: c }} /> {l} <b style={{ color: "var(--text-main)" }}>{v}g</b>
             </span>

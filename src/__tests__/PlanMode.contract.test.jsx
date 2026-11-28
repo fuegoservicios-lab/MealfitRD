@@ -21,17 +21,17 @@ const read = (rel) => fs.readFileSync(path.join(SRC, rel), 'utf8');
 
 /* ═══ A1. dashboardNav: el SSOT decide, los consumidores solo pegan iconos ═══ */
 describe('[P1-PLAN-MODE] dashboardNav — SSOT de la nav por modo', () => {
-    it('modo plan: 6 entradas (Progreso tras Plan desde el lote 103), Recetas presente, rótulo Plan', () => {
+    it('modo plan: 7 entradas (Progreso tras Plan e incluye Clasificatoria), Recetas presente, rótulo Plan', () => {
         const items = navItemsFor({ trackingMode: false });
-        expect(items.map((i) => i.key)).toEqual(['plan', 'progress', 'agent', 'pantry', 'recipes', 'history']);
+        expect(items.map((i) => i.key)).toEqual(['plan', 'progress', 'agent', 'pantry', 'leaderboard', 'recipes', 'history']);
         expect(items[1].label).toBe('Progreso');
         expect(items[1].path).toBe('/dashboard/progress');
         expect(items[0].label).toBe('Plan');
     });
 
-    it('modo seguimiento: Recetas se OCULTA y Plan se rotula Progreso (lote 102; antes «Hoy»)', () => {
+    it('modo seguimiento: Recetas e Historial se OCULTAN y Plan se rotula Progreso', () => {
         const items = navItemsFor({ trackingMode: true });
-        expect(items.map((i) => i.key)).toEqual(['agent', 'plan', 'pantry', 'history']);
+        expect(items.map((i) => i.key)).toEqual(['agent', 'plan', 'pantry', 'leaderboard']);
         expect(items[1].label).toBe('Progreso');
         expect(items[1].path).toBe('/dashboard'); // mismo destino, otro rótulo
     });

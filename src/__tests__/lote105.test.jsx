@@ -1,6 +1,6 @@
 // [P1-PLAN-LOTE-105 · 2026-09-18] Macros y micros en UNA tarjeta, y el diario de días anteriores completo.
 //
-//  · «Tus macros y micros de hoy»: los micros salen del MISMO fetch del día y el borrado optimista los recalcula;
+//  · «Tus macros de hoy»: los micros salen del MISMO fetch del día y el borrado optimista los recalcula;
 //  · el cajón de días anteriores: micros de ESE día, las comidas «extra» visibles (antes desaparecían), papelera
 //    en cualquier día (avisa a la tarjeta), «Registrar en este día» con el componedor ya en ese día, «+14» días y la
 //    media de la semana; se refresca cuando el diario cambia desde fuera;
@@ -83,7 +83,7 @@ describe('la tarjeta fusionada', () => {
         fetchWithAuth.mockImplementation(enrutar());
         confirmToast.mockResolvedValue(true);
         render(<TrackingProgress planData={{ calories: 2000, macros: { protein: 150, carbs: 200, fats: 60 } }} userId="u1" microTargets={METAS} />);
-        expect(screen.getByText('Tus macros y micros')).toBeInTheDocument();
+        expect(screen.getByText('Tus macros')).toBeInTheDocument();
         await screen.findByText('Con datos de 1 de 2 comidas');
         const fibra = screen.getByRole('progressbar', { name: 'Fibra' });
         expect(fibra.getAttribute('aria-valuenow')).toBe('10');
@@ -195,6 +195,28 @@ describe('el diario de días anteriores', () => {
             const urls = fetchWithAuth.mock.calls.slice(antes).map((c) => String(c[0]));
             expect(urls.some((u) => u.startsWith('/api/diary/consumed/u1?date='))).toBe(true);
         });
+    });
+
+    it('tocar una franja vacía («Agregar Almuerzo») abre el componedor con esa franja preseleccionada', async () => {
+        fetchWithAuth.mockImplementation(enrutar());
+        abrir();
+        const btn = await screen.findByRole('button', { name: 'Agregar Almuerzo' });
+        fireEvent.click(btn);
+        const dialog = await screen.findByRole('dialog', { name: 'Registrar comida' });
+        fireEvent.click(within(dialog).getByRole('button', { name: /Cambiar/ }));
+        const grupo = await within(dialog).findByRole('group', { name: 'Tipo de comida' });
+        expect(within(grupo).getByRole('button', { name: 'Almuerzo' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('en días mayores a 7 días atrás las franjas vacías no son clickeables', async () => {
+        fetchWithAuth.mockImplementation(enrutar());
+        const d = new Date();
+        d.setDate(d.getDate() - 8);
+        const hace8Dias = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        abrir({ diaInicial: hace8Dias });
+        await screen.findByText('Solo se puede registrar hasta 7 días atrás.');
+        expect(screen.queryByRole('button', { name: 'Agregar Almuerzo' })).toBeNull();
+        expect(screen.getAllByText('Sin registro').length).toBeGreaterThan(0);
     });
 });
 

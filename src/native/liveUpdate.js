@@ -46,20 +46,48 @@ const CLAVE_BLOQUEADOS = 'mf_ota_bloqueados';
 // `/sonda` que llegó al servidor como mensaje normal: la prueba de que corría un paquete sin ese código).
 // La revisión cuesta un GET de ~300 bytes: un minuto de calma basta para no repetirla en ráfagas.
 const REVISAR_CADA_MS = 60 * 1000;
+const AUTO_APLICAR_TRAS_MS = 10 * 1000;
 const CLAVE_AVISADO = 'mf_ota_avisado';
 const CLAVE_VISTO = 'mf_ota_visto';
 
+let _recargando = false;
+let _liveUpdateRef = null;
+let _paquetePreparado = null;
+let _ocultadaEn = 0;
+
+async function recargarOta(LiveUpdate) {
+    if (_recargando || typeof LiveUpdate?.reload !== 'function') return false;
+    _recargando = true;
+    try {
+        await LiveUpdate.reload();
+        return true;
+    } catch (err) {
+        avisar(err, 'reload');
+        return false;
+    } finally {
+        _recargando = false;
+    }
+}
+
 // [P1-PLAN-LOTE-113] El paquete se aplica en el siguiente arranque EN FRÍO y nadie lo sabía: en iOS casi nadie
 // cierra las apps del todo, así que una actualización descargada podía tardar días en verse. Se dice UNA vez por
-// paquete, sin botón: la recarga en caliente sigue descartada (decisión 1 de arriba).
+// paquete, ofreciendo botón directo «Actualizar ahora» y auto-aplicado al volver tras segundo plano.
 function avisarPreparado(bundleId) {
     if (safeLocalStorageGet(CLAVE_AVISADO, null) === bundleId) return;
     safeLocalStorageSet(CLAVE_AVISADO, bundleId);
     try {
-        toast(t('Actualización lista'), {
-            description: t('Cierra la app del todo y vuelve a abrirla para aplicarla.'),
+        const opciones = {
+            description: t('Toca «Actualizar ahora» o se aplicará sola al volver a la app.'),
+            // [Toast.policy] tope de 6 s: si no se toca, la actualización se aplica sola al volver a la app
             duration: 6000,
-        });
+        };
+        if (typeof _liveUpdateRef?.reload === 'function') {
+            opciones.action = {
+                label: t('Actualizar ahora'),
+                onClick: () => { recargarOta(_liveUpdateRef); },
+            };
+        }
+        toast(t('Actualización lista'), opciones);
     } catch { /* best-effort */ }
 }
 
@@ -156,6 +184,7 @@ export async function revisarOta(LiveUpdate) {
     if (_revisando) return 'en_curso';
     _revisando = true;
     _ultimaRevision = Date.now();
+    _liveUpdateRef = LiveUpdate;
     try {
         const manifest = await leerManifiesto();
         if (!manifest) return 'sin_manifiesto';
@@ -175,16 +204,27 @@ export async function revisarOta(LiveUpdate) {
         if (accion === 'reset') {
             // Sin `reload()`: `reset()` deja el paquete del binario para el próximo arranque.
             await LiveUpdate.reset();
+            if (manifest.mandatory === true && await recargarOta(LiveUpdate)) {
+                return 'recargado';
+            }
             return 'reset';
         }
-        if (accion !== 'descargar') return motivo;
+        if (accion !== 'descargar') {
+            if (motivo === 'ya_preparado' && siguiente?.bundleId) {
+                _paquetePreparado = siguiente.bundleId;
+            }
+            return motivo;
+        }
         const { bundleId, url, checksum } = manifest;
         const { bundleIds = [] } = await LiveUpdate.getBundles();
         if (!bundleIds.includes(bundleId)) {
             await LiveUpdate.downloadBundle({ bundleId, url, checksum });
         }
         await LiveUpdate.setNextBundle({ bundleId });
-        avisarPreparado(bundleId);
+        if (manifest.mandatory !== true) { avisarPreparado(bundleId); _paquetePreparado = bundleId; return 'preparado'; }
+        if (await recargarOta(LiveUpdate)) {
+            return 'recargado';
+        }
         return 'preparado';
     } catch (err) {
         avisar(err, 'revisar');
@@ -215,8 +255,17 @@ export function iniciarOtaNativa() {
                 avisar(new Error('OTA: el paquete no arrancó y se volvió al anterior'), 'rollback', { bundleId: r.previousBundleId });
             }
             avisarSiSeActualizo(LiveUpdate);
-            setTimeout(() => { revisarOta(LiveUpdate); }, 4000);
+            setTimeout(() => { revisarOta(LiveUpdate); }, 300);
             document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') {
+                    _ocultadaEn = Date.now();
+                    return;
+                }
+                if (document.visibilityState === 'visible' && _paquetePreparado && _ocultadaEn > 0 && Date.now() - _ocultadaEn >= AUTO_APLICAR_TRAS_MS) {
+                    _ocultadaEn = 0;
+                    recargarOta(LiveUpdate);
+                    return;
+                }
                 if (document.visibilityState === 'visible' && Date.now() - _ultimaRevision > REVISAR_CADA_MS) {
                     revisarOta(LiveUpdate);
                 }

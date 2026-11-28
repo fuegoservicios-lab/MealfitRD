@@ -1,0 +1,45 @@
+.contenedor {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.intro {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.55;
+    font-size: 1rem;
+}
+
+.campoNombre {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    width: 100%;
+    max-width: 360px;
+}
+
+.etiquetaNombre {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.inputNombre {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.625rem 0.875rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--bg-page);
+    color: var(--text-main);
+    font-size: 1rem;
+}
+
+.inputNombre:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--focus-ring);
+}

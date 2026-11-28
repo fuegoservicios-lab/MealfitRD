@@ -59,29 +59,91 @@ export function vozNativaDisponible() {
 // micrófono «arrancaba» y no oía nada. El 683 lo probó con `win = {}` («el WebView no trae SpeechRecognition»), que
 // nadie comprobó en un teléfono. Con el plugin en el binario, el reconocedor es el de Android, siempre.
 export function reconocimientoNativoDisponible() {
-    return nativePlatform() === 'android' && nativePluginAvailable('SpeechRecognition');
+    const plat = nativePlatform();
+    return (plat === 'android' || plat === 'ios') && nativePluginAvailable('SpeechRecognition');
 }
 
 export function sintesisNativaDisponible() {
     return nativePlatform() === 'android' && nativePluginAvailable('SpeechSynthesis');
 }
 
-// Los códigos del reconocedor de Android → los de la Web Speech API, que es lo que entienden los hooks.
+// Los códigos del reconocedor nativo (Android e iOS) → los de la Web Speech API, que es lo que entienden los hooks.
 export function errorWebDesdeAndroid(code) {
     const c = String(code || '');
-    if (c === 'NO_MATCH' || c === 'SPEECH_TIMEOUT') return 'no-speech';
-    if (c === 'INSUFFICIENT_PERMISSIONS') return 'not-allowed';
-    if (c === 'NETWORK' || c === 'NETWORK_TIMEOUT' || c === 'SERVER' || c === 'SERVER_DISCONNECTED') return 'network';
-    if (c === 'AUDIO') return 'audio-capture';
-    if (c === 'CLIENT' || c === 'RECOGNIZER_BUSY') return 'aborted';
-    // ERROR_LANGUAGE_NOT_SUPPORTED (12) y ERROR_LANGUAGE_UNAVAILABLE (13) llegan como UNKNOWN_n.
-    if (c === 'UNKNOWN_12' || c === 'UNKNOWN_13') return 'language-not-supported';
+    if (c === 'NO_MATCH' || c === 'SPEECH_TIMEOUT' || /_(1110|203)$/.test(c)) return 'no-speech';
+    if (c === 'INSUFFICIENT_PERMISSIONS' || c === 'MICROPHONE_PERMISSION_DENIED') return 'not-allowed';
+    if (c === 'NETWORK' || c === 'NETWORK_TIMEOUT' || c === 'SERVER' || c === 'SERVER_DISCONNECTED' || c === 'RECOGNIZER_UNAVAILABLE') return 'network';
+    if (c === 'AUDIO' || c === 'AUDIO_SESSION_FAILED' || c === 'AUDIO_ENGINE_START_FAILED') return 'audio-capture';
+    if (c === 'CLIENT' || c === 'RECOGNIZER_BUSY' || /_(216|209|301)$/.test(c)) return 'aborted';
+    // ERROR_LANGUAGE_NOT_SUPPORTED (12) y ERROR_LANGUAGE_UNAVAILABLE (13) llegan como UNKNOWN_n; en iOS, UNSUPPORTED_LOCALE.
+    if (c === 'UNKNOWN_12' || c === 'UNKNOWN_13' || c === 'UNSUPPORTED_LOCALE') return 'language-not-supported';
     return 'start';
 }
 
 // Capacitor devuelve Proxy con un método `then`: resolver una promesa con el plugin la deja colgada.
 // Se espera el módulo (un objeto normal) y se extrae el plugin fuera de la cadena de promesas.
-const cargarReconocedor = () => import('@capgo/capacitor-speech-recognition');
+let _modReconocedorPromise = null;
+let _permisoReconocimientoOk = false;
+let _cierreEnCurso = null;
+let _androidBuildCodePromise = null;
+
+async function _obtenerBuildAndroid() {
+    if (nativePlatform() !== 'android' || !nativePluginAvailable('LiveUpdate')) return null;
+    if (!_androidBuildCodePromise) {
+        _androidBuildCodePromise = import('@capawesome/capacitor-live-update')
+            .then(({ LiveUpdate }) => LiveUpdate.getVersionCode())
+            .then((r) => {
+                const n = Number.parseInt(r?.versionCode, 10);
+                return Number.isInteger(n) ? n : null;
+            })
+            .catch(() => null);
+    }
+    return _androidBuildCodePromise;
+}
+
+/**
+ * En Android builds 114-116 de Play Store, R8 ofuscó `app.capgo.**` y `*Annotation*`,
+ * causando crash nativo en `checkPermissions()` / puente Capacitor.
+ */
+async function _esBuildAndroidConBugR8() {
+    if (nativePlatform() !== 'android') return false;
+    const build = await _obtenerBuildAndroid();
+    return Number.isInteger(build) && build >= 114 && build <= 116;
+}
+
+export function _resetCacheBuildAndroidParaTests() {
+    _androidBuildCodePromise = null;
+}
+
+function registrarCierre(promesa) {
+    const p = Promise.resolve(promesa).catch(() => {});
+    _cierreEnCurso = p;
+    p.finally(() => { if (_cierreEnCurso === p) _cierreEnCurso = null; });
+}
+const cargarReconocedor = () => {
+    if (!_modReconocedorPromise) {
+        _modReconocedorPromise = import('@capgo/capacitor-speech-recognition').catch((err) => {
+            _modReconocedorPromise = null;
+            throw err;
+        });
+    }
+    return _modReconocedorPromise;
+};
+
+/** Pre-carga el plugin nativo y cachea el estado del permiso (solo iOS; en Android R8 puede crashear al montar sin tocar el mic). */
+export async function precalentarReconocimientoNativo() {
+    if (nativePlatform() !== 'ios' || !reconocimientoNativoDisponible()) return false;
+    try {
+        const { SpeechRecognition: plugin } = await cargarReconocedor();
+        if (!plugin) return false;
+        const p = await plugin.checkPermissions?.();
+        if (p?.speechRecognition === 'granted') {
+            _permisoReconocimientoOk = true;
+            return true;
+        }
+    } catch { /* best-effort: nunca rompe al montar el chat */ }
+    return false;
+}
 
 /** Un resultado con la forma que lee `leerResultados` (utils/dictado.js). */
 const resultados = (texto, final) => {
@@ -111,7 +173,9 @@ export class ReconocimientoNativo {
         this._texto = '';
         this._empezado = false;
         this._arrancado = false;
+        this._deteniendo = false;
         this._terminado = false;
+        this._errorEmitido = false;
         this._plugin = null;
     }
 
@@ -137,28 +201,47 @@ export class ReconocimientoNativo {
         // La Web Speech API arranca sin promesa: aquí todo fallo se convierte en onerror + onend, nunca en un rechazo.
         this._arrancar().catch((err) => {
             if (this._terminado) return;
-            // [P1-PLAN-LOTE-909] `crudo`: lo que dijo el plugin, para el diagnóstico (el hook solo entiende `error`).
-            this.onerror?.({ error: 'start', crudo: `start:${String(err?.code || err?.message || err || '').slice(0, 60)}` });
+            if (!this._errorEmitido && !this._deteniendo) {
+                const msg = String(err?.code || err?.message || err || '');
+                const error = /unsupported locale/i.test(msg) ? 'language-not-supported'
+                    : /permission/i.test(msg) ? 'not-allowed'
+                        : /already running/i.test(msg) ? 'aborted'
+                            : 'start';
+                // [P1-PLAN-LOTE-909] `crudo`: lo que dijo el plugin, para el diagnóstico (el hook solo entiende `error`).
+                this.onerror?.({ error, crudo: `start:${msg.slice(0, 60)}` });
+            }
             this._terminar();
         });
     }
 
     async _arrancar() {
+        if (_cierreEnCurso) await _cierreEnCurso;
+        if (this._terminado) return;
         this.fase = 'cargando';
+        const esMotorReal = this._cargar === cargarReconocedor;
+        if (esMotorReal && nativePlatform() === 'android' && nativePluginAvailable('LiveUpdate') && (await _esBuildAndroidConBugR8())) {
+            this.onerror?.({ error: 'not-allowed', crudo: 'android_r8_needs_update' });
+            this._terminar();
+            return;
+        }
         const { SpeechRecognition: plugin } = await this._cargar();
         this._plugin = plugin;
         this.fase = 'permiso';
-        let permiso = await plugin.checkPermissions();
+        let permiso = (esMotorReal && _permisoReconocimientoOk)
+            ? { speechRecognition: 'granted' }
+            : await plugin.checkPermissions();
         if (permiso?.speechRecognition !== 'granted') {
             this.onesperandopermiso?.(true);
             try { permiso = await plugin.requestPermissions(); } finally { this.onesperandopermiso?.(false); }
         }
         if (this._terminado) return;       // lo abortaron mientras se pedía el permiso
         if (permiso?.speechRecognition !== 'granted') {
+            if (esMotorReal) _permisoReconocimientoOk = false;
             this.onerror?.({ error: 'not-allowed', crudo: `permiso:${permiso?.speechRecognition || '?'}` });
             this._terminar();
             return;
         }
+        if (esMotorReal) _permisoReconocimientoOk = true;
         this.fase = 'oyentes';
         this._subs.push(await plugin.addListener('partialResults', (e) => {
             const t = (e?.matches && e.matches[0]) || e?.accumulatedText || '';
@@ -186,6 +269,8 @@ export class ReconocimientoNativo {
             }
         }));
         this._subs.push(await plugin.addListener('error', (e) => {
+            if (this._deteniendo || this._terminado) return;
+            this._errorEmitido = true;
             this.onerror?.({ error: errorWebDesdeAndroid(e?.code), crudo: String(e?.code || e?.message || '') });
         }));
         // Abortado mientras se enganchaban los oyentes: soltarlos y NO abrir el micrófono.
@@ -195,26 +280,34 @@ export class ReconocimientoNativo {
         // [P1-PLAN-LOTE-962] Con nuestro silencio, el plugin de voz NO toca volúmenes: los dos a la vez se pisarían
         // (él guarda el volumen ya silenciado y lo «restaura» a 0). Sin `await`: los plugins comparten un hilo (951).
         if (this._silencio) { this._silenciado = true; silenciarSistema(this._silencio); }
-        await plugin.start({
-            language: this.lang,
-            partialResults: true,
-            popup: false,
-            maxResults: 1,
-            muteRecognizerBeep: !this._silencio,
-        });
+        try {
+            await plugin.start({
+                language: this.lang,
+                partialResults: true,
+                addPunctuation: true,
+                popup: false,
+                maxResults: 1,
+                muteRecognizerBeep: !this._silencio,
+            });
+        } catch (err) {
+            if (esMotorReal) _permisoReconocimientoOk = false;
+            throw err;
+        }
         // El plugin resuelve `start()` justo después de emitir «started»: si resolvió y no llegó, el evento se perdió.
         if (!this._empezado && !this._terminado) this.fase = 'start_resuelto_sin_started';
     }
 
     stop() {
+        this._deteniendo = true;
         // Aún no oía (el plugin cargaba o pedía permiso): parar es no empezar, con su onend, como en el navegador.
         if (!this._arrancado) { this.abort(); return; }
-        try { Promise.resolve(this._plugin?.stop?.()).catch(() => {}); } catch { /* ya paraba */ }
+        try { registrarCierre(this._plugin?.stop?.()); } catch { /* ya paraba */ }
     }
 
     abort() {
+        this._deteniendo = true;
         if (this._arrancado) {
-            try { Promise.resolve(this._plugin?.forceStop?.()).catch(() => {}); } catch { /* ya paraba */ }
+            try { registrarCierre(this._plugin?.forceStop?.()); } catch { /* ya paraba */ }
         }
         this._terminar();
     }

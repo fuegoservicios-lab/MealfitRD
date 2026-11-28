@@ -77,6 +77,21 @@ export function nativeHidesCommerce() {
     return isNativeApp();
 }
 
+// [P1-IOS-REVENUECAT-IAP · 2026-11-27] En iOS con el binario que incluye el plugin
+// `Purchases` y la clave pública `VITE_REVENUECAT_IOS_KEY`, se habilitan compras
+// nativas StoreKit 2 (Apple 3.1.1 / 3.1.2). PayPal, landing y marketing siguen ocultos.
+export function nativeIapAvailable() {
+    return (
+        nativePlatform() === 'ios'
+        && nativePluginAvailable('Purchases')
+        && Boolean(String(import.meta.env.VITE_REVENUECAT_IOS_KEY ?? '').trim())
+    );
+}
+
+export function canShowUpgrade() {
+    return !nativeHidesCommerce() || nativeIapAvailable();
+}
+
 // [P1-IOS-OAUTH-GATE · 2026-08-22] OAuth por REDIRECCIÓN (Google) no vuelve a la app
 // nativa: Neon Auth redirige al `callbackURL`, que en el WebView es
 // `capacitor://localhost/dashboard`, y Safari lo rechaza («la dirección no es válida»

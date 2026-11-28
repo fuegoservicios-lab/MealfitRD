@@ -17,7 +17,9 @@ import { fetchWithAuth } from '../config/api';
 import { isNativeApp } from '../config/platform';
 
 const MAX_EN_CACHE = 60;
+const _CHAT_IMG_CACHE_STORAGE = 'mealfit-chat-img-v1';
 const _cache = new Map(); // ruta sin query (la firma caduca; el adjunto no) → blob:
+const _enVuelo = new Map(); // clave → Promise<string> (deduplica peticiones simultáneas)
 
 export const claveDeImagen = (url) => String(url || '').split('?')[0];
 export const esRutaDelBackend = (url) => typeof url === 'string' && url.startsWith('/api/');
@@ -31,8 +33,87 @@ function guardar(clave, objectUrl) {
     }
 }
 
+async function _leerDeCacheStorage(clave) {
+    if (typeof caches === 'undefined' || !caches?.open) return null;
+    try {
+        const store = await caches.open(_CHAT_IMG_CACHE_STORAGE);
+        const match = await store.match(clave);
+        if (!match) return null;
+        const blob = await match.blob();
+        if (!blob || blob.size === 0) return null;
+        const objectUrl = URL.createObjectURL(blob);
+        guardar(clave, objectUrl);
+        return objectUrl;
+    } catch {
+        return null;
+    }
+}
+
+async function _guardarEnCacheStorage(clave, blob, contentType) {
+    if (typeof caches === 'undefined' || !caches?.open || !blob) return;
+    try {
+        const store = await caches.open(_CHAT_IMG_CACHE_STORAGE);
+        await store.put(
+            clave,
+            new Response(blob, {
+                status: 200,
+                headers: { 'Content-Type': contentType || blob.type || 'image/jpeg' },
+            })
+        );
+    } catch { /* best-effort */ }
+}
+
+function _cargarAutenticadaUnica(url) {
+    const clave = claveDeImagen(url);
+    if (_cache.has(clave)) return Promise.resolve(_cache.get(clave));
+    if (_enVuelo.has(clave)) return _enVuelo.get(clave);
+
+    const p = (async () => {
+        const desdeDisco = await _leerDeCacheStorage(clave);
+        if (desdeDisco) return desdeDisco;
+        const r = await fetchWithAuth(url);
+        if (!r.ok) throw new Error(`imagen_${r.status}`);
+        const blob = await r.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        guardar(clave, objectUrl);
+        void _guardarEnCacheStorage(clave, blob, r.headers?.get?.('content-type'));
+        return objectUrl;
+    })().finally(() => {
+        _enVuelo.delete(clave);
+    });
+    _enVuelo.set(clave, p);
+    return p;
+}
+
+/** Precalienta las fotos más recientes del hilo en paralelo sin bloquear la UI. */
+export function precargarImagenesDelChat(urls, { limit = 6 } = {}) {
+    const lista = [];
+    const vistas = new Set();
+    for (const u of urls || []) {
+        if (typeof u !== 'string' || !u || u.startsWith('blob:') || u.startsWith('data:')) continue;
+        const c = claveDeImagen(u);
+        if (!c || vistas.has(c)) continue;
+        vistas.add(c);
+        lista.push(u);
+        if (lista.length >= limit) break;
+    }
+    if (!lista.length) return;
+    const nativa = isNativeApp();
+    for (const u of lista) {
+        if (esRutaDelBackend(u) && nativa) {
+            void _cargarAutenticadaUnica(u).catch(() => {});
+        } else if (typeof Image !== 'undefined') {
+            try {
+                const img = new Image();
+                img.decoding = 'async';
+                img.src = u;
+            } catch { /* noop */ }
+        }
+    }
+}
+
 /** Solo para tests. */
-export function _vaciarCacheDeImagenes() { _cache.clear(); }
+export function _vaciarCacheDeImagenes() { _cache.clear(); _enVuelo.clear(); }
 
 /**
  * @returns {{ src: string|null, error: boolean, onError: () => void }}
@@ -49,18 +130,13 @@ export function useChatImageSrc(url) {
     useEffect(() => {
         if (!autenticada || _cache.has(clave)) return undefined;
         let vivo = true;
-        (async () => {
-            try {
-                const r = await fetchWithAuth(url);
-                if (!r.ok) throw new Error(`imagen_${r.status}`);
-                const blob = await r.blob();
-                const objectUrl = URL.createObjectURL(blob);
-                guardar(clave, objectUrl);
+        _cargarAutenticadaUnica(url)
+            .then((objectUrl) => {
                 if (vivo) setResultado({ clave, src: objectUrl });
-            } catch {
+            })
+            .catch(() => {
                 if (vivo) setResultado({ clave, error: true });
-            }
-        })();
+            });
         return () => { vivo = false; };
     }, [autenticada, clave, url]);
 

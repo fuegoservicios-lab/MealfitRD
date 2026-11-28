@@ -44,6 +44,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CalendarDays, ChevronRight, ChevronLeft, Trash2, Loader2, Plus, FlaskConical, Share, Check, TrendingUp, Star, Map as MapIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
+import { CHAT_MESSAGES_CACHE_KEY } from '../../utils/chatCacheKeys';
 import { confirmToast } from '../../utils/confirmToast';
 import { formatDate, formatNumber, getLocale, useT, useTn } from '../../i18n';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -57,13 +58,14 @@ import { useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/use
 import MiniaturaDeComida from './MiniaturaDeComida';
 import { getBiologicalDate, getBiologicalDateStr, getCalendarDateStr } from '../../utils/diaBiologico';
 import { getCalorieGoalBand, getCalorieGoalState, isStrongDeficit, resolveMainGoal } from '../../utils/calorieGoalStatus';
+import { getMacroGoalState } from '../../utils/macroGoalStatus';
 import { ESTRELLAS_MAX, domingoDe, estrellasDeLaSemana, inicioDeLaSemana1, inicioDelViaje, numeroDeSemana } from '../../utils/progresoDeLosDias';
 import { diaUnoDelServidor, invalidarCacheSemanas } from '../../utils/progresoServidor';
 import VitrinaDeSemanas from './VitrinaDeSemanas';
 import { useResumenDeProgreso } from '../../hooks/useResumenDeProgreso';
 import { pedirSemanas } from '../../utils/progresoServidor';
 import MapaDeNiveles from './MapaDeNiveles';   // [P1-PLAN-LOTE-1131] el mapa de niveles, vista principal
-import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../../utils/safeLocalStorage';
 import styles from './DiaryHistory.module.css';
 import BotonInformeMedico from '../common/BotonInformeMedico';   // [P1-PLAN-LOTE-1034]
 import { Button } from '../ui/Button';
@@ -363,6 +365,15 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         pedirSemanas(userId).then((l) => { if (vivo && Array.isArray(l)) setSemanasJuego(l); }).catch(() => {});
         return () => { vivo = false; };
     }, [open, userId, resumenJuego?.puntos, version]);
+    const diasPuntosMap = useMemo(() => {
+        const src = resumenJuego?.dias_puntos;
+        if (!src || typeof src !== 'object') return new Map();
+        return new Map(Object.entries(src).map(([k, v]) => [k, Number(v) || 0]));
+    }, [resumenJuego]);
+    const diasPerfectosSet = useMemo(
+        () => new Set(Array.isArray(resumenJuego?.dias_perfectos) ? resumenJuego.dias_perfectos : []),
+        [resumenJuego],
+    );
     const juegoDelMapa = useMemo(() => {
         if (!resumenJuego?.puntos || !semanasJuego) return null;
         const conPuntos = semanasJuego.filter((s) => Number.isFinite(Number(s?.puntos)));
@@ -370,12 +381,14 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         return {
             estrellas: new Map(conPuntos.map((s) => [Number(s.numero), Number(s.estrellas) || 0])),
             puntos: new Map(conPuntos.map((s) => [Number(s.numero), Number(s.puntos) || 0])),
+            diasPuntos: diasPuntosMap,
+            diasPerfectos: diasPerfectosSet,
             racha: Number(resumenJuego.racha) || 0,
             escudosUsados: new Set(Array.isArray(resumenJuego.escudos_usados) ? resumenJuego.escudos_usados : []),
             totalPuntos: Number.isFinite(Number(resumenJuego.puntos?.total)) ? Number(resumenJuego.puntos.total) : null,
             rango: resumenJuego.rango || null,
         };
-    }, [resumenJuego, semanasJuego]);
+    }, [resumenJuego, semanasJuego, diasPuntosMap, diasPerfectosSet]);
     const [borrandoId, setBorrandoId] = useState(null);
     const borrandoRef = useRef(new Set());
     const eliminadasRef = useRef(new Set());
@@ -690,7 +703,11 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         }
         setBorrandoId(meal.id);
         try {
-            const res = await fetchWithAuth(`/api/diary/consumed/${meal.id}`, { method: 'DELETE' });
+            const sid = safeLocalStorageGet('mealfit_current_session', null);
+            const delUrl = sid
+                ? `/api/diary/consumed/${meal.id}?session_id=${encodeURIComponent(sid)}`
+                : `/api/diary/consumed/${meal.id}`;
+            const res = await fetchWithAuth(delUrl, { method: 'DELETE' });
             const yaEliminada = res.status === 404;
             const data = await res.json().catch(() => ({}));
             if (!yaEliminada && (!res.ok || !data?.success)) throw new Error(data?.detail || data?.message || 'delete failed');
@@ -702,8 +719,10 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             try {
                 window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'diary-history', date: selected, userId, deletedMeal: { id: meal.id, name: meal.meal_name } } }));
             } catch { /* best-effort */ }
+            safeLocalStorageRemove(CHAT_MESSAGES_CACHE_KEY);
+            window.dispatchEvent(new Event('mealfit:refresh-chat'));
             borrarFotoDeComidaEnSegundoPlano(userId, meal.id);
-            if (!yaEliminada) toast.success(t('"{nombre}" eliminada del diario.', { nombre: meal.meal_name }));
+            void yaEliminada; // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
             return true;
         } catch (err) {
             borrandoRef.current.delete(meal.id);
@@ -746,7 +765,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             el.scrollIntoView({ behavior: quieto ? 'auto' : 'smooth', block: 'nearest' });
         });
     }, [selected]);
-    // [P1-PLAN-LOTE-1100] el mes tal como lo pinta el calendario: verde = en meta, ámbar = bajo, naranja = sobre
+    // [P1-PLAN-LOTE-1100] el mes tal como lo pinta el calendario. [P1-MACRO-BARS-SEMAFORO] verde = en meta, gris = hoy
+    // aún abierto, rojo = cerrado sin cumplir o pasado (`abierto` decide el tono de un «bajo»)
     const abrirCompartirMes = () => {
         const ESTADO = { green: 'meta', under: 'bajo', over: 'pasado' };
         const delMes = calDias.filter((c) => c.currentMonth);
@@ -754,6 +774,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         const dias = delMes.map((c) => ({
             iso: c.iso,
             estado: c.iso > hoyISO ? 'futuro' : (ESTADO[estadoDe(c.iso)] || 'vacio'),
+            abierto: c.iso === hoyISO,
         }));
         setMesACompartir({
             nombre: `${getMeses(t)[calDate.getMonth()]} ${calDate.getFullYear()}`,
@@ -804,7 +825,17 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         { clave: 'under', texto: t('Bajo la meta'), punto: styles.goalLegendAmber },
         { clave: 'over', texto: t('Sobre la meta'), punto: styles.goalLegendOrange },
     ];
-    const renderResumenDelMes = () => (
+    const renderResumenDelMes = () => {
+        const mesActualPrefijo = `${calDate.getFullYear()}-${String(calDate.getMonth() + 1).padStart(2, '0')}-`;
+        let mesPuntos = 0;
+        if (diasPuntosMap.size > 0) {
+            for (const c of calDias) {
+                if (c.iso && c.iso.startsWith(mesActualPrefijo)) {
+                    mesPuntos += diasPuntosMap.get(c.iso) || 0;
+                }
+            }
+        }
+        return (
         <div className={styles.monthSummary}>
             <div className={styles.goalLegend} role="group" aria-label={t('Resaltar días')}>
                 {FILTROS.map((f) => (
@@ -822,12 +853,18 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     </button>
                 ))}
             </div>
-            {mes.n > 0 && (
+            {(mes.n > 0 || mesPuntos > 0) && (
                 <div className={styles.weekLine}>
-                    {tn(mes.n,
+                    {mes.n > 0 && tn(mes.n,
                         'Este mes: media de {kcal} kcal en {n} día con registro',
                         'Este mes: media de {kcal} kcal en {n} días con registro',
                         { kcal: formatNumber(mes.media), n: mes.n })}
+                    {mesPuntos > 0 && (
+                        <span className={styles.mesPts}>
+                            {mes.n > 0 ? ' · ' : ''}
+                            {t('+{n} pts este mes', { n: formatNumber(mesPuntos) })}
+                        </span>
+                    )}
                 </div>
             )}
             {/* [P1-PLAN-LOTE-1100] el mes como historia: un anillo por día, los días en meta y la mejor racha */}
@@ -842,7 +879,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             {/* [P1-PLAN-LOTE-1034] el resumen para el médico, desde el calendario */}
             <BotonInformeMedico />{/* [P1-PLAN-LOTE-1072] abre una hoja encima del cajón: el cajón no se cierra */}
         </div>
-    );
+        );
+    };
 
     const renderComida = (meal) => {
         const h = horaFiable(meal);
@@ -1113,7 +1151,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                                 <svg className={styles.calRing} viewBox="0 0 36 36" aria-hidden="true">
                                                     <circle className={styles.calRingTrack} cx="18" cy="18" r="15" />
                                                     <circle
-                                                        className={`${styles.calCellDot} ${estado === 'green' ? styles.calCellDotGreen : estado === 'over' ? styles.calCellDotOrange : styles.calCellDotYellow}`}
+                                                        className={`${styles.calCellDot} ${estado === 'green' ? styles.calCellDotGreen : estado === 'over' ? styles.calCellDotOrange : iso < hoyISO ? styles.calCellDotShort : styles.calCellDotYellow}`}
                                                         cx="18" cy="18" r="15"
                                                         style={{ '--largo': CAL_ANILLO, '--resto': CAL_ANILLO * (1 - lleno) }}
                                                     />
@@ -1144,6 +1182,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     const minVerde = Math.round(num(selectedTargetCal) * band.lo);
                     const maxVerde = Math.round(num(selectedTargetCal) * band.hi);
                     const deficitFuerte = !esHoy && conComidas && isStrongDeficit(kcalDia, selectedTargetCal, selectedMainGoal);
+                    const ptsDiaSel = diasPuntosMap.get(selected) || 0;
+                    const esPerfectoSel = diasPerfectosSet.has(selected);
                     return (
                         <div ref={detalleRef} className={styles.quota}>
                             <div className={styles.quotaTop}>
@@ -1151,22 +1191,31 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     <span className={styles.quotaNum}>{kcalDia}</span>
                                     <span className={styles.quotaOf}>{t('de {kcal} kcal', { kcal: selectedTargetCal })}</span>
                                 </div>
-                                {quotaEstado === 'green' && (
-                                    <span className={styles.quotaCompleteBadge}>
-                                        <Check size={12} strokeWidth={2.75} aria-hidden="true" />
-                                        {t('Meta del día alcanzada')}
-                                    </span>
-                                )}
-                                {quotaEstado === 'over' && excesoKcal > 0 && (
-                                    <span className={styles.quotaOverBadge}>
-                                        <TrendingUp size={12} strokeWidth={2.5} aria-hidden="true" />
-                                        {t('{n} {unit} sobre la meta', { n: formatNumber(excesoKcal), unit: 'kcal' })}
-                                    </span>
-                                )}
+                                <div className={styles.quotaRight}>
+                                    {ptsDiaSel > 0 && (
+                                        <span className={`${styles.quotaPtsBadge} ${esPerfectoSel ? styles.quotaPtsPerfect : ''}`}>
+                                            {esPerfectoSel && <Star size={11} strokeWidth={2.5} aria-hidden="true" />}
+                                            +{formatNumber(ptsDiaSel)} {t('pts')}
+                                            {esPerfectoSel && ` · ${t('Día perfecto')}`}
+                                        </span>
+                                    )}
+                                    {quotaEstado === 'green' && (
+                                        <span className={styles.quotaCompleteBadge}>
+                                            <Check size={12} strokeWidth={2.75} aria-hidden="true" />
+                                            {t('Meta del día alcanzada')}
+                                        </span>
+                                    )}
+                                    {quotaEstado === 'over' && excesoKcal > 0 && (
+                                        <span className={styles.quotaOverBadge}>
+                                            <TrendingUp size={12} strokeWidth={2.5} aria-hidden="true" />
+                                            {t('{n} {unit} sobre la meta', { n: formatNumber(excesoKcal), unit: 'kcal' })}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             <div className={styles.quotaBar}>
                                 <motion.div
-                                    className={`${styles.quotaFill} ${quotaEstado === 'green' ? styles.quotaFillComplete : quotaEstado === 'over' ? styles.quotaFillOver : ''}`}
+                                    className={`${styles.quotaFill} ${quotaEstado === 'green' ? styles.quotaFillComplete : (quotaEstado === 'over' || (!esHoy && selected < hoyISO)) ? styles.quotaFillOver : ''}`}
                                     initial={{ width: 0 }}
                                     animate={{ width: `${pct(totales.calories, selectedTargetCal)}%` }}
                                     transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
@@ -1203,9 +1252,14 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     </span>
                                 </div>
                                 <div className={styles.macroBar}>
+                                    {/* [P1-MACRO-BARS-SEMAFORO] gris en curso · verde cumplida · rojo pasada o día cerrado sin cumplir */}
                                     <motion.div
-                                        className={styles.macroFill}
-                                        style={{ background: m.color }}
+                                        className={`${styles.macroFill} ${(() => {
+                                            const e = getMacroGoalState(totales[m.key], meta);
+                                            if (e === 'done') return styles.quotaFillComplete;
+                                            if (e === 'over' || (meta > 0 && !esHoy && selected < hoyISO)) return styles.quotaFillOver;
+                                            return styles.macroFillCurso;
+                                        })()}`}
                                         initial={{ width: 0 }}
                                         animate={{ width: `${pct(totales[m.key], meta)}%` }}
                                         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
@@ -1225,10 +1279,17 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         const items = porFranja.get(f.key) || [];
                         const lleno = items.length > 0;
                         const totalFranjaKcal = lleno ? items.reduce((sum, m) => sum + (num(m.calories) || 0), 0) : 0;
+                        const esClickeable = !lleno && puedeRegistrar;
+                        const SlotTag = esClickeable ? motion.button : motion.div;
                         return (
-                            <motion.div
+                            <SlotTag
                                 key={f.key}
-                                className={`${styles.slot} ${lleno ? '' : styles.slotEmpty}`}
+                                {...(esClickeable ? {
+                                    type: 'button',
+                                    onClick: () => setRegistrando({ mealType: f.key, daysAgo: atras }),
+                                    'aria-label': t('Agregar {franja}', { franja: f.label }),
+                                } : {})}
+                                className={`${styles.slot} ${lleno ? '' : styles.slotEmpty} ${esClickeable ? styles.slotClickable : ''}`}
                                 style={{ color: f.color }}
                                 initial={{ opacity: 0, y: 5 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -1247,13 +1308,18 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                             {lleno && items.length === 1 && horaFiable(items[0]) && (
                                                 <span className={styles.slotNote}>{hhmm(horaFiable(items[0]))}</span>
                                             )}
+                                            {esClickeable && (
+                                                <span className={styles.slotAddIcon} aria-hidden="true">
+                                                    <Plus size={14} strokeWidth={2.5} />
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     {lleno
                                         ? items.map((meal) => renderComida(meal))
                                         : <div className={styles.slotEmptyText}>{t('Sin registro')}</div>}
                                 </div>
-                            </motion.div>
+                            </SlotTag>
                         );
                     })}
 
@@ -1394,11 +1460,14 @@ DiaryHistory.propTypes = {
 export const DiaryHistoryTrigger = ({ onClick, label, compacto = false }) => {
     const t = useT();
     // [SEMANA-EN-PROGRESO] `compacto`: la píldora «Calendario» de la cabecera de «Tu semana» (la tira ya enseña los días).
-    const texto = label || (compacto ? t('Calendario') : t('Calendario y comidas'));
+    // [P1-MI-CAMINO · 2026-11-27] La píldora abre el MAPA DE NIVELES (vista principal del cajón): «Calendario» lo vendía
+    // como una utilidad. «Mi camino» + el icono del mapa, como su «Compartir mi camino».
+    const texto = label || (compacto ? t('Mi camino') : t('Calendario y comidas'));
+    const Icono = compacto ? MapIcon : CalendarDays;
     return (
         <button type="button" className={compacto ? `${styles.trigger} ${styles.triggerCompacto}` : styles.trigger} onClick={onClick} aria-label={texto}>
             <span className={styles.triggerIcon}>
-                <CalendarDays size={18} strokeWidth={2.25} aria-hidden="true" />
+                <Icono size={18} strokeWidth={2.25} aria-hidden="true" />
             </span>
             <span className={styles.triggerLabel}>{texto}</span>
             <ChevronRight size={16} className={styles.triggerChevron} aria-hidden="true" />

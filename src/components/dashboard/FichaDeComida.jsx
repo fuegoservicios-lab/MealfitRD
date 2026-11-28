@@ -33,7 +33,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, RotateCcw, Trash2, Loader2, ChevronLeft, ChevronRight, Minus, Plus, ChevronDown, FlaskConical } from 'lucide-react';
+import { X, RotateCcw, Trash2, Loader2, ChevronLeft, ChevronRight, Minus, Plus, ChevronDown, FlaskConical, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -252,9 +252,9 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     const nPartes = Math.max(partes.length, nPartesLista);
     const metaKcal = num(metas?.calories);
     const macros = [
-        { clave: 'protein', rotulo: t('Proteína'), g: num(vivo?.protein), meta: num(metas?.protein), color: '#3B82F6' },
-        { clave: 'carbs', rotulo: t('Carbos'), g: num(vivo?.carbs), meta: num(metas?.carbs), color: '#10B981' },
-        { clave: 'fats', rotulo: t('Grasas'), g: num(vivo?.healthy_fats ?? vivo?.fats), meta: num(metas?.fats), color: '#EC4899' },
+        { clave: 'protein', rotulo: t('Proteína'), g: num(vivo?.protein), meta: num(metas?.protein) },
+        { clave: 'carbs', rotulo: t('Carbos'), g: num(vivo?.carbs), meta: num(metas?.carbs) },
+        { clave: 'fats', rotulo: t('Grasas'), g: num(vivo?.healthy_fats ?? vivo?.fats), meta: num(metas?.fats) },
     ];
     const microsDeLaComida = meal?.micros?.values || null;
 
@@ -335,10 +335,13 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
         if (ajustando !== null || !meal?.id) return;
         setAjustando(indice);
         try {
+            const sid = safeLocalStorageGet('mealfit_current_session', null);
+            const cuerpo = typeof gramos === 'object' ? { indice, ...gramos } : { indice, gramos };
+            if (sid) cuerpo.session_id = sid;
             const res = await fetchWithAuth(`/api/diary/consumed/${meal.id}/gramos`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(typeof gramos === 'object' ? { indice, ...gramos } : { indice, gramos }),
+                body: JSON.stringify(cuerpo),
             });
             const data = await res.json().catch(() => null);
             if (!res.ok || !data?.success || !data.meal) throw new Error('ajuste');
@@ -348,6 +351,8 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                 carbs: data.meal.carbs, healthy_fats: data.meal.healthy_fats,
             });
             window.dispatchEvent(new Event('mealfit:refresh-inventory'));
+            safeLocalStorageRemove(CHAT_MESSAGES_CACHE_KEY);
+            window.dispatchEvent(new Event('mealfit:refresh-chat'));
         } catch {
             toast.error(t('No se pudo ajustar la cantidad.'));
         } finally {
@@ -428,11 +433,13 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                             {macros.map((m) => {
                                 const pct = m.meta > 0 ? Math.round((m.g / m.meta) * 100) : null;
                                 return (
-                                    <li key={m.clave} className={styles.macro}>
+                                    // [P1-MACRO-BARS-SEMAFORO · 2026-11-26] gris: una comida APORTA a la meta, no la cumple; rojo solo
+                                    // si ella sola ya pasa la meta del día de esa macro
+                                    <li key={m.clave} className={pct !== null && pct > 100 ? `${styles.macro} ${styles.macroPasada}` : styles.macro}>
                                         <span className={styles.macroRotulo}>{m.rotulo}</span>
                                         <span className={styles.macroValor}>{formatNumber(m.g)} g</span>
                                         <span className={styles.macroPista} aria-hidden="true">
-                                            <span className={styles.macroRelleno} style={{ width: `${Math.min(100, pct ?? 0)}%`, background: m.color }} />
+                                            <span className={styles.macroRelleno} style={{ width: `${Math.min(100, pct ?? 0)}%` }} />
                                         </span>
                                     </li>
                                 );
@@ -463,6 +470,10 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
 
                     <section className={styles.seccion} aria-labelledby="ficha-comida-ingredientes">
                         <h3 id="ficha-comida-ingredientes" className={styles.seccionTitulo}>{t('Ingredientes')}</h3>
+                        {/* [P1-FICHA-CANTIDAD-VISIBLE · 2026-11-26] «no se nota que se puede editar» (el dueño): la pista lo dice */}
+                        {detalle.estado === 'listo' && lineas.some((l) => Number.isFinite(l.ajustable_g) || Number.isFinite(l.cantidad?.valor)) && (
+                            <p className={styles.pistaCantidad}>{t('Toca una cantidad para cambiarla; las calorías se recalculan.')}</p>
+                        )}
                         {detalle.estado === 'cargando' && (
                             <div className={styles.cargando} aria-busy="true">
                                 <span className={styles.skeleton} />
@@ -517,7 +528,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                                                             ? t('Escribir los gramos de {nombre}', { nombre: nombreLegible })
                                                             : t('Escribir la cantidad de {nombre}', { nombre: nombreLegible })}
                                                         onClick={() => setEditor({ i, unidadId: opcion.id, valor: String(valorActual) })}>
-                                                        {ajustando === i ? <Loader2 size={14} className="spin-animation" aria-hidden="true" /> : textoValor}
+                                                        {ajustando === i ? <Loader2 size={14} className="spin-animation" aria-hidden="true" /> : <>{textoValor}<Pencil size={11} strokeWidth={2.5} className={styles.gramosLapiz} aria-hidden="true" /></>}
                                                     </button>
                                                     <button type="button" className={styles.gramosBtn}
                                                         onClick={() => { if (siguienteMasG !== null) ajustar(i, siguienteMasG); }}
@@ -563,7 +574,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                                                             disabled={ajustando !== null}
                                                             aria-label={t('Escribir la cantidad de {nombre}', { nombre: lineaDeIngredienteLegible(l.texto, t) })}
                                                             onClick={() => setEscribiendo({ i: clave, valor: String(q.valor) })}>
-                                                            {ajustando === i ? <Loader2 size={14} className="spin-animation" aria-hidden="true" /> : `${formatNumber(q.valor)} ${q.unidad}`.trim()}
+                                                            {ajustando === i ? <Loader2 size={14} className="spin-animation" aria-hidden="true" /> : <>{`${formatNumber(q.valor)} ${q.unidad}`.trim()}<Pencil size={11} strokeWidth={2.5} className={styles.gramosLapiz} aria-hidden="true" /></>}
                                                         </button>
                                                     )}
                                                     <button type="button" className={styles.gramosBtn}

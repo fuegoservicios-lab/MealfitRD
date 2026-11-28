@@ -259,6 +259,11 @@
 }
 
 :root {
+  /* [P1-MACRO-BARS-SEMAFORO · 2026-11-27] Reparto de macros (P/C/G): tres tonos de la tinta del tema, no tres
+     colores. Viven en :root junto a --text-main, así que cada tema los resuelve con su propia tinta. */
+  --macro-tono-p: var(--text-main);
+  --macro-tono-c: color-mix(in srgb, var(--text-main) 52%, transparent);
+  --macro-tono-g: color-mix(in srgb, var(--text-main) 26%, transparent);
   /* Brand Identity - Deep & Trustworthy */
   --primary: #4F46E5;
   /* [P1-PRIMARY-FILL-DEPTH · 2026-08-14] Relleno PLANO de un botón primario.

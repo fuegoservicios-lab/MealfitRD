@@ -44,18 +44,35 @@ describe('Pulido del Saludo y Bienvenida del Coach (BB-044)', () => {
         expect(container.querySelector('.msg-actions')).toBeNull();
     });
 
-    it('MemoizedMessageBubble SÍ renderiza fuentes de salud en respuestas reales del modelo (sin acciones: lote 1061)', () => {
-        const realMsg = {
+    it('MemoizedMessageBubble oculta fuentes de salud en registros simples y las muestra en consejos nutricionales (sin acciones: lote 1061)', () => {
+        const logMsg = {
             role: 'model',
-            content: 'Anoté tu comida con 30g de proteína y 500 kcal.',
+            content: 'Anoté tu **cena**: 4 panes con jamón y queso (**960 kcal · 48 g prot**).',
             isWelcome: false,
         };
+        const { container: logContainer, unmount } = render(
+            <MemoryRouter initialEntries={['/dashboard/agent']}>
+                <MemoizedMessageBubble
+                    msg={logMsg}
+                    index={1}
+                    currentSessionId="sess-1"
+                />
+            </MemoryRouter>
+        );
+        expect(screen.queryByText(/Fuentes de salud/i)).not.toBeInTheDocument();
+        expect(logContainer.querySelector('.msg-actions')).toBeNull();
+        unmount();
 
+        const adviceMsg = {
+            role: 'model',
+            content: 'Para tu objetivo conviene priorizar proteína y vigilar el sodio.',
+            isWelcome: false,
+        };
         const { container } = render(
             <MemoryRouter initialEntries={['/dashboard/agent']}>
                 <MemoizedMessageBubble
-                    msg={realMsg}
-                    index={1}
+                    msg={adviceMsg}
+                    index={2}
                     currentSessionId="sess-1"
                 />
             </MemoryRouter>

@@ -38,6 +38,7 @@ describe('modos de scroll del chat', () => {
     });
     it('cada burbuja lleva su localizador y enfocar la caja solo scrollea en móvil', () => {
         expect(read('src/components/agent/MessageBubble.jsx')).toContain('data-client-message-id={msg.clientMessageId || undefined}');
-        expect(SRC).toContain('onFocus={() => { if (isMobile) setTimeout(scrollToBottom, 300); }}');
+        // el foco también cierra el menú de adjuntos; lo vigilado es que el salto al fondo siga siendo SOLO en móvil
+        expect(SRC).toMatch(/onFocus=\{\(\) => \{[^\n]*if \(isMobile\) setTimeout\(scrollToBottom, 300\); \}\}/);
     });
 });

@@ -137,7 +137,8 @@ describe('lote 223 · lo que se guarda', () => {
         }]);
         expect(interruptor('Merienda').checked).toBe(false);
         expect(hora('Merienda').disabled).toBe(true);
-        expect(toast.success).toHaveBeenCalledWith('Recordatorios guardados.', { id: 'recordatorios-comida' });
+        // [P1-PLAN-LOTE-1181] sin aviso de «guardado»: el interruptor ya muestra el cambio
+        expect(toast.success).not.toHaveBeenCalled();
     });
 
     it('elegir una hora la guarda al soltar el campo; las otras siguen en la normal (`hora: null`)', async () => {
@@ -330,7 +331,7 @@ describe('lote 223 · Configuración lo pinta donde toca', () => {
     });
 
     it('los textos nuevos están en los cuatro catálogos', () => {
-        const nuevos = ['Un aviso por comida, a la hora que elijas.', 'Recordatorios guardados.',
+        const nuevos = ['Un aviso por comida, a la hora que elijas.',
             'Elige una hora entre las {desde} y las {hasta}.', 'No pudimos cargar tus horas de aviso.',
             'Hora de cada recordatorio', 'Hora del recordatorio: {comida}', 'Recordatorio: {comida}',
             'Volver a las horas normales'];

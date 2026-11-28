@@ -59,6 +59,26 @@ describe('[1034] los bloques del informe salen solo de `data`', () => {
         expect(bloquesDeLaRedaccion(null, { t })).toEqual([]);
         expect(bloquesDelInforme({ periodo: DATA.periodo, limitaciones: [] }, { t })).toEqual([]);
     });
+
+    it('pinta las nuevas métricas clínicas (entre semana vs finde, tendencia y proteína por comida) y omite horarios si faltan', () => {
+        const enriquecido = {
+            ...DATA,
+            adherencia: { ...DATA.adherencia, pct_en_meta_entre_semana: 80, pct_en_meta_fin_de_semana: 25 },
+            energia: {
+                ...DATA.energia,
+                tendencia: { primera_mitad_kcal: 2200, segunda_mitad_kcal: 1950, primera_mitad_pct_en_meta: 40, segunda_mitad_pct_en_meta: 85 },
+            },
+            macros: { proteina_g: 130, carbos_g: 210, grasas_g: 60, proteina_por_franja_g: { desayuno: 25, almuerzo: 55, cena: 50 } },
+            patrones: { comidas_por_dia: 3.1, pct_dias_con_desayuno: 90 },
+        };
+        const b = bloquesDelInforme(enriquecido, { t, fmt: String });
+        expect(b.find((x) => x.id === 'adherencia').lineas).toContain('En meta entre semana: 80 % · fin de semana: 25 %');
+        expect(b.find((x) => x.id === 'energia').lineas).toContain('Tendencia: primera mitad 2200 kcal · segunda mitad 1950 kcal');
+        expect(b.find((x) => x.id === 'energia').lineas).toContain('Adherencia: primera mitad 40 % · segunda mitad 85 % en meta');
+        expect(b.find((x) => x.id === 'macros').lineas).toContain('Proteína media por comida: Desayuno 25 g · Almuerzo 55 g · Cena 50 g');
+        const patLineas = b.find((x) => x.id === 'patrones').lineas.join(' | ');
+        expect(patLineas).not.toContain('undefined');
+    });
 });
 
 describe('[1034] la pantalla', () => {

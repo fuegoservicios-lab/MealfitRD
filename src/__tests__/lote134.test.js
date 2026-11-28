@@ -35,6 +35,8 @@ describe('lote 134 · enviar cierra el teclado virtual', () => {
     it('solo ENVIAR: el «+» y el gesto de los botones siguen sin quitarle el foco a la caja (lotes 111 y 130)', () => {
         expect(ap).toContain("onTouchEnd={handleComposerTouchEnd('attachment')}");
         expect(ap.split('onMouseDown={keepComposerFocus}').length - 1).toBe(2);
-        expect(ap).toContain('if (abierto && !isNativeApp()) chatInputRef.current?.blur();');
+        // «Opción A» (chatAttachBottomSheet.test.js): adjuntar abre la hoja inferior y cierra el teclado también en la
+        // app nativa; lo que sigue sin quitar el foco es el gesto de los botones (arriba).
+        expect(ap).toContain('if (abierto) chatInputRef.current?.blur();');
     });
 });

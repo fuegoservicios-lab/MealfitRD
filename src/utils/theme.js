@@ -52,6 +52,7 @@ export function applyThemePref(pref) {
     const isDark = resolveIsDark(pref);
     try {
         document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
         // [P3-THEME-COLOR-SYNC · 2026-05-30] Notifica a useThemeColor para
         // re-sincronizar <meta name="theme-color"> de inmediato. Cubre el toggle
         // de tema en Settings Y el cambio del SO cuando pref='system' (via

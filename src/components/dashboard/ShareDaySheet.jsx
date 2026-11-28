@@ -21,7 +21,7 @@
 // algo para dar para atrás y para alante»): deshacer/rehacer (`utils/historialDeEdicion.js`, un paso por gesto), la
 // imagen a pantalla completa con zoom de VISTA (botones, rueda, pellizco con la Mano; doble toque = 100 %) y guías
 // que imantan los textos al centro o al margen seguro.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { X, Share2, Copy, Download, MessageCircle, Loader2, Camera, Images, Image as ImageIcon, Type, RotateCcw, Eye, EyeOff, ChevronRight, Undo2, Redo2, Maximize2, Hand, Minus, Plus, Trash2 } from 'lucide-react';
@@ -30,7 +30,8 @@ import { chooseNativeGalleryImage, takeNativeChatPhoto, isNativePickerCancellati
 import { toast } from 'sonner';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
-import { isNativeApp } from '../../config/platform';
+import { isNativeApp, nativePlatform } from '../../config/platform';
+const CameraViewfinder = lazy(() => import('../common/CameraViewfinder'));
 import { useT, formatDate } from '../../i18n';
 import { DISENOS, disenoDelDia } from '../../utils/disenosDeHistoria';
 import { resumenDeSemana, textoDeSemana } from '../../utils/compartirSemana';
@@ -60,7 +61,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     // [1143] con el editor a pantalla completa abierto, ESC y el Tab son suyos (la hoja espera debajo)
     const { containerRef } = useModalAccessibility({
         isOpen: true, onClose,
-        isTopmost: () => typeof document === 'undefined' || !document.querySelector('[data-editor-completo]'),
+        isTopmost: () => typeof document === 'undefined' || (!document.querySelector('[data-editor-completo]') && !document.getElementById('mfvf-title')),
     });
     const bodyRef = useRef(null);
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose });
@@ -81,6 +82,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     // Fototeca / Hacer foto / Seleccionar archivo). En la app nativa, la fototeca del binario (PHPicker directo, sin
     // permiso) y la cámara del plugin; en la web, un <input> por opción (el de la cámara con `capture`).
     const [eligiendo, setEligiendo] = useState(false);
+    const [camaraAbierta, setCamaraAbierta] = useState(false);
     const pedirFoto = useCallback(() => setEligiendo(true), []);
     const usarFichero = useCallback(async (fichero) => {
         if (!fichero) return;
@@ -111,7 +113,14 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
     }, [desdeNativo]);
     const hacerFoto = useCallback(() => {
         setEligiendo(false);
-        if (isNativeApp()) { void desdeNativo(async () => (await takeNativeChatPhoto({ lado: 2400 }))?.[0]); return; }
+        if (isNativeApp()) {
+            if (nativePlatform() === 'android' && typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+                setCamaraAbierta(true);
+                return;
+            }
+            void desdeNativo(async () => (await takeNativeChatPhoto({ lado: 2400 }))?.[0]);
+            return;
+        }
         inputCamaraRef.current?.click();
     }, [desdeNativo]);
     // [P1-PLAN-LOTE-1048 · encuadre] La selfie se mueve con el dedo y se acerca pellizcando (o con el deslizador): la
@@ -845,6 +854,26 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas = null, 
                 </div>
             </div>
             {editorCompleto}
+            {camaraAbierta && (
+                <Suspense fallback={null}>
+                    <CameraViewfinder
+                        isOpen={camaraAbierta}
+                        title={t('Tomar una foto')}
+                        hint=""
+                        hideReticle
+                        fileName={`historia-${Date.now()}.jpg`}
+                        onCapture={(file) => {
+                            setCamaraAbierta(false);
+                            if (file) void usarFichero(file);
+                        }}
+                        onClose={() => setCamaraAbierta(false)}
+                        onFallbackToFile={() => {
+                            setCamaraAbierta(false);
+                            elegirDeGaleria();
+                        }}
+                    />
+                </Suspense>
+            )}
         </div>
     );
 

@@ -43,7 +43,7 @@ import { formatNumber, useT, useTn } from '../../i18n';
 import { ESCALERA, posicionEnLaEscalera, semanasHasta, semanasPorRitmo, RITMO_PROPIO_MAX_SEMANAS } from '../../utils/caminoDeRangos';   // [1157] [1158]
 import {
     BONO_SEMANA_PERFECTA, DIVISIONES, ESCUDOS_MAX, ESCUDO_CADA, MAESTRO, MAESTRO_PUNTOS, PUNTOS, PUNTOS_CALORIAS_CERCA,
-    PUNTOS_CALORIAS_PASADO, PUNTOS_DIA_PERFECTO, PUNTOS_PROTEINA_PARCIAL, RANGOS_PUNTOS,
+    PUNTOS_CALORIAS_PASADO, PUNTOS_DIA_PERFECTO, PUNTOS_MICROS_PARCIAL, PUNTOS_PROTEINA_PARCIAL, RANGOS_PUNTOS,
     TRAMOS_RACHA, diasParaEscudo, divisionRomana, escaleraDePuntos, maestroProgreso, nombreDelRango, nombreDelTramo,
     proximoHitoRacha, rangoDelJugador, tramoDeRacha,
 } from '../../utils/juegoPuntos';
@@ -126,9 +126,12 @@ function HojaDeRangos({
     // [1164] cómo se ganan: lo que vale cada cosa, con el detalle de los parciales
     const filasPuntos = [
         { k: 'registro', nombre: t('Registrar lo que comes'), detalle: t('mantiene tu racha'), valor: null },
-        { k: 'completo', nombre: t('Día completo'), detalle: t('3 comidas, o 2 con ≥70% de tus calorías'), valor: PUNTOS.completo },
-        { k: 'banda', nombre: t('Calorías en tu meta'), detalle: t('cerca (±20%) +{c} · pasado de largo +{p}', { c: PUNTOS_CALORIAS_CERCA, p: PUNTOS_CALORIAS_PASADO }), valor: PUNTOS.banda },
+        { k: 'banda', nombre: t('Calorías en tu meta'), detalle: t('cerca (±20%): +{c} · si te pasas: 0', { c: PUNTOS_CALORIAS_CERCA, p: PUNTOS_CALORIAS_PASADO }), valor: PUNTOS.banda },
         { k: 'proteina', nombre: t('Proteína al 90%'), detalle: t('al 70%: +{n}', { n: PUNTOS_PROTEINA_PARCIAL }), valor: PUNTOS.proteina },
+        { k: 'carbos', nombre: t('Carbohidratos en rango'), detalle: t('sin pasarte del 115% de tu meta'), valor: PUNTOS.carbos },
+        { k: 'grasas', nombre: t('Grasas en rango'), detalle: t('sin pasarte del 115% de tu meta'), valor: PUNTOS.grasas },
+        { k: 'micros', nombre: t('Micronutrientes clave'), detalle: t('≥50% de tus 8 micros · parcial +{n}', { n: PUNTOS_MICROS_PARCIAL }), valor: PUNTOS.micros },
+        { k: 'completo', nombre: t('Día completo'), detalle: t('3 comidas, o 2 con ≥70% de tus calorías'), valor: PUNTOS.completo },
         ...(aguaEncendida ? [{ k: 'agua', nombre: t('Tu agua del día'), detalle: null, valor: PUNTOS.agua }] : []),
         { k: 'perfecto', nombre: t('Día perfecto'), detalle: t('todo lo anterior sin pasarte'), valor: PUNTOS_DIA_PERFECTO, destacado: true },
         { k: 'semana', nombre: t('Semana perfecta (3★)'), detalle: t('bono que suma a tu rango'), valor: BONO_SEMANA_PERFECTA, destacado: true },
@@ -314,6 +317,9 @@ function HojaDeRangos({
                                             {hito && ` ${t('Próximo hito: {n} días.', { n: formatNumber(hito) })}`}
                                         </>
                                     )}
+                            </p>
+                            <p className={styles.planNota}>
+                                {t('Tu multiplicador se activa los días que cumples calorías en meta o proteína ≥90%, sin pasarte en carbos ni grasas.')}
                             </p>
                             <p className={styles.escudosNota}>
                                 <span className={styles.escudosFila} aria-hidden="true">

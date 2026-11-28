@@ -52,13 +52,15 @@ const sanitizeGoal = (raw) => {
     return raw;
 };
 
-const readEnabledFromCache = () => {
+const readEnabledFromCache = (initialEnabled = null) => {
+    if (typeof initialEnabled === 'boolean') return initialEnabled;
     try {
         const cached = safeLocalStorageGet(LS_ENABLED_KEY, null);
-        if (cached === null) return true;
-        return cached === 'true';
+        if (cached === 'true') return true;
+        if (cached === 'false') return false;
+        return null;
     } catch {
-        return true;
+        return null;
     }
 };
 
@@ -76,10 +78,17 @@ const readWaterStateFromCache = (userId) => {
     }
 };
 
-const WaterTracker = ({ userId, flatOnMobile = false }) => {
+const WaterTracker = ({ userId, flatOnMobile = false, initialEnabled = null }) => {
     const t = useT();
     const tn = useTn();
-    const [enabled, setEnabled] = useState(readEnabledFromCache);
+    const [enabled, setEnabled] = useState(() => readEnabledFromCache(initialEnabled));
+    const [prevInitialEnabled, setPrevInitialEnabled] = useState(initialEnabled);
+    if (initialEnabled !== prevInitialEnabled) {
+        setPrevInitialEnabled(initialEnabled);
+        if (typeof initialEnabled === 'boolean' && enabled !== initialEnabled) {
+            setEnabled(initialEnabled);
+        }
+    }
     const _cachedState = useMemo(() => readWaterStateFromCache(userId), [userId]);
     const [glasses, setGlasses] = useState(() => _cachedState?.glasses ?? 0);
     const [goal, setGoal] = useState(() => _cachedState?.goal ?? DEFAULT_GOAL);
@@ -165,13 +174,13 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
     }, [avisoApagadoRef]);   // [P1-PLAN-LOTE-640] el ref de `useLatestRef` es estable: declararlo no re-crea nada
 
     useEffect(() => {
-        if (!enabled) { setLoading(false); return; }
+        if (enabled === false) { setLoading(false); return; }
         loadIntake(currentDate);
     }, [currentDate, loadIntake, enabled, userId]);
 
     // Watcher de rollover de medianoche (60s, pausado en background).
     useEffect(() => {
-        if (!enabled) return undefined;
+        if (enabled === false) return undefined;
         const interval = setInterval(() => {
             if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
             const today = getLocalDateString();
@@ -188,13 +197,13 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
     // (racha rota) y el vaso de hoy no existía. Es justo el gesto de cada mañana con la app abierta desde anoche.
     useEffect(() => {
         const onVisibility = () => {
-            if (document.visibilityState !== 'visible' || !enabled) return;
+            if (document.visibilityState !== 'visible' || enabled === false) return;
             const hoy = getLocalDateString();
             setCurrentDate(hoy);
             loadIntake(hoy);
         };
         const onStorage = (e) => { if (e.key === LS_ENABLED_KEY) setEnabled(e.newValue === 'true'); };
-        const onAgentRefresh = () => { if (enabled) loadIntake(getLocalDateString()); };
+        const onAgentRefresh = () => { if (enabled !== false) loadIntake(getLocalDateString()); };
         document.addEventListener('visibilitychange', onVisibility);
         window.addEventListener('storage', onStorage);
         window.addEventListener('mealfit:refresh-hydration', onAgentRefresh);
@@ -241,14 +250,17 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
             }
             const data = await res.json().catch(() => null);
             lastSavedRef.current = target;
-            try { window.dispatchEvent(new Event(EVENTO_AGUA_CAMBIO)); } catch { /* sin window: nada que avisar */ }
+            const resolvedGoal = Number.isInteger(data?.goal) ? sanitizeGoal(data.goal) : goalRef.current;
+            try {
+                window.dispatchEvent(new CustomEvent(EVENTO_AGUA_CAMBIO, {
+                    detail: { glasses: target, goal: resolvedGoal, completed: target >= resolvedGoal },
+                }));
+            } catch { /* sin window: nada que avisar */ }
             if (data) {
                 if (Number.isInteger(data.goal)) setGoal(sanitizeGoal(data.goal));
                 if (data.goal_basis) setGoalBasis(data.goal_basis);
             }
-            if (target >= goalRef.current && prevSaved < goalRef.current) {
-                toast.success(t('¡Meta de hidratación alcanzada!'));
-            }
+            // [P1-PLAN-LOTE-1183] sin aviso de «meta alcanzada»: la tarjeta ya lo dice («¡Meta cumplida!»)
         } finally {
             inFlightRef.current = false;
             if (pendingTargetRef.current !== null) {
@@ -383,6 +395,9 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
                             <button type="button" onClick={() => add(-0.5)} disabled={loading || glasses <= 0} aria-label={t('Quitar medio vaso')}>
                                 <MinusIcon />
                             </button>
+                            {/* [P1-PLAN-LOTE-1182] en la tarjeta estrecha el −/+ ocupa su fila: en medio, el paso (½ vaso);
+                                el conteo ya está en el vaso, repetirlo sobraba */}
+                            <span className={styles.stepValor} aria-hidden="true">½</span>
                             <button type="button" onClick={() => add(0.5)} disabled={loading || glasses >= goal} aria-label={t('Agregar medio vaso')}>
                                 <PlusIcon />
                             </button>

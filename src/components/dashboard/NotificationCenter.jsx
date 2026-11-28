@@ -35,8 +35,14 @@ import { restoreInsightsPanel } from '../../utils/insightsPanel';
 import { isTrackingMode } from '../../config/dashboardNav';
 import { descartadaLocal, leerInvitacionCentro } from '../../utils/planInvite';
 import { TurnOnPlanCard } from './DashboardTracking';
+import { AvisoDiaActivo } from './DiaActivo';
+import { claveAvisoDiaActivo, estadoDelDiaActivo, suscribirDiaActivo } from '../../utils/diaBiologico';
+import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import { useT } from '../../i18n';
 import styles from './NotificationCenter.module.css';
+import { canInstallPwa, subscribePwaInstall, triggerPwaInstall } from '../../utils/pwaInstall';
+import { estadoDeAvisos } from '../../utils/avisosDeComida';
+import { mensajePermisoBloqueado } from '../../utils/permisoAvisosGuia';
 import Wordmark from '../common/Wordmark';
 // [P1-PLAN-LOTE-225] Nombres, dosis, alimentos y avisos de micronutrientes, traducidos al pintar.
 import { etiquetaMicro, textoSuplemento, alimentosSuplemento, avisoMicro } from '../../utils/microsCopy';
@@ -53,6 +59,8 @@ import { etiquetaMicro, textoSuplemento, alimentosSuplemento, avisoMicro } from 
    (cross-tab). Render via portal a <body> para escapar de cualquier
    stacking-context/overflow del layout. Leído/no-leído: el badge cuenta las no
    leídas; expandir una la marca leída. */
+
+const pushBlockedDismissKey = (uid) => `mealfit_push_blocked_dismissed:${uid}`;
 
 const KIND_META = {
     micros: { Icon: FlaskConical, tone: 'teal' },
@@ -339,6 +347,78 @@ export default function NotificationCenter({ hidden = false }) {
     const [inviteDismissed, setInviteDismissed] = useState(() => (
         descartadaLocal('mealfit_turnon_card_dismissed', userId)
     ));
+    const [estadoDiaActivo, setEstadoDiaActivo] = useState(() => estadoDelDiaActivo());
+    const [diaActivoDescartado, setDiaActivoDescartado] = useState(() => (
+        safeLocalStorageGet('mealfit_dia_activo_descartado', '') || ''
+    ));
+    const [diaActivoVisto, setDiaActivoVisto] = useState(() => (
+        safeLocalStorageGet('mealfit_dia_activo_visto', '') || ''
+    ));
+    const pwaInstallable = useSyncExternalStore(subscribePwaInstall, canInstallPwa, () => false);
+    const [pwaDismissed, setPwaDismissed] = useState(() => (
+        safeLocalStorageGet('mealfit_pwa_install_dismissed', '') === '1'
+    ));
+    const showPwaInstall = pwaInstallable && !pwaDismissed;
+    const [pushBloqueado, setPushBloqueado] = useState({ bloqueado: false, canal: null });
+    const [pushBlockedDismissed, setPushBlockedDismissed] = useState(() => (
+        Boolean(userId && safeLocalStorageGet(pushBlockedDismissKey(userId), '') === '1')
+    ));
+    const [pushUserVisto, setPushUserVisto] = useState(userId);
+    if (pushUserVisto !== userId) {
+        setPushUserVisto(userId);
+        setPushBlockedDismissed(Boolean(userId && safeLocalStorageGet(pushBlockedDismissKey(userId), '') === '1'));
+    }
+    const showPushBlocked = !isGuest && pushBloqueado.bloqueado && !pushBlockedDismissed;
+    const handleDismissPushBlocked = useCallback(() => {
+        setPushBlockedDismissed(true);
+        if (userId) safeLocalStorageSet(pushBlockedDismissKey(userId), '1');
+    }, [userId]);
+    const handleDismissPwaInstall = useCallback(() => {
+        setPwaDismissed(true);
+        safeLocalStorageSet('mealfit_pwa_install_dismissed', '1');
+    }, []);
+    const handleInstallPwa = useCallback(async () => {
+        const res = await triggerPwaInstall();
+        if (res?.outcome === 'accepted') {
+            toast.success(t('App instalada en tu dispositivo'));
+        }
+    }, [t]);
+
+    useEffect(() => {
+        if (isGuest || !userId) return undefined;
+        let vivo = true;
+        const revisar = () => {
+            Promise.resolve(estadoDeAvisos?.())
+                .then((st) => {
+                    if (!vivo || !st) return;
+                    setPushBloqueado({ bloqueado: Boolean(st.bloqueado), canal: st.canal || null });
+                })
+                .catch(() => {});
+        };
+        revisar();
+        const alVolver = () => {
+            if (typeof document === 'undefined' || document.visibilityState === 'visible') revisar();
+        };
+        window.addEventListener('focus', revisar);
+        document.addEventListener('visibilitychange', alVolver);
+        return () => {
+            vivo = false;
+            window.removeEventListener('focus', revisar);
+            document.removeEventListener('visibilitychange', alVolver);
+        };
+    }, [isGuest, userId, open]);
+
+    useEffect(() => suscribirDiaActivo(setEstadoDiaActivo), []);
+
+    const claveDiaActivo = claveAvisoDiaActivo(estadoDiaActivo, diaActivoDescartado);
+    const showDiaActivo = Boolean(claveDiaActivo);
+    const diaActivoSinLeer = showDiaActivo && claveDiaActivo !== diaActivoVisto;
+
+    const marcarDiaActivoVisto = useCallback((clave) => {
+        if (!clave) return;
+        setDiaActivoVisto(clave);
+        safeLocalStorageSet('mealfit_dia_activo_visto', clave);
+    }, []);
 
     // [CI-LINT-2026-11-14] Al cambiar de usuario o de modo, la lectura LOCAL se ajusta durante el render (patrón de
     // React para estado que depende de props), no con un setState síncrono en el efecto.
@@ -369,7 +449,15 @@ export default function NotificationCenter({ hidden = false }) {
         // pedir abrir el centro tras archivar su aviso (X → "redirige a
         // notificaciones"). Sincronizamos primero para que el aviso recién
         // añadido ya esté en la lista cuando el drawer aparezca.
-        const openReq = () => { setItems(getNotifications()); setOpen(true); };
+        const openReq = () => {
+            setItems(getNotifications());
+            const clave = claveAvisoDiaActivo(
+                estadoDelDiaActivo(),
+                safeLocalStorageGet('mealfit_dia_activo_descartado', '') || '',
+            );
+            if (clave) marcarDiaActivoVisto(clave);
+            setOpen(true);
+        };
         window.addEventListener(NOTIFICATIONS_EVENT, sync);
         window.addEventListener('storage', sync);
         window.addEventListener(NOTIFICATIONS_OPEN_EVENT, openReq);
@@ -378,7 +466,7 @@ export default function NotificationCenter({ hidden = false }) {
             window.removeEventListener('storage', sync);
             window.removeEventListener(NOTIFICATIONS_OPEN_EVENT, openReq);
         };
-    }, []);
+    }, [marcarDiaActivoVisto]);
 
     // [P1-NOTIF-MARK-READ-ON-OPEN · 2026-06-16] Al ABRIR el centro, marcar TODO
     // como leído automáticamente (el usuario ya las está viendo) → el badge de la
@@ -391,6 +479,11 @@ export default function NotificationCenter({ hidden = false }) {
     }, [open]);
 
     const closeDrawer = useCallback(() => setOpen(false), []);
+    const toggleDrawer = useCallback(() => {
+        const next = !open;
+        if (next && claveDiaActivo) marcarDiaActivoVisto(claveDiaActivo);
+        setOpen(next);
+    }, [open, claveDiaActivo, marcarDiaActivoVisto]);
 
     // Focus-trap + ESC + lock de scroll del body + restore-focus al tirador.
     const { containerRef } = useModalAccessibility({ isOpen: open, onClose: closeDrawer });
@@ -400,13 +493,13 @@ export default function NotificationCenter({ hidden = false }) {
         [items, enModoContador]
     );
     const showPlanInvite = enModoContador && !inviteDismissed;
-    const count = visibleItems.length;
+    const count = visibleItems.length + (showDiaActivo ? 1 : 0);
     // [BB-052 · 2026-11-09] El badge de la campana (unreadCount) SOLO cuenta avisos/notificaciones
     // reales sin leer. La tarjeta de «Encender el plan» es una opción guardada dentro del drawer,
     // NO un evento de alerta no leído, evitando falsos positivos en el icono de la campana.
     const unreadCount = useMemo(
-        () => visibleItems.filter((n) => !n.read).length,
-        [visibleItems]
+        () => visibleItems.filter((n) => !n.read).length + (diaActivoSinLeer ? 1 : 0),
+        [visibleItems, diaActivoSinLeer]
     );
 
     // [P1-PLAN-LOTE-89 · 2026-09-17] En teléfono y tableta la campana ATRACA en la cabecera (el hueco
@@ -509,7 +602,7 @@ export default function NotificationCenter({ hidden = false }) {
         <button
             type="button"
             className={`${styles.handle} ${docked ? styles.handleDocked : ''} ${open ? styles.handleOpen : ''} ${unreadCount > 0 ? styles.handleAlert : ''}`}
-            onClick={() => setOpen((v) => !v)}
+            onClick={toggleDrawer}
             aria-label={unreadCount > 0
                 ? t('Notificaciones, {n} sin leer', { n: unreadCount })
                 : t('Notificaciones')}
@@ -566,7 +659,10 @@ export default function NotificationCenter({ hidden = false }) {
                                     <button
                                         type="button"
                                         className={styles.markBtn}
-                                        onClick={() => markAllNotificationsRead()}
+                                        onClick={() => {
+                                            markAllNotificationsRead();
+                                            if (claveDiaActivo) marcarDiaActivoVisto(claveDiaActivo);
+                                        }}
                                         aria-label={t('Marcar todas como leídas')}
                                         title={t('Marcar todas como leídas')}
                                     >
@@ -596,7 +692,7 @@ export default function NotificationCenter({ hidden = false }) {
                         </header>
 
                         <div className={styles.list}>
-                            {count === 0 && !showPlanInvite ? (
+                            {count === 0 && !showPlanInvite && !showPwaInstall && !showPushBlocked ? (
                                 <div className={styles.empty}>
                                     <span className={styles.emptyOrb} aria-hidden="true">
                                         <BellOff size={26} strokeWidth={1.8} />
@@ -610,6 +706,80 @@ export default function NotificationCenter({ hidden = false }) {
                                 </div>
                             ) : (
                                 <>
+                                    <AvisoDiaActivo
+                                        enCentro
+                                        onAccionHecha={closeDrawer}
+                                        onDescartar={setDiaActivoDescartado}
+                                    />
+                                    {showPushBlocked && (
+                                        <article className={`${styles.card} ${styles.tone_amber}`}>
+                                            <div className={styles.cardRow}>
+                                                <div className={styles.cardToggle} style={{ cursor: 'default' }}>
+                                                    <span className={styles.cardIcon} aria-hidden="true">
+                                                        <BellOff size={16} strokeWidth={2.2} />
+                                                    </span>
+                                                    <div className={styles.cardBody}>
+                                                        <h3 className={styles.cardTitle}>{t('Notificaciones bloqueadas')}</h3>
+                                                        <p className={styles.cardMsg}>{mensajePermisoBloqueado(pushBloqueado.canal, t)}</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className={styles.cardX}
+                                                    onClick={handleDismissPushBlocked}
+                                                    aria-label={t('Ocultar aviso de notificaciones bloqueadas')}
+                                                >
+                                                    <X size={14} strokeWidth={2.3} aria-hidden="true" />
+                                                </button>
+                                            </div>
+                                            <div style={{ padding: '0 0.95rem 0.85rem' }}>
+                                                <button
+                                                    type="button"
+                                                    className={styles.exAction}
+                                                    style={{ width: '100%' }}
+                                                    onClick={() => {
+                                                        navigate('/dashboard/settings');
+                                                        closeDrawer();
+                                                    }}
+                                                >
+                                                    {t('Ir a Configuración')}
+                                                </button>
+                                            </div>
+                                        </article>
+                                    )}
+                                    {showPwaInstall && (
+                                        <article className={`${styles.card} ${styles.tone_indigo}`}>
+                                            <div className={styles.cardRow}>
+                                                <div className={styles.cardToggle} style={{ cursor: 'default' }}>
+                                                    <span className={styles.cardIcon} aria-hidden="true">
+                                                        <ArrowRight size={16} strokeWidth={2.2} />
+                                                    </span>
+                                                    <div className={styles.cardBody}>
+                                                        <h3 className={styles.cardTitle}>{t('Instala la app en tu pantalla')}</h3>
+                                                        <p className={styles.cardMsg}>{t('Úsala como app en tu pantalla de inicio, más rápida y a pantalla completa.')}</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className={styles.cardX}
+                                                    onClick={handleDismissPwaInstall}
+                                                    aria-label={t('Ocultar invitación de instalación')}
+                                                >
+                                                    <X size={14} strokeWidth={2.3} aria-hidden="true" />
+                                                </button>
+                                            </div>
+                                            <div style={{ padding: '0 0.95rem 0.85rem' }}>
+                                                <button
+                                                    type="button"
+                                                    className={styles.exAction}
+                                                    style={{ width: '100%' }}
+                                                    onClick={handleInstallPwa}
+                                                >
+                                                    {t('Instalar app')}
+                                                </button>
+                                            </div>
+                                        </article>
+                                    )}
                                     {showPlanInvite && (
                                         <TurnOnPlanCard
                                             formData={formData}
@@ -619,7 +789,7 @@ export default function NotificationCenter({ hidden = false }) {
                                             onDismissChange={setInviteDismissed}
                                         />
                                     )}
-                                    {visibleItems.length === 0 && showPlanInvite && (
+                                    {visibleItems.length === 0 && (showPlanInvite || showPwaInstall || showPushBlocked) && !showDiaActivo && (
                                         <div className={styles.empty} style={{ padding: '1.25rem 1rem', opacity: 0.75 }}>
                                             <p className={styles.emptyText}>
                                                 {t('No tienes otras notificaciones pendientes.')}

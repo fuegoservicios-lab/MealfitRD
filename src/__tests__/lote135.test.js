@@ -145,7 +145,8 @@ describe('lote 135 · avisos de hidratación en el teléfono', () => {
         expect(av).toMatch(/window\.addEventListener\(EVENTO_AGUA_CAMBIO, \(\) => \{\s*if \(aguaTimer\) clearTimeout\(aguaTimer\);\s*aguaTimer = setTimeout\(/);
         const wt = leer('src/components/dashboard/WaterTracker.jsx');
         expect(wt).toContain("export const EVENTO_AGUA_CAMBIO = 'mealfit:water-changed';");
-        expect(wt).toContain('window.dispatchEvent(new Event(EVENTO_AGUA_CAMBIO))');
+        // con detalle (vasos, meta, completado): «Tu semana» pinta en vivo el logro del agua
+        expect(wt).toContain('window.dispatchEvent(new CustomEvent(EVENTO_AGUA_CAMBIO, {');
     });
 });
 

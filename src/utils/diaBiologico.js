@@ -32,6 +32,14 @@ export const diaExtendido = (ahora = Date.now()) => (_ext && ahora < _ext.hastaM
 export const estadoDelDiaActivo = () => _estado;
 export const suscribirDiaActivo = (fn) => { _oyentes.add(fn); return () => _oyentes.delete(fn); };
 
+/** Clave estable del aviso activo actual para detectar novedades en la campana. */
+export const claveAvisoDiaActivo = (estado, descartado = '') => {
+    if (!estado) return '';
+    if (estado.extendido) return `ext:${estado.dia || ''}:${estado.motivo || ''}`;
+    if (estado.puede_seguir && estado.anterior && descartado !== estado.anterior) return `seg:${estado.anterior}`;
+    return '';
+};
+
 /** Aplica la respuesta de `/api/diary/dia-activo`. Devuelve true si cambió el día extendido. */
 export const fijarDiaActivo = (estado) => {
     const antes = _ext ? `${_ext.dia}|${_ext.hastaMs}` : '';

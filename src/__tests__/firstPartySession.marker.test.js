@@ -102,4 +102,16 @@ describe('sesión first-party: el marcador que viaja con la cookie', () => {
         clearSessionMarker();
         expect(hasSessionMarker()).toBe(false);
     });
+
+    it('adjunta ?ota=<id> cuando __OTA_BUNDLE_ID__ está definido', async () => {
+        vi.stubGlobal('__OTA_BUNDLE_ID__', '20261124-180000');
+        try {
+            localStorage.setItem('mealfit_mf_session', 'tok.ota.1');
+            fetchWithTimeout.mockResolvedValue(ok({ user_id: 'u-ota', token: null }));
+            await checkFirstPartySession();
+            expect(fetchWithTimeout.mock.calls[0][0]).toBe('/api/auth/me?ota=20261124-180000');
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
 });

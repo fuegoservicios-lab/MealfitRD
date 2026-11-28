@@ -85,9 +85,9 @@ describe('neveraActiva', () => {
 });
 
 describe('navItemsFor', () => {
-    it('sin Nevera no hay entrada pantry', () => {
-        expect(navItemsFor({ trackingMode: true, nevera: false }).map((i) => i.key)).toEqual(['agent', 'plan', 'history']);
-        expect(navItemsFor({ trackingMode: true }).map((i) => i.key)).toEqual(['agent', 'plan', 'pantry', 'history']);
+    it('sin Nevera no hay entrada pantry (y en modo contador tampoco Historial)', () => {
+        expect(navItemsFor({ trackingMode: true, nevera: false }).map((i) => i.key)).toEqual(['agent', 'plan', 'leaderboard']);
+        expect(navItemsFor({ trackingMode: true }).map((i) => i.key)).toEqual(['agent', 'plan', 'pantry', 'leaderboard']);
     });
     it('los tres consumidores pasan la regla', () => {
         expect(leer('components', 'dashboard', 'DashboardLayout.jsx'))

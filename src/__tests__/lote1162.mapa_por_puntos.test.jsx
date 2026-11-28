@@ -21,8 +21,17 @@ const pintar = (props = {}) => render(
 
 describe('[1162] mapa por puntos', () => {
     it('el marcador dice el rango con división y la racha del servidor', () => {
-        pintar();
+        pintar({
+            juego: {
+                ...juego,
+                diasPuntos: new Map([[HOY, 45]]),
+                diasPerfectos: new Set([HOY]),
+            },
+        });
         expect(screen.getByText('Plata III')).toBeInTheDocument();         // 1.050 pts ⇒ [1163] Plata III (810-1080)
+        expect(screen.getByText(/1[.,]050 pts/)).toBeInTheDocument();       // barra de progreso de rango en HUD
+        expect(screen.getByText('+45')).toBeInTheDocument();               // puntos del día en el nodo del mapa
+        expect(screen.getByRole('button', { name: /Mejor semana/ })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Racha/ }).textContent).toContain('15');
         expect(screen.getByRole('button', { name: /Escudo protegió tu racha/ })).toBeInTheDocument();
     });

@@ -1,5 +1,5 @@
 import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
-import { nativeHidesCommerce, nativePlatform, isNativeApp } from '../config/platform';
+import { nativeHidesCommerce, nativePlatform, isNativeApp, nativeIapAvailable, canShowUpgrade } from '../config/platform';
 import { BIO_RANGES, motivoEdadNoValida } from '../config/formValidation';
 import { useCampoVisibleConTeclado } from '../hooks/useCampoVisibleConTeclado';
 import { isTrackingMode } from '../config/dashboardNav';
@@ -26,6 +26,7 @@ import { confirmToast } from '../utils/confirmToast';
 import { getFreshPlanCount } from '../utils/quotaCache';
 // [P1-PLAN-LOTE-133] el interruptor habla con UNA fachada: Web Push en navegador/PWA, avisos locales en la app nativa
 import { estadoDeAvisos, activarAvisos, desactivarAvisos, interruptorAlNacer, elPermisoEsDelNavegador, alarmaExactaPendiente, pedirAlarmaExacta, sincronizarAvisosLocales } from '../utils/avisosDeComida';
+import { canInstallPwa, subscribePwaInstall, triggerPwaInstall } from '../utils/pwaInstall';
 import { trackEvent, analiticaPermitida, persistAnalyticsOptOut } from '../utils/analytics';
 // [P1-PLAN-LOTE-794 · ronda 1] Al volver a encender, la sesión de esta carga recupera su identidad.
 import { reaplicarIdentidadPostHog } from '../utils/posthogClient';
@@ -35,7 +36,8 @@ import { reaplicarIdentidadPostHog } from '../utils/posthogClient';
 // [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23] safeLocalStorageGet
 // para el lazy initializer de `notifications` (era único raw getItem sin
 // try/catch en este archivo; las líneas 73-78 y 91-96 ya estaban envueltas).
-import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
+import { mensajePermisoBloqueado } from '../utils/permisoAvisosGuia';
 // [APPEARANCE-THEME · 2026-05-28] Aplicar el tema en vivo al elegir en el toggle.
 import { applyThemePref, isDarkActive, getStoredThemePref } from '../utils/theme';
 // [P1-I18N-DASHBOARD · 2026-08-15] Selector de idioma de la interfaz.
@@ -308,7 +310,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     </div>
                     <div className="plan-goal-limit-sub">{t('Se renuevan el {fecha}.', { fecha: _fecha })}</div>
                 </div>
-                {!nativeHidesCommerce() && (
+                {canShowUpgrade() && (
                     <button
                         type="button"
                         className="plan-goal-limit-cta"
@@ -331,6 +333,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const [pushSubscribeError, setPushSubscribeError] = useState(null);
     // [P1-PLAN-LOTE-133] el canal de ESTE dispositivo; null = aún no se sabe (no se pinta un interruptor muerto)
     const [canalAvisos, setCanalAvisos] = useState(null);
+    const [pwaInstallable, setPwaInstallable] = useState(() => canInstallPwa());
+    useEffect(() => subscribePwaInstall(() => setPwaInstallable(canInstallPwa())), []);
 
     // [P1-PLAN-LOTE-150 · 2026-09-21] Qué avisos quiere, dentro de los que ya aceptó. El dueño: «quiero que se pueda
     // desactivar y activar en configuraciones esa opción, ya que con eso tendría la opción de tener más tranquilidad
@@ -379,7 +383,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         }
         // El teléfono reprograma con lo que diga el servidor: cancela lo pendiente y solo vuelve a poner lo encendido.
         try { await sincronizarAvisosLocales(); } catch { /* el próximo arranque lo resincroniza */ }
-        toast.success(valor ? t('Avisos activados.') : t('Avisos desactivados.'));
+        // [P1-PLAN-LOTE-1181] sin aviso: el cambio ya se ve (el dueño: «no veo a Anthropic haciendo eso»)
     };
 
     // [P1-PLAN-LOTE-1105] cada cuánto pide el peso el coach: 7 | 14 | 30 | 0 (nunca); ausente = 14
@@ -406,7 +410,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
             updateData('aviso_peso_dias', dias);
             try { await refreshProfileAndPlan(); } catch { /* best-effort: el servidor ya lo tiene */ }
-            toast.success(dias ? t('Listo: te pediré el peso.') : t('Listo: no te pediré el peso.'));
+            // [P1-PLAN-LOTE-1181] sin aviso: el cambio ya se ve (el dueño: «no veo a Anthropic haciendo eso»)
         } catch {
             setAvisoPesoDias(antes);
             toast.error(t('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.'));
@@ -524,7 +528,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 body: JSON.stringify({ fields: { locale: code } }),
             });
             if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
-            toast.success(t('Idioma guardado.'), { duration: 2000 });
+            // [P1-PLAN-LOTE-1181] sin aviso: el cambio ya se ve (el dueño: «no veo a Anthropic haciendo eso»)
             // [P1-PLAN-LOTE-167 · 2026-09-22] Los avisos ya programados en el teléfono (7 días) llevaban el texto del
             // idioma anterior hasta la siguiente sincronización. El servidor ya tiene el idioma nuevo: se reprograman
             // ahora (en la web o con los avisos apagados no hace nada).
@@ -563,7 +567,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             });
             if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
             try { await refreshProfileAndPlan(); } catch { /* best-effort: el servidor ya lo tiene */ }
-            toast.success(t('Tu día termina a las {h}:00 a. m.', { h }));
+            // [P1-PLAN-LOTE-1181] sin aviso: el cambio ya se ve (el dueño: «no veo a Anthropic haciendo eso»)
         } catch {
             setCorteElegido(null);
             toast.error(t('No se pudo guardar. Inténtalo de nuevo.'));
@@ -625,6 +629,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             // preselección de QCountry si el usuario reabre el wizard.
             updateData('country', country);
             try { await refreshProfileAndPlan(); } catch { /* best-effort, ver QTrackingFinish */ }
+            try { window.dispatchEvent(new Event('mealfit:profile-updated')); } catch { /* no-op */ }
             toast.success(t('País actualizado'), {
                 // [P1-PLAN-LOTE-136] en modo contador no hay «próximos planes»: el país decide el catálogo del diario
                 description: isTrackingMode(userProfile)
@@ -676,7 +681,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         // [APPEARANCE-THEME · 2026-05-28] Aplicar al instante (sin reload):
         // fija html[data-theme] → las variables CSS oscuras entran en efecto.
         applyThemePref(value);
-        toast.success(t('Preferencia de apariencia guardada.'), { duration: 2000 });
+        // [P1-PLAN-LOTE-1181] sin aviso: el cambio ya se ve (el dueño: «no veo a Anthropic haciendo eso»)
     };
 
     useEffect(() => {
@@ -923,6 +928,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         }
     };
 
+    const estabaBloqueadoRef = useRef(false);
+    useEffect(() => {
+        estabaBloqueadoRef.current = isPushBlocked;
+    }, [isPushBlocked]);
+
     useEffect(() => {
         let cancelado = false;
         (async () => {
@@ -938,6 +948,42 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         })();
         return () => { cancelado = true; };
     }, []);
+
+    // Al volver de Ajustes del teléfono o del navegador tras desbloquear el permiso,
+    // re-sincronizamos automáticamente y encendemos los avisos si estaban bloqueados.
+    useEffect(() => {
+        let cancelado = false;
+        const alVolver = async () => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+            try {
+                const estado = await estadoDeAvisos();
+                if (cancelado || !estado) return;
+                setCanalAvisos(estado.canal);
+                setIsPushBlocked(estado.bloqueado);
+                if (!estado.bloqueado && estabaBloqueadoRef.current) {
+                    if (userProfile?.id) safeLocalStorageRemove(`mealfit_push_blocked_dismissed:${userProfile.id}`);
+                    if (!estado.activo) {
+                        const r = await activarAvisos();
+                        if (cancelado) return;
+                        if (r?.ok) {
+                            setPushEnabled(true);
+                            setPushSubscribeError(null);
+                            // [P1-PLAN-LOTE-1181] sin aviso: el cambio ya se ve (el dueño: «no veo a Anthropic haciendo eso»)
+                            return;
+                        }
+                    }
+                }
+                setPushEnabled(estado.activo);
+            } catch { /* best-effort al volver a primer plano */ }
+        };
+        window.addEventListener('focus', alVolver);
+        document.addEventListener('visibilitychange', alVolver);
+        return () => {
+            cancelado = true;
+            window.removeEventListener('focus', alVolver);
+            document.removeEventListener('visibilitychange', alVolver);
+        };
+    }, [userProfile?.id, t]);
 
     // Detecta cuando el usuario revoca el permiso de notificaciones desde fuera de la app
     // (chrome://settings, otra pestaña). Sin esto el toggle quedaba ON pero ningún push llegaba.
@@ -1259,6 +1305,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // --- ESTADOS DE PAGO ---
     const [isCancelling, setIsCancelling] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
 
     // --- ESTADOS DE EVALUACIÓN ---
     const [showEvaluateModal, setShowEvaluateModal] = useState(false);
@@ -1287,7 +1334,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // plan y pagos: Mejorar plan, cancelar PayPal) no existe — Apple 3.1.1. Se quita del
     // registro de ids Y de sectionsConfig, así ni el hash `#subscription` la abre.
     // [P1-PLAN-LOTE-719] 'health' = «Alergias y dieta».
-    const SECTION_IDS = ['profile', 'health', 'preferences', 'privacy', 'superpers', 'clinical', 'plan', ...(nativeHidesCommerce() ? [] : ['subscription'])];
+    const SECTION_IDS = ['profile', 'health', 'preferences', 'privacy', 'superpers', 'clinical', 'plan', ...(canShowUpgrade() ? ['subscription'] : [])];
     const computeInitialSection = () => {
         if (typeof window === 'undefined') return 'profile';
         const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
@@ -1549,9 +1596,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             // [P1-PLAN-LOTE-794 · ronda 1] Apagar deja la sesión anónima (reset); encender la
             // devuelve ya, sin esperar a la próxima carga. Apagada, no identifica nada.
             if (next) reaplicarIdentidadPostHog();
-            toast.success(next
-                ? t('Gracias por ayudar a mejorar {app}.', { app: BRAND })
-                : t('Eventos de uso desactivados en este dispositivo.'));
+            // [P1-PLAN-LOTE-1181] sin aviso: el cambio ya se ve (el dueño: «no veo a Anthropic haciendo eso»)
             return next;
         });
     };
@@ -1590,9 +1635,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             setAiTrainingConsent(next);
-            toast.success(next
-                ? t('Gracias por tu confianza. Tus datos podrán usarse de forma anónima cuando exista el entrenamiento propio.')
-                : t('Listo. Tus datos no se usarán para entrenar modelos.'));
+            // [P1-PLAN-LOTE-1181] sin aviso: el cambio ya se ve (el dueño: «no veo a Anthropic haciendo eso»)
         } catch {
             toast.error(t('No se pudo guardar la preferencia. Intenta de nuevo.'));
         } finally {
@@ -1814,19 +1857,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
     // --- MANEJADORES (HANDLERS) ---
     
-    const getNotificationBlockedMessage = async () => {
-        const ua = navigator.userAgent;
-        const isBrave = (typeof navigator.brave !== 'undefined') || ua.includes('Brave');
-        const isFirefox = ua.includes('Firefox');
-        const isEdge = ua.includes('Edg/');
-        const isSafari = ua.includes('Safari') && !ua.includes('Chrome');
-
-        if (isBrave) return t("Brave bloquea notificaciones por defecto. Haz clic en el escudo 🛡 de la barra de direcciones → Permisos del sitio → Notificaciones → Permitir.");
-        if (isFirefox) return t("Permisos bloqueados en Firefox. Haz clic en el ícono de candado 🔒 en la barra de direcciones → Más información → Permisos → Notificaciones → Permitir.");
-        if (isSafari) return t("Permisos bloqueados en Safari. Ve a Safari → Configuración para este sitio web → Notificaciones → Permitir.");
-        if (isEdge) return t("Permisos bloqueados en Edge. Haz clic en el candado 🔒 en la barra de direcciones → Permisos para este sitio → Notificaciones → Permitir.");
-        return t("Permisos bloqueados en el navegador. Haz clic en el candado 🔒 en la barra de direcciones → Permisos del sitio → Notificaciones → Permitir.");
-    };
+    const getNotificationBlockedMessage = async () => mensajePermisoBloqueado(canalAvisos || 'web-push', t);
 
     const handleTogglePush = async () => {
         try {
@@ -1836,7 +1867,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 const r = await desactivarAvisos();
                 if (r.ok) {
                     setPushEnabled(false);
-                    toast.success(t("Notificaciones de la IA desactivadas."));
+                    // [P1-PLAN-LOTE-1181] sin aviso: el cambio ya se ve (el dueño: «no veo a Anthropic haciendo eso»)
                 } else {
                     toast.error(t("Error al desactivar notificaciones."));
                 }
@@ -1846,9 +1877,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 if (r.ok) {
                     setPushEnabled(true);
                     setPushSubscribeError(null);
-                    toast.success(r.motivo === 'schedule'
-                        ? t('Alertas activadas. Con horario nocturno o rotativo no programamos recordatorios de comida.')
-                        : t("¡Notificaciones de la IA activadas con éxito!"));
+                    // [P1-PLAN-LOTE-1181] solo si explica algo que no se ve (sin recordatorios de comida por el horario)
+                    if (r.motivo === 'schedule') {
+                        toast.success(t('Alertas activadas. Con horario nocturno o rotativo no programamos recordatorios de comida.'));
+                    }
                 } else if (r.code === 'permiso_denegado' && r.reason === 'dismissed') {
                     // [P1-PLAN-LOTE-718 · 2026-09-28] Cerrar el aviso del navegador sin elegir NO es bloquear: antes quedaba el
                     // interruptor deshabilitado con instrucciones de «permiso bloqueado» hasta reabrir Configuración.
@@ -2270,10 +2302,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             if (!response.ok) throw new Error('PATCH failed');
             const data = await response.json();
             setLtmEnabled(Boolean(data.long_term_memory_enabled));
-            toast.success(
-                next ? t('Memoria a largo plazo activada.') : t('Memoria a largo plazo pausada. Tus datos guardados se conservan.'),
-                { duration: 3500 }
-            );
+            // [P1-PLAN-LOTE-1181] solo al apagar: dice algo que no se ve (lo guardado se conserva)
+            if (!next) toast.success(t('Memoria a largo plazo pausada. Tus datos guardados se conservan.'), { duration: 3500 });
         } catch (error) {
             console.error('Error toggling LTM:', error);
             setLtmEnabled(!next); // revertir
@@ -2296,13 +2326,18 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         // instantaneo al navegar al Dashboard (el state inicial lee de aqui).
         try {
             safeLocalStorageSet('mealfit_water_tracker_enabled', String(next));
-            // Storage event para que un Dashboard abierto en otra tab
-            // recoja el cambio sin reload (Fix 3 cross-tab).
-            window.dispatchEvent(new StorageEvent('storage', {
-                key: 'mealfit_water_tracker_enabled',
-                newValue: String(next),
-            }));
         } catch { /* localStorage no critico */ }
+        // [P1-PLAN-LOTE-1182 · 2026-11-27] El aviso a la tarjeta (StorageEvent) va DESPUÉS del PATCH. Antes salía aquí:
+        // la tarjeta se encendía, pedía `/water-intake` y el servidor —aún sin el PATCH— contestaba `enabled:false`,
+        // así que se volvía a ocultar. El dueño: «activé hidratación y no se visualiza; refresqué y se visualizó».
+        const avisarALaTarjeta = (valor) => {
+            try {
+                window.dispatchEvent(new StorageEvent('storage', {
+                    key: 'mealfit_water_tracker_enabled',
+                    newValue: String(valor),
+                }));
+            } catch { /* no-op */ }
+        };
         try {
             const response = await fetchWithAuth('/api/user/preferences/water-tracker', {
                 method: 'PATCH',
@@ -2312,23 +2347,18 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             if (!response.ok) throw new Error('PATCH failed');
             const data = await response.json();
             setWaterTrackerEnabled(Boolean(data.water_tracker_enabled));
-            toast.success(
-                next
-                    ? t('Hidratación activada.')
-                    : t('Hidratación oculta. Tu historial se conserva.'),
-                { duration: 3500 }
-            );
+            try { safeLocalStorageSet('mealfit_water_tracker_enabled', String(Boolean(data.water_tracker_enabled))); } catch { /* no-op */ }
+            avisarALaTarjeta(Boolean(data.water_tracker_enabled));   // [P1-PLAN-LOTE-1182] ya guardado en el servidor
+            try { window.dispatchEvent(new Event('mealfit:profile-updated')); } catch { /* no-op */ }
+            // [P1-PLAN-LOTE-1181] solo al apagar: dice algo que no se ve (el historial se conserva)
+            if (!next) toast.success(t('Hidratación oculta. Tu historial se conserva.'), { duration: 3500 });
         } catch (error) {
             console.error('Error toggling water tracker:', error);
             setWaterTrackerEnabled(!next); // revertir
             try {
                 safeLocalStorageSet('mealfit_water_tracker_enabled', String(!next));
-                // [P1-PLAN-LOTE-717] La reversión también se anuncia: el Dashboard bajo la ventana de Configuración
-                // había recibido el cambio optimista y se quedaba con él aunque el servidor lo rechazara.
-                window.dispatchEvent(new StorageEvent('storage', {
-                    key: 'mealfit_water_tracker_enabled',
-                    newValue: String(!next),
-                }));
+                // [P1-PLAN-LOTE-717] La reversión también se anuncia (por si otra pestaña recibió algo).
+                avisarALaTarjeta(!next);
             } catch { /* localStorage no critico */ }
             toast.error(t('No pudimos actualizar tu preferencia. Inténtalo de nuevo.'));
         } finally {
@@ -2358,7 +2388,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             if (Boolean(data.activa) !== next) {
                 toast.info(t('Tu Nevera no cambió: en tu modo actual no se puede apagar.'), { duration: 4500 });
             } else {
-                toast.success(data.activa ? t('Nevera activada.') : t('Nevera oculta. Tu inventario se conserva.'), { duration: 3500 });
+                // [P1-PLAN-LOTE-1181] solo al ocultarla: dice algo que no se ve (el inventario se conserva)
+            if (!data.activa) toast.success(t('Nevera oculta. Tu inventario se conserva.'), { duration: 3500 });
             }
             // El refresco del perfil va aparte: si falla, el cambio ya está hecho y no debe salir un error encima.
             try { await refreshProfileAndPlan?.(); } catch { /* el cambio ya se aplicó */ }
@@ -2389,8 +2420,29 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         } catch { /* se queda con lo del perfil */ }
     }, []);
     useEffect(() => {
-        if (activeSection === 'subscription' && !nativeHidesCommerce()) cargarEstadoSuscripcion();
+        if (activeSection === 'subscription' && canShowUpgrade()) cargarEstadoSuscripcion();
     }, [activeSection, cargarEstadoSuscripcion]);
+
+    const handleRestoreApplePurchases = async () => {
+        if (!nativeIapAvailable() || isRestoringPurchases) return;
+        setIsRestoringPurchases(true);
+        try {
+            const { restoreNativePurchases } = await import('../features/billing/revenuecat');
+            const sync = await restoreNativePurchases();
+            await refreshProfileAndPlan?.();
+            await cargarEstadoSuscripcion();
+            if (sync?.active) {
+                toast.success(t('Tu suscripción se restauró correctamente.'));
+            } else {
+                toast.info(t('No encontramos suscripciones activas en tu Apple ID.'));
+            }
+        } catch (err) {
+            console.error('Error restaurando compras Apple:', err);
+            toast.error(t('No pudimos restaurar tus compras. Inténtalo de nuevo.'));
+        } finally {
+            setIsRestoringPurchases(false);
+        }
+    };
 
     const runCancelSubscription = async () => {
         setIsCancelling(true);
@@ -2508,6 +2560,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             : [t('Créditos se renuevan'), creditsRenewalLabel()];
         const _canUpgrade = !_isAdmin && planPagado(userProfile) !== 'ultra';
         const _showLadder = _canUpgrade;
+        const _isNativeIap = nativeIapAvailable();
+        const _isAppleSub = (subStatus?.subscription_provider || userProfile?.subscription_provider) === 'apple';
         const _offer = isLaunchOfferActive();
         const _offerDate = _offer ? formatDate(new Date(`${LAUNCH_OFFER.deadlineISO}T00:00:00Z`), { day: 'numeric', month: 'long', timeZone: 'UTC' }) : null;
         const _goCheckout = (tier) => navigate(`/dashboard/upgrade?checkout=${tier}&billing=monthly`);
@@ -2647,7 +2701,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     {_pagoConProblema && (
                         <div className="sub-note" role="status">
                             <AlertCircle size={17} />
-                            <div>{t('PayPal no pudo cobrar tu último pago y lo está reintentando. Revisa el método de pago en tu cuenta de PayPal para no perder tu plan.')}</div>
+                            <div>{_isAppleSub
+                                ? t('Apple no pudo cobrar tu último pago y lo está reintentando. Revisa el método de pago en tu cuenta de Apple para no perder tu plan.')
+                                : t('PayPal no pudo cobrar tu último pago y lo está reintentando. Revisa el método de pago en tu cuenta de PayPal para no perder tu plan.')}</div>
                         </div>
                     )}
                     {_cancelled && (
@@ -2657,7 +2713,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         </div>
                     )}
 
-                    {(_canUpgrade || (isPaidSubscriber && !_cancelled && _tienePaypal)) && (
+                    {(_canUpgrade || _isNativeIap || _isAppleSub || (isPaidSubscriber && !_cancelled && _tienePaypal)) && (
                         <div className="sub-actions">
                             {_canUpgrade && (
                                 <button type="button" className="sub-cta" onClick={() => navigate('/dashboard/upgrade')}>
@@ -2665,14 +2721,30 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     {t('Mejorar mi plan')}
                                 </button>
                             )}
-                            {isPaidSubscriber && !_cancelled && _tienePaypal && (
+                            {isPaidSubscriber && !_cancelled && _tienePaypal && !_isAppleSub && !_isNativeIap && (
                                 <button type="button" className="sub-cancel" onClick={handleCancelSubscription} disabled={isCancelling}>
                                     {isCancelling ? t('Cancelando...') : t('Cancelar Suscripción')}
                                 </button>
                             )}
+                            {_isAppleSub && (
+                                <a
+                                    href="https://apps.apple.com/account/subscriptions"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="sub-cancel"
+                                    style={{ textDecoration: 'none' }}
+                                >
+                                    {t('Gestionar en App Store')}
+                                </a>
+                            )}
+                            {_isNativeIap && (
+                                <button type="button" className="sub-cancel" onClick={handleRestoreApplePurchases} disabled={isRestoringPurchases}>
+                                    {isRestoringPurchases ? t('Restaurando...') : t('Restaurar compras')}
+                                </button>
+                            )}
                         </div>
                     )}
-                    {isPaidSubscriber && !_cancelled && _tienePaypal && (
+                    {isPaidSubscriber && !_cancelled && _tienePaypal && !_isAppleSub && !_isNativeIap && (
                         <p className="sub-hint">{t('Si cancelas, no se te volverá a cobrar y conservas tu plan hasta el final del periodo que ya pagaste.')}</p>
                     )}
                 </div>
@@ -2696,7 +2768,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     key={tier}
                                     type={selectable ? 'button' : undefined}
                                     className={`sub-tier${isCurrent ? ' is-current' : ''}${isBelow ? ' is-below' : ''}`}
-                                    onClick={selectable ? () => _goCheckout(tier) : undefined}
+                                    onClick={selectable ? () => (_isNativeIap ? navigate('/dashboard/upgrade') : _goCheckout(tier)) : undefined}
                                 >
                                     <div className="sub-tier-name">
                                         {tierDisplayName(tier, t)}
@@ -3792,6 +3864,40 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 </div>
                             )}
 
+                            {pwaInstallable && !isNativeApp() && (
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '0.75rem',
+                                        marginTop: '0.75rem',
+                                        paddingTop: '0.75rem',
+                                        borderTop: '1px solid var(--border)',
+                                    }}
+                                >
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
+                                        <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                                            {t('Instala la app en tu pantalla')}
+                                        </div>
+                                        <div>{t('Úsala a pantalla completa desde tu inicio.')}</div>
+                                    </div>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={async () => {
+                                            const res = await triggerPwaInstall();
+                                            if (res?.outcome === 'accepted') {
+                                                toast.success(t('App instalada en tu dispositivo'));
+                                            }
+                                        }}
+                                    >
+                                        <Download size={14} aria-hidden="true" />
+                                        {t('Instalar app')}
+                                    </Button>
+                                </div>
+                            )}
+
                             {isPushBlocked && (
                                 // [P1-PLAN-LOTE-718 · 2026-09-28] Era un <div role="alert"> con solo `onClick`: con teclado no se
                                 // podía abrir la ayuda. Ahora es un botón (el aviso sigue anunciándose como alerta por dentro).
@@ -3832,7 +3938,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     }}
                                 >
                                     <Lock size={13} aria-hidden="true" style={{ marginTop: '2px', flexShrink: 0, color: 'var(--warning)' }} />
-                                    <span role="alert">{canalAvisos === 'local' ? (nativePlatform() === 'android' ? t('Permiso bloqueado en el teléfono.') : t('Permiso bloqueado en el iPhone.')) : t('Permiso bloqueado en el navegador.')} <strong>{canalAvisos === 'local' ? t('Toca aquí para ver cómo reactivarlo.') : t('Ver cómo reactivarlo.')}</strong></span>
+                                    <span role="alert">
+                                        <strong>{canalAvisos === 'local' ? (nativePlatform() === 'android' ? t('Permiso bloqueado en el teléfono.') : t('Permiso bloqueado en el iPhone.')) : t('Permiso bloqueado en el navegador.')}</strong>{' '}
+                                        {mensajePermisoBloqueado(canalAvisos || 'web-push', t)}
+                                    </span>
                                 </button>
                             )}
 

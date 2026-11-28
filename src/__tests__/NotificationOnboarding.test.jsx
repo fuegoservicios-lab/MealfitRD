@@ -123,6 +123,18 @@ describe('bienvenida de notificaciones después del formulario', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(localStorage.getItem(notificationDecisionKey('a'))).toBe('later');
     });
+    it('cuando el sistema bloquea el permiso (denied), explica cómo reactivarlo antes de cerrar', async () => {
+        mocks.activate.mockResolvedValue({ ok: false, code: 'permiso_denegado', reason: 'denied', canal: 'local' });
+        render(<NotificationOnboarding />);
+        await settle();
+        await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Activar notificaciones' })); });
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByText('Notificaciones bloqueadas')).toBeInTheDocument();
+        expect(screen.getByText(/Actívalas en Ajustes/)).toBeInTheDocument();
+        expect(localStorage.getItem(notificationDecisionKey('a'))).toBe('later');
+        fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
     it('Escape descarta y restaura el desplazamiento del fondo', async () => {
         const trigger = document.createElement('button');
         document.body.append(trigger);

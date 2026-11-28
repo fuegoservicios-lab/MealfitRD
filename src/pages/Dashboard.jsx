@@ -37,7 +37,7 @@ import ListaImagenPreview from '../components/dashboard/ListaImagenPreview';
 // aspecto de arreglado. Un guard parser-based no lo ve; por eso hay uno de ÁMBITO abajo.
 import { COUNTRIES, COUNTRY_SYSTEM_UI } from '../config/countries';
 // [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] Gate único de comercio (config/platform.js).
-import { nativeHidesCommerce } from '../config/platform';
+import { nativeHidesCommerce, canShowUpgrade } from '../config/platform';
 // [P1-PLAN-DISPLAY-I18N · 2026-08-19] Capa de lectura del plan en el idioma
 // del usuario — SSOT del fallback campo a campo (nombre/descripción) contra
 // el campo paralelo que el motor backend adjunta por locale al meal. El plan
@@ -6684,34 +6684,35 @@ const DashboardInner = () => {
                             // [P1-GUEST-BADGE · 2026-06-21] Invitado real → 'Invitado'.
                             const tierVariant = !isPremium
                                 ? 'free'
-                                : userProfile?.plan_tier === 'ultra' ? 'ultra'
+                                : (userProfile?.plan_tier === 'ultra' || userProfile?.plan_tier === 'admin') ? 'ultra'
                                 : userProfile?.plan_tier === 'plus' ? 'plus'
                                 : 'basic';
                             const tierLabel = isGuest
                                 ? t('Invitado')
                                 : !isPremium
                                 ? t('GRATUITO')
+                                : userProfile?.plan_tier === 'admin' ? 'ADMIN'
                                 : userProfile?.plan_tier === 'ultra' ? 'MAX'
                                 : userProfile?.plan_tier === 'plus' ? 'PLUS'
                                 : t('BÁSICO');
                             return (
                                 <button
                                     type="button"
-                                    // [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] En nativo el badge INFORMA el
+                                    // [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] En nativo sin IAP el badge INFORMA el
                                     // tier pero no lleva a ningún sitio: no existe comercio (Apple 3.1.1).
-                                    onClick={nativeHidesCommerce() ? undefined : () => navigate('/dashboard/upgrade')}
-                                    aria-label={nativeHidesCommerce() ? t('Plan actual: {tier}.', { tier: tierLabel }) : t('Plan actual: {tier}. Click para ver todos los planes.', { tier: tierLabel })}
+                                    onClick={!canShowUpgrade() ? undefined : () => navigate('/dashboard/upgrade')}
+                                    aria-label={!canShowUpgrade() ? t('Plan actual: {tier}.', { tier: tierLabel }) : t('Plan actual: {tier}. Click para ver todos los planes.', { tier: tierLabel })}
                                     className={`plan-tier-badge plan-tier-badge--${tierVariant}`}
                                 >
                                     <span className="plan-tier-badge-label">
                                         {tierLabel}
                                     </span>
-                                    {!nativeHidesCommerce() && (
+                                    {canShowUpgrade() && (
                                         <span className="plan-tier-badge-cta">{t('Ver planes')}</span>
                                     )}
-                                    {/* La flecha también: en nativo el chip es una etiqueta, no
+                                    {/* La flecha también: en nativo sin IAP el chip es una etiqueta, no
                                         un control (visto en el build 8: «GRATUITO ›» sin destino). */}
-                                    {!nativeHidesCommerce() && (
+                                    {canShowUpgrade() && (
                                         <ChevronRight
                                             size={12}
                                             strokeWidth={2.75}
@@ -7049,7 +7050,7 @@ const DashboardInner = () => {
                                                                     const _conId = conservarPlanId(result.plan_data, planData); // [P1-PLANDATA-ID-RECALC]
                                                                     setPlanData(_conId);
                                                                     safeLocalStorageSet('mealfit_plan', JSON.stringify(_conId));
-                                                                    toast.success(t('Lista actualizada'), { id: recalcToast });
+                                                                    toast.dismiss(recalcToast);   // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
                                                                     // [P2-NEVERA-COMPLETION-REMOVED · 2026-07-06] el panel
                                                                     // "Para completar tu Nevera" fue eliminado (decisión del
                                                                     // owner); `result.pantry_completion_list` se ignora.
@@ -7696,7 +7697,7 @@ const DashboardInner = () => {
                                     const patched = applyBrandToPlanOptimistic(planData, foodKey, variant);
                                     if (patched) {
                                         setPlanData(patched);
-                                        toast.success(t('Marca aplicada a tu lista'), { id: 'brand-apply', duration: 2200, position: 'top-center' });
+                                        toast.dismiss('brand-apply');   // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
                                     } else {
                                         toast.success(t('Aplicando tu marca a la lista…'), { id: 'brand-apply', duration: 3500, position: 'top-center' });
                                     }
@@ -8611,7 +8612,7 @@ const DashboardInner = () => {
                                         if (res.ok) {
                                             const data = await res.json();
                                             if (data?.plan_data) setPlanData(data.plan_data);
-                                            toast.success(t('Plan actualizado'), { id: tId });
+                                            toast.dismiss(tId);   // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
                                         } else {
                                             toast.error(t('No se pudo refrescar'), { id: tId });
                                         }

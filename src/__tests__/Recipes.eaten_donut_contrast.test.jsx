@@ -32,51 +32,16 @@ const RECIPES_DATA_PATH = path.join(RECIPES_DIR, 'recipesData.js');
 
 const recipesDataSrc = fs.readFileSync(RECIPES_DATA_PATH, 'utf-8');
 
-// --- 1. Colores reales de MACROS, leídos de recipesData.js -----------------
-// Cada entrada del array `MACROS` vive en una sola línea con la forma
-// `{ k: '...', key: '<slot>', c: '#RRGGBB', kcal: N }` — capturamos `key` y
-// `c` de la MISMA línea para no cruzar entradas. Si alguien re-temiza los
-// colores (o reordena kcal/k), esta extracción sigue funcionando mientras
-// `key` preceda a `c` dentro de la misma entrada.
-function macroHexFor(slotKey) {
-    const re = new RegExp(`key:\\s*'${slotKey}'[^}]*?c:\\s*'(#[0-9A-Fa-f]{6})'`);
-    const match = recipesDataSrc.match(re);
-    if (!match) {
-        throw new Error(`No se encontró el color de MACROS para key='${slotKey}' en recipesData.js — ¿cambió el shape del array?`);
-    }
-    return match[1];
-}
-
-const CARBS_HEX = macroHexFor('carbs');
-const FATS_HEX = macroHexFor('fats');
-
-function hexToRgb(hex) {
-    const h = hex.replace('#', '');
-    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
-}
-
-// --- 2. Matemática del filtro CSS -------------------------------------------
-// `filter: grayscale(a)` por spec (CSS Filter Effects §grayscale):
-//   out = (1 − a)·C + a·L,  L = 0.2126R + 0.7152G + 0.0722B
-// Implementación independiente de producción (no existe equivalente en JS —
-// es puro comportamiento de compositing del navegador) para poder derivar
-// la separación RGB real post-filtro a partir de cualquier a.
-function luma([r, g, b]) {
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-function applyGrayscale([r, g, b], alpha) {
-    const l = luma([r, g, b]);
-    return [(1 - alpha) * r + alpha * l, (1 - alpha) * g + alpha * l, (1 - alpha) * b + alpha * l];
-}
-function rgbDistance(a, b) {
-    return Math.sqrt(a.reduce((sum, x, i) => sum + (x - b[i]) ** 2, 0));
-}
-
-function separationAtAlpha(alpha) {
-    const carbs = applyGrayscale(hexToRgb(CARBS_HEX), alpha);
-    const fats = applyGrayscale(hexToRgb(FATS_HEX), alpha);
-    return rgbDistance(carbs, fats);
-}
+// --- 1. [P1-MACRO-BARS-SEMAFORO · 2026-11-27] La dona ya no lleva colores: tres TONOS de la tinta ----------
+// (`--macro-tono-p/c/g`, index.css). Se distinguen por luminosidad, y `grayscale()` conserva la luminosidad: el colapso
+// Carbos/Grasas que originó este test ya no puede ocurrir por construcción. Lo que se ancla ahora es esa premisa.
+const INDEX_CSS = fs.readFileSync(path.resolve(__dirname, '..', 'index.css'), 'utf-8');
+const tonoDe = (slot) => (recipesDataSrc.match(new RegExp(`key:\\s*'${slot}'[^}]*?c:\\s*'(var\\(--macro-tono-[pcg]\\))'`)) || [])[1];
+const mezclaDe = (letra) => {
+    const m = INDEX_CSS.match(new RegExp(`--macro-tono-${letra}:\\s*(?:var\\(--text-main\\)|color-mix\\(in srgb, var\\(--text-main\\) (\\d+)%, transparent\\));`));
+    if (!m) return null;
+    return m[1] ? Number(m[1]) : 100;
+};
 
 // --- 3. Alpha efectivo aplicado a `.macros` en el estado eaten -------------
 // Dos formas legítimas en que `.macros` podría terminar con un grayscale
@@ -109,46 +74,24 @@ function effectiveMacrosAlpha(css) {
     return { alpha: 0, source: 'no-filter-found' };
 }
 
-// --- 4. Piso de separación --------------------------------------------------
-// A a=0 (sin filtrar) la separación real es ~170; a a=.55 (valor vigente)
-// cae a ~77 (~45% de lo original); a a=.92 (el defecto original) colapsa a
-// ~14. 50 se eligió como piso porque dentro del rango legítimo de "mudado
-// pero perceptible" (α hasta ~.70 con estos hex, ver tabla abajo) sigue
-// pasando, pero deja de pasar bastante antes de llegar a la zona de colapso
-// real de estos colores concretos (~.85-.92) — headroom para futuros
-// ajustes de α sin acoplar el test al valor exacto .55.
-//   α    separación
-//   .00  169.8
-//   .55   76.5  (valor vigente)
-//   .70   51.1  (empieza a acercarse al piso)
-//   .92   14.0  (el defecto original — colapso real)
-const MIN_SEPARATION = 50;
-
 describe('P1-EATEN-DONUT-CONTRAST — `.macros` archivado, ni colapsado ni isla brillante', () => {
-    it('recipesData.js: Carbos y Grasas difieren realmente en RGB sin filtrar (premisa del test)', () => {
-        const [cr, cg, cb] = hexToRgb(CARBS_HEX);
-        const [fr, fg, fb] = hexToRgb(FATS_HEX);
-        expect([cr, cg, cb]).not.toEqual([fr, fg, fb]);
-        expect(separationAtAlpha(0)).toBeGreaterThan(MIN_SEPARATION);
+    it('la dona usa tres tonos distintos de la tinta (separados en luminosidad, inmunes a grayscale)', () => {
+        expect(tonoDe('protein')).toBe('var(--macro-tono-p)');
+        expect(tonoDe('carbs')).toBe('var(--macro-tono-c)');
+        expect(tonoDe('fats')).toBe('var(--macro-tono-g)');
+        const [p, c, g] = ['p', 'c', 'g'].map(mezclaDe);
+        expect([p, c, g].every((x) => x !== null)).toBe(true);
+        // al menos 20 puntos de tinta entre tonos vecinos: legibles como tres segmentos con o sin filtro
+        expect(p - c).toBeGreaterThanOrEqual(20);
+        expect(c - g).toBeGreaterThanOrEqual(20);
     });
 
     it.each([
         ['desktop (RecipesView.module.css)', DESKTOP_CSS_PATH],
         ['mobile (MobileRecipes.module.css)', MOBILE_CSS_PATH],
-    ])('%s: `.macros` tiene un filtro propio, no colapsado y no ausente', (_label, cssPath) => {
+    ])('%s: `.macros` sigue atenuado con el resto del plato comido (no queda como isla)', (_label, cssPath) => {
         const css = fs.readFileSync(cssPath, 'utf-8');
         const { alpha, source } = effectiveMacrosAlpha(css);
-
-        // (4) `.macros` no puede quedar sin filtrar mientras sus hermanos sí
-        // lo están — la isla brillante. Esta aserción es la ÚNICA que
-        // detecta esa regresión: a alpha=0 la separación RGB es MÁXIMA
-        // (~170), así que el piso de separación de abajo NO la atraparía.
         expect(alpha, `esperaba un filter grayscale > 0 en .macros (fuente detectada: ${source})`).toBeGreaterThan(0);
-
-        // (3) La separación post-filtro real (derivada de los hex vigentes
-        // de recipesData.js, no hardcodeada) se mantiene arriba del piso —
-        // detecta un alpha demasiado agresivo (p.ej. volver a .92).
-        const separation = separationAtAlpha(alpha);
-        expect(separation, `alpha=${alpha} (${source}) da separación RGB=${separation.toFixed(1)}, por debajo del piso ${MIN_SEPARATION}`).toBeGreaterThan(MIN_SEPARATION);
     });
 });

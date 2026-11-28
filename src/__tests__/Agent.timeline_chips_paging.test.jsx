@@ -83,7 +83,9 @@ describe('acciones rápidas con el hilo corto', () => {
         // [P1-PLAN-LOTE-691] las ACCIONES ya no dependen de ≤4 mensajes: con el hilo largo quedan solo ellas (soloAcciones)
         expect(AGENT).toContain('const atajosVisibles = isMobile && messages.length > 0 && !isTurnActive');
         expect(AGENT).toContain('soloAcciones: messages.length > 4');
-        expect(AGENT).toContain('&& !isLoadingHistory && !input.trim() && !_dudasDeEsteChat;');
+        // [P1-COACH-PORTADA] en la portada (solo el saludo) las píldoras ceden su sitio a las tarjetas de la portada
+        expect(AGENT).toContain('&& !isLoadingHistory && !input.trim() && !_dudasDeEsteChat && !enPortada;');
+        expect(AGENT).toContain('{enPortada && isMobile && <PortadaAtajos atajos={atajos} onAtajo={ejecutarAtajo} compacto />}');
         expect(AGENT).toContain('const _dudasDeEsteChat = dudasDeLaFoto.length > 0 && dudasDeLaFotoSesionRef.current === currentSessionId;');
         expect(AGENT).toContain('{!isCentered && atajosVisibles && (');
         // dentro del wrapper sticky de la caja (fuera, la caja los tapaba en escritorio)

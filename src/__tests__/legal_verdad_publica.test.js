@@ -355,14 +355,22 @@ describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
     // [P1-PLAN-LOTE-836 · 2026-09-29] Cambió el fondo de estas dos políticas (acceso del equipo, cuentas de prueba, plazo
     // del rastro, finalidad de prueba): Privacidad §14 promete publicar el cambio con su nueva fecha, la misma del apex.
     // [P1-PLAN-LOTE-995 · 2026-11-13] Y otra vez: DeepSeek sale y el coach pasa a Google (también la Política de IA).
-    it.each(['Política de Protección de Datos', 'Política de Uso de Inteligencia Artificial'])('«%s» lleva la fecha del cambio (13 de Noviembre, 2026)', (titulo) => {
-        expect(texto).toContain(`title="${titulo}" lastUpdated="13 de Noviembre, 2026"`);
+    it('«Política de Protección de Datos» lleva la fecha del cambio (13 de Noviembre, 2026)', () => {
+        expect(texto).toContain('title="Política de Protección de Datos" lastUpdated="13 de Noviembre, 2026"');
+    });
+    // [P1-PLAN-LOTE-1184 · 2026-11-27] La foto del escáner pasa a guardarse en el servidor (meal_photos): IA §1 y
+    // Privacidad §2/§13 cambian, con su fecha.
+    it('«Política de Uso de Inteligencia Artificial» lleva la fecha del cambio (27 de Noviembre, 2026)', () => {
+        expect(texto).toContain('title="Política de Uso de Inteligencia Artificial" lastUpdated="27 de Noviembre, 2026"');
     });
     // [P1-PLAN-LOTE-1041 · 2026-11-16] Privacidad cambia sola: las fotos del chat se borran a los 90 días (§2 y §9);
     // misma fecha que el apex (bioboros-cinematic b21da72).
     // [P1-PLAN-LOTE-1059 · 2026-11-17] Y al 17: informe para el médico y progreso por semanas (§2, §4, §9; plan 1036.3).
-    it('«Política de Privacidad» lleva la fecha del cambio (17 de Noviembre, 2026)', () => {
-        expect(texto).toContain('title="Política de Privacidad" lastUpdated="17 de Noviembre, 2026"');
+    // [P1-PLAN-LOTE-1184] Y al 27: la foto del escáner se guarda en el servidor (meal_photos), §2 y §13.
+    it('«Política de Privacidad» lleva la fecha del cambio (27 de Noviembre, 2026)', () => {
+        expect(texto).toContain('title="Política de Privacidad" lastUpdated="27 de Noviembre, 2026"');
+        expect(texto).toContain('(<code>meal_photos</code>)');
+        expect(texto).not.toContain('La foto del escáner no se guarda en nuestros servidores');
     });
     it('cuenta el informe para el médico y el progreso por semanas con sus tablas, su IA y su plazo', () => {
         expect(texto).toContain('<strong>Informe para su médico (opcional):</strong>');

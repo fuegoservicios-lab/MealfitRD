@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Check, Loader2 } from 'lucide-react';
+import { Bell, BellOff, Check, Loader2 } from 'lucide-react';
 import { useAssessment } from '../../context/AssessmentContext';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useLatestRef } from '../../hooks/useLatestRef';
 import { estadoDeAvisos, activarAvisos, alarmaExactaPendiente, pedirAlarmaExacta } from '../../utils/avisosDeComida';
+import { mensajePermisoBloqueado } from '../../utils/permisoAvisosGuia';
 import { nativePlatform } from '../../config/platform';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import { useT } from '../../i18n';
@@ -27,6 +28,8 @@ export default function NotificationOnboarding() {
     const [enabling, setEnabling] = useState(false);
     const [error, setError] = useState(false);
     const [enabled, setEnabled] = useState(false);
+    const [blocked, setBlocked] = useState(false);
+    const [canal, setCanal] = useState(null);
     // [P1-PLAN-LOTE-1156] Android: tras encender, si los avisos saldrían «con margen» (sin permiso de hora exacta),
     // un segundo paso lo ofrece aquí mismo; antes solo vivía, escondido, en Configuración.
     const [faltaHoraExacta, setFaltaHoraExacta] = useState(false);
@@ -46,6 +49,7 @@ export default function NotificationOnboarding() {
     useEffect(() => {
         setOwner(null);
         setEnabled(false);
+        setBlocked(false);
         setError(false);
         setEnabling(false);
         activationLock.current = false;
@@ -55,6 +59,7 @@ export default function NotificationOnboarding() {
         estadoDeAvisos().then((status) => {
             if (cancelled || status.activo || status.bloqueado) return;
             if (status.canal !== 'local' && status.canal !== 'web-push') return;
+            setCanal(status.canal);
             const offer = () => {
                 if (cancelled) return;
                 // No cubrir el consentimiento de IA ni otra ventana del cierre del formulario.
@@ -95,7 +100,12 @@ export default function NotificationOnboarding() {
                 }
             } else if (result.code === 'permiso_denegado') {
                 safeLocalStorageSet(notificationDecisionKey(userId), 'later');
-                setOwner(null);
+                if (result.reason === 'denied') {
+                    if (result.canal) setCanal(result.canal);
+                    setBlocked(true);
+                } else {
+                    setOwner(null);
+                }
             } else {
                 setError(true);
             }
@@ -121,13 +131,15 @@ export default function NotificationOnboarding() {
         <div className={styles.overlay}>
             <section ref={containerRef} role="dialog" aria-modal="true" aria-labelledby="notification-welcome-title"
                 aria-describedby="notification-welcome-description" tabIndex={-1} className={styles.card}>
-                <span className={styles.icon} aria-hidden="true">{enabled ? <Check size={22} /> : <Bell size={22} />}</span>
-                <h2 id="notification-welcome-title">{enabled ? t('Notificaciones activadas') : t('Activa tus recordatorios')}</h2>
+                <span className={styles.icon} aria-hidden="true">{enabled ? <Check size={22} /> : blocked ? <BellOff size={22} /> : <Bell size={22} />}</span>
+                <h2 id="notification-welcome-title">{enabled ? t('Notificaciones activadas') : blocked ? t('Notificaciones bloqueadas') : t('Activa tus recordatorios')}</h2>
                 <p id="notification-welcome-description">{enabled
                     ? t('Puedes ajustar tus recordatorios cuando quieras en Configuración.')
-                    : t('Recibe avisos para registrar tus comidas y seguir tu progreso.')}</p>
+                    : blocked
+                        ? mensajePermisoBloqueado(canal, t)
+                        : t('Recibe avisos para registrar tus comidas y seguir tu progreso.')}</p>
                 {error && <p className={styles.error} role="alert">{t('No se pudieron activar. Prueba otra vez.')}</p>}
-                {tarda && !enabled && !error && (
+                {tarda && !enabled && !blocked && !error && (
                     <p className={styles.error} role="alert">{t('Está tardando más de la cuenta. Si ya diste el permiso, toca «Activar» otra vez.')}</p>
                 )}
                 {enabled && faltaHoraExacta && (
@@ -137,11 +149,11 @@ export default function NotificationOnboarding() {
                     {enabled && faltaHoraExacta && (
                         <Button block onClick={permitirHoraExacta}>{t('Permitir hora exacta')}</Button>
                     )}
-                    <Button block variant={enabled && faltaHoraExacta ? 'text' : undefined} disabled={enabling} onClick={enabled ? dismiss : enable}>
+                    <Button block variant={enabled && faltaHoraExacta ? 'text' : undefined} disabled={enabling} onClick={enabled || blocked ? dismiss : enable}>
                         {enabling && <Loader2 size={18} className={styles.spinner} aria-hidden="true" />}
-                        {enabled ? t('Continuar') : enabling ? t('Activando...') : t('Activar notificaciones')}
+                        {enabled ? t('Continuar') : blocked ? t('Entendido') : enabling ? t('Activando...') : t('Activar notificaciones')}
                     </Button>
-                    {!enabled && <Button variant="text" block disabled={enabling} onClick={dismiss}>{t('Ahora no')}</Button>}
+                    {!enabled && !blocked && <Button variant="text" block disabled={enabling} onClick={dismiss}>{t('Ahora no')}</Button>}
                 </div>
             </section>
         </div>, document.body,

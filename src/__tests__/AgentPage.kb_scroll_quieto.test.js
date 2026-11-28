@@ -235,7 +235,8 @@ describe('[P1-CHAT-HEADER-GAP] el primer turno no invade el encabezado', () => {
         const src = read('pages/AgentPage.jsx');
         expect(src).toMatch(/ref=\{messagesEndRef\} className="messages-end-sentinel"/);
         expect(src).toMatch(/\.messages-end-sentinel\s*\{[^}]*margin-top:\s*-2rem/s);
-        expect(src).toMatch(/gap:\s*'2rem'/);
+        // [P1-PLAN-LOTE-1178] en la portada el hueco es 0 (no hay mensajes que separar); con mensajes, 2rem
+        expect(src).toMatch(/gap:\s*enPortada \? 0 : '2rem'/);
     });
 
     // [P1-PLAN-LOTE-121 · 2026-09-19] Este contrato decía lo CONTRARIO («el scroller empieza debajo del header»): la

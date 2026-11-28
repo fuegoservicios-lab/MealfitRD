@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useLayoutEffect } from 'react';
-import { nativeHidesCommerce } from './config/platform';
+import { nativeHidesCommerce, canShowUpgrade } from './config/platform';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 // [P1-TOASTER-MISSING · 2026-05-30] sonner <Toaster/> — sin él la app NO
 // renderiza ningún toast (sonner no auto-monta). Ver el render abajo.
@@ -72,7 +72,7 @@ import { APP_ORIGIN, isApexHost } from './config/site';
 import { cargarPagina, cargarApartado, cargarLayoutDelPanel, precargarPaginasDelMenu } from './utils/precargaDePaginas';
 const Home = lazy(() => import('./pages/Home'));
 // [P3-APP-SUBDOMAIN-BUILD-SEP · 2026-06-28] Login y DashboardLayout son código
-// EXCLUSIVO del app (app.mealfitrd.com); antes eran imports eager → engordaban el
+// EXCLUSIVO del app (app.bioboros.com); antes eran imports eager → engordaban el
 // chunk de entrada que la landing de marketing (apex) descarga sin usarlos. Lazy
 // los saca del entry → marketing más liviano. Suspense ya provisto por
 // AnimatedLayout/DashboardAnimatedLayout.
@@ -97,6 +97,7 @@ const Dashboard = lazy(cargarPagina.hoy);
 
 const Pantry = lazy(cargarPagina.nevera);
 const ProgressPage = lazy(cargarPagina.progreso);
+const ClasificatoriaPage = lazy(cargarPagina.clasificatoria);
 const Recipes = lazy(cargarApartado.recetas);     // [APARTADOS-PRECARGADOS] misma promesa que la precarga
 const Settings = lazy(cargarApartado.ajustes);
 // [P1-SETTINGS-DIALOG · 2026-08-10] La ventana de configuración. Lazy igual que
@@ -154,11 +155,11 @@ const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
 const PrecisionPage = lazy(() => import('./pages/PrecisionPage'));
 
 // [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] En el subdominio de la app
-// (app.mealfitrd.com) el root `/` entra DIRECTO a la app: Agente en modo contador,
+// (app.bioboros.com) el root `/` entra DIRECTO a la app: Agente en modo contador,
 // `/dashboard` con el generador encendido. La entrada espera al perfil
 // y deja que ProtectedRoute decida (sin sesión → /login; con sesión sin plan →
 // /assessment; con plan → dashboard). La landing de marketing vive SOLO en el apex
-// (mealfitrd.com), que NO cambia. Detección estática por hostname (`app.*`); en
+// (bioboros.com), que NO cambia. Detección estática por hostname (`app.*`); en
 // localhost/apex es false → comportamiento idéntico al previo. Split estilo
 // Anthropic (anthropic.com vs claude.ai) / OpenAI (openai.com vs chatgpt.com).
 const IS_APP_HOST = typeof window !== 'undefined' && /^app\./i.test(window.location.hostname);
@@ -169,9 +170,9 @@ const IS_APP_HOST = typeof window !== 'undefined' && /^app\./i.test(window.locat
 const NATIVE_NO_COMMERCE = nativeHidesCommerce();
 
 
-// [P3-APP-SUBDOMAIN-ROUTING · 2026-06-28] En el APEX (mealfitrd.com / www) solo
+// [P3-APP-SUBDOMAIN-ROUTING · 2026-06-28] En el APEX (bioboros.com / www) solo
 // vive el MARKETING (landing + páginas legales). CUALQUIER ruta de la app
-// (login/dashboard/onboarding/etc.) se redirige a app.mealfitrd.com — el login +
+// (login/dashboard/onboarding/etc.) se redirige a app.bioboros.com — el login +
 // dashboard viven SOLO en el subdominio (estilo claude.ai / chatgpt.com). Cubre a
 // la vez la navegación directa y los clicks de CTA de la landing (client-side), sin
 // tener que tocar cada CTA. El subdominio app.* NO redirige (sirve la app). La
@@ -571,7 +572,7 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Rutas Protegidas */}
-            {/* [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] En app.mealfitrd.com el root
+            {/* [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] En app.bioboros.com el root
                 entra por Agente sin generador y por el panel con generador.
                 ProtectedRoute conserva onboarding y recuperación. En el apex
                 se muestra la landing de marketing. */}
@@ -625,6 +626,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/dashboard/pantry" element={<Pantry />} />
               <Route path="/dashboard/progress" element={<ProgressPage />} />
+              <Route path="/dashboard/clasificatoria" element={<ClasificatoriaPage />} />
               <Route path="/dashboard/recipes" element={<Recipes />} />
               {/* [P1-AGENT-KEEP-ALIVE · 2026-05-20] AgentPage vive residente
                   en DashboardAnimatedLayout (keep-alive). Esta route es solo
@@ -649,7 +651,7 @@ function App() {
                 Sigue ProtectedRoute (logged-in only) y mantiene el path
                 `/dashboard/upgrade` para no romper bookmarks. */}
             <Route path="/dashboard/upgrade" element={
-              NATIVE_NO_COMMERCE
+              !canShowUpgrade()
                 ? <Navigate to="/dashboard" replace />
                 : <ProtectedRoute><Upgrade /></ProtectedRoute>
             } />

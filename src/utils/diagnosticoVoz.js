@@ -23,9 +23,10 @@ export function _reiniciarDiagnosticoVoz() {
     ultimaVez.clear();
 }
 
-/** Qué reconocedor usaría la app aquí: el plugin de Android, el del navegador, o ninguno. */
+/** Qué reconocedor usaría la app aquí: el plugin nativo, el del navegador, o ninguno. */
 export function motorActual(win = typeof window !== 'undefined' ? window : undefined) {
     if (nativePlatform() === 'android' && nativePluginAvailable('SpeechRecognition')) return 'plugin_android';
+    if (nativePlatform() === 'ios' && nativePluginAvailable('SpeechRecognition')) return 'plugin_ios';
     if (win?.SpeechRecognition) return 'web';
     if (win?.webkitSpeechRecognition) return 'webkit';
     return 'ninguno';

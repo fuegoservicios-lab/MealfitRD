@@ -27,13 +27,16 @@ vi.mock('../config/platform', () => ({
 const marcas = vi.hoisted(() => []);
 vi.mock('../utils/keyboardProbe', async (orig) => ({ ...(await orig()), marcarSondaTeclado: (n) => marcas.push(n) }));
 
-const camara = vi.hoisted(() => ({ pickImages: null, chooseFromGallery: null, takePhoto: null }));
+const camara = vi.hoisted(() => ({ pickImages: null, chooseFromGallery: null, takePhoto: null, getPhoto: null }));
 vi.mock('@capacitor/camera', () => ({
     MediaTypeSelection: { Photo: 'photo' },
+    CameraSource: { Camera: 'CAMERA' },
+    CameraResultType: { Uri: 'uri' },
     Camera: {
         pickImages: (o) => camara.pickImages(o),
         chooseFromGallery: (o) => camara.chooseFromGallery(o),
         takePhoto: (o) => camara.takePhoto(o),
+        getPhoto: (o) => camara.getPhoto(o),
     },
 }));
 
@@ -74,6 +77,7 @@ beforeEach(() => {
     camara.pickImages = vi.fn(async () => ({ photos: [] }));
     camara.chooseFromGallery = vi.fn(async () => ({ results: [{ webPath: 'blob:x', metadata: { format: 'jpeg' } }] }));
     camara.takePhoto = vi.fn(async () => ({ webPath: 'blob:foto' }));
+    camara.getPhoto = vi.fn(async () => ({ webPath: 'blob:foto-android', format: 'jpeg' }));
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, blob: async () => new Blob(['x'], { type: 'image/jpeg' }) })));
     clicks = [];
     vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(function registrar() {
@@ -218,6 +222,23 @@ describe('[848] lo que no cambia', () => {
         }));
         await chooseNativeGalleryImage();
         expect(camara.chooseFromGallery).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 1, quality: 90, targetWidth: 2000 }));
+    });
+
+    it('Android: la cámara usa Camera.getPhoto (LegacyCameraFlow) y no Camera.takePhoto', async () => {
+        plataforma.nombre = 'android';
+        const files = await takeNativeChatPhoto({ lado: 1600 });
+        expect(files).toHaveLength(1);
+        expect(files[0].type).toBe('image/jpeg');
+        expect(camara.getPhoto).toHaveBeenCalledWith({
+            source: 'CAMERA',
+            resultType: 'uri',
+            quality: 85,
+            width: 1600,
+            height: 1600,
+            correctOrientation: true,
+            saveToGallery: false,
+        });
+        expect(camara.takePhoto).not.toHaveBeenCalled();
     });
 
     it('la web: null, ningún input y ningún plugin (cada pantalla sigue con su input de siempre)', async () => {

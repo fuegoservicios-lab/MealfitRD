@@ -1,6 +1,6 @@
 // [P1-MANUAL-FOOD-LOG · 2026-08-11] El buscador del componedor: LISTA en el cliente,
 // [P2-I18N-FOODSEARCH · 2026-08-22] `t` de módulo, invocada al construir el resultado.
-import { t } from '../i18n';
+import { t, getLocale, compareText } from '../i18n';
 // [P1-PLAN-LOTE-165 · 2026-09-22] La porción del catálogo llega como palabra española («taza», «unidad»): el
 // `unit` es vocabulario del motor y no se toca; solo el RÓTULO que se pinta pasa por la glosa de la Nevera.
 import { glossUnitWord } from './shoppingHelpers';
@@ -33,6 +33,47 @@ const _sinAcentos = (s) => String(s || '')
 
 const _norm = (s) => _sinAcentos(s).trim().toLowerCase();
 
+const _dishesIndexCache = new WeakMap();
+const _foodsIndexCache = new WeakMap();
+
+const _getIndexedDishes = (dishes, locale) => {
+    if (!Array.isArray(dishes) || !dishes.length) return [];
+    const cached = _dishesIndexCache.get(dishes);
+    if (cached && cached.locale === locale && cached.len === dishes.length) return cached.entries;
+    const entries = dishes.map((d) => ({
+        item: d,
+        ref: `dish:${d.slug}`,
+        label: d.label,
+        labelNorm: _norm(d.label),
+        sub: t('Plato criollo · ración {g} g', { g: Math.round(d.finished_g) }),
+    }));
+    _dishesIndexCache.set(dishes, { locale, len: dishes.length, entries });
+    return entries;
+};
+
+const _getIndexedFoods = (foods, locale) => {
+    if (!Array.isArray(foods) || !foods.length) return [];
+    const cached = _foodsIndexCache.get(foods);
+    if (cached && cached.locale === locale && cached.len === foods.length) return cached.entries;
+    const entries = foods.map((f) => {
+        const propio = nombreDeFila(f);
+        const label = propio || f.name;
+        const porcionDefault = (f.portions || []).find((p) => p.default) || null;
+        return {
+            item: f,
+            ref: `food:${f.id}`,
+            label,
+            labelNorm: _norm(propio),
+            formasNorm: formasDeBuscar(f).map(_norm),
+            sub: porcionDefault && porcionDefault.unit !== 'g'
+                ? t('Alimento · {porcion} {g} g', { porcion: glossUnitWord(porcionDefault.label, t), g: Math.round(porcionDefault.grams_per_qty) })
+                : t('Alimento · por gramos'),
+        };
+    });
+    _foodsIndexCache.set(foods, { locale, len: foods.length, entries });
+    return entries;
+};
+
 /** La escalera. Menor = mejor. Infinity = no matchea. */
 export const rankOf = (haystackNorm, qNorm) => {
     if (!qNorm) return Infinity;
@@ -56,20 +97,22 @@ export function searchFoods(query, foods, dishes, max = 12) {
     const q = _norm(query);
     if (q.length < 2) return [];
 
+    const locale = getLocale();
     const resultados = [];
 
-    for (const d of dishes || []) {
-        const r = rankOf(_norm(d.label), q);
+    for (const d of _getIndexedDishes(dishes, locale)) {
+        const r = rankOf(d.labelNorm, q);
         if (r < Infinity) {
             resultados.push({
                 kind: 'dish',
-                ref: `dish:${d.slug}`,
+                ref: d.ref,
                 label: d.label,
                 // [P2-I18N-FOODSEARCH · 2026-08-22] El subtítulo lo LEE el usuario al
                 // buscar qué comió. El `label` del plato NO se traduce: es el identificador
                 // con el que el motor resuelve.
-                sub: t('Plato criollo · ración {g} g', { g: Math.round(d.finished_g) }),
-                item: d,
+                sub: d.sub,
+                item: d.item,
+                labelNorm: d.labelNorm,
                 // Un plato completo responde mejor a «qué me comí» que un ingrediente
                 // crudo del mismo rango: a rango igual, el plato va primero.
                 rank: r - 0.1,
@@ -77,42 +120,32 @@ export function searchFoods(query, foods, dishes, max = 12) {
         }
     }
 
-    for (const f of foods || []) {
-        // [P1-PLAN-LOTE-225 · 2026-09-24] El nombre en el idioma del usuario es el PROPIO: rango limpio. El canónico
-        // español, sus 825 alias curados («guineo» tiene que encontrar el banano) y los nombres en los otros idiomas
-        // son VÍAS DE ENTRADA al mismo identificador, con +0.5 para que el nombre propio gane en empate. Antes sólo
-        // existía el inglés (P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4) y un francés que escribía «poulet» no
-        // encontraba nada. Lo que se selecciona sigue siendo `f.name` (la ref), canónico español: la frontera.
-        const propio = nombreDeFila(f);
-        let r = rankOf(_norm(propio), q);
+    for (const f of _getIndexedFoods(foods, locale)) {
+        let r = rankOf(f.labelNorm, q);
         if (r === Infinity) {
-            for (const forma of formasDeBuscar(f)) {
-                const ra = rankOf(_norm(forma), q);
+            for (const formaNorm of f.formasNorm) {
+                const ra = rankOf(formaNorm, q);
                 if (ra + 0.5 < r) r = ra + 0.5;
             }
         }
         if (r < Infinity) {
-            const porcionDefault = (f.portions || []).find((p) => p.default) || null;
             resultados.push({
                 kind: 'food',
-                ref: `food:${f.id}`,
-                label: propio || f.name,
-                // [P2-I18N-FOODSEARCH-SUBTITULO-ALIMENTO · 2026-08-23] Los platos criollos
-                // (arriba) llevaban subtítulo traducido y los alimentos no — en la MISMA
-                // lista. Y era un TERNARIO, que es justo la forma que el escáner de
-                // cadenas sin envolver no inspeccionaba (P2-I18N-ESCANER-CIEGO-AL-TERNARIO).
-                sub: porcionDefault && porcionDefault.unit !== 'g'
-                    ? t('Alimento · {porcion} {g} g', { porcion: glossUnitWord(porcionDefault.label, t), g: Math.round(porcionDefault.grams_per_qty) })
-                    : t('Alimento · por gramos'),
-                item: f,
+                ref: f.ref,
+                label: f.label,
+                sub: f.sub,
+                item: f.item,
+                labelNorm: f.labelNorm,
                 rank: r,
             });
         }
     }
 
     // ORDENAR ANTES DE CORTAR — la regla de oro de P1-STAPLE-SEARCH-RANK.
-    resultados.sort((a, b) => a.rank - b.rank || _norm(a.label).localeCompare(_norm(b.label)));
-    return resultados.slice(0, max);
+    resultados.sort((a, b) => a.rank - b.rank || compareText(a.labelNorm, b.labelNorm));
+    return resultados.slice(0, max).map(({ kind, ref, label, sub, item, rank }) => ({
+        kind, ref, label, sub, item, rank,
+    }));
 }
 
 /** Macros de una línea para la VISTA PREVIA. El servidor recalcula al enviar; esto

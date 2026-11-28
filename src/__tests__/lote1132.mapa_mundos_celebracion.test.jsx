@@ -170,7 +170,7 @@ describe('compartir el camino', () => {
         expect(txt).toContain('Día 67');
         expect(txt).toContain('Mundo Plata');
         expect(txt).toContain('12 estrellas');
-        expect(txt.split('\n').filter((l) => /^[✅🟡🟠⚪]+$/u.test(l))).toHaveLength(2);
+        expect(txt.split('\n').filter((l) => /^[✅🟡🟠🔴⏳⚪]+$/u.test(l))).toHaveLength(2);
     });
 
     it('un mundo desconocido cae en Bronce', () => {

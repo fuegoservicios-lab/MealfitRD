@@ -14,7 +14,10 @@ const NOMBRE_MUNDO = () => ({ bronce: t('Bronce'), plata: t('Plata'), oro: t('Or
 const { COLOR, M, BASE, BLANCO, CLARO, CRISTAL } = PINCEL;
 const ANCHO = 1080;
 // Tinta fija (JPEG, no interfaz): la de los anillos de la semana; el coral en rgb() (el trinquete de hex es de la UI).
-const TONO = { meta: COLOR.carbs, bajo: COLOR.calories, sobre: ['rgb(251, 113, 133)', 'rgb(239, 68, 68)'] };
+// [P1-MACRO-BARS-SEMAFORO · 2026-11-26] verde en meta, rojo cerrado sin cumplir o pasado, gris HOY aún abierto
+const ROJO = ['rgb(248, 113, 113)', 'rgb(220, 38, 38)'];
+const TONO = { meta: COLOR.carbs, curso: ['rgb(203, 213, 225)', 'rgb(148, 163, 184)'], bajo: ROJO, sobre: ROJO };
+const tonoDeDia = (d) => (d.estado === 'bajo' && d.esHoy ? 'curso' : d.estado);
 const ORO = COLOR.calories;
 
 /**
@@ -46,12 +49,12 @@ export function resumenDeMapa(mapa) {
     };
 }
 
-const _EMOJI = { meta: '✅', bajo: '🟡', sobre: '🟠', vacio: '⚪' };
+const _EMOJI = { meta: '✅', curso: '⏳', bajo: '🔴', sobre: '🔴', vacio: '⚪' };
 
 /** El mensaje para WhatsApp (la reserva sin imagen). */
 export function textoDeMapa(r) {
     const filas = [];
-    for (let i = 0; i < r.dias.length; i += POR_FILA) filas.push(r.dias.slice(i, i + POR_FILA).map((d) => _EMOJI[d.estado] || '⚪').join(''));
+    for (let i = 0; i < r.dias.length; i += POR_FILA) filas.push(r.dias.slice(i, i + POR_FILA).map((d) => _EMOJI[tonoDeDia(d)] || '⚪').join(''));
     const lineas = [
         t('🗺️ Mi camino en {app} · Día {n}', { app: BRAND, n: formatNumber(r.nivel) }),
         '',
@@ -119,7 +122,7 @@ const _camino = (ctx, r, x0, x1, yTop, R, grosor) => {
             ctx.beginPath(); ctx.arc(cx, cy, radio, 0, Math.PI * 2); ctx.stroke();
             ctx.restore();
         } else {
-            const [c1, c2] = TONO[d.estado] || TONO.meta;
+            const [c1, c2] = TONO[tonoDeDia(d)] || TONO.meta;
             ctx.save();
             const g = ctx.createRadialGradient?.(cx - radio * 0.3, cy - radio * 0.35, radio * 0.1, cx, cy, radio);
             if (g) { g.addColorStop(0, c1); g.addColorStop(1, c2); ctx.fillStyle = g; } else ctx.fillStyle = c2;

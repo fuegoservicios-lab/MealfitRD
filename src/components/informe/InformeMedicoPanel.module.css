@@ -74,6 +74,17 @@
 .periodoActivo { background: var(--primary-fill); color: white; font-weight: 700; }
 .periodo:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 55%, transparent); outline-offset: 2px; }
 .fechas { margin: 0.5rem 0 1rem; text-align: center; font-size: 0.8125rem; color: var(--text-muted); }
+.progresoCarga {
+    margin: 0.75rem 0 0;
+    padding: 0.55rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+    background: color-mix(in srgb, var(--primary) 8%, var(--bg-card));
+    text-align: center;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--primary);
+}
 .pie { margin: 0.5rem 0 0; text-align: center; font-size: 0.75rem; color: var(--text-muted); }
 
 .error { margin: 0.75rem 0 0; font-size: 0.875rem; color: var(--text-main); }
@@ -94,6 +105,15 @@
     color: var(--text-muted);
 }
 .bloque { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.bloque[data-bloque="resumen"],
+.bloque[data-bloque="hallazgos"],
+.bloque[data-bloque="preguntas"] {
+    padding: 0.85rem 1rem;
+    border-top: 0;
+    border-left: 3px solid var(--primary);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--primary) 6%, var(--bg-card));
+}
 .bloqueTitulo { font-size: 1rem; font-weight: 800; margin: 0 0 0.5rem; }
 .lineas { margin: 0; padding-left: 1.1rem; font-size: 0.875rem; line-height: 1.5; }
 .lineas li { margin: 0.15rem 0; }

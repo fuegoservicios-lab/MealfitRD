@@ -248,6 +248,9 @@ describe('AgentPage: el modo voz enchufado', () => {
         // [P1-PLAN-LOTE-980] y oculto mientras se dicta (`!isListening`).
         expect(ap).toContain('{vozCoach.disponible && !isListening && !input.trim() && attachments.length === 0 && (');
         expect(ap).toContain("const ModoVoz = lazy(() => import('../components/agent/ModoVoz'));");
+        expect(ap).toContain('const MODO_VOZ_DESHABILITADO = true;');
+        expect(ap).toContain("toast.info(t('Modo de voz deshabilitado')");
+        expect(ap).toContain('<Lock size={10}');
     });
 
     it('el modo voz es el Modo Llamada: manda is_call_mode y dice las frases del stream', () => {

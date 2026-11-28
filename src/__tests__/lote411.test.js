@@ -21,7 +21,8 @@ describe('[411] atajos del chat', () => {
         expect(a.slice(0, 2)).toEqual([
             { id: 'escanear', tipo: 'accion', accion: 'escanear', texto: 'Escanear mi plato' },
             // [P1-PLAN-LOTE-1074] «Anotar comida» sale; entra el informe para el médico
-            { id: 'informe', tipo: 'accion', accion: 'informe', texto: 'Informe para tu médico' },
+            // [P1-PLAN-LOTE-1179] + `corto`: la etiqueta de la tarjeta en el teléfono
+            { id: 'informe', tipo: 'accion', accion: 'informe', texto: 'Informe para tu médico', corto: 'Informe médico' },
         ]);
         expect(a.every((x) => x.tipo === 'accion' || typeof x.mensaje === 'string')).toBe(true);
     });

@@ -82,12 +82,9 @@ describe('[770] cambiar de periodo es fluido', () => {
         expect(await screen.findByText('No se pudieron cargar las métricas.')).toBeInTheDocument();
     });
 
-    it('«Volver a la app» es un botón con su flecha que lleva al dashboard', async () => {
+    it('no muestra enlace «Volver a la app» en el panel de administración', async () => {
         montar();
         await screen.findByRole('list', { name: 'Últimos 7 días' });
-        const volver = screen.getByRole('link', { name: 'Volver a la app' });
-        expect(volver.querySelector('svg')).not.toBeNull();
-        fireEvent.click(volver);
-        expect(await screen.findByText('DASH')).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Volver a la app' })).toBeNull();
     });
 });

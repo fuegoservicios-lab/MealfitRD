@@ -174,6 +174,12 @@ export function unidadesParaIngrediente(texto, gramosActuales, gramosBase, t = (
         });
     }
 
+    // [P1-PLAN-LOTE-1173 · 2026-11-27] «Leche entera (≈240 ml)»: el renglón viene en ml, así que se edita en ml
+    // (si no, la ficha pintaba «240 g» de leche).
+    if (predeterminada === 'g' && seen.has('ml') && /\(\s*[^)]*\d\s*ml\b/i.test(texto || '')) {
+        predeterminada = 'ml';
+    }
+
     return { predeterminada, opciones };
 }
 

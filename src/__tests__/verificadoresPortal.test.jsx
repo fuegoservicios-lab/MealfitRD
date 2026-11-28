@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import VerificadoresPage from '../pages/VerificadoresPage';
 import AdminCuentasLista from '../pages/AdminCuentasLista';
 import ProtectedRoute from '../components/layout/ProtectedRoute';
+import { fecha, hora } from '../utils/adminCuentas';
 
 vi.mock('../config/api', () => ({
     api: (p) => p,
@@ -203,5 +204,13 @@ describe('Portal /verificadores, redirección de /admin y chip Verificador Andro
         expect(screen.getByText('5 de 14 seguidos')).toBeInTheDocument();
         expect(screen.getByText('Google Play: 10 / 12 verificadores Android')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Link del panel' })).toBeInTheDocument();
+
+        const celdaUltimoUso = screen.getByText('android@gmail.com').closest('tr')?.querySelector('td[data-etiqueta="Último uso"]');
+        expect(celdaUltimoUso).toBeTruthy();
+        const spansUltimoUso = Array.from(celdaUltimoUso.querySelectorAll('span'));
+        expect(spansUltimoUso).toHaveLength(2);
+        expect(hora('2026-11-21T12:00:00Z')).not.toBe('');
+        expect(spansUltimoUso[0].textContent).toBe(fecha('2026-11-21T12:00:00Z'));
+        expect(spansUltimoUso[1].textContent).toBe(hora('2026-11-21T12:00:00Z'));
     });
 });

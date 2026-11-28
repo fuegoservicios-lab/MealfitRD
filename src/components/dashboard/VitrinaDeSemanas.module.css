@@ -43,5 +43,12 @@
 }
 
 .estrellas { display: inline-flex; gap: 1px; }
+.puntos {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
 .ganada { stroke: #D97706; fill: #FBBF24; }
 .vacia { stroke: color-mix(in srgb, var(--text-muted) 50%, transparent); fill: none; }

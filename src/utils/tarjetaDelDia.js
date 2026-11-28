@@ -6,6 +6,7 @@ import { t, formatNumber, formatPercent, tn } from '../i18n';
 import { fechaLarga, SITIO } from './compartirDia';
 import { formatoMicro } from '../components/dashboard/microsShared';
 import { BRAND } from '../data/routeMeta';
+import { tonoDeMacroCompartida } from './tonoDeMacro';
 
 const ANCHO = 1080;
 const M = 72;                        // margen lateral
@@ -221,7 +222,7 @@ export async function dibujarTarjetaDelDia(resumen, { formato = 'publicacion' } 
     // Calorías: el anillo grande, con la cifra dentro.
     const cal = r.calorias;
     const cy = y + 60 + 220;
-    _anillo(ctx, ANCHO / 2, cy, 200, 36, cal.pct, COLOR.calories);
+    _anillo(ctx, ANCHO / 2, cy, 200, 36, cal.pct, tonoDeMacroCompartida({ ...cal, clave: 'calories' }));   // [P1-MACRO-BARS-SEMAFORO] gris / verde / rojo
     _texto(ctx, formatNumber(cal.valor), ANCHO / 2, cy + 18, { tam: 104, peso: 800, color: TINTA.blanco, alinear: 'center' });
     if (cal.meta > 0) {
         _texto(ctx, `/ ${formatNumber(cal.meta)} kcal`, ANCHO / 2, cy + 70, { tam: 34, peso: 600, color: TINTA.apagado, alinear: 'center' });
@@ -236,7 +237,7 @@ export async function dibujarTarjetaDelDia(resumen, { formato = 'publicacion' } 
     const my = y + 110;
     r.macros.forEach((mc, i) => {
         const cx = cols[i];
-        _anillo(ctx, cx, my, 92, 18, mc.pct, COLOR[mc.clave]);
+        _anillo(ctx, cx, my, 92, 18, mc.pct, tonoDeMacroCompartida(mc));
         _texto(ctx, mc.meta > 0 ? formatPercent(mc.pct) : `${formatNumber(mc.valor)} g`, cx, my + 14,
             { tam: mc.meta > 0 ? 40 : 34, peso: 800, color: TINTA.blanco, alinear: 'center' });
         _texto(ctx, mc.etiqueta, cx, my + 150, { tam: 32, peso: 700, color: TINTA.texto, alinear: 'center', max: 300 });

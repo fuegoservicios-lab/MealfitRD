@@ -56,9 +56,11 @@ export function nombreCsvDeHoy(ahora = new Date()) {
 }
 
 const FORMATO_FECHA = { day: 'numeric', month: 'short', year: 'numeric' };
-const FORMATO_FECHA_HORA = { ...FORMATO_FECHA, hour: '2-digit', minute: '2-digit' };
+const FORMATO_HORA = { hour: '2-digit', minute: '2-digit' };
+const FORMATO_FECHA_HORA = { ...FORMATO_FECHA, ...FORMATO_HORA };
 
 export const fecha = (iso) => (iso ? formatDate(iso, FORMATO_FECHA) || '—' : '—');
+export const hora = (iso) => (iso ? formatDate(iso, FORMATO_HORA) || '' : '');
 export const fechaHora = (iso) => (iso ? formatDate(iso, FORMATO_FECHA_HORA) || '—' : '—');
 /** Importes en US$ con 2 decimales, como el resto del panel («US$0.28»). */
 export const usd = (n) => {

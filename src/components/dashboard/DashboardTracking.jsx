@@ -292,7 +292,16 @@ const DashboardTracking = ({ modo = 'contador' }) => {
                     ninguna es alcanzable; el coach tiene su cuota aparte y escanear/anotar no cuentan.
                     Un número que nada toca confunde (pregunta del dueño con captura). El dashboard
                     de plan (`Dashboard.jsx`) lo sigue mostrando: vuelve al reanudar el plan. */}
-                <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} flatOnMobile />
+                {/* [P1-PLAN-LOTE-1180 · 2026-11-27] Sin perfil todavía, NO se monta: el dueño (hidratación APAGADA)
+                    la veía «unos milisegundos» al iniciar sesión y entrar a Progreso. Montada antes del perfil decidía
+                    con la copia del dispositivo (`mealfit_water_tracker_enabled`, global y escrita por 6 sitios: en
+                    este dispositivo también entra otra cuenta con la hidratación encendida). Con el perfil, decide
+                    `water_tracker_enabled`, el dato de la cuenta. El resto de Progreso también espera a sus metas. */}
+                {userProfile && (
+                    <WaterTracker
+                        initialEnabled={typeof userProfile?.water_tracker_enabled === 'boolean' ? userProfile.water_tracker_enabled : null}
+                        userId={session?.user?.id || userProfile?.id || 'guest'} flatOnMobile />
+                )}
             </div>
 
             {/* [P1-PLAN-LOTE-87 · 2026-09-17] [BB-050 · 2026-11-09] La invitación a encender/reanudar el plan

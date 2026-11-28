@@ -202,7 +202,12 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, al
                 if (d?.motivo === 'presupuesto' || d?.motivo === 'tope_voz_mes' || d?.motivo === 'tope_mes_usd') setDisponible(false);
                 throw Object.assign(new Error('sesion'), { motivo: r.status === 428 ? 'permiso' : d?.motivo });
             }
-            if (conexionRef.current !== c || !abiertoRef.current) return;   // lo cerraron mientras tanto
+            if (conexionRef.current !== c || !abiertoRef.current) {
+                if (d?.live_id) {
+                    fetchWithAuth(`/api/chat/live/${d.live_id}/cerrar`, { method: 'POST', keepalive: true }).catch(() => {});
+                }
+                return;   // lo cerraron mientras tanto
+            }
             c.liveId = d.live_id;
             fase = 'sdp_remoto';
             await c.pc.setRemoteDescription({ type: 'answer', sdp: d.sdp });
@@ -248,7 +253,12 @@ export function useConversacionLive({ sessionId, locale = 'es-DO', alNovedad, al
             try { c.dc.send(JSON.stringify({ type: 'session.close' })); } catch { /* ya cerrado */ }
         }
         // Lo que el coach hizo en el último turno se aplica aunque se cierre ya.
-        if (c?.liveId) sondear();
+        if (c?.liveId) {
+            sondear();
+            if (c.dc?.readyState !== 'open') {
+                fetchWithAuth(`/api/chat/live/${c.liveId}/cerrar`, { method: 'POST', keepalive: true }).catch(() => {});
+            }
+        }
         clearTimeout(c?.sondeo);
         // Cortar el audio antes del tono: no enviarlo al agente ni mezclarlo con su respuesta.
         try { c?.micro?.getTracks().forEach((tr) => tr.stop()); } catch { /* ya parado */ }

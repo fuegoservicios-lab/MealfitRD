@@ -12,7 +12,7 @@ import { Clock, Droplets, FileText, Flame, Leaf, Loader2, RotateCcw, Share2, Tra
 import { fetchWithAuth } from '../../config/api';
 import { BRAND } from '../../data/routeMeta';
 import { useAssessment } from '../../context/AssessmentContext';
-import { formatDate, formatNumber, useT } from '../../i18n';
+import { formatDate, formatNumber, getLocale, useT } from '../../i18n';
 import { bloquesDeLaRedaccion, bloquesDelInforme } from '../../utils/informeMedicoTexto';
 import Button from '../ui/Button';
 import { fechasDelPeriodo } from './fechasDelPeriodo';
@@ -36,9 +36,29 @@ export default function InformeMedicoPanel({ idInicial = null, tituloId = 'infor
     const [informe, setInforme] = useState(null);
     const [lista, setLista] = useState([]);
     const [estado, setEstado] = useState('inicio');   // inicio | generando | abriendo | error
+    const [faseCarga, setFaseCarga] = useState(0);
     const [error, setError] = useState('');
     const [pdf, setPdf] = useState(null);
     const pidioRef = useRef(null);
+
+    // [P2-I18N-MEMOS-CONGELADOS] sin memo: cuatro cadenas por render, siempre en el idioma vivo
+    const FASES_CARGA = [
+        t('Analizando tus registros…'),
+        t('Calculando tendencias y nutrientes…'),
+        t('Redactando resumen clínico…'),
+        t('Verificando cifras y preparando PDF…'),
+    ];
+
+    useEffect(() => {
+        if (estado !== 'generando') {
+            setFaseCarga(0);
+            return undefined;
+        }
+        const id = setInterval(() => {
+            setFaseCarga((n) => (n < FASES_CARGA.length - 1 ? n + 1 : n));
+        }, 3500);
+        return () => clearInterval(id);
+    }, [estado, FASES_CARGA.length]);
 
     const fmt = useCallback((n) => (typeof n === 'number' ? formatNumber(n) : String(n ?? '')), []);
 
@@ -116,10 +136,46 @@ export default function InformeMedicoPanel({ idInicial = null, tituloId = 'infor
         : '');
 
     const aviso = t('Este informe resume lo que la persona registró en {app} (comidas, agua, peso). Son datos autorreportados y estimaciones. No es un diagnóstico ni sustituye la valoración de un profesional de la salud.', { app: BRAND });
+    // [P2-I18N-MEMOS-CONGELADOS] `locale` viaja en las opciones (y en las deps): sin él, el texto del informe se quedaba
+    // en el idioma anterior hasta recargar
+    const locale = getLocale();
     const bloques = useMemo(() => (informe ? [
-        ...bloquesDeLaRedaccion(informe.narrative, { t }),
-        ...bloquesDelInforme(informe.data, { t, fmt }),
-    ] : []), [informe, t, fmt]);
+        ...bloquesDeLaRedaccion(informe.narrative, { t, locale }),
+        ...bloquesDelInforme(informe.data, { t, fmt, locale }),
+    ] : []), [informe, t, fmt, locale]);
+
+    // [P2-I18N-MEMOS-CONGELADOS] Las gráficas del PDF se rotulan DENTRO del efecto que arma el PDF (no en un memo, que
+    // congelaba los títulos en el idioma anterior): el efecto se repite al cambiar el idioma.
+    const graficasDelPdf = () => {
+        if (!informe?.data) return [];
+        const out = [];
+        const sems = informe.data.energia?.por_semana || [];
+        if (sems.length > 1) {
+            const metaM = informe.data.energia?.meta_media || 0;
+            const top = Math.max(1, ...sems.map((s) => s.kcal_media || 0), metaM);
+            out.push({
+                titulo: t('Energía media por semana frente a la meta'),
+                filas: sems.map((s) => ({
+                    etiqueta: t('S{n}', { n: s.numero }),
+                    valorTexto: t('{n} kcal', { n: fmt(s.kcal_media) }),
+                    pct: Math.round((100 * (s.kcal_media || 0)) / top),
+                    metaPct: metaM ? Math.round((100 * metaM) / top) : undefined,
+                })),
+            });
+        }
+        const semsMeta = informe.data.adherencia?.semanas || [];
+        if (semsMeta.length > 1) {
+            out.push({
+                titulo: t('Días en meta por semana'),
+                filas: semsMeta.map((s) => ({
+                    etiqueta: t('S{n}', { n: s.numero }),
+                    valorTexto: t('{n} de 7', { n: fmt(s.dias_en_meta) }),
+                    pct: Math.round((100 * (s.dias_en_meta || 0)) / 7),
+                })),
+            });
+        }
+        return out;
+    };
 
     // El PDF se prepara al abrir el informe: `navigator.share` exige el gesto del usuario, y el gesto no espera.
     useEffect(() => {
@@ -131,12 +187,13 @@ export default function InformeMedicoPanel({ idInicial = null, tituloId = 'infor
             subtitulo: `${periodoTexto(informe.data?.periodo)} · ${t('Generado el {f}', { f: formatDate(informe.created_at || new Date(), { day: 'numeric', month: 'long', year: 'numeric' }) })}`,
             aviso,
             bloques,
+            graficas: graficasDelPdf(),
         })).then((blob) => {
             if (vivo) setPdf(new File([blob], `informe-bioboros-${informe.data?.periodo?.hasta || 'hoy'}.pdf`, { type: 'application/pdf' }));
         }).catch(() => { /* sin PDF: el botón queda desactivado */ });
         return () => { vivo = false; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- `periodoTexto` y `aviso` derivan de `informe` y `t`
-    }, [informe, bloques]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `periodoTexto`, `aviso` y las gráficas derivan de `informe`, `t` y el idioma
+    }, [informe, bloques, locale]);
 
     // [P1-PLAN-LOTE-1059 · plan 1036.5] solo se CUENTA que se compartió (nada del contenido sale del teléfono)
     const anotarCompartido = () => {
@@ -212,6 +269,11 @@ export default function InformeMedicoPanel({ idInicial = null, tituloId = 'infor
                             ? <><Loader2 size={18} className="spin-fast" aria-hidden="true" /> {t('Preparando tu informe…')}</>
                             : <><FileText size={18} aria-hidden="true" /> {t('Generar informe')}</>}
                     </Button>
+                    {estado === 'generando' && (
+                        <p className={styles.progresoCarga} role="status" aria-live="polite">
+                            {FASES_CARGA[faseCarga]}
+                        </p>
+                    )}
                     <p className={styles.pie}>{t('Listo en segundos para compartir en PDF.')}</p>
                 </section>
             )}

@@ -12,7 +12,12 @@ const ESTADOS = new Set(['meta', 'bajo', 'pasado', 'vacio', 'futuro']);
 const { COLOR, M, BASE, BLANCO, CLARO, CRISTAL } = PINCEL;
 const ANCHO = 1080;
 // Tinta fija (JPEG): la de los anillos de «Tu semana». Rojo en rgb(): el trinquete de hex es de la interfaz.
-const TONO = { meta: COLOR.carbs, bajo: COLOR.calories, pasado: ['rgb(251, 113, 133)', 'rgb(239, 68, 68)'] };
+// [P1-MACRO-BARS-SEMAFORO · 2026-11-26] Los mismos tres tonos que la app: verde = en meta, gris = HOY aún abierto,
+// rojo = día cerrado sin cumplir o pasado. `estado` no cambia (lo usan el conteo y la racha); `abierto` decide el tono.
+const GRIS = ['rgb(203, 213, 225)', 'rgb(148, 163, 184)'];
+const ROJO = ['rgb(248, 113, 113)', 'rgb(220, 38, 38)'];
+const tonoDeDia = (d) => (d.estado === 'bajo' ? (d.abierto ? 'curso' : 'fallado') : d.estado);
+const TONO = { meta: COLOR.carbs, curso: GRIS, fallado: ROJO, pasado: ROJO };
 const ORO = COLOR.calories;
 
 /** La racha más larga de días en meta seguidos dentro del mes. */
@@ -31,6 +36,7 @@ export function resumenDeMes(mes) {
     const dias = (Array.isArray(m.dias) ? m.dias : []).slice(0, 31).map((d) => ({
         iso: String(d?.iso || ''),
         estado: ESTADOS.has(d?.estado) ? d.estado : 'vacio',
+        abierto: !!d?.abierto,
     }));
     const pasados = dias.filter((d) => d.estado !== 'futuro');
     const enMeta = pasados.filter((d) => d.estado === 'meta').length;
@@ -52,12 +58,12 @@ export function resumenDeMes(mes) {
     };
 }
 
-const _EMOJI = { meta: '✅', bajo: '🟡', pasado: '🟠', vacio: '⚪', futuro: '▫️' };
+const _EMOJI = { meta: '✅', curso: '⏳', fallado: '🔴', pasado: '🔴', vacio: '⚪', futuro: '▫️' };
 
 /** El mensaje para WhatsApp (la reserva sin imagen). */
 export function textoDeMes(r) {
     const filas = [];
-    const celdas = [...Array(r.inicio).fill('  '), ...r.dias.map((d) => _EMOJI[d.estado] || '⚪')];
+    const celdas = [...Array(r.inicio).fill('  '), ...r.dias.map((d) => _EMOJI[tonoDeDia(d)] || '⚪')];
     for (let i = 0; i < celdas.length; i += 7) filas.push(celdas.slice(i, i + 7).join(''));
     const lineas = [
         t('📅 Mi mes en {app} · {mes}', { app: BRAND, mes: r.nombre }),
@@ -98,7 +104,7 @@ const _rejilla = (ctx, r, x0, x1, yTop, R, grosor) => {
             ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
             ctx.restore();
         } else {
-            PINCEL.anillo(ctx, cx, cy, R, grosor, 100, TONO[d.estado]);
+            PINCEL.anillo(ctx, cx, cy, R, grosor, 100, TONO[tonoDeDia(d)]);
             if (d.estado === 'meta') _palomita(ctx, cx, cy, R);
         }
     });

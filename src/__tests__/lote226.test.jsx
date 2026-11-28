@@ -140,7 +140,8 @@ describe('[P1-PLAN-LOTE-226] desde un chat de otro día se vuelve al de hoy', ()
         await abrirElChatViejoDesdeRecientes();
         expect(window.localStorage.getItem('mealfit_current_session_day')).toBe('2026-09-16');
         const botones = await screen.findAllByRole('button', { name: /Volver al chat de hoy/ }, { timeout: 10000 });
-        expect(botones.length).toBe(2);                    // el de la barra lateral y la píldora sobre la caja
+        // [P1-PLAN-LOTE-1176] la barra lateral arranca CERRADA (oculta a la accesibilidad): queda la píldora sobre la caja
+        expect(botones.length).toBeGreaterThanOrEqual(1);
         botones.forEach((b) => expect(b).not.toBeDisabled());
         await act(async () => { botones[0].click(); });
         await waitFor(() => expect(screen.queryByText(TEXTO_DE_AYER)).toBeNull(), { timeout: 10000 });
@@ -149,7 +150,8 @@ describe('[P1-PLAN-LOTE-226] desde un chat de otro día se vuelve al de hoy', ()
         expect(window.localStorage.getItem('mealfit_current_session_auto')).toBe(nueva);
         expect(window.localStorage.getItem('mealfit_current_session_day')).toBe('2026-09-17');
         expect(screen.queryAllByRole('button', { name: /Volver al chat de hoy/ })).toHaveLength(0);
-        expect(screen.getByRole('button', { name: /Nuevo chat/ })).toBeDisabled();   // ya estás en el de hoy
+        // [P1-PLAN-LOTE-1176] la barra lateral arranca cerrada: su botón existe, oculto a la accesibilidad
+        expect(screen.getByRole('button', { name: /Nuevo chat/, hidden: true })).toBeDisabled();   // ya estás en el de hoy
     });
 
     it('con chat de hoy en el servidor: vuelve a ESE, con su conversación', async () => {

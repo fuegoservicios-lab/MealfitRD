@@ -51,7 +51,10 @@ describe('[1082] el resumen y el texto de la semana', () => {
     it('el texto: la fila de días, días en meta, estrellas, racha y rango; sin racha corta', () => {
         const txt = textoDeSemana(resumenDeSemana(SEMANA));
         expect(txt).toContain('Semana 10 (15 nov – 21 nov)');
-        expect(txt).toContain('✅✅🟡⚪✅🟠▫️');
+        // [P1-MACRO-BARS-SEMAFORO] un día cerrado por debajo y uno pasado salen en rojo; HOY por debajo, en curso (⏳)
+        expect(txt).toContain('✅✅🔴⚪✅🔴▫️');
+        const conHoy = { ...SEMANA, dias: DIAS.map((d, i) => (i === 2 ? { ...d, abierto: true } : d)) };
+        expect(textoDeSemana(resumenDeSemana(conHoy))).toContain('✅✅⏳⚪✅🔴▫️');
         expect(txt).toContain('✅ 3 de 7 días en meta');
         expect(txt).toContain('⭐ 1 de 3 estrellas');
         expect(txt).toContain('🔥 Racha de 2 días');

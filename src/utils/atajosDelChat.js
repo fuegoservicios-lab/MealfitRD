@@ -48,35 +48,37 @@ export function atajosDelChat({ hora, modoContador, metas = null, totales = null
         { id: 'escanear', tipo: 'accion', accion: 'escanear', texto: t('Escanear mi plato') },
         // [P1-PLAN-LOTE-1074 · 2026-11-17] El dueño: «quita el botón de anotar comida, lo veo innecesario (se anota
         // escribiendo o con la foto) y agrega el botón para crear un informe para el médico: que se vea a primera vista».
-        { id: 'informe', tipo: 'accion', accion: 'informe', texto: t('Informe para tu médico') },
+        { id: 'informe', tipo: 'accion', accion: 'informe', texto: t('Informe para tu médico'), corto: t('Informe médico') },
     ];
     if (soloAcciones) return acciones;
-    const msg = (id, texto) => ({ id, tipo: 'mensaje', mensaje: texto, texto });
+    // [P1-PLAN-LOTE-1179 · 2026-11-27] `corto`: la etiqueta de la tarjeta en el teléfono (el dueño: las tarjetas de
+    // 3-4 líneas pesaban). El MENSAJE que se envía al coach sigue siendo el texto largo.
+    const msg = (id, texto, corto) => ({ id, tipo: 'mensaje', mensaje: texto, texto, ...(corto ? { corto } : {}) });
     const candidatos = [];
     const noche = hora >= 18;
     const conDatos = !!(metas && totales);
 
     // 1. de madrugada, lo único que se pregunta (corte biológico: 4:00 AM)
-    if (hora < 4) candidatos.push(msg('ligero', t('Tengo hambre: algo ligero')));
+    if (hora < 4) candidatos.push(msg('ligero', t('Tengo hambre: algo ligero'), t('Algo ligero')));
 
     if (conDatos) {
         const faltaProteina = Math.round((metas.protein || 0) - (totales.protein || 0));
         const sobraGrasa = (totales.fats || 0) - (metas.fats || 0);
         // 2. pasado de grasa: qué comer a partir de ahora
         if (metas.fats && sobraGrasa > 5) {
-            candidatos.push(msg('grasa', noche ? t('Voy alto en grasa: ¿qué ceno?') : t('Voy alto en grasa: ¿qué como ahora?')));
+            candidatos.push(msg('grasa', noche ? t('Voy alto en grasa: ¿qué ceno?') : t('Voy alto en grasa: ¿qué como ahora?'), t('Voy alto en grasa')));
         }
         // 3. proteína corta desde la tarde (por la mañana es normal ir corto)
         if (hora >= 14 && metas.protein && faltaProteina >= 20) {
-            candidatos.push(msg('proteina', t('Me faltan {n} g de proteína: ¿qué como?', { n: faltaProteina })));
+            candidatos.push(msg('proteina', t('Me faltan {n} g de proteína: ¿qué como?', { n: faltaProteina }), t('Me faltan {n} g de proteína', { n: faltaProteina })));
         }
     }
 
     // 4. la comida que toca y no está registrada
     if (Array.isArray(comidas)) {
         const tiene = (x) => comidas.includes(x);
-        if (hora >= 4 && hora < 11 && !tiene('desayuno')) candidatos.push(msg('desayuno', t('Ideas de desayuno con proteína')));
-        else if (hora >= 11 && hora < 16 && !tiene('almuerzo')) candidatos.push(msg('almuerzo', t('¿Qué almuerzo me conviene hoy?')));
+        if (hora >= 4 && hora < 11 && !tiene('desayuno')) candidatos.push(msg('desayuno', t('Ideas de desayuno con proteína'), t('Idea de desayuno')));
+        else if (hora >= 11 && hora < 16 && !tiene('almuerzo')) candidatos.push(msg('almuerzo', t('¿Qué almuerzo me conviene hoy?'), t('Idea de almuerzo')));
         else if (hora >= 18 && hora < 23 && !tiene('cena')) candidatos.push(msg('cena', t('¿Qué ceno hoy?')));
     }
 

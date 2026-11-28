@@ -101,7 +101,7 @@ describe('[320] las páginas del menú se precargan en reposo', () => {
         enReposo[0]();
         expect(pedidas).toEqual(['nevera']);
         enReposo[1]();
-        expect(pedidas.sort()).toEqual(['agente', 'historial', 'hoy', 'nevera', 'progreso']);
+        expect(pedidas.sort()).toEqual(['agente', 'clasificatoria', 'historial', 'hoy', 'nevera', 'progreso']);   // + la Clasificatoria del menú
         // [APARTADOS-PRECARGADOS · 2026-11-13] Ajustes y Recetas, en un TERCER reposo: después de las del menú.
         const apartados = [];
         for (const k of Object.keys(m.cargarApartado)) vi.spyOn(m.cargarApartado, k).mockImplementation(() => { apartados.push(k); return Promise.resolve({}); });
@@ -137,7 +137,7 @@ describe('[320] las páginas del menú se precargan en reposo', () => {
         vi.advanceTimersByTime(1);
         expect(pedidas).toEqual(['nevera']);
         vi.advanceTimersByTime(2150);
-        expect(pedidas.sort()).toEqual(['agente', 'historial', 'hoy', 'nevera', 'progreso']);
+        expect(pedidas.sort()).toEqual(['agente', 'clasificatoria', 'historial', 'hoy', 'nevera', 'progreso']);   // + la Clasificatoria del menú
     });
 
     it('respeta el ahorro de datos sin programar descargas', async () => {

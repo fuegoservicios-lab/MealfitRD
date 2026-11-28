@@ -52,19 +52,20 @@ describe('[1161] la tarjeta de la semana por puntos', () => {
 
     it('hoy registrado: puntos en vivo con ×1.3, la división sube, nuevo récord y estrellas por puntos', async () => {
         montar({ calories: 1900, protein: 110, carbs: 200, fats: 60, mealsCount: 3 });
-        // 45 base × 1.3 (racha 9) = 59; total 960 + 59 = 1019 ⇒ Plata III (1000-1350), 331 pts para Plata II
+        // 44 base (completo 2 + banda 12 + proteina 10 + carbos 5 + grasas 5 + perfecto 10) × 1.3 = 57; total 960 + 57 = 1017 ⇒ Plata III
         expect(await screen.findByText('Plata III')).toBeInTheDocument();
-        expect(screen.getByText('331 pts para Plata II')).toBeInTheDocument();
+        expect(screen.getByText('333 pts para Plata II')).toBeInTheDocument();
         const llama = screen.getByRole('button', { name: /9 días seguidos registrando, multiplicador ×1\.3, 2 escudos de racha/ });
         expect(llama).toBeInTheDocument();
-        expect(screen.getByText('En llamas')).toBeInTheDocument();
+        expect(within(llama).getByText('Racha')).toBeInTheDocument();
+        expect(within(llama).getByText('9')).toBeInTheDocument();
         expect(screen.getByText('2/2')).toBeInTheDocument();
         expect(screen.getByText('Tu racha multiplica ×1.3 tus puntos de hoy')).toBeInTheDocument();
         expect(screen.getByText('¡Nuevo récord!')).toBeInTheDocument();
-        // semana: 140 − 0 + 59 = 199 ⇒ 2 ★ (faltan 21 pts para 3.ª estrella @ 220)
-        expect(screen.getByText('199')).toBeInTheDocument();
+        // semana: 140 − 0 + 57 = 197 ⇒ 2 ★ (faltan 23 pts para 3.ª estrella @ 220)
+        expect(screen.getByText('197')).toBeInTheDocument();
         expect(screen.getByRole('img', { name: '2 de 3 estrellas' })).toBeInTheDocument();
-        expect(screen.getByText('Faltan 21 pts para tu 3.ª estrella')).toBeInTheDocument();
+        expect(screen.getByText('Faltan 23 pts para tu 3.ª estrella')).toBeInTheDocument();
     });
 
     it('logros: muestran los puntos multiplicados, progreso parcial y el ahorro de 0★ dice primera estrella', async () => {
@@ -79,9 +80,11 @@ describe('[1161] la tarjeta de la semana por puntos', () => {
         const items = within(lista).getAllByRole('listitem').map((li) => li.getAttribute('aria-label'));
         expect(items).toEqual([
             'Registrar: conseguido',
-            'Día completo: +7 puntos si lo consigues',
-            'Calorías en meta: +26 puntos si lo consigues',
+            'Calorías en meta: +16 puntos si lo consigues',
             'Proteína: +13 puntos si lo consigues',
+            'Carbohidratos: +7 puntos si lo consigues',
+            'Grasas en rango: +7 puntos si lo consigues',
+            'Día completo: +3 puntos si lo consigues',
             'Día perfecto: +13 puntos si lo consigues',
         ]);
         expect(screen.getByText('Faltan 60 pts para tu primera estrella')).toBeInTheDocument();
@@ -105,10 +108,10 @@ describe('[1161] la tarjeta de la semana por puntos', () => {
         const deAyer = { ...RESUMEN, hoy: '2026-11-17', racha: 9, racha_hasta_ayer: 8, hoy_puntos: { ...RESUMEN.hoy_puntos, puntos: 55 } };
         fetchWithAuth.mockImplementation(respuestas(deAyer));
         montar({ calories: 1900, protein: 110, carbs: 200, fats: 60, mealsCount: 3 });
-        // racha 9 (hasta ayer) + hoy = 10 ⇒ ×1.3 · 59 pts; total 960 + 59 = 1019 ⇒ Plata III, 331 pts para Plata II
+        // racha 9 (hasta ayer) + hoy = 10 ⇒ ×1.3 · 57 pts; total 960 + 57 = 1017 ⇒ Plata III, 333 pts para Plata II
         expect(await screen.findByRole('button', { name: /10 días seguidos registrando/ })).toBeInTheDocument();
         expect(screen.getByText('Plata III')).toBeInTheDocument();
-        expect(screen.getByText('331 pts para Plata II')).toBeInTheDocument();
+        expect(screen.getByText('333 pts para Plata II')).toBeInTheDocument();
     });
 
     it('cada día cerrado de la semana enseña sus puntos y avisa por la tarde si llevas 0 pts', async () => {
@@ -118,7 +121,31 @@ describe('[1161] la tarjeta de la semana por puntos', () => {
         expect(screen.getByText('+50')).toBeInTheDocument();
         expect(screen.getByText('Registra hoy para no gastar un escudo (×1.3).')).toBeInTheDocument();
         const lista = screen.getByRole('list', { name: 'Logros de hoy' });
-        expect(within(lista).getByLabelText('Calorías en meta: +26 puntos si lo consigues')).toBeInTheDocument();
+        expect(within(lista).getByLabelText('Calorías en meta: +16 puntos si lo consigues')).toBeInTheDocument();
         vi.setSystemTime(new Date(2026, 10, 18, 15, 0, 0));
+    });
+
+    it('cuando te pasas en grasas pausa el multiplicador y avisa honestamente', async () => {
+        montar({ calories: 1950, protein: 120, carbs: 180, fats: 90, mealsCount: 3 });
+        expect(await screen.findByText('Sin ×1.3 hoy: te pasaste en grasas')).toBeInTheDocument();
+        const lista = screen.getByRole('list', { name: 'Logros de hoy' });
+        expect(within(lista).getByLabelText('Grasas altas: te pasaste de grasas hoy (pausa tu multiplicador)')).toBeInTheDocument();
+    });
+
+    it('nunca duplica puntos de ayer cuando hoy coincide en fecha extendida con hoy_puntos > 0', async () => {
+        const resHoyConPuntos = {
+            ...RESUMEN,
+            hoy: '2026-11-18',
+            semana: {
+                ...RESUMEN.semana,
+                puntos: 197,
+                dias: RESUMEN.semana.dias.map((d) => (d.iso === '2026-11-18' ? { ...d, puntos: 57, estado: 'meta' } : d)),
+            },
+            hoy_puntos: { ...RESUMEN.hoy_puntos, puntos: 57 },
+        };
+        fetchWithAuth.mockImplementation(respuestas(resHoyConPuntos));
+        montar({ calories: 1900, protein: 110, carbs: 200, fats: 60, mealsCount: 3 });
+        expect(await screen.findByText('197')).toBeInTheDocument();
+        expect(screen.queryByText('254')).toBeNull();
     });
 });

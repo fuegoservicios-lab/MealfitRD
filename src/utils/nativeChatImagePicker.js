@@ -13,10 +13,11 @@ const mediaResultToFile = async (result, index) => {
     const response = await fetch(source);
     if (!response.ok) throw new Error('NATIVE_IMAGE_READ_FAILED');
     const blob = await response.blob();
-    const type = blob.type || `image/${result?.metadata?.format || 'jpeg'}`;
+    const fmt = result?.metadata?.format || result?.format;
+    const type = blob.type || `image/${fmt || 'jpeg'}`;
     return new File(
         [blob],
-        `imagen-${Date.now()}-${index + 1}.${extensionFor(type, result?.metadata?.format)}`,
+        `imagen-${Date.now()}-${index + 1}.${extensionFor(type, fmt)}`,
         { type, lastModified: Date.now() },
     );
 };
@@ -194,16 +195,29 @@ export async function chooseNativeChatImages(limit = 4) {
 // [P1-PLAN-LOTE-1050] `lado`: la historia compartida (1080×1920) pide más que los 1600 px del chat.
 export async function takeNativeChatPhoto({ lado = 1600 } = {}) {
     if (!isNativeApp()) return null;
-    const { Camera } = await import('@capacitor/camera');
+    const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
     marcarSondaTeclado('fSel');
-    const result = await Camera.takePhoto({
-        quality: 85,
-        targetWidth: lado,
-        targetHeight: lado,
-        correctOrientation: true,
-        includeMetadata: true,
-        saveToGallery: false,
-    });
+    // En Android (builds con R8/minifyEnabled), `Camera.takePhoto` entra en IonCameraFlow (`io.ionic.libs.ioncameralib`)
+    // sin reglas keep ni saveInstanceState; `Camera.getPhoto` entra en `LegacyCameraFlow` (`com.capacitorjs.plugins.camera`),
+    // cubierto por ProGuard y con restauración de actividad, corrigiendo el cierre por OTA para los binarios ya instalados.
+    const result = nativePlatform() === 'android'
+        ? await Camera.getPhoto({
+            source: CameraSource?.Camera || 'CAMERA',
+            resultType: CameraResultType?.Uri || 'uri',
+            quality: 85,
+            width: lado,
+            height: lado,
+            correctOrientation: true,
+            saveToGallery: false,
+        })
+        : await Camera.takePhoto({
+            quality: 85,
+            targetWidth: lado,
+            targetHeight: lado,
+            correctOrientation: true,
+            includeMetadata: true,
+            saveToGallery: false,
+        });
     marcarSondaTeclado('fVuelve');
     const file = await mediaResultToFile(result, 0);
     marcarSondaTeclado('fLeida');

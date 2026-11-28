@@ -555,7 +555,7 @@ const SupermarketPage = () => {
             await requestJson('/api/supermarket/products', {
                 method: 'POST', token: adminToken, body: JSON.stringify(toPayload(form)),
             });
-            toast.success('Producto agregado.');
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
             setModal(fromFood ? { mode: 'food', foodKey: fromFood } : null);
             await load(adminToken);
         } catch (err) {
@@ -571,7 +571,7 @@ const SupermarketPage = () => {
             const data = await requestJson(`/api/supermarket/products/${id}`, {
                 method: 'PATCH', token: adminToken, body: JSON.stringify(toPayload(form)),
             });
-            toast.success('Producto actualizado.');
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
             setModal({ mode: 'detail', product: data.product, fromFood });
             await load(adminToken);
         } catch (err) {
@@ -588,7 +588,7 @@ const SupermarketPage = () => {
         if (!(await confirmToast(`¿Eliminar "${label}" del supermercado?`, { description: 'Esta acción no se puede deshacer.', confirmLabel: 'Eliminar', danger: true }))) return;
         try {
             await requestJson(`/api/supermarket/products/${p.id}`, { method: 'DELETE', token: adminToken });
-            toast.success('Producto eliminado.');
+            // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
             setModal(fromFood ? { mode: 'food', foodKey: fromFood } : null);
             await load(adminToken);
         } catch (err) {

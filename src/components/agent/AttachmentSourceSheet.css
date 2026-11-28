@@ -8,6 +8,8 @@
     align-items: flex-end;
     justify-content: center;
     background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     overscroll-behavior: contain;
     touch-action: none;
 }
@@ -77,6 +79,14 @@
     background: var(--bg-muted);
     color: var(--text-main);
     text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.attachment-source-action:hover {
+    background: color-mix(in srgb, var(--primary) 8%, var(--bg-muted));
+    border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
 }
 
 .attachment-source-action > span {
@@ -85,7 +95,10 @@
     gap: 0.2rem;
 }
 
-.attachment-source-action:active { transform: scale(0.97); }
+.attachment-source-action:active {
+    background: color-mix(in srgb, var(--primary) 14%, var(--bg-muted));
+    transform: scale(0.97);
+}
 
 .attachment-source-action > .attachment-source-ico {
     width: 44px;
@@ -93,8 +106,9 @@
     display: grid;
     place-items: center;
     border-radius: 999px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--primary) 14%, var(--bg-card));
+    border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+    color: var(--primary);
 }
 
 .attachment-source-action strong { font-size: 0.95rem; }

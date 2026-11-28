@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
-import { Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share, ChevronRight, Info, Utensils, CupSoda } from 'lucide-react';
+import { Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share, ChevronRight, Info, Utensils, CupSoda, Check, AlertCircle, CalendarDays, RotateCcw } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -9,7 +9,10 @@ import { useNumeroAnimado } from '../../hooks/useNumeroAnimado';
 // en otro dia no tiene NINGUNA superficie donde verse.
 import DiaryHistory, { DiaryHistoryTrigger } from './DiaryHistory';
 import SemanaEnProgreso from './SemanaEnProgreso';
-import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
+import { getCachedMasterList, setCachedMasterList, getCachedDishes, setCachedDishes } from '../../utils/pantryCache';
+import { readFrequentFoodsCache, writeFrequentFoodsCache } from '../../utils/frequentFoodsCache';
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../../utils/safeLocalStorage';
+import { CHAT_MESSAGES_CACHE_KEY } from '../../utils/chatCacheKeys';
 import { consumirAbrirDiasAnteriores } from '../../utils/diasAnteriores';
 import { confirmToast } from '../../utils/confirmToast';
 import ProteinIcon from '../icons/ProteinIcon';
@@ -29,16 +32,16 @@ import LogMealModal from './LogMealModal';
 import MicrosList from './MicrosList';
 import HealthSources from '../common/HealthSources';
 import { resumirMicros, useMicrosSubtitulo } from './microsShared';
-import { formatNumber, formatPercent, useT, useTn } from '../../i18n';
+import { formatDate, formatNumber, formatPercent, useT, useTn } from '../../i18n';
 import { nombreDeRegistro, nombreDeFila } from '../../utils/nombreDeRegistro';
 import { macroReferences } from '../../utils/macroReferences';
 import { getCalorieGoalState, resolveMainGoal } from '../../utils/calorieGoalStatus';
+import { getMacroGoalState, calorieStateToBarState } from '../../utils/macroGoalStatus';
 // [P1-PLAN-LOTE-721 · 2026-09-28] La fila abre la ficha del plato; la foto del escáner (solo en este dispositivo) sale
 // en miniatura. El almacén de fotos se importa dinámico dentro del hook: este trozo está en el techo de precache-guard.
 import { useIdsConFoto, useEnlazarFotosDelChat, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
 import MiniaturaDeComida from './MiniaturaDeComida';
 import { getBiologicalDateStr } from '../../utils/diaBiologico';
-import { AvisoDiaActivo } from './DiaActivo';
 import styles from './TrackingProgress.module.css';
 
 // [P1-COMPARTIR-DIA · 2026-09-23] La hoja se carga al abrirla: canvas + textos no pesan en el panel.
@@ -93,6 +96,14 @@ const _getMealTypeLabels = (t) => ({
 const _mealTypeLabel = (mealType, t) => {
     if (!mealType) return t('Comida');
     return _getMealTypeLabels(t)[mealType] || (mealType.charAt(0).toUpperCase() + mealType.slice(1));
+};
+
+const _horaDeComida = (raw) => {
+    if (!raw) return '';
+    const txt = String(raw);
+    if (!txt.includes('T') && !/\d:\d/.test(txt)) return '';
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? '' : formatDate(d, { timeStyle: 'short' });
 };
 
 // Cap de filas visibles antes de requerir "Ver más" — evita que la card
@@ -221,6 +232,46 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     const [deletingMealId, setDeletingMealId] = useState(null);
     const deletingIdsRef = useRef(new Set());
     const deletedIdsRef = useRef(new Set());
+    const [selectedDay, setSelectedDay] = useState(null);
+    const [selectedDayState, setSelectedDayState] = useState({ iso: null, meals: [], loading: false });
+    // [P1-DIA-EN-EL-CONTADOR · 2026-11-27] el día llega con sus cifras (las del anillo): se adopta tal cual
+    const handleDiaSeleccionado = useCallback((dia) => { setSelectedDay(dia || null); }, []);
+    // «Volver a hoy» desde el contador: la semana suelta el día (señal) y el contador vuelve a hoy al instante
+    const [limpiarSemana, setLimpiarSemana] = useState(0);
+    const volverAHoy = useCallback(() => {
+        setLimpiarSemana((n) => n + 1);
+        setSelectedDay(null);
+    }, []);
+    // [P1-DIA-UNIFICADO · 2026-11-26] El día tocado en «Tu semana» manda sobre comidas y micros SOLO con la semana al lado
+    // (PC, ≥910 px de tarjeta). En el teléfono la semana va DEBAJO: cambiar una tarjeta que está fuera de la vista dejaba
+    // «Comidas del martes» bajo las macros de hoy. Allí el detalle del día vive en la propia semana. Sin ResizeObserver
+    // (tests, navegadores viejos) se conserva la conducta de siempre.
+    const hostRef = useRef(null);
+    const [semanaAlLado, setSemanaAlLado] = useState(true);
+    useEffect(() => {
+        const el = hostRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return undefined;
+        const ro = new ResizeObserver((entries) => {
+            const w = entries?.[0]?.contentRect?.width || 0;
+            if (w > 0) setSemanaAlLado(w >= 910);
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+    // [P1-DIA-EN-EL-CONTADOR · 2026-11-27] El día tocado manda sobre TODO el contador (macros, micros y comidas), en PC
+    // y en el teléfono: la tarjetita de resumen bajo la semana repetía las cifras en pequeño (el dueño: «se ve mediocre»).
+    // En el teléfono la semana va bajo las macros, así que al tocar un día la vista sube al contador.
+    const viewingPastDay = Boolean(selectedDay?.iso && !selectedDay.esHoy);
+    const pastIso = viewingPastDay ? selectedDay.iso : null;
+    useEffect(() => {
+        if (!pastIso || semanaAlLado) return;
+        const el = hostRef.current;
+        if (!el || typeof el.scrollIntoView !== 'function') return;
+        if (el.getBoundingClientRect().top > 56) return;
+        let quieto = false;
+        try { quieto = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches); } catch (_e) { /* sin matchMedia */ }
+        el.scrollIntoView({ behavior: quieto ? 'auto' : 'smooth', block: 'start' });
+    }, [pastIso, semanaAlLado]);
     // [P1-PLAN-LOTE-721] La comida cuya ficha está abierta (la fila tal cual llegó del día), o null.
     const [fichaMeal, setFichaMeal] = useState(null);
     const handleFichaClose = useCallback(() => setFichaMeal(null), []);
@@ -389,8 +440,20 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
         //     otro browser, o desde el endpoint /api/diary/consumed directo).
         //
         // Mismo patrón que `WaterTracker.jsx` (P3-WATER-TRACKER).
-        const onAgentRefreshInventory = () => {
-            if (isMounted) fetchConsumed();
+        const onAgentRefreshInventory = (e) => {
+            if (!isMounted) return;
+            const optMeal = e?.detail?.optimisticMeal;
+            if (optMeal && optMeal.id) {
+                setConsumed((prev) => {
+                    const existing = Array.isArray(prev?.meals) ? prev.meals : [];
+                    if (existing.some((m) => m?.id === optMeal.id)) return prev;
+                    return _buildConsumedSnapshot({
+                        meals: [optMeal, ...existing],
+                        cacheKey: consumedCacheKey,
+                    });
+                });
+            }
+            fetchConsumed();
         };
         const onVisibilityChange = () => {
             if (isMounted && document.visibilityState === 'visible') {
@@ -418,14 +481,85 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
         window.addEventListener('mealfit:diary-changed', onDiaryChanged);
         document.addEventListener('visibilitychange', onVisibilityChange);
 
+        const timer = window.setTimeout(() => {
+            if (!isMounted) return;
+            const jobs = [];
+            if (!getCachedMasterList()) {
+                jobs.push(
+                    fetchWithAuth('/api/catalog')
+                        .then((r) => (r.ok ? r.json() : null))
+                        .then((d) => { if (isMounted && Array.isArray(d?.items)) setCachedMasterList(d.items); })
+                        .catch(() => {})
+                );
+            }
+            if (!getCachedDishes()) {
+                jobs.push(
+                    fetchWithAuth('/api/catalog/dishes')
+                        .then((r) => (r.ok ? r.json() : null))
+                        .then((d) => { if (isMounted && Array.isArray(d?.items)) setCachedDishes(d.items); })
+                        .catch(() => {})
+                );
+            }
+            if (!readFrequentFoodsCache(userId)) {
+                jobs.push(
+                    fetchWithAuth('/api/diary/foods/frequent?limit=6')
+                        .then((r) => (r.ok ? r.json() : null))
+                        .then((d) => { if (isMounted && Array.isArray(d?.items)) writeFrequentFoodsCache(userId, d.items); })
+                        .catch(() => {})
+                );
+            }
+            void jobs;
+        }, 1200);
+
         return () => {
             isMounted = false;
+            window.clearTimeout(timer);
             window.removeEventListener('mealfit:refresh-inventory', onAgentRefreshInventory);
             window.removeEventListener('mealfit:chat-turn-done', onAgentRefreshInventory);
             window.removeEventListener('mealfit:diary-changed', onDiaryChanged);
             document.removeEventListener('visibilitychange', onVisibilityChange);
         };
     }, [userId, consumedCacheKey]);
+
+    // [SEMANA-EN-PROGRESO · 2026-11-26] Al tocar un día anterior en la tira semanal, la lista de comidas de abajo
+    // debe mostrar ESE día (y nunca dejar visible la lista de hoy bajo la cabecera del día elegido).
+    useEffect(() => {
+        setMealsExpanded(false);
+        const targetIso = viewingPastDay ? selectedDay?.iso : null;
+        if (!targetIso || !userId || userId === 'guest') {
+            setSelectedDayState({ iso: null, meals: [], loading: false });
+            return undefined;
+        }
+        let isMounted = true;
+        const fetchSelectedDay = async (showSpinner = false) => {
+            if (showSpinner) {
+                setSelectedDayState({ iso: targetIso, meals: [], loading: true });
+            }
+            try {
+                const tzOffset = new Date().getTimezoneOffset();
+                const res = await fetchWithAuth(`/api/diary/consumed/${userId}?date=${targetIso}&tzOffset=${tzOffset}`);
+                const data = await res.json();
+                if (!isMounted) return;
+                const meals = Array.isArray(data?.meals)
+                    ? data.meals.filter((m) => !deletedIdsRef.current.has(m?.id))
+                    : [];
+                setSelectedDayState({ iso: targetIso, meals, loading: false });
+            } catch (_err) {
+                if (isMounted) setSelectedDayState((prev) => ({ ...prev, iso: targetIso, loading: false }));
+            }
+        };
+        fetchSelectedDay(true);
+        const onPastRefresh = (e) => {
+            if (isMounted && e?.detail?.source !== 'tracking-progress') fetchSelectedDay(false);
+        };
+        window.addEventListener('mealfit:diary-changed', onPastRefresh);
+        window.addEventListener('mealfit:refresh-inventory', onPastRefresh);
+        return () => {
+            isMounted = false;
+            window.removeEventListener('mealfit:diary-changed', onPastRefresh);
+            window.removeEventListener('mealfit:refresh-inventory', onPastRefresh);
+        };
+    }, [viewingPastDay, selectedDay?.iso, userId]);
 
     // [P1-DIARY-EDITABLE · 2026-07-28] "Deshacer registro" — borra una fila
     // de `consumed_meals` mal tapeada. `consumed_meals` era append-only
@@ -454,9 +588,14 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
             return false;
         }
 
+        const isPastMeal = Boolean(viewingPastDay && selectedDayState.meals.some((m) => m.id === meal.id));
         setDeletingMealId(meal.id);
         try {
-            const res = await fetchWithAuth(`/api/diary/consumed/${meal.id}`, { method: 'DELETE' });
+            const sid = safeLocalStorageGet('mealfit_current_session', null);
+            const delUrl = sid
+                ? `/api/diary/consumed/${meal.id}?session_id=${encodeURIComponent(sid)}`
+                : `/api/diary/consumed/${meal.id}`;
+            const res = await fetchWithAuth(delUrl, { method: 'DELETE' });
             const alreadyGone = res.status === 404;
             const data = await res.json().catch(() => ({}));
             if (!alreadyGone && (!res.ok || !data?.success)) {
@@ -468,14 +607,23 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
             // que usa el fetch inicial, así el resultado es idéntico al que
             // devolvería un refetch (sin esperar el roundtrip).
             // [P1-PLAN-LOTE-103] «Micros de hoy» y el dashboard del plan (useTodaysConsumedMeals) vuelven a pedir el día.
-            try { window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'tracking-progress', userId, deletedMeal: { id: meal.id, name: meal.meal_name } } })); } catch { /* best-effort */ }
-            setConsumed((prev) => _buildConsumedSnapshot({
-                meals: (prev?.meals || []).filter((m) => m.id !== meal.id),
-                cacheKey: consumedCacheKey,
-            }));
+            try { window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'tracking-progress', userId, isPastDay: isPastMeal, deletedMeal: { id: meal.id, name: meal.meal_name } } })); } catch { /* best-effort */ }
+            safeLocalStorageRemove(CHAT_MESSAGES_CACHE_KEY);
+            window.dispatchEvent(new Event('mealfit:refresh-chat'));
+            if (isPastMeal) {
+                setSelectedDayState((prev) => ({
+                    ...prev,
+                    meals: (prev?.meals || []).filter((m) => m.id !== meal.id),
+                }));
+            } else {
+                setConsumed((prev) => _buildConsumedSnapshot({
+                    meals: (prev?.meals || []).filter((m) => m.id !== meal.id),
+                    cacheKey: consumedCacheKey,
+                }));
+            }
             setFichaMeal((cur) => (cur?.id === meal.id ? null : cur));
             borrarFotoDeComidaEnSegundoPlano(userId, meal.id);
-            if (!alreadyGone) toast.success(t('"{nombre}" eliminada del diario.', { nombre: meal.meal_name }));
+            void alreadyGone; // [P1-PLAN-LOTE-1183] sin aviso: el cambio ya se ve en pantalla (regla de P1-PLAN-LOTE-1181)
             return true;
         } catch (err) {
             deletingIdsRef.current.delete(meal.id);
@@ -485,7 +633,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
         } finally {
             setDeletingMealId(null);
         }
-    }, [deletingMealId, consumedCacheKey, t, userId]);
+    }, [deletingMealId, consumedCacheKey, t, userId, viewingPastDay, selectedDayState.meals]);
 
     // Funciones Helper para calcular Progreso
     // [P1-DIARY-HISTORY · 2026-07-31]
@@ -523,19 +671,40 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     };
     const _mainMeals = _todaysMeals.filter((m) => !_esComplemento(m));
     const _complements = _todaysMeals.filter(_esComplemento);
+    const _listMeals = viewingPastDay
+        ? (selectedDayState.iso === selectedDay?.iso ? selectedDayState.meals : [])
+        : _todaysMeals;
+    const _listMainMeals = _listMeals.filter((m) => !_esComplemento(m));
+    const _listComplements = _listMeals.filter(_esComplemento);
 
-    const visibleMeals = mealsExpanded ? _mainMeals : _mainMeals.slice(0, _MEALS_VISIBLE_CAP);
-    const hiddenMealsCount = _mainMeals.length - visibleMeals.length;
+    const visibleMeals = mealsExpanded ? _listMainMeals : _listMainMeals.slice(0, _MEALS_VISIBLE_CAP);
+    const hiddenMealsCount = _listMainMeals.length - visibleMeals.length;
     // [P1-PLAN-LOTE-105] cobertura de micros del día (un snapshot cacheado de antes del lote no la trae: se deriva)
     const coberturaMicros = displayedConsumed.microsCoverage || { con_datos: 0, total: _todaysMeals.length };
+    // [P1-DIA-UNIFICADO] los micros del día que se mira: hoy, del snapshot; un día pasado, sumados de sus comidas
+    const microsDelDia = viewingPastDay
+        ? resumirMicros(_listMeals)
+        : { micros: displayedConsumed.micros, coverage: coberturaMicros };
+    const microsCargando = viewingPastDay ? selectedDayState.loading : loading;
+    const kcalDelDia = Math.round(_listMeals.reduce((acc, m) => acc + (Number(m?.calories) || 0), 0));
 
     // Keep the real percentage above the plan goal; only the visual width is capped.
     const calcPerc = (val, max) => Math.round((val / max) * 100) || 0;
 
-    const percCal = calcPerc(displayedConsumed.calories, goalCal);
-    const percPro = calcPerc(displayedConsumed.protein, goalPro);
-    const percCarb = calcPerc(displayedConsumed.carbs, goalCarb);
-    const percFat = calcPerc(displayedConsumed.fats, goalFat);
+    // [P1-DIA-EN-EL-CONTADOR] lo que pintan las barras: hoy en vivo, o el día pasado tocado con SUS metas
+    const diaPasado = viewingPastDay ? selectedDay : null;
+    const metaDelDia = (v, hoyV) => (Number(v) > 0 ? Number(v) : hoyV);
+    const verConsumo = diaPasado
+        ? { calories: Number(diaPasado.calories) || 0, protein: Number(diaPasado.protein) || 0, carbs: Number(diaPasado.carbs) || 0, fats: Number(diaPasado.fats) || 0 }
+        : displayedConsumed;
+    const verMetaCal = diaPasado ? metaDelDia(diaPasado.target, goalCal) : goalCal;
+    const verMetaPro = diaPasado ? metaDelDia(diaPasado.targetMacros?.protein, goalPro) : goalPro;
+    const verMetaCarb = diaPasado ? metaDelDia(diaPasado.targetMacros?.carbs, goalCarb) : goalCarb;
+    const verMetaFat = diaPasado ? metaDelDia(diaPasado.targetMacros?.fats, goalFat) : goalFat;
+    const percCal = calcPerc(verConsumo.calories, verMetaCal);
+    const percPro = calcPerc(verConsumo.protein, verMetaPro);
+    const percCarb = calcPerc(verConsumo.carbs, verMetaCarb);
+    const percFat = calcPerc(verConsumo.fats, verMetaFat);
 
     // [BB-024 / P1-CALORIE-BAR-GOAL-SEMANTICS · 2026-11-03]
     // Semántica de la Barra Verde Esmeralda según el objetivo del usuario (SSOT: calorieGoalStatus.js):
@@ -548,37 +717,28 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
         protein: Number(displayedConsumed.protein) || 0,
         carbs: Number(displayedConsumed.carbs) || 0,
         fats: Number(displayedConsumed.fats) || 0,
+        micros: displayedConsumed.micros || null,
         mealsCount: _todaysMeals.length,
     };
     const metasMacrosDeHoy = { protein: goalPro, carbs: goalCarb, fats: goalFat };
     const calorieState = getCalorieGoalState(displayedConsumed.calories, goalCal, resolvedMainGoal);
-
-    let calColor = '#F59E0B';
-    let calLightColor = '#FCD34D';
-    let calGradient = 'linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%)';
-    let calIsComplete = false;
-    let calStatusOverride = null;
-
-    if (calorieState === 'green') {
-        calColor = '#10B981';
-        calLightColor = '#6EE7B7';
-        calGradient = 'linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)';
-        calIsComplete = true;
-        calStatusOverride = t('Meta del día alcanzada');
-    } else if (calorieState === 'over') {
-        calColor = '#F97316';
-        calLightColor = '#FDBA74';
-        calGradient = 'linear-gradient(90deg, #FDBA74 0%, #F97316 100%)';
-        calIsComplete = false;
-    }
+    // [P1-MACRO-BARS-SEMAFORO · 2026-11-26] Las cuatro barras hablan el mismo idioma: gris en curso, verde cumplida,
+    // rojo pasada. Las calorías conservan su banda por objetivo (BB-024); los macros, meta ≥90 % y límite AMDR.
+    // un día CERRADO que no llegó ya no está «en curso»: se quedó corto (rojo, como su anillo con ↓ en la semana)
+    const cerrarEstado = (e) => (diaPasado && e === 'progress' ? 'short' : e);
+    const calState = cerrarEstado(calorieStateToBarState(diaPasado
+        ? getCalorieGoalState(verConsumo.calories, verMetaCal, resolvedMainGoal)
+        : calorieState));
+    const calStatusOverride = calState === 'done' ? (diaPasado ? t('Meta cumplida') : t('Meta del día alcanzada')) : null;
+    const proState = cerrarEstado(getMacroGoalState(verConsumo.protein, verMetaPro, references.protein));
+    const carbState = cerrarEstado(getMacroGoalState(verConsumo.carbs, verMetaCarb, references.carbs));
+    const fatState = cerrarEstado(getMacroGoalState(verConsumo.fats, verMetaFat, references.fats));
 
     return (
         // [P1-PLAN-LOTE-88 · 2026-09-17] `flatOnMobile`: en ≤480px la sección pierde el marco de tarjeta
         // (borde, fondo, sombra y relleno) y usa el ancho entero. Lo pide el padre; hoy solo el contador.
-        <div className={styles.cardHost}>
+        <div className={styles.cardHost} ref={hostRef}>
         <div className={flatOnMobile ? `${styles.card} ${styles.flatMobile}` : styles.card}>
-            {/* [P1-PLAN-LOTE-1145] «Sigues en tu viernes» / «¿Aún no has dormido?» */}
-            <AvisoDiaActivo />
             {/* [P1-PLAN-LOTE-1164] En PC ancho (la tarjeta ≥ 880 px) dos columnas: a la izquierda el día (registrar, tu
                 semana y las comidas), a la derecha los números (calorías, macros y micros). En el teléfono esta capa no
                 existe (`display: contents`): el orden y el aspecto del móvil no cambian. */}
@@ -590,10 +750,19 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         <Activity size={24} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h2 className={styles.title}>
-                            <span className={styles.titleMovil}>{t('Tus macros y micros')}</span>
-                            <span className={styles.titlePc}>{t('Tus macros')}</span>
-                        </h2>
+                        {/* [P1-DIA-EN-EL-CONTADOR] «micros» sobraba en el título: los micros tienen su propio apartado abajo */}
+                        <h2 className={styles.title}>{t('Tus macros')}</h2>
+                        {diaPasado ? (
+                            <p className={`${styles.subtitle} ${styles.subtitlePasado}`}>
+                                <CalendarDays size={14} strokeWidth={2.4} aria-hidden="true" />
+                                <span>
+                                    {diaPasado.etiqueta}
+                                    {diaPasado.estado !== 'vacio' && Number(diaPasado.mealsCount) > 0
+                                        ? ` · ${tn(Number(diaPasado.mealsCount), '{n} comida', '{n} comidas', { n: Number(diaPasado.mealsCount) })}`
+                                        : ''}
+                                </span>
+                            </p>
+                        ) : (
                         <p className={styles.subtitle}>
                             {loading
                                 ? t('Cargando registros...')
@@ -609,6 +778,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                     { n: _mainMeals.length }
                                 )}
                         </p>
+                        )}
                         {/* [P1-MACRO-ROW-MOBILE · 2026-08-11] La nota de la meta (P1-GOAL-ETA)
                             vivía aquí y se fue AL PIE de la tarjeta — busca `styles.etaChip`
                             más abajo. Ocupaba dos líneas de ancho completo ANTES del primer
@@ -619,7 +789,15 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     </div>
                 </div>
                 
-                {isLoggedIn ? (
+                {isLoggedIn && diaPasado ? (
+                    // [P1-DIA-EN-EL-CONTADOR] mirando un día pasado, la acción es volver: registrar anota en HOY
+                    <div className={styles.headerActions}>
+                        <button type="button" className={styles.volverHoyBtn} onClick={volverAHoy}>
+                            <RotateCcw size={16} strokeWidth={2.5} aria-hidden="true" />
+                            {t('Volver a hoy')}
+                        </button>
+                    </div>
+                ) : isLoggedIn ? (
                     // [P1-MANUAL-FOOD-LOG · 2026-08-11] Dos vías de registrar: el componedor
                     // (buscar y anotar, la vía de los 15 segundos) y el escáner de siempre.
                     // [P1-PLAN-LOTE-85 · 2026-09-17] UN solo botón en la tarjeta; las dos vías
@@ -654,34 +832,127 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         {t('Inicia sesión para registrar comidas')}
                     </div>
                 )}
+            </div>
 
-                {/* [SEMANA-EN-PROGRESO · 2026-11-15] El progreso de los días, a la vista: anillos por día, racha y el
-                    resumen del día tocado. La puerta al calendario completo vive en su cabecera (antes era un botón
-                    ancho bajo «Registrar comida»). Fuera del ternario vacío/no-vacío: con el día en cero también está. */}
-                {isLoggedIn && (
-                    <div className={styles.semanaSlot}>
-                        <SemanaEnProgreso
-                            userId={userId}
-                            hoy={loading ? null : hoyParaLaSemana}
-                            targetCalories={goalCal}
-                            targetMacros={metasMacrosDeHoy}
-                            mainGoal={resolvedMainGoal}
-                            onAbrirDia={(iso) => { setHistoryDia(iso); setHistoryOpen(true); }}
-                            calendario={(
-                                <DiaryHistoryTrigger compacto onClick={() => { setHistoryDia(null); setHistoryOpen(true); }} />
-                            )}
-                        />
-                    </div>
-                )}
+            <div className={styles.macrosCard}>
+            <div className={styles.content}>
+                {/* Calorías (Main Bar) */}
+                <ProgressBar
+                    label={t('Calorías')}
+                    consumed={verConsumo.calories} goal={verMetaCal} unit="kcal"
+                    perc={percCal} icon={FlameMacroIcon} darkIcon={FlameMacroIcon}
+                    state={calState} statusOverride={calStatusOverride} cerrado={Boolean(diaPasado)}
+                    fillIcon
+                    large
+                />
 
-                {/* [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas
-                    hoy — ubicada directamente bajo «Registrar comida» y «Ver días
-                    anteriores» para tener confirmación y acceso inmediato a la
-                    ficha del plato y al botón de eliminar sin bajar al final. */}
-                {isLoggedIn && !loading && _todaysMeals.length > 0 && (
+                <div className={styles.macroGrid}>
+                    {/* Proteína */}
+                    {/* [ICONOS-FAMILIA · 2026-11-14] Los cuatro macros usan la misma familia de glifos (contorno + velo
+                        + un acento) en claro y en oscuro; antes en claro eran lucide a trazo y en oscuro sólidos. */}
+                    <ProgressBar
+                        label={t('Proteína')}
+                        consumed={verConsumo.protein} goal={verMetaPro} unit="g"
+                        reference={references.protein}
+                        perc={percPro} icon={ProteinIcon} darkIcon={ProteinIcon}
+                        state={proState} cerrado={Boolean(diaPasado)}
+                    />
+                    {/* Carbohidratos */}
+                    <ProgressBar
+                        label={t('Carbohidratos')}
+                        consumed={verConsumo.carbs} goal={verMetaCarb} unit="g"
+                        reference={references.carbs}
+                        perc={percCarb} icon={WheatFilledIcon} darkIcon={WheatFilledIcon}
+                        state={carbState} cerrado={Boolean(diaPasado)}
+                        fillWhiteStroke
+                    />
+                    {/* Grasas */}
+                    <ProgressBar
+                        label={t('Grasas')}
+                        consumed={verConsumo.fats} goal={verMetaFat} unit="g"
+                        reference={references.fats}
+                        perc={percFat} icon={FatDropIcon} darkIcon={FatDropIcon}
+                        state={fatState} cerrado={Boolean(diaPasado)}
+                        fillIcon
+                    />
+                </div>
+            </div>
+
+            <details className={styles.targetHelp}>
+                <summary>
+                    <Info size={14} aria-hidden="true" />
+                    <span>{t('Sobre tus metas')}</span>
+                    <ChevronRight size={14} className={styles.targetHelpChevron} aria-hidden="true" />
+                </summary>
+                <p>{t('Tu meta (100%) es el objetivo diario de tu plan. El porcentaje de la barra muestra tu consumo real frente a esa meta.')}</p>
+                <p>{t('El límite máximo marca el tope diario que conviene no superar (extremo superior del rango AMDR para adultos: proteína 35%, carbohidratos 65% y grasas 35% de la energía). Los gramos se calculan con las calorías de tu plan.')}</p>
+                <p>{t('No es un diagnóstico médico ni una cantidad extra que debas comer; te ayuda a evitar excesos en un solo macro. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.')}</p>
+            </details>
+            </div>
+
+            {/* [P1-SEMANA-BAJO-MACROS · 2026-11-27] «Tu semana» justo bajo las macros: los puntos premian lo que acabas
+                de ver (calorías y macros), y al fondo nadie los veía. Su detalle «Cómo sumar puntos hoy» va plegado en el
+                teléfono para no empujar las comidas. En PC cada pieza tiene su celda fija en la rejilla: el orden del DOM
+                no la mueve del riel derecho. */}
+            {/* [SEMANA-EN-PROGRESO · 2026-11-15] El progreso de los días, a la vista: anillos por día, racha y el
+                resumen del día tocado. La puerta al calendario completo vive en su cabecera (antes era un botón
+                ancho bajo «Registrar comida»). Fuera del ternario vacío/no-vacío: con el día en cero también está. */}
+            {isLoggedIn && (
+                <div className={styles.semanaSlot}>
+                    <SemanaEnProgreso
+                        userId={userId}
+                        hoy={loading ? null : hoyParaLaSemana}
+                        targetCalories={goalCal}
+                        targetMacros={metasMacrosDeHoy}
+                        targetMicros={microTargets}
+                        mainGoal={resolvedMainGoal}
+                        onAbrirDia={(iso) => { setHistoryDia(iso); setHistoryOpen(true); }}
+                        onDiaSeleccionado={handleDiaSeleccionado}
+                        detalleCompacto
+                        limpiarSeleccion={limpiarSemana}
+                        calendario={(
+                            <DiaryHistoryTrigger compacto onClick={() => { setHistoryDia(null); setHistoryOpen(true); }} />
+                        )}
+                    />
+                </div>
+            )}
+
+            {/* [P1-DIA-UNIFICADO · 2026-11-26] Comidas y micros en UNA pieza: las comidas son el origen de los micros, y
+                separadas por las macros se leían como dos tarjetas sin relación. En PC es una tarjeta; en el teléfono, un
+                bloque continuo bajo las macros. Si se mira un día pasado (PC), comidas Y micros son de ese día. */}
+            {isLoggedIn && (
+            <section className={styles.diaCard} aria-label={viewingPastDay ? t('Comidas de {dia}', { dia: selectedDay.etiqueta }) : t('Comidas de hoy')}>
+                {/* [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas —
+                    si hay un día pasado seleccionado en SemanaEnProgreso, muestra ESE día (nunca el de hoy). */}
+                {(!loading && _todaysMeals.length > 0 || viewingPastDay) && (
                     <div className={styles.mealsSection}>
+                        {/* [P1-DIA-UNIFICADO] misma cabecera que «Micros»: icono, título y una línea de contexto */}
+                        <div className={styles.microsHead}>
+                            <span className={styles.microsIcon} aria-hidden="true"><Utensils size={16} strokeWidth={2.4} /></span>
+                            <div>
+                                <h3 className={styles.microsTitle}>
+                                    {viewingPastDay
+                                        ? t('Comidas de {dia}', { dia: selectedDay.etiqueta })
+                                        : t('Comidas de hoy')}
+                                </h3>
+                                {/* hoy el conteo ya está en la cabecera y las kcal en su barra: solo un día pasado lo necesita */}
+                                {viewingPastDay && _listMeals.length > 0 && !selectedDayState.loading && (
+                                    <p className={styles.microsSub}>
+                                        {tn(_listMeals.length, '{n} comida', '{n} comidas', { n: _listMeals.length })} · {formatNumber(kcalDelDia)} kcal
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        {viewingPastDay && selectedDayState.loading ? (
+                            <p className={styles.mealsEmptyDay}>{t('Cargando comidas...')}</p>
+                        ) : viewingPastDay && _listMeals.length === 0 ? (
+                            <p className={styles.mealsEmptyDay}>{t('Sin comidas registradas este día')}</p>
+                        ) : (
+                        <>
                                 <ul className={styles.mealsList}>
-                                    {visibleMeals.map((meal, idx) => (
+                                    {visibleMeals.map((meal, idx) => {
+                                        const horaTxt = _horaDeComida(meal.consumed_at);
+                                        return (
                                         <li
                                             key={meal.id || `${meal.meal_name}-${meal.consumed_at || idx}`}
                                             className={styles.mealRow}
@@ -704,7 +975,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                                     {/* [P1-PLAN-LOTE-225] el nombre en el idioma del usuario (el dato no cambia) */}
                                                     <span className={styles.mealName}>{nombreDeFila(meal, planData, t)}</span>
                                                     <span className={styles.mealMeta}>
-                                                        {_mealTypeLabel(meal.meal_type, t)} · {Math.round(meal.calories) || 0} kcal
+                                                        {_mealTypeLabel(meal.meal_type, t)} · {Math.round(meal.calories) || 0} kcal{horaTxt ? ` · ${horaTxt}` : ''}
                                                     </span>
                                                 </span>
                                                 {meal.id && <ChevronRight size={16} strokeWidth={2.4} className={styles.mealChevron} aria-hidden="true" />}
@@ -723,7 +994,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                                 </button>
                                             )}
                                         </li>
-                                    ))}
+                                        );
+                                    })}
                                 </ul>
                                 {hiddenMealsCount > 0 && (
                                     <button
@@ -734,7 +1006,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                         {t('Ver {n} más', { n: hiddenMealsCount })}
                                     </button>
                                 )}
-                                {mealsExpanded && _mainMeals.length > _MEALS_VISIBLE_CAP && (
+                                {mealsExpanded && _listMainMeals.length > _MEALS_VISIBLE_CAP && (
                                     <button
                                         type="button"
                                         className={styles.mealsShowMore}
@@ -746,14 +1018,16 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
 
                                 {/* [BB-025 / P1-DIARY-COMPLEMENTS-SECTION · 2026-11-03]
                                     Apartado separado para Bebidas Ligeras y Complementos (té, infusiones, suplementos) */}
-                                {_complements.length > 0 && (
+                                {_listComplements.length > 0 && (
                                     <>
                                         <div className={styles.complementsDivider}>
-                                            <span>{t('Complementos y bebidas')} ({_complements.length})</span>
+                                            <span>{t('Complementos y bebidas')} ({_listComplements.length})</span>
                                             <div className={styles.complementsDividerLine} aria-hidden="true" />
                                         </div>
                                         <ul className={styles.complementsList}>
-                                            {_complements.map((comp, idx) => (
+                                            {_listComplements.map((comp, idx) => {
+                                                const horaTxt = _horaDeComida(comp.consumed_at);
+                                                return (
                                                 <li
                                                     key={comp.id || `${comp.meal_name}-${comp.consumed_at || idx}`}
                                                     className={`${styles.mealRow} ${styles.complementRow}`}
@@ -773,7 +1047,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                                         <span className={styles.mealInfo}>
                                                             <span className={styles.mealName}>{nombreDeRegistro(comp.meal_name, planData, t)}</span>
                                                             <span className={styles.mealMeta}>
-                                                                {_mealTypeLabel(comp.meal_type === 'suplemento' ? 'suplemento' : 'complemento', t)} · {Math.round(comp.calories) || 0} kcal
+                                                                {_mealTypeLabel(comp.meal_type === 'suplemento' ? 'suplemento' : 'complemento', t)} · {Math.round(comp.calories) || 0} kcal{horaTxt ? ` · ${horaTxt}` : ''}
                                                             </span>
                                                         </span>
                                                         {comp.id && <ChevronRight size={16} strokeWidth={2.4} className={styles.mealChevron} aria-hidden="true" />}
@@ -792,91 +1066,38 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                                         </button>
                                                     )}
                                                 </li>
-                                            ))}
+                                                );
+                                            })}
                                         </ul>
                                     </>
                                 )}
+                        </>
+                        )}
                     </div>
                 )}
-            </div>
-
-            <div className={styles.macrosCard}>
-            <div className={styles.content}>
-                {/* Calorías (Main Bar) */}
-                <ProgressBar
-                    label={t('Calorías')}
-                    consumed={displayedConsumed.calories} goal={goalCal} unit="kcal"
-                    perc={percCal} icon={FlameMacroIcon} darkIcon={FlameMacroIcon}
-                    color={calColor} lightColor={calLightColor} gradient={calGradient}
-                    isComplete={calIsComplete} statusOverride={calStatusOverride}
-                    fillIcon
-                    large
-                />
-
-                <div className={styles.macroGrid}>
-                    {/* Proteína */}
-                    {/* [ICONOS-FAMILIA · 2026-11-14] Los cuatro macros usan la misma familia de glifos (contorno + velo
-                        + un acento) en claro y en oscuro; antes en claro eran lucide a trazo y en oscuro sólidos. */}
-                    <ProgressBar
-                        label={t('Proteína')}
-                        consumed={displayedConsumed.protein} goal={goalPro} unit="g"
-                        reference={references.protein}
-                        perc={percPro} icon={ProteinIcon} darkIcon={ProteinIcon}
-                        color="#3B82F6" lightColor="#93C5FD" gradient="linear-gradient(90deg, #93C5FD 0%, #3B82F6 100%)"
-                    />
-                    {/* Carbohidratos */}
-                    <ProgressBar
-                        label={t('Carbohidratos')}
-                        consumed={displayedConsumed.carbs} goal={goalCarb} unit="g"
-                        reference={references.carbs}
-                        perc={percCarb} icon={WheatFilledIcon} darkIcon={WheatFilledIcon} color="#10B981" lightColor="#6EE7B7" gradient="linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)"
-                        fillWhiteStroke
-                    />
-                    {/* Grasas */}
-                    <ProgressBar
-                        label={t('Grasas')}
-                        consumed={displayedConsumed.fats} goal={goalFat} unit="g"
-                        reference={references.fats}
-                        perc={percFat} icon={FatDropIcon} darkIcon={FatDropIcon}
-                        color="#EC4899" lightColor="#F9A8D4" gradient="linear-gradient(90deg, #F9A8D4 0%, #EC4899 100%)"
-                        fillIcon
-                    />
-                </div>
-            </div>
-
-            <details className={styles.targetHelp}>
-                <summary>
-                    <Info size={14} aria-hidden="true" />
-                    <span>{t('Sobre tus metas')}</span>
-                    <ChevronRight size={14} className={styles.targetHelpChevron} aria-hidden="true" />
-                </summary>
-                <p>{t('Calorías y macros: metas del plan, no límites de seguridad. El porcentaje muestra tu consumo real.')}</p>
-                <p>{t('La referencia general marca el extremo superior del rango AMDR para adultos: proteína 35%, carbohidratos 65% y grasas 35% de la energía. Los gramos se calculan con las calorías de tu plan; el porcentaje de la barra se calcula con tu meta de cada macro.')}</p>
-                <p>{t('No es un umbral de peligro ni una cantidad extra que debas comer. Los rangos se evalúan junto con la alimentación completa. Si tu perfil requiere una pauta individual o faltan datos, mostramos solo tu meta.')}</p>
-            </details>
-            </div>
-
-            {/* [P1-PLAN-LOTE-105 · 2026-09-18] Los micros, bajo las macros y ANTES de la lista de comidas: primero los
-                números del día, después las comidas que los produjeron. Misma lista que el diario de días anteriores. */}
-            {isLoggedIn && (
+                {/* [P1-PLAN-LOTE-105 · 2026-09-18] Los micros, misma lista que el diario de días anteriores.
+                    [P1-DIA-UNIFICADO] Bajo las comidas que los produjeron, en la misma pieza; del día que se mira. */}
                 <div className={styles.microsSection}>
                     <div className={styles.microsHead}>
                         <span className={styles.microsIcon} aria-hidden="true"><FlaskConical size={16} strokeWidth={2.4} /></span>
                         <div>
                             <h3 className={styles.microsTitle}>{t('Micros')}</h3>
                             <p className={styles.microsSub}>
-                                {loading ? t('Cargando registros...') : subtituloMicros(coberturaMicros)}
+                                {microsCargando ? t('Cargando registros...') : subtituloMicros(microsDelDia.coverage)}
                             </p>
                         </div>
                     </div>
                     <MicrosList
-                        micros={displayedConsumed.micros}
-                        coverage={loading ? null : coberturaMicros}
+                        micros={microsDelDia.micros}
+                        coverage={microsCargando ? null : microsDelDia.coverage}
                         metas={microTargets}
                         sourcesContext="tracking"
                     />
                 </div>
+
+            </section>
             )}
+
 
             {!isLoggedIn && <HealthSources context="tracking" />}
 
@@ -989,6 +1210,11 @@ TrackingProgress.propTypes = {
 };
 
 // --- Componente Interno para Barra Individual ---
+// [P1-MACRO-BARS-SEMAFORO · 2026-11-26] Una sola tinta por estado (CSS: `.state_progress/done/over`, con tokens
+// `--success*`/`--danger*`, iguales en claro y oscuro). El nutriente se reconoce por su icono y su nombre; el color
+// queda libre para decir lo único que importa al mirar de lejos: en curso, cumplida o pasada.
+const _STATE_CLASS = { progress: 'state_progress', done: 'state_done', over: 'state_over', short: 'state_short' };
+
 const ProgressBar = ({
     label,
     consumed: consumedReal,
@@ -998,33 +1224,21 @@ const ProgressBar = ({
     perc,
     icon: Icon,
     darkIcon: DarkIcon,
-    color,
-    lightColor,
-    gradient,
+    state = 'progress',
     large,
     fillIcon,
     fillWhiteStroke,
     statusOverride,
-    isComplete: isCompleteOverride,
+    cerrado = false,
 }) => {
     const t = useT();
     const isEmpty = perc === 0;
     // [P1-PLAN-LOTE-688] el número SUBE a la vista cuando el coach anota (la barra ya crecía con transición). Se sigue
     // llamando `consumed`: `formatNumber(consumed)` es el ancla de test_p3_i18n_metrica_coma_clavada.
     const consumed = useNumeroAnimado(consumedReal);
-    // [APPEARANCE-THEME · 2026-05-29] Los rellenos de iconos (llama/gota sólidos,
-    // trigo verde-con-líneas-blancas) son SOLO para modo oscuro. En claro se
-    // conserva el diseño anterior (iconos outline). El toggle vive en Settings
-    // (otra ruta) y el Dashboard re-monta al volver → snapshot siempre fresco.
     const isDark = isDarkActive();
     const doFillSolid = fillIcon && isDark;
     const doFillWhite = fillWhiteStroke && isDark;
-    // [BB-024 / P1-CALORIE-BAR-GOAL-SEMANTICS · 2026-11-03]
-    // Si isCompleteOverride viene definido (ej. Green Zone en calorías), se usa;
-    // de lo contrario, glow exacto por defecto cuando consumedReal === goal.
-    const isComplete = isCompleteOverride !== undefined
-        ? Boolean(isCompleteOverride)
-        : (consumedReal === goal && goal > 0);
     const referencePerc = reference ? reference / goal * 100 : null;
     const scaleMax = referencePerc ? referencePerc * 1.08 : 100;
     const goalPosition = 100 / scaleMax * 100;
@@ -1034,27 +1248,25 @@ const ProgressBar = ({
     const proportionalWidth = Math.min(100, Math.max(0, perc / scaleMax * 100));
     const fillWidth = referencePerc ? proportionalWidth : perc <= 0 ? 0 : Math.max(proportionalWidth, 18);
     const badgePosition = Math.max(fillWidth, 18);
-    const endpoint = reference || goal;
-    const difference = endpoint - consumedReal;
-    const remaining = formatNumber(Math.abs(difference), { maximumFractionDigits: 1 });
-    const defaultStatusText = reference
-        ? difference > 0 ? t('A {n} g de la referencia', { n: remaining })
-            : difference < 0 ? t('{n} g sobre la referencia', { n: remaining }) : t('En la referencia')
-        : difference > 0 ? t('Faltan {n} {unit} para la meta', { n: remaining, unit })
-            : difference < 0 ? t('{n} {unit} sobre la meta', { n: remaining, unit }) : t('Meta alcanzada');
+    // [P1-MACRO-BARS-SEMAFORO] El texto mira a la meta mientras no llegas y al límite solo cuando ya la pasaste:
+    // «A 124 g del límite» con 55 g comidos respondía una pregunta que nadie se estaba haciendo.
+    const toGoal = goal - consumedReal;
+    const toLimit = reference ? reference - consumedReal : null;
+    const fmt = (n) => formatNumber(Math.abs(n), { maximumFractionDigits: 0 });
+    let defaultStatusText;
+    if (reference && toGoal <= 0) {
+        defaultStatusText = toLimit > 0 ? t('A {n} g del límite', { n: fmt(toLimit) })
+            : toLimit < 0 ? t('{n} g sobre el límite', { n: fmt(toLimit) }) : t('En el límite máximo');
+    } else {
+        defaultStatusText = toGoal > 0
+            ? (cerrado ? t('Faltaron {n} {unit} para la meta', { n: fmt(toGoal), unit }) : t('Faltan {n} {unit} para la meta', { n: fmt(toGoal), unit }))
+            : toGoal < 0 ? t('{n} {unit} sobre la meta', { n: fmt(toGoal), unit }) : t('Meta alcanzada');
+    }
+    // un día cerrado en verde (≥90 %) ya cumplió: «Faltaron 9 g» bajo un ✓ verde se contradecía
+    if (cerrado && state === 'done' && toGoal > 0) defaultStatusText = t('Meta cumplida');
     const statusText = statusOverride || defaultStatusText;
+    const stateClass = styles[_STATE_CLASS[state] || _STATE_CLASS.progress];
 
-    const consumedTextColor = isEmpty ? 'var(--text-muted)' : 'var(--text-main)';
-
-    // [APPEARANCE-THEME · 2026-05-29] Selección del glifo (extraída a variable
-    // por legibilidad y para evitar el falso positivo de jsx-uses-vars con
-    // ternario anidado). Modos:
-    //   · doFillWhite (trigo, solo dark) → WheatFilledIcon two-tone.
-    //   · darkIcon (llama/gota, solo dark) → glifo custom de dos tonos glossy.
-    //   · default / modo claro → icono lucide outline original.
-    // [APPEARANCE-THEME · 2026-05-29] Tamaño ÚNICO para todos los glifos (todos
-    // los íconos custom llenan el viewBox 24×24, así que un mismo `size` los
-    // hace lucir del mismo tamaño). large = barra principal de Calorías.
     const iconSize = large ? 24 : 20;
     let renderedIcon;
     if (doFillWhite) {
@@ -1072,58 +1284,21 @@ const ProgressBar = ({
     }
 
     return (
-        <div className={large ? styles.barLarge : styles.barSmall}>
+        <div className={`${large ? styles.barLarge : styles.barSmall} ${stateClass}`} data-state={state}>
             <div className={styles.barHeader}>
                 <div className={styles.barLabelGroup}>
-                    <div
-                        className={styles.barIcon}
-                        style={{
-                            width: large ? 38 : 32,
-                            height: large ? 38 : 32,
-                            // [APPEARANCE-THEME · 2026-05-29] Chip más vibrante en
-                            // oscuro: gradiente con más saturación (20→30% vs 10→15%)
-                            // + ring/glow del color → resalta sobre el fondo slate.
-                            // En claro se conserva el tinte sutil original.
-                            background: isDark
-                                ? `linear-gradient(135deg, ${color}33 0%, ${color}4D 100%)`
-                                : `linear-gradient(135deg, ${color}1A 0%, ${color}26 100%)`,
-                            // En oscuro el icono usa el tono CLARO del macro → más
-                            // brillo y contraste contra el chip. En claro, el color base.
-                            color: (isDark && lightColor) ? lightColor : color,
-                            boxShadow: isDark
-                                ? `inset 0 0 0 1px ${color}66, 0 3px 12px -3px ${color}80`
-                                : `inset 0 0 0 1px ${color}26`,
-                        }}
-                    >
+                    <div className={styles.barIcon}>
                         {renderedIcon}
                     </div>
-                    {/* [P1-MACRO-BARS-UNIFORM · 2026-08-11] Aquí hubo un par largo/corto
-                        del nombre («Carbohidratos» / «Carbos») que el CSS intercambiaba en
-                        el teléfono. Existía porque los tres macros compartían una fila y
-                        el nombre completo no cabía en ~100px de columna. Con las barras
-                        otra vez a lo ancho cabe de sobra, así que el par se retira con la
-                        disposición que lo pedía en vez de quedarse por si acaso. */}
-                    <span
-                        className={styles.barLabel}
-                        style={{ fontSize: large ? '1.05rem' : '0.92rem' }}
-                    >
+                    <span className={styles.barLabel}>
                         {label}
                     </span>
                 </div>
                 <div className={styles.barValues}>
-                    <span
-                        className={styles.barConsumed}
-                        style={{
-                            fontSize: large ? '1.5rem' : '1.2rem',
-                            color: consumedTextColor
-                        }}
-                    >
+                    <span className={isEmpty ? `${styles.barConsumed} ${styles.barConsumedEmpty}` : styles.barConsumed}>
                         {formatNumber(consumed)}
                     </span>
-                    <span
-                        className={styles.barGoal}
-                        style={{ fontSize: large ? '0.9rem' : '0.8rem' }}
-                    >
+                    <span className={styles.barGoal}>
                         / {formatNumber(goal)} {unit}
                     </span>
                 </div>
@@ -1137,39 +1312,17 @@ const ProgressBar = ({
                 aria-valuemax={scaleMax}
                 aria-valuenow={Math.min(scaleMax, Math.max(0, perc))}
                 aria-valuetext={`${formatNumber(consumedReal)} / ${formatNumber(goal)} ${unit} (${formatPercent(perc)}). ${statusText}`}
-                style={{
-                    height: large ? 12 : 10,
-                    background: 'var(--bg-muted)',
-                }}
             >
                 <div
                     className={styles.fill}
-                    style={{
-                        width: `${fillWidth}%`,
-                        background: gradient,
-                        boxShadow: isComplete ? `0 0 12px ${color}66` : 'none',
-                    }}
+                    data-state={state}
+                    style={{ width: `${fillWidth}%` }}
                 />
                 {reference && <>
                     <span className={styles.goalMarker} style={{ left: `${goalPosition}%` }} aria-hidden="true" />
                     <span className={styles.referenceMarker} style={{ left: `${referencePosition}%` }} aria-hidden="true" />
                 </>}
-                {/* [P3-TRACKING-BAR-INLINE-PERC · 2026-05-20] % blanco dentro
-                    del fill (estilo carga de batería). Aplicado universalmente
-                    (desktop + mobile) tras P3-TRACKING-PERC-DESKTOP.
-                    [P3-TRACKING-OVER-LIMIT · 2026-05-20] El % mostrado es el
-                    real (uncapped) — ej. "107%" cuando se excedió.
-                    [P3-TRACKING-PERC-INSIDE-ALWAYS · 2026-05-22] El badge se
-                    mantiene como sibling del `.fill` (dentro del `.track` con
-                    overflow hidden), posicionado absoluto con `left: ${fillWidth}%`
-                    + `transform: translateX(-100%)` que ALINEA su borde derecho
-                    al borde derecho del fill. Cuando el fill es estrecho
-                    (proteína 7% inicio del día), el texto desborda hacia la
-                    IZQUIERDA del fill quedando parcialmente sobre el track
-                    gris — un text-shadow fuerte (doble layer dark) garantiza
-                    contraste sobre el track gris claro (#E2E8F0) y sobre los 4
-                    gradients del fill. Eliminada la variante outside que el
-                    user rechazó visualmente — battery style consistente. */}
+                {/* [P3-TRACKING-PERC-INSIDE-ALWAYS · 2026-05-22] % real (uncapped) dentro del relleno, estilo batería. */}
                 {!isEmpty && (
                     <span
                         className={styles.fillPerc}
@@ -1180,26 +1333,26 @@ const ProgressBar = ({
                 )}
             </div>
 
-            {/* Sin referencia la barra no lleva marcas: una leyenda «Meta 100%» sola no señala nada. */}
-            <div className={reference ? styles.barGuide : `${styles.barGuide} ${styles.barGuideSolo}`}>
-                <span><i className={styles.goalKey} aria-hidden="true" />{t('Meta')} {formatPercent(100)}</span>
-                {reference && <span title={t('Extremo superior del rango orientativo, calculado con las calorías del plan')}>
-                    <i className={styles.referenceKey} aria-hidden="true" />{t('Referencia general')} {formatPercent(referencePerc)}
-                </span>}
+            {/* Pie: a la izquierda el estado (lo que se lee), a la derecha la leyenda de las marcas (lo que se consulta). */}
+            <div className={styles.barFoot}>
+                <p className={styles.barRemaining}>
+                    {state === 'done' && <Check size={13} strokeWidth={3} className={styles.statusIcon} aria-hidden="true" />}
+                    {(state === 'over' || state === 'short') && <AlertCircle size={13} strokeWidth={2.6} className={styles.statusIcon} aria-hidden="true" />}
+                    <span>{statusText}</span>
+                </p>
+                {/* Sin referencia la barra no lleva marcas: una leyenda «Meta 100%» sola no señala nada. */}
+                <div className={reference ? styles.barGuide : `${styles.barGuide} ${styles.barGuideSolo}`}>
+                    <span><i className={styles.goalKey} aria-hidden="true" />{t('Meta')} {formatPercent(100)}</span>
+                    {reference && <span title={`${t('Límite máximo diario recomendado, calculado con las calorías de tu plan')} · ${formatNumber(reference, { maximumFractionDigits: 0 })} g`}>
+                        <i className={styles.referenceKey} aria-hidden="true" />{t('Límite máximo')} {formatPercent(referencePerc)}
+                    </span>}
+                </div>
             </div>
-            <p className={`${styles.barRemaining} ${reference && difference < 0 ? styles.referenceExceeded : ''}`}>
-                {statusText}{reference && <span> · {formatNumber(reference, { maximumFractionDigits: 1 })} g</span>}
-            </p>
 
+            {/* [P3-TRACKING-PERC-DESKTOP] pill retirada a la vista (`.percRow { display: none }`), conservada como ancla. */}
             {!isEmpty && (
                 <div className={styles.percRow}>
-                    <span
-                        className={styles.percChip}
-                        style={{
-                            color,
-                            background: `${color}14`
-                        }}
-                    >
+                    <span className={styles.percChip}>
                         {formatPercent(perc)}
                     </span>
                 </div>
@@ -1217,14 +1370,12 @@ ProgressBar.propTypes = {
     perc: PropTypes.number,
     icon: PropTypes.elementType,
     darkIcon: PropTypes.elementType,
-    color: PropTypes.string,
-    lightColor: PropTypes.string,
-    gradient: PropTypes.string,
+    state: PropTypes.oneOf(['progress', 'done', 'over', 'short']),
     large: PropTypes.bool,
     fillIcon: PropTypes.bool,
     fillWhiteStroke: PropTypes.bool,
     statusOverride: PropTypes.string,
-    isComplete: PropTypes.bool,
+    cerrado: PropTypes.bool,
 };
 
 export default TrackingProgress;

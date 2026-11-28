@@ -1,0 +1,210 @@
+/* [P1-COACH-PORTADA · 2026-11-27] Portada del chat del día: saludo como titular, tu día en números y sugerencias. */
+
+.saludo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    text-align: center;
+    animation: entrar 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.avatar { margin-bottom: 6px; }
+.titulo {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--text-main);
+    text-wrap: balance;
+}
+.resto {
+    margin: 0;
+    max-width: 560px;
+    font-size: 18px;
+    line-height: 1.45;
+    color: var(--text-muted);
+    text-wrap: balance;
+}
+
+/* tu día: tres piezas iguales en fila */
+.dia {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    width: 100%;
+    max-width: 560px;
+    margin: 18px 0 0;
+    padding: 0;
+    list-style: none;
+}
+.diaPieza {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
+    text-align: left;
+    min-width: 0;
+}
+.diaNombre {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.diaCifra {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.diaMeta { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+.diaBarra {
+    width: 100%;
+    height: 5px;
+    margin-top: 4px;
+    appearance: none;
+    border: 0;
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    background: var(--surface-sunken);
+}
+.diaBarra::-webkit-progress-bar { background: var(--surface-sunken); border-radius: var(--radius-full); }
+.diaBarra::-webkit-progress-value { background: var(--primary); border-radius: var(--radius-full); }
+.diaBarra::-moz-progress-bar { background: var(--primary); border-radius: var(--radius-full); }
+
+/* teléfono: el mismo orden, más apretado */
+.compacto { gap: 6px; max-width: 480px; }
+.compacto .avatar { margin-bottom: 2px; }
+.compacto .titulo { font-size: 24px; }
+.compacto .resto { font-size: 15px; }
+.compacto .dia { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.compacto .diaPieza { padding: 10px; gap: 2px; }
+.compacto .diaNombre { font-size: 12px; letter-spacing: 0; text-transform: none; }
+.compacto .diaCifra { font-size: 16px; }
+.compacto .diaMeta { font-size: 12px; }
+
+/* [P1-PLAN-LOTE-1174] avisos del coach: tarjeta compacta bajo tu día (no una burbuja de chat) */
+.avisos {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 560px;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+}
+.aviso {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 14px;
+    border-radius: var(--radius-lg);
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+    background: color-mix(in srgb, var(--primary) 7%, var(--bg-card));
+    text-align: left;
+}
+.avisoEtiqueta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary);
+}
+.avisoTexto {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--text-main);
+    text-wrap: pretty;
+}
+.compacto .avisos { margin-top: 8px; }
+.compacto .aviso { padding: 9px 12px; }
+.compacto .avisoTexto { font-size: 14px; }
+/* en el teléfono, con aviso, el aviso dice lo que decía el párrafo del saludo: fuera el párrafo para que quepa */
+.compacto.conAvisos .resto { display: none; }
+
+/* sugerencias: tarjetas bajo la caja (PC) o sobre ella (teléfono) */
+.atajos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+    max-width: 800px;
+    margin: 14px auto 0;
+}
+@media (min-width: 1280px) {
+    .atajos[data-n="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .atajos[data-n="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.atajo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    min-height: 96px;
+    padding: 14px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-card) 72%, transparent);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: left;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease, transform 120ms ease;
+}
+.atajo:active { transform: scale(0.97); }
+.atajo:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+@media (hover: hover) {
+    .atajo:hover {
+        border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+        background: color-mix(in srgb, var(--primary) 9%, var(--bg-card));
+    }
+}
+.atajoIcono {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-full);
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+.atajoTexto { text-wrap: pretty; }
+
+.atajosCompactos { gap: 8px; margin: 0 0 10px; }
+.atajosCompactos .atajo {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    min-height: 56px;
+    padding: 10px 12px;
+    font-size: 13px;
+}
+.atajosCompactos .atajoIcono { width: 30px; height: 30px; flex: none; }
+
+@keyframes entrar {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .saludo { animation: none; }
+}

@@ -184,11 +184,13 @@
         }
     }
 
+    /* [P1-PLAN-LOTE-1179 · 2026-11-27] Más discreta en oscuro (el dueño: «se ve suelta»): sin sombra, borde tenue y
+       flecha apagada; sigue siendo tocable (el área del botón no cambia). */
     :global(html[data-theme="dark"]) .asaLengua {
         background: #0B1120;
-        border-color: var(--border);
-        color: var(--primary-light);
-        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.35);
+        border-color: color-mix(in srgb, var(--border) 55%, transparent);
+        color: var(--text-muted);
+        box-shadow: none;
     }
 
     :global(html[data-theme="dark"]) .tabBar.plegada .asaLengua {

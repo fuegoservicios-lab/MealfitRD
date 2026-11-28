@@ -32,15 +32,15 @@ beforeEach(() => {
 });
 
 describe('repartoTelefono', () => {
-    it('con el generador encendido son 6: la barra se queda con 5 y el Historial va al menú', () => {
+    it('con el generador encendido son 7: la barra se queda con 5 y Recetas/Historial van al menú', () => {
         const { barra, menu } = repartoTelefono(navItemsFor({ trackingMode: false }));
-        expect(barra.map((i) => i.key)).toEqual(['plan', 'progress', 'agent', 'pantry', 'recipes']);
-        expect(menu.map((i) => i.key)).toEqual(['history']);
+        expect(barra.map((i) => i.key)).toEqual(['plan', 'progress', 'agent', 'pantry', 'leaderboard']);
+        expect(menu.map((i) => i.key)).toEqual(['recipes', 'history']);
         expect(barra.length).toBeLessThanOrEqual(TAB_BAR_MAX);
     });
-    it('en modo contador caben las 4: nadie sale de la barra', () => {
+    it('en modo contador son 4 y Historial se oculta de la navegación', () => {
         const { barra, menu } = repartoTelefono(navItemsFor({ trackingMode: true }));
-        expect(barra.map((i) => i.key)).toEqual(['agent', 'plan', 'pantry', 'history']);
+        expect(barra.map((i) => i.key)).toEqual(['agent', 'plan', 'pantry', 'leaderboard']);
         expect(menu).toEqual([]);
     });
     it('nada se pierde: barra + menú son la nav entera', () => {
@@ -53,14 +53,15 @@ describe('repartoTelefono', () => {
 });
 
 describe('la barra', () => {
-    it('modo plan: 5 pestañas, sin Historial', () => {
+    it('modo plan: 5 pestañas, incluye Clasificatoria (etiqueta compacta Liga en móvil)', () => {
         pintar();
-        expect(pestanas()).toEqual(['Plan', 'Progreso', 'Coach', 'Nevera', 'Recetas']);
+        expect(pestanas()).toEqual(['Plan', 'Progreso', 'Coach', 'Nevera', 'Clasificatoria']);
+        expect(document.querySelector('button[aria-label="Clasificatoria"]').textContent).toBe('Liga');
     });
-    it('modo contador: conserva el Historial', () => {
+    it('modo contador: 4 pestañas, oculta Historial y conserva Clasificatoria (Liga)', () => {
         perfil.plan_mode = 'tracking';
         pintar();
-        expect(pestanas()).toEqual(['Coach', 'Progreso', 'Nevera', 'Historial']);
+        expect(pestanas()).toEqual(['Coach', 'Progreso', 'Nevera', 'Clasificatoria']);
     });
     it('el menú ☰ recibe lo que la barra suelta, del mismo SSOT', () => {
         const layout = leer('components/dashboard/DashboardLayout.jsx');

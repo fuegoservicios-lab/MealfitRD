@@ -2,7 +2,7 @@
 // [P1-PLAN-LOTE-1166 · 2026-11-22] Eliminar cuentas EN LOTE (petición del dueño con la barra de selección). Dos pasos:
 // al abrir, `POST /api/admin/cuentas/eliminar/revisar` dice de cada cuenta su última actividad, lo que hizo y su
 // bloqueo (admin, suscripción de pago viva). Las ACTIVAS (últimos 14 días) llevan su propia casilla y no se borran sin
-// ella; el botón pide escribir «ELIMINAR <n>». El 20-nov se borraron por error cuentas con gente activa: este diálogo
+// ella; el botón pide escribir «ELIMINAR». El 20-nov se borraron por error cuentas con gente activa: este diálogo
 // existe para que eso no vuelva a pasar en un clic.
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
@@ -27,7 +27,7 @@ const TEXTOS = {
         suscripcion_activa: 'Tiene suscripción de pago: cancélala antes',
         no_existe: 'Ya no existe',
     },
-    escribe: (n) => `Escribe ELIMINAR ${n} para confirmar`,
+    escribe: 'Escribe ELIMINAR para confirmar',
     cancelar: 'Cancelar',
     borrando: 'Eliminando…',
     boton: (n) => (n === 1 ? 'Eliminar 1 cuenta' : `Eliminar ${n} cuentas`),
@@ -65,7 +65,7 @@ export default function AdminDialogoEliminar({ ids: idsDeFuera, onTerminar, onCe
     // Se envían TODAS las elegidas (el servidor vuelve a mirar cada una); el número a escribir es el de las que pueden irse.
     const borrables = (cuentas || []).filter((c) => !c.bloqueo && (!c.activa || activasOk.has(c.user_id)));
     const n = borrables.length;
-    const valido = n > 0 && texto.trim().toUpperCase() === `ELIMINAR ${n}`;
+    const valido = n > 0 && texto.trim().toUpperCase() === 'ELIMINAR';
 
     const alternarActiva = (id) => setActivasOk((s) => {
         const x = new Set(s);
@@ -82,7 +82,7 @@ export default function AdminDialogoEliminar({ ids: idsDeFuera, onTerminar, onCe
         try {
             const r = await pedirAdmin('/api/admin/cuentas/eliminar', {
                 user_ids: borrables.map((c) => c.user_id),
-                confirmacion: `ELIMINAR ${n}`,
+                confirmacion: 'ELIMINAR',
                 confirmar_activas: [...activasOk],
             });
             onTerminar(Array.isArray(r?.resultados) ? r.resultados : []);
@@ -136,7 +136,7 @@ export default function AdminDialogoEliminar({ ids: idsDeFuera, onTerminar, onCe
                 {cuentas && n === 0 && <p className={styles.explicacion}>{TEXTOS.nada}</p>}
                 {cuentas && n > 0 && (
                     <div className={base.campo}>
-                        <label htmlFor={idTexto} className={base.etiqueta}>{TEXTOS.escribe(n)}</label>
+                        <label htmlFor={idTexto} className={base.etiqueta}>{TEXTOS.escribe}</label>
                         <input id={idTexto} className={base.input} value={texto} onChange={(e) => setTexto(e.target.value)} autoComplete="off" spellCheck={false} maxLength={20} />
                     </div>
                 )}

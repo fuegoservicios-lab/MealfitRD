@@ -18,9 +18,9 @@ import { useT, t as tModulo, formatNumber } from '../../i18n';
 // Función y no constante: `key` y `color` son datos, pero `label` es copy y una
 // tabla de copy evaluada al importar se queda en español para siempre.
 const getMacroMeta = (t) => [
-    { key: 'protein', label: t('Proteína'), color: '#818CF8' },
-    { key: 'carbs', label: t('Carbos'), color: '#34D399' },
-    { key: 'fat', label: t('Grasas'), color: '#FBBF24' },
+    { key: 'protein', label: t('Proteína'), color: 'var(--macro-tono-p)' },
+    { key: 'carbs', label: t('Carbos'), color: 'var(--macro-tono-c)' },
+    { key: 'fat', label: t('Grasas'), color: 'var(--macro-tono-g)' },
 ];
 
 export default function PlanObjetivo({
