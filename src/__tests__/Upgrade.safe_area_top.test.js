@@ -25,9 +25,11 @@ describe('[P1-IOS-UPGRADE-SAFE-AREA] cabecera y pie de Upgrade respetan el notch
         expect(largo).toBeGreaterThan(corto);
     });
 
-    it('.root reserva env(safe-area-inset-bottom) abajo', () => {
+    it('.root reserva env(safe-area-inset-bottom) abajo y no se ensancha dentro de un flex padre', () => {
         const r = rule('.root');
         expect(r).toMatch(/env\(safe-area-inset-bottom/);
+        expect(r).toMatch(/width:\s*100%/);
+        expect(r).toMatch(/min-width:\s*0/);
     });
 
     it('en móvil muestra un carrusel horizontal con snap para los 3 planes de pago', () => {

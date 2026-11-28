@@ -202,8 +202,13 @@ const Upgrade = () => {
 
     useEffect(() => {
         if (typeof window === 'undefined' || window.innerWidth >= 640) return undefined;
-        const raf = window.requestAnimationFrame(() => scrollToMobileTier('plus', 'instant'));
-        return () => window.cancelAnimationFrame(raf);
+        const center = () => scrollToMobileTier('plus', 'instant');
+        const raf = window.requestAnimationFrame(center);
+        const timer = window.setTimeout(center, 60);
+        return () => {
+            window.cancelAnimationFrame(raf);
+            window.clearTimeout(timer);
+        };
     }, []);
 
     const handlePlansScroll = () => {
