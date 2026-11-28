@@ -14,7 +14,7 @@
  *
  * La lógica del cobro (checkout persistido en la URL, verify antes de navegar, invitados → cuenta) es la de siempre.
  */
-import React, { useState, lazy, Suspense, useEffect } from 'react';
+import React, { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 // [P1-PLAN-LOTE-680] Invitado → hoja «Guarda tu plan» (login sin salir del plan) en vez de toast + /register.
@@ -183,6 +183,46 @@ const Upgrade = () => {
     const [nativeLoadingOfferings, setNativeLoadingOfferings] = useState(isNativeIap);
     const [purchasingTier, setPurchasingTier] = useState(null);
     const [restoringPurchases, setRestoringPurchases] = useState(false);
+    const [activeMobileTier, setActiveMobileTier] = useState('plus');
+    const plansGridRef = useRef(null);
+    const cardRefs = useRef({});
+
+    const scrollToMobileTier = (tier, behavior = 'smooth') => {
+        const container = plansGridRef.current;
+        const card = cardRefs.current[tier];
+        if (!container || !card || container.clientWidth <= 0) return;
+        const left = Math.max(0, card.offsetLeft - (container.clientWidth - card.clientWidth) / 2);
+        if (behavior === 'instant' || typeof container.scrollTo !== 'function') {
+            container.scrollLeft = left;
+        } else {
+            container.scrollTo({ left, behavior });
+        }
+        setActiveMobileTier(tier);
+    };
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || window.innerWidth >= 640) return undefined;
+        const raf = window.requestAnimationFrame(() => scrollToMobileTier('plus', 'instant'));
+        return () => window.cancelAnimationFrame(raf);
+    }, []);
+
+    const handlePlansScroll = () => {
+        const container = plansGridRef.current;
+        if (!container || container.clientWidth <= 0) return;
+        const center = container.scrollLeft + container.clientWidth / 2;
+        let closest = null;
+        let minDist = Infinity;
+        for (const tier of PAGO) {
+            const card = cardRefs.current[tier];
+            if (!card) continue;
+            const dist = Math.abs(card.offsetLeft + card.clientWidth / 2 - center);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = tier;
+            }
+        }
+        if (closest && closest !== activeMobileTier) setActiveMobileTier(closest);
+    };
 
     useEffect(() => {
         if (!isNativeIap) return;
@@ -448,7 +488,12 @@ const Upgrade = () => {
         ].filter(Boolean).join(' ');
 
         return (
-            <article key={tier} className={cardClass} aria-label={displayName}>
+            <article
+                key={tier}
+                ref={(el) => { cardRefs.current[tier] = el; }}
+                className={cardClass}
+                aria-label={displayName}
+            >
                 <header className={styles.planHead}>
                     <h3 className={styles.planName}>{displayName}</h3>
                     {isCurrent && <span className={`${styles.planBadge} ${styles.planBadgeCurrent}`}>{t('Tu plan')}</span>}
@@ -604,12 +649,37 @@ const Upgrade = () => {
                 </div>
             </div>
 
+            {/* --- ACCESO RÁPIDO MÓVIL --- */}
+            <div className={styles.mobileTierNav} role="tablist" aria-label={t('Planes')}>
+                {PAGO.map((tier) => (
+                    <button
+                        key={tier}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeMobileTier === tier}
+                        className={`${styles.mobileTierTab} ${activeMobileTier === tier ? styles.mobileTierTabActive : ''}`}
+                        onClick={() => scrollToMobileTier(tier, 'smooth')}
+                    >
+                        {tierDisplayName(tier, t)}
+                    </button>
+                ))}
+            </div>
+
             {/* --- TARJETAS --- [P1-PRICING-I18N] el `tier` que viaja al checkout es la clave cruda. */}
-            <div className={styles.plansGrid}>
+            <div ref={plansGridRef} className={styles.plansGrid} onScroll={handlePlansScroll}>
                 {renderPlanCard('gratis', tierDisplayName('gratis', t), t('Plan Gratis'))}
                 {renderPlanCard('basic', tierDisplayName('basic', t), t('Suscripción {plan}', { plan: tierDisplayName('basic', t) }))}
                 {renderPlanCard('plus', tierDisplayName('plus', t), t('Suscripción {plan}', { plan: tierDisplayName('plus', t) }))}
                 {renderPlanCard('ultra', tierDisplayName('ultra', t), t('Suscripción {plan}', { plan: tierDisplayName('ultra', t) }))}
+            </div>
+
+            <div className={styles.mobileDots} aria-hidden="true">
+                {PAGO.map((tier) => (
+                    <span
+                        key={tier}
+                        className={`${styles.mobileDot} ${activeMobileTier === tier ? styles.mobileDotActive : ''}`}
+                    />
+                ))}
             </div>
 
             {isNativeIap && (

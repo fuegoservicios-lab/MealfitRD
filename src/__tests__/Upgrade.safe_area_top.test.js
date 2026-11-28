@@ -29,4 +29,9 @@ describe('[P1-IOS-UPGRADE-SAFE-AREA] cabecera y pie de Upgrade respetan el notch
         const r = rule('.root');
         expect(r).toMatch(/env\(safe-area-inset-bottom/);
     });
+
+    it('en móvil muestra un carrusel horizontal con snap para los 3 planes de pago', () => {
+        expect(css).toMatch(/scroll-snap-type:\s*x\s+mandatory/);
+        expect(css).toMatch(/\.planCardFree\s*\{\s*display:\s*none;/);
+    });
 });
