@@ -581,13 +581,40 @@
 .restoreRow {
     display: flex;
     justify-content: center;
-    margin-top: 1.25rem;
+    margin-top: 0.75rem;
 }
 
-.restoreRow > button {
-    width: min(100%, 22rem);
-    min-height: 46px;
-    border-radius: 0.875rem;
+.restoreTextBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0.25rem 0.75rem;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    transition: color 150ms ease;
+}
+
+.restoreTextBtn:hover:not(:disabled) {
+    color: var(--text-main);
+}
+
+.restoreTextBtn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.restoreTextBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: var(--radius-sm);
 }
 
 .appleLegalNote {
@@ -734,17 +761,12 @@
     }
 
     .restoreRow {
-        margin-top: 0.75rem;
-    }
-
-    .restoreRow > button {
-        min-height: 42px;
-        font-size: 0.875rem;
+        margin-top: 0.5rem;
     }
 
     .appleLegalNote {
         max-width: 100%;
-        margin-top: 0.625rem;
+        margin-top: 0.5rem;
         font-size: 0.75rem;
         line-height: 1.45;
     }

@@ -689,13 +689,14 @@ const Upgrade = () => {
 
             {isNativeIap && (
                 <div className={styles.restoreRow}>
-                    <Button
-                        variant="secondary"
+                    <button
+                        type="button"
+                        className={styles.restoreTextBtn}
                         onClick={handleRestorePurchases}
                         disabled={restoringPurchases}
                     >
                         {restoringPurchases ? t('Restaurando...') : t('Restaurar compras')}
-                    </Button>
+                    </button>
                 </div>
             )}
 
